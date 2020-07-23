@@ -27,6 +27,8 @@
 #ifndef UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED
 #define UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED
 
+#include <functional>
+
 #include "ur_lib/rtde/rtde_client.h"
 #include "ur_lib/comm/reverse_interface.h"
 #include "ur_lib/comm/script_sender.h"

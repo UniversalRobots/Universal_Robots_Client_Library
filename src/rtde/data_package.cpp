@@ -26,6 +26,8 @@
 //----------------------------------------------------------------------
 
 #include "ur_lib/rtde/data_package.h"
+
+#include <functional>
 namespace ur_driver
 {
 namespace rtde_interface
