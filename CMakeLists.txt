@@ -64,6 +64,7 @@ endif()
 
 target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
 
+include(GNUInstallDirs)
 install(TARGETS ur_lib EXPORT ur_lib_targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
