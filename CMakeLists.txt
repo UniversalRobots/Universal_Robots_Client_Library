@@ -52,14 +52,26 @@ target_include_directories( ur_lib PUBLIC
 
 find_package(console_bridge)
 if(console_bridge_FOUND)
-  message("Building with ROS logging support")
+  message(STATUS "Building with ROS logging support")
   add_definitions( -DROS_BUILD )
   target_include_directories( ur_lib PRIVATE
     ${console_bridge_INCLUDE_DIRS}
   )
+  target_link_libraries(ur_lib INTERFACE console_bridge)
 else()
-  message("Building without ROS logging support")
+  message(STATUS "Building without ROS logging support")
 endif()
+
+##
+## Build testing if enabled by option
+##
+if (BUILDING_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+else()
+  message(STATUS "Building tests disabled.")
+endif()
+
 
 
 target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
