@@ -23,8 +23,12 @@ DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
 
 
 # Build Tests
-add_executable(dummy_tests dummy.cpp)
-target_compile_options(dummy_tests PRIVATE ${CXX11_FLAG})
-target_include_directories(dummy_tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(dummy_tests PRIVATE ur_lib::ur_lib ${GTEST_LIBRARIES})
-add_test(NAME dummy.tests COMMAND dummy_tests)
+add_executable(rtde_tests test_rtde_client.cpp)
+target_compile_options(rtde_tests PRIVATE ${CXX11_FLAG})
+target_include_directories(rtde_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_tests PRIVATE ur_lib::ur_lib ${GTEST_LIBRARIES})
+add_test(NAME rtde.tests
+  COMMAND rtde_tests
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
