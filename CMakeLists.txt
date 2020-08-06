@@ -10,6 +10,7 @@ endif()
 
 find_package(Boost REQUIRED)
 
+
 ##
 ## Check C++11 support / enable global pedantic and Wall
 ##
@@ -82,6 +83,8 @@ endif()
 
 
 target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
+
+add_subdirectory(examples)
 
 include(GNUInstallDirs)
 install(TARGETS ur_lib EXPORT ur_lib_targets

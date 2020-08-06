@@ -69,7 +69,9 @@ public:
    * \param script_file URScript file that should be sent to the robot.
    * \param output_recipe_file Filename where the output recipe is stored in.
    * \param input_recipe_file Filename where the input recipe is stored in.
-   * \param handle_program_state Function handle to a callback on program state changes.
+   * \param handle_program_state Function handle to a callback on program state changes. For this to
+   * work, the URScript program will have to send keepalive signals to the \p reverse_port. I no
+   * keepalive signal can be read, program state will be false.
    * \param headless_mode Parameter to control if the driver should be started in headless mode.
    * \param tool_comm_setup Configuration for using the tool communication.
    * \param calibration_checksum Expected checksum of calibration. Will be matched against the
@@ -94,7 +96,9 @@ public:
    * \param script_file URScript file that should be sent to the robot.
    * \param output_recipe_file Filename where the output recipe is stored in.
    * \param input_recipe_file Filename where the input recipe is stored in.
-   * \param handle_program_state Function handle to a callback on program state changes.
+   * \param handle_program_state Function handle to a callback on program state changes. For this to
+   * work, the URScript program will have to send keepalive signals to the \p reverse_port. I no
+   * keepalive signal can be read, program state will be false.
    * \param headless_mode Parameter to control if the driver should be started in headless mode.
    * \param calibration_checksum Expected checksum of calibration. Will be matched against the
    * calibration reported by the robot.
