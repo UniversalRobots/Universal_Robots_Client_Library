@@ -44,12 +44,26 @@ namespace ur_driver
  *
  * It sets up all the necessary socket connections and handles the data exchange with the robot.
  * Use this classes methods to access and write data.
+ *
  */
 class UrDriver
 {
 public:
   /*!
    * \brief Constructs a new UrDriver object.
+   * Upon initialization this class will check the calibration checksum reported from the robot and
+   * compare it to a checksum given by the user. If the checksums don't match, the driver will output
+   * an error message. This is critical if you want to do forward or inverse kinematics based on the
+   * model that the given calibration checksum matches to.
+   *
+   * An RTDE connection to the robot will be established using the given recipe files. However, RTDE
+   * communication will not be started automatically, as this requires an external structure to read
+   * data from the RTDE client using the getDataPackage() method periodically. Once this is setup,
+   * please use the startRTDECommunication() method to actually start RTDE communication.
+   *
+   * Furthermore, initialization creates a ScriptSender member object that will read a URScript file
+   * from \p script_file, perform a number of replacements to populate the script with dynamic data.
+   * See the implementation for details.
    *
    * \param robot_ip IP-address under which the robot is reachable.
    * \param script_file URScript file that should be sent to the robot.
