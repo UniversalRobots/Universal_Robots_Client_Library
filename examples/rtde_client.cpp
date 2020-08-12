@@ -46,6 +46,8 @@ int main(int argc, char* argv[])
     // Read latest RTDE package. This will block for READ_TIMEOUT, so the
     // robot will effectively be in charge of setting the frequency of this loop unless RTDE
     // communication doesn't work in which case the user will be notified.
+    // In a real-world application this thread should be scheduled with real-time priority in order
+    // to ensure that this is called in time.
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
     if (data_pkg)
     {

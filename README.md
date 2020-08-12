@@ -82,3 +82,14 @@ sure to
  * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
    to locate the required recipe files.
 
+## A word on Real-Time scheduling
+As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
+before the next message arrives. Due to this, both, the RTDE receive thread and the thread calling
+`getDataPackage()` should be scheduled with real-time priority. See **TODO: migrate from driver**
+for details on how to set this up.
+
+The RTDE receive thread will be scheduled to real-time priority automatically, if applicable. If
+this doesn't work, an error is raised at startup. The main thread calling `getDataPackage` should be
+scheduled to real-time priority by the application. See the
+[ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/ros/hardware_interface_node.cpp)
+as an example.
