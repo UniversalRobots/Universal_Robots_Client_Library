@@ -26,3 +26,59 @@ sure to
    address to your needs)
  * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
    to locate the required files.
+
+## Architecture
+The image below shows a rough architecture overview that should help developers to use the different
+modules present in this library. Note that this is a very incomplete view on the classes involved.
+This representation includes only the classes relevant for library users.
+
+![Architecture overview](doc/architecture_overview.svg "Architecture overview")
+
+The core of this library is the `UrDriver` class which creates a
+fully functioning robot interface. For details on how to use it, please see the [Example
+driver](#example_driver) section.
+
+The `UrDriver`'s modules will be explained in the following.
+
+### RTDEClient
+The `RTDEClient` class serves as a standalone
+[RTDE](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
+client. To use the RTDE-Client, you'll have to initialize and start it separately:
+
+```c++
+rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
+my_client.init();
+my_client.start();
+while (true)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
+  if (data_pkg)
+  {
+    std::cout << data_pkg->toString() << std::endl;
+  }
+}
+```
+
+Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
+outputs. Please refer to the [RTDE
+guide](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
+on which elements are available.
+
+Right after calling `my_client.start()`, it should be made sure to read the buffer from the
+`RTDEClient` by calling `getDataPackage()` frequently. The Client's buffer can only contain 1 item
+at a time, so a `Pipeline producer overflowed!` error will be raised if the buffer isn't read before
+the next package arrives.
+
+For writing data to the RTDE interface, use the `RTDEWriter` member of the `RTDEClient`. It can be
+retrieved by calling `getWriter()` method. The `RTDEWriter` provides convenience methods to write
+all data available at the RTDE interface. Make sure that the required keys are configured inside the
+input recipe, as otherwise the send-methods will return `false` if the data field is not setup in
+the recipe.
+
+An example of a standalone RTDE-client can be found in the `examples` subfolder. To run it make
+sure to
+ * have an instance of a robot controller / URSim running at the configured IP address (or adapt the
+   address to your needs)
+ * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
+   to locate the required recipe files.
+
