@@ -203,5 +203,59 @@ uint8_t RTDEWriter::pinToMask(uint8_t pin)
   return 1 << pin;
 }
 
+bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
+{
+  std::lock_guard<std::mutex> guard(package_mutex_);
+  std::stringstream ss;
+  ss << "input_bit_register_" << register_id;
+
+  bool success = package_.setData(ss.str(), value);
+
+  if (success)
+  {
+    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
+    {
+      return false;
+    }
+  }
+  return success;
+}
+
+bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
+{
+  std::lock_guard<std::mutex> guard(package_mutex_);
+  std::stringstream ss;
+  ss << "input_int_register_" << register_id;
+
+  bool success = package_.setData(ss.str(), value);
+
+  if (success)
+  {
+    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
+    {
+      return false;
+    }
+  }
+  return success;
+}
+
+bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
+{
+  std::lock_guard<std::mutex> guard(package_mutex_);
+  std::stringstream ss;
+  ss << "input_double_register_" << register_id;
+
+  bool success = package_.setData(ss.str(), value);
+
+  if (success)
+  {
+    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
+    {
+      return false;
+    }
+  }
+  return success;
+}
+
 }  // namespace rtde_interface
 }  // namespace ur_driver
