@@ -63,6 +63,12 @@ public:
                                             vector6int32_t, vector6uint32_t, std::string>;
 
   DataPackage() = delete;
+
+  DataPackage(const DataPackage& other) : DataPackage(other.recipe_)
+  {
+    this->data_ = other.data_;
+  }
+
   /*!
    * \brief Creates a new DataPackage object, based on a given recipe.
    *

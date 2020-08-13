@@ -34,6 +34,7 @@
 #include "ur_lib/comm/stream.h"
 #include "ur_lib/queue/readerwriterqueue.h"
 #include <thread>
+#include <mutex>
 
 namespace ur_driver
 {
@@ -130,6 +131,8 @@ private:
   moodycamel::BlockingReaderWriterQueue<std::unique_ptr<DataPackage>> queue_;
   std::thread writer_thread_;
   bool running_;
+  DataPackage package_;
+  std::mutex package_mutex_;
 };
 
 }  // namespace rtde_interface
