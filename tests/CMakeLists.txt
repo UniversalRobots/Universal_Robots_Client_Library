@@ -10,6 +10,10 @@ if(POLICY CMP0028)
   cmake_policy(SET CMP0028 NEW)
 endif()
 
+if(POLICY CMP0054)
+  cmake_policy(SET CMP0054 NEW)
+endif()
+
 # Find dependencies for testing
 include(FindGTestPackage)
 find_gtest_package(GTEST_LIBRARIES)
@@ -27,8 +31,7 @@ add_executable(rtde_tests test_rtde_client.cpp)
 target_compile_options(rtde_tests PRIVATE ${CXX11_FLAG})
 target_include_directories(rtde_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(rtde_tests PRIVATE ur_lib::ur_lib ${GTEST_LIBRARIES})
-add_test(NAME rtde.tests
-  COMMAND rtde_tests
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+gtest_add_tests(TARGET      rtde_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
