@@ -34,6 +34,7 @@
 #include "ur_lib/comm/stream.h"
 #include "ur_lib/queue/readerwriterqueue.h"
 #include <thread>
+#include <mutex>
 
 namespace ur_driver
 {
@@ -122,6 +123,36 @@ public:
    */
   bool sendStandardAnalogOutput(uint8_t output_pin, double value);
 
+  /*!
+   * \brief Creates a package to request setting a new value for an input_bit_register
+   *
+   * \param register_id The id of the register that should be changed [64..127]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputBitRegister(uint32_t register_id, bool value);
+
+  /*!
+   * \brief Creates a package to request setting a new value for an input_int_register
+   *
+   * \param register_id The id of the register that should be changed [24..47]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputIntRegister(uint32_t register_id, int32_t value);
+
+  /*!
+   * \brief Creates a package to request setting a new value for an input_double_register
+   *
+   * \param register_id The id of the register that should be changed [24..47]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputDoubleRegister(uint32_t register_id, double value);
+
 private:
   uint8_t pinToMask(uint8_t pin);
   comm::URStream<RTDEPackage>* stream_;
@@ -130,6 +161,8 @@ private:
   moodycamel::BlockingReaderWriterQueue<std::unique_ptr<DataPackage>> queue_;
   std::thread writer_thread_;
   bool running_;
+  DataPackage package_;
+  std::mutex package_mutex_;
 };
 
 }  // namespace rtde_interface
