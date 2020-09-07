@@ -1,4 +1,4 @@
 include:
   - project: 'continuous_integration/ci_scripts'
-    ref: master
+    ref: catkin_make_isolated
     file: '/gitlab-ci-yml/catkin_pipeline.yml'
