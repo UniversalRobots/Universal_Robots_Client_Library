@@ -35,3 +35,10 @@ jobs:
         run: cmake --build build --config Debug
       - name: test
         run: cd build && make test
+
+  check_links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check URLs
+        run: .github/helpers/check_urls.sh -r --exclude-dir=.git --exclude-dir=build/ --exclude-dir=tests --exclude=package.xml --exclude-dir=CMakeModules --exclude=tcp_socket.cpp

@@ -56,7 +56,7 @@ if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(ur_lib PUBLIC "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries(ur_lib "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries(ur_lib PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 find_package(console_bridge)
