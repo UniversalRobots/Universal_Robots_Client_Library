@@ -50,6 +50,14 @@ target_include_directories( ur_lib PUBLIC
   ${Boost_INCLUDE_DIRS}
 )
 
+find_package(Threads REQUIRED)
+if(THREADS_HAVE_PTHREAD_ARG)
+  target_compile_options(ur_lib PUBLIC "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries(ur_lib "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
 find_package(console_bridge)
 if(console_bridge_FOUND)
   message(STATUS "Building with ROS logging support")
@@ -71,7 +79,6 @@ if (BUILDING_TESTS)
 else()
   message(STATUS "Building tests disabled.")
 endif()
-
 
 
 target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
