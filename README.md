@@ -36,7 +36,7 @@ This representation includes only the classes relevant for library users.
 
 The core of this library is the `UrDriver` class which creates a
 fully functioning robot interface. For details on how to use it, please see the [Example
-driver](#example_driver) section.
+driver](#example-driver) section.
 
 The `UrDriver`'s modules will be explained in the following.
 
