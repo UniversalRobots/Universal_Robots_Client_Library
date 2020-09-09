@@ -1,4 +1,23 @@
 # Universal Robots Client Library
+<!--ts-->
+   * [Universal Robots Client Library](#universal-robots-client-library)
+      * [Build instructions](#build-instructions)
+         * [Plain cmake](#plain-cmake)
+         * [Inside a ROS workspace](#inside-a-ros-workspace)
+      * [Use this library in other projects](#use-this-library-in-other-projects)
+      * [Library contents](#library-contents)
+      * [Example driver](#example-driver)
+      * [Architecture](#architecture)
+         * [RTDEClient](#rtdeclient)
+         * [ReverseInterface](#reverseinterface)
+         * [ScriptSender](#scriptsender)
+         * [DashboardClient](#dashboardclient)
+      * [A word on the primary / secondary interface](#a-word-on-the-primary--secondary-interface)
+      * [A word on Real-Time scheduling](#a-word-on-real-time-scheduling)
+
+<!-- Added by: mauch, at: Mi 9. Sep 20:38:02 CEST 2020 -->
+
+<!--te-->
 
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
