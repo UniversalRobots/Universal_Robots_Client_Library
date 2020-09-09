@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_PACKAGE_SERIALIZER_H_INCLUDED
-#define UR_RTDE_DRIVER_PACKAGE_SERIALIZER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 
 #include <endian.h>
 #include <cstring>
@@ -131,4 +131,4 @@ private:
 
 }  // namespace comm
 }  // namespace urcl
-#endif  // UR_RTDE_DRIVER_PACKAGE_SERIALIZER_H_INCLUDED
+#endif  // UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED

@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_ROBOT_MESSAGE_H_INCLUDED
-#define UR_RTDE_DRIVER_ROBOT_MESSAGE_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_ROBOT_MESSAGE_H_INCLUDED
+#define UR_CLIENT_LIBRARY_ROBOT_MESSAGE_H_INCLUDED
 
 #include "ur_client_library/primary/primary_package.h"
 
@@ -101,4 +101,4 @@ public:
 }  // namespace primary_interface
 }  // namespace urcl
 
-#endif /* UR_RTDE_DRIVER_ROBOT_MESSAGE_H_INCLUDED */
+#endif /* UR_CLIENT_LIBRARY_ROBOT_MESSAGE_H_INCLUDED */

@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_DATA_PACKAGE_H_INCLUDED
-#define UR_RTDE_DRIVER_DATA_PACKAGE_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
+#define UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 
 #include <unordered_map>
 #include <vector>
@@ -241,4 +241,4 @@ private:
 }  // namespace rtde_interface
 }  // namespace urcl
 
-#endif  // ifndef UR_RTDE_DRIVER_DATA_PACKAGE_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED

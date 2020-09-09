@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_EXCEPTIONS_H_INCLUDED
-#define UR_RTDE_DRIVER_EXCEPTIONS_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
+#define UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
 
 #include <chrono>
 #include <stdexcept>
@@ -124,4 +124,4 @@ private:
   std::string text_;
 };
 }  // namespace urcl
-#endif  // ifndef UR_RTDE_DRIVER_EXCEPTIONS_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

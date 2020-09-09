@@ -24,8 +24,8 @@
  *
  */
 //----------------------------------------------------------------------
-#ifndef UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED
-#define UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
 #include <functional>
 
@@ -253,4 +253,4 @@ private:
   VersionInformation robot_version_;
 };
 }  // namespace urcl
-#endif  // ifndef UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED

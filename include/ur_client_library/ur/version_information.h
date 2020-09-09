@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_UR_VERSION_INFORMATION_H_INCLUDED
-#define UR_RTDE_DRIVER_UR_VERSION_INFORMATION_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED
+#define UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED
 
 #include <ur_client_library/types.h>
 
@@ -57,4 +57,4 @@ struct VersionInformation
 };
 }  // namespace urcl
 
-#endif  // ifndef UR_RTDE_DRIVER_UR_VERSION_INFORMATION_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED

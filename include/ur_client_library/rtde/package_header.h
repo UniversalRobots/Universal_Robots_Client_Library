@@ -26,8 +26,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_RTDE__HEADER_H_INCLUDED
-#define UR_RTDE_DRIVER_RTDE__HEADER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_RTDE__HEADER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_RTDE__HEADER_H_INCLUDED
 
 #include <cstddef>
 #include <endian.h>
@@ -97,4 +97,4 @@ public:
 }  // namespace rtde_interface
 }  // namespace urcl
 
-#endif  // #ifndef UR_RTDE_DRIVER_RTDE__HEADER_H_INCLUDED
+#endif  // #ifndef UR_CLIENT_LIBRARY_RTDE__HEADER_H_INCLUDED

@@ -24,8 +24,8 @@
  *
  */
 //----------------------------------------------------------------------
-#ifndef UR_RTDE_DRIVER_PACKAGE_H_INCLUDED
-#define UR_RTDE_DRIVER_PACKAGE_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PACKAGE_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PACKAGE_H_INCLUDED
 
 #include "ur_client_library/comm/bin_parser.h"
 
@@ -73,4 +73,4 @@ private:
 };
 }  // namespace comm
 }  // namespace urcl
-#endif  // ifndef UR_RTDE_DRIVER_PACKAGE_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_PACKAGE_H_INCLUDED
