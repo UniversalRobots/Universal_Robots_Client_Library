@@ -17,7 +17,7 @@ endif()
 # Find dependencies for testing
 include(FindGTestPackage)
 find_gtest_package(GTEST_LIBRARIES)
-if (NOT TARGET ur_client_library::ur_client_library)
+if (NOT TARGET ur_client_library::urcl)
   find_package(ur_client_library REQUIRED)
 endif()
 
@@ -30,7 +30,7 @@ DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
 add_executable(rtde_tests test_rtde_client.cpp)
 target_compile_options(rtde_tests PRIVATE ${CXX11_FLAG})
 target_include_directories(rtde_tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(rtde_tests PRIVATE ur_client_library::ur_client_library ${GTEST_LIBRARIES})
+target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      rtde_tests
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

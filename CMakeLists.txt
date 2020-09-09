@@ -18,7 +18,7 @@ include(DefineCXX11CompilerFlag)
 DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
-add_library(ur_client_library SHARED
+add_library(urcl SHARED
     src/comm/tcp_socket.cpp
     src/comm/server.cpp
     src/primary/primary_package.cpp
@@ -42,10 +42,10 @@ add_library(ur_client_library SHARED
     src/ur/tool_communication.cpp
     src/rtde/rtde_writer.cpp
 )
-add_library(ur_client_library::ur_client_library ALIAS ur_client_library)
-target_compile_options(ur_client_library PRIVATE -Wall -Wextra -Wno-unused-parameter)
-target_compile_options(ur_client_library PUBLIC ${CXX11_FLAG})
-target_include_directories( ur_client_library PUBLIC
+add_library(ur_client_library::urcl ALIAS urcl)
+target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(urcl PUBLIC ${CXX11_FLAG})
+target_include_directories( urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${Boost_INCLUDE_DIRS}
@@ -53,20 +53,20 @@ target_include_directories( ur_client_library PUBLIC
 
 find_package(Threads REQUIRED)
 if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(ur_client_library PUBLIC "-pthread")
+  target_compile_options(urcl PUBLIC "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries(ur_client_library PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries(urcl PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 find_package(console_bridge)
 if(console_bridge_FOUND)
   message(STATUS "Building with ROS logging support")
   add_definitions( -DROS_BUILD )
-  target_include_directories( ur_client_library PRIVATE
+  target_include_directories( urcl PRIVATE
     ${console_bridge_INCLUDE_DIRS}
   )
-  target_link_libraries(ur_client_library INTERFACE console_bridge)
+  target_link_libraries(urcl INTERFACE console_bridge)
 else()
   message(STATUS "Building without ROS logging support")
 endif()
@@ -82,20 +82,20 @@ else()
 endif()
 
 
-target_link_libraries(ur_client_library INTERFACE ${Boost_Libraries})
+target_link_libraries(urcl INTERFACE ${Boost_Libraries})
 
 add_subdirectory(examples)
 
 include(GNUInstallDirs)
-install(TARGETS ur_client_library EXPORT ur_client_library_targets
+install(TARGETS urcl EXPORT urcl_targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
 
-install(EXPORT ur_client_library_targets
+install(EXPORT urcl_targets
   DESTINATION lib/cmake/ur_client_library
-  FILE ur_client_libraryTargets.cmake
+  FILE urclTargets.cmake
   NAMESPACE ur_client_library::)
 
 include(CMakePackageConfigHelpers)

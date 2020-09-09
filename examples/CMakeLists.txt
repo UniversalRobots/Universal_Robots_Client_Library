@@ -13,9 +13,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 add_executable(driver_example
   full_driver.cpp)
 target_compile_options(driver_example PUBLIC ${CXX11_FLAG})
-target_link_libraries(driver_example ur_client_library::ur_client_library)
+target_link_libraries(driver_example ur_client_library::urcl)
 
 add_executable(rtde_client_example
   rtde_client.cpp)
 target_compile_options(rtde_client_example PUBLIC ${CXX11_FLAG})
-target_link_libraries(rtde_client_example ur_client_library::ur_client_library)
+target_link_libraries(rtde_client_example ur_client_library::urcl)
