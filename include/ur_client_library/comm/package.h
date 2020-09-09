@@ -29,7 +29,7 @@
 
 #include "ur_client_library/comm/bin_parser.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -72,5 +72,5 @@ private:
   HeaderT header_;
 };
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_RTDE_DRIVER_PACKAGE_H_INCLUDED

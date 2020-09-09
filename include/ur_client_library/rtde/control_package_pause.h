@@ -30,7 +30,7 @@
 
 #include "ur_client_library/rtde/rtde_package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -84,6 +84,6 @@ public:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_CONTROL_PACKAGE_PAUSE_H_INCLUDED

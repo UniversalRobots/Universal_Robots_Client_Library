@@ -36,7 +36,7 @@
 #include <thread>
 #include <mutex>
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -166,6 +166,6 @@ private:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_RTDE_WRITER_H_INCLUDED

@@ -34,7 +34,7 @@
 #include "ur_client_library/types.h"
 #include "ur_client_library/comm/package_serializer.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -95,6 +95,6 @@ public:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // #ifndef UR_RTDE_DRIVER_RTDE__HEADER_H_INCLUDED

@@ -28,7 +28,7 @@
 #include "ur_client_library/rtde/data_package.h"
 
 #include <functional>
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -617,4 +617,4 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   return size;
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

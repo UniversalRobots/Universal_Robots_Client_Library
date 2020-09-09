@@ -38,7 +38,7 @@
 
 #include <ur_client_library/ur/calibration_checker.h>
 
-namespace ur_driver
+namespace urcl
 {
 static const int32_t MULT_JOINTSTATE = 1000000;
 static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
@@ -47,12 +47,12 @@ static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
 static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
 static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 
-ur_driver::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
-                              const std::string& output_recipe_file, const std::string& input_recipe_file,
-                              std::function<void(bool)> handle_program_state, bool headless_mode,
-                              std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
-                              const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                              double servoj_lookahead_time, bool non_blocking_read)
+urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
+                         const std::string& output_recipe_file, const std::string& input_recipe_file,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
+                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
+                         double servoj_lookahead_time, bool non_blocking_read)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
@@ -66,9 +66,9 @@ ur_driver::UrDriver::UrDriver(const std::string& robot_ip, const std::string& sc
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
 
   primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, ur_driver::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(new comm::URStream<primary_interface::PrimaryPackage>(
-      robot_ip_, ur_driver::primary_interface::UR_SECONDARY_PORT));
+      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
+  secondary_stream_.reset(
+      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
   LOG_INFO("Checking if calibration data matches connected robot.");
   checkCalibration(calibration_checksum);
@@ -157,7 +157,7 @@ ur_driver::UrDriver::UrDriver(const std::string& robot_ip, const std::string& sc
   LOG_DEBUG("Initialization done");
 }
 
-std::unique_ptr<rtde_interface::DataPackage> ur_driver::UrDriver::getDataPackage()
+std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
   // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
   // loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
@@ -321,4 +321,4 @@ bool UrDriver::sendRobotProgram()
     return false;
   }
 }
-}  // namespace ur_driver
+}  // namespace urcl

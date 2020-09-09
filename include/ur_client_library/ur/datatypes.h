@@ -29,7 +29,7 @@
 
 #include <ur_client_library/types.h>
 
-namespace ur_driver
+namespace urcl
 {
 enum class RobotMode : int8_t
 {
@@ -178,4 +178,4 @@ inline std::string safetyStatusString(const SafetyStatus& status)
       throw std::invalid_argument(ss.str());
   }
 }
-}  // namespace ur_driver
+}  // namespace urcl

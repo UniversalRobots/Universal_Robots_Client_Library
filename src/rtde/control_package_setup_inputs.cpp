@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/control_package_setup_inputs.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -67,4 +67,4 @@ size_t ControlPackageSetupInputsRequest::generateSerializedRequest(uint8_t* buff
   return size;
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

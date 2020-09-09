@@ -33,7 +33,7 @@
 #include <cstring>
 #include <endian.h>
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -157,6 +157,6 @@ private:
 };
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_REVERSE_INTERFACE_H_INCLUDED

@@ -29,7 +29,7 @@
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/tcp_socket.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -214,4 +214,4 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
 }
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

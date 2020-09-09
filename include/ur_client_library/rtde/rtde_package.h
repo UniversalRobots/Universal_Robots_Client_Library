@@ -31,7 +31,7 @@
 #include "ur_client_library/rtde/package_header.h"
 #include "ur_client_library/comm/package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -74,6 +74,6 @@ protected:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_RTDE_PACKAGE_H_INCLUDED

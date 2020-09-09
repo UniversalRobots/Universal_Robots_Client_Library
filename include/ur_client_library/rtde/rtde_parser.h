@@ -34,7 +34,7 @@
 #include "ur_client_library/rtde/request_protocol_version.h"
 #include "ur_client_library/rtde/text_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -156,4 +156,4 @@ private:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

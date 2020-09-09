@@ -28,7 +28,7 @@
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/tcp_socket.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -155,4 +155,4 @@ bool URStream<T>::read(uint8_t* buf, const size_t buf_len, size_t& total)
   return remainder == 0;
 }
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

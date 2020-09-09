@@ -31,7 +31,7 @@
 
 #include <iomanip>
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -108,4 +108,4 @@ std::string KinematicsInfo::toHash() const
   return "calib_" + std::to_string(hash_fn(ss.str()));
 }
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl

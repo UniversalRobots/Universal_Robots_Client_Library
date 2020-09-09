@@ -28,7 +28,7 @@
 #include <string>
 #include "ur_client_library/comm/tcp_socket.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -101,4 +101,4 @@ public:
   bool write(const uint8_t* buf, size_t buf_len, size_t& written);
 };
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

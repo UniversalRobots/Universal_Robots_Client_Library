@@ -27,7 +27,7 @@
 #include "ur_client_library/primary/robot_message.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -52,4 +52,4 @@ std::string RobotMessage::toString() const
 }
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl

@@ -37,7 +37,7 @@
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief This is the main class for interfacing the driver.
@@ -252,5 +252,5 @@ private:
 
   VersionInformation robot_version_;
 };
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_RTDE_DRIVER_UR_UR_DRIVER_H_INCLUDED

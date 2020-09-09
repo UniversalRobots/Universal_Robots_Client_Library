@@ -26,7 +26,7 @@
 //----------------------------------------------------------------------
 #include "ur_client_library/rtde/rtde_package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -50,4 +50,4 @@ std::string rtde_interface::RTDEPackage::toString() const
   return ss.str();
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/request_protocol_version.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -54,4 +54,4 @@ size_t RequestProtocolVersionRequest::generateSerializedRequest(uint8_t* buffer,
   return size;
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

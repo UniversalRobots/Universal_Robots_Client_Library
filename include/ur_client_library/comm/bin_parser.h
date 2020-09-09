@@ -33,7 +33,7 @@
 #include "ur_client_library/types.h"
 #include "ur_client_library/exceptions.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -373,4 +373,4 @@ public:
 };
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

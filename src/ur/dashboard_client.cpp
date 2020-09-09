@@ -30,7 +30,7 @@
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/exceptions.h>
 
-namespace ur_driver
+namespace urcl
 {
 DashboardClient::DashboardClient(const std::string& host) : host_(host), port_(DASHBOARD_SERVER_PORT)
 {
@@ -106,4 +106,4 @@ std::string DashboardClient::sendAndReceive(const std::string& text)
   return response;
 }
 
-}  // namespace ur_driver
+}  // namespace urcl

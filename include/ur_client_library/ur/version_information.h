@@ -30,7 +30,7 @@
 
 #include <ur_client_library/types.h>
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief Struct containing a robot's version information
@@ -55,6 +55,6 @@ struct VersionInformation
   uint32_t bugfix;  ///< Bugfix version number
   uint32_t build;   ///< Build number
 };
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_RTDE_DRIVER_UR_VERSION_INFORMATION_H_INCLUDED

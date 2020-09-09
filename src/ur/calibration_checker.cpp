@@ -14,7 +14,7 @@
 
 #include <ur_client_library/ur/calibration_checker.h>
 
-namespace ur_driver
+namespace urcl
 {
 CalibrationChecker::CalibrationChecker(const std::string& expected_hash)
   : expected_hash_(expected_hash), checked_(false)
@@ -46,4 +46,4 @@ bool CalibrationChecker::consume(std::shared_ptr<primary_interface::PrimaryPacka
 
   return true;
 }
-}  // namespace ur_driver
+}  // namespace urcl

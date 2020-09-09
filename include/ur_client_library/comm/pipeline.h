@@ -29,7 +29,7 @@
 #include <vector>
 #include <fstream>
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -447,4 +447,4 @@ private:
   }
 };
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

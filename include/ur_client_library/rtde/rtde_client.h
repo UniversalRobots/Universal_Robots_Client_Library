@@ -44,7 +44,7 @@
 static const int UR_RTDE_PORT = 30004;
 static const std::string PIPELINE_NAME = "RTDE Data Pipeline";
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -185,6 +185,6 @@ private:
 };
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_RTDE_CLIENT_H_INCLUDED

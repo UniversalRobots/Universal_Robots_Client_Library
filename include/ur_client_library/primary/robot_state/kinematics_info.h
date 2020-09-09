@@ -30,7 +30,7 @@
 
 #include "ur_client_library/types.h"
 #include "ur_client_library/primary/robot_state.h"
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -95,6 +95,6 @@ public:
 };
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_RTDE_DRIVER_KINEMATICS_INFO_H_INCLUDED
