@@ -9,13 +9,17 @@
       * [Example driver](#example-driver)
       * [Architecture](#architecture)
          * [RTDEClient](#rtdeclient)
+            * [RTDEWriter](#rtdewriter)
          * [ReverseInterface](#reverseinterface)
          * [ScriptSender](#scriptsender)
+         * [Other public interface functions](#other-public-interface-functions)
+            * [check_calibration()](#check_calibration)
+            * [sendScript()](#sendscript)
          * [DashboardClient](#dashboardclient)
       * [A word on the primary / secondary interface](#a-word-on-the-primary--secondary-interface)
       * [A word on Real-Time scheduling](#a-word-on-real-time-scheduling)
 
-<!-- Added by: mauch, at: Mi 9. Sep 20:38:02 CEST 2020 -->
+<!-- Added by: mauch, at: Do 10. Sep 13:37:24 CEST 2020 -->
 
 <!--te-->
 
@@ -112,10 +116,9 @@ sure to
 
 ## Architecture
 The image below shows a rough architecture overview that should help developers to use the different
-modules present in this library. Note that this is a very incomplete view on the classes involved.
-This representation includes only the classes relevant for library users.
+modules present in this library. Note that this is an incomplete view on the classes involved.
 
-![Architecture overview](doc/architecture_overview.svg "Architecture overview")
+[![Data flow](doc/dataflow.svg "Data flow")](doc/dataflow.svg)
 
 The core of this library is the `UrDriver` class which creates a
 fully functioning robot interface. For details on how to use it, please see the [Example
@@ -147,8 +150,11 @@ outputs. Please refer to the [RTDE
 guide](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
 on which elements are available.
 
+Inside the `RTDEclient` data is received in a separate thread, parsed by the `RTDEParser` and added
+to a pipeline queue.
+
 Right after calling `my_client.start()`, it should be made sure to read the buffer from the
-`RTDEClient` by calling `getDataPackage()` frequently. The Client's buffer can only contain 1 item
+`RTDEClient` by calling `getDataPackage()` frequently. The Client's queue can only contain 1 item
 at a time, so a `Pipeline producer overflowed!` error will be raised if the buffer isn't read before
 the next package arrives.
 
@@ -164,6 +170,14 @@ sure to
    address to your needs)
  * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
    to locate the required recipe files.
+
+#### RTDEWriter
+The `RTDEWriter` class provides an interface to write data to the RTDE interface. Datafields that
+should be written have to be defined inside the `INPUT_RECUPE` as noted above.
+
+The class offers specific methods for every RTDE input possible to write.
+
+Data is sent asynchronously to the RTDE interface.
 
 ### ReverseInterface
 The `ReverseInterface` opens a TCP port on which a custom protocol is implemented between the
@@ -196,6 +210,19 @@ URCap](https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap
 the corresponding request when starting a program on the robot that contains the **External
 Control** program node. In order to work properly, make sure that the IP address and script sender
 port are configured correctly on the robot.
+
+### Other public interface functions
+This section shall explain the public interface functions that haven't been covered above
+
+#### `check_calibration()`
+This function opens a connection to the primary interface where it will receive a calibration
+information as the first message. The checksum from this calibration info is compared to the one
+given to this function. Connection to the primary interface is dropped afterwards.
+
+#### `sendScript()`
+This function sends given URScript code directly to the secondary interface. The
+`sendRobotProgram()` function is a special case that will send the script code given in the
+`RTDEClient` constructor.
 
 ### DashboardClient
 The `DashboardClient` wraps the calls on the [Dashboard server](https://www.universal-robots.com/articles/ur-articles/dashboard-server-e-series-port-29999/) directly into C++ functions.
