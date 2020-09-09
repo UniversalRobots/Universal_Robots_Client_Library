@@ -24,8 +24,8 @@
  *
  */
 //----------------------------------------------------------------------
-#ifndef UR_RTDE_DRIVER_UR_CALIBRATION_CHECKER_H_INCLUDED
-#define UR_RTDE_DRIVER_UR_CALIBRATION_CHECKER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_UR_CALIBRATION_CHECKER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_UR_CALIBRATION_CHECKER_H_INCLUDED
 
 #include <ur_client_library/comm/pipeline.h>
 
@@ -101,4 +101,4 @@ private:
 };
 }  // namespace urcl
 
-#endif  // ifndef UR_RTDE_DRIVER_UR_CALIBRATION_CHECKER_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_UR_CALIBRATION_CHECKER_H_INCLUDED

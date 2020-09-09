@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_ROBOT_STATE_H_INCLUDED
-#define UR_RTDE_DRIVER_ROBOT_STATE_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_ROBOT_STATE_H_INCLUDED
+#define UR_CLIENT_LIBRARY_ROBOT_STATE_H_INCLUDED
 
 #include "ur_client_library/primary/primary_package.h"
 #include "ur_client_library/primary/package_header.h"
@@ -102,4 +102,4 @@ private:
 }  // namespace primary_interface
 }  // namespace urcl
 
-#endif /* UR_RTDE_DRIVER_ROBOT_STATE_H_INCLUDED */
+#endif /* UR_CLIENT_LIBRARY_ROBOT_STATE_H_INCLUDED */

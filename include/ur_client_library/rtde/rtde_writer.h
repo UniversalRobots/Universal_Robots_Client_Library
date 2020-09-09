@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_RTDE_WRITER_H_INCLUDED
-#define UR_RTDE_DRIVER_RTDE_WRITER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED
 
 #include "ur_client_library/rtde/package_header.h"
 #include "ur_client_library/rtde/rtde_package.h"
@@ -168,4 +168,4 @@ private:
 }  // namespace rtde_interface
 }  // namespace urcl
 
-#endif  // UR_RTDE_DRIVER_RTDE_WRITER_H_INCLUDED
+#endif  // UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED

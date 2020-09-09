@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_KINEMATICS_INFO_H_INCLUDED
-#define UR_RTDE_DRIVER_KINEMATICS_INFO_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_KINEMATICS_INFO_H_INCLUDED
+#define UR_CLIENT_LIBRARY_KINEMATICS_INFO_H_INCLUDED
 
 #include "ur_client_library/types.h"
 #include "ur_client_library/primary/robot_state.h"
@@ -97,4 +97,4 @@ public:
 }  // namespace primary_interface
 }  // namespace urcl
 
-#endif  // ifndef UR_RTDE_DRIVER_KINEMATICS_INFO_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_KINEMATICS_INFO_H_INCLUDED
