@@ -125,6 +125,12 @@ Note: In order to make this more useful developers are expected to wrap this bar
 something that checks the returned string for something that is expected. See the
 [DashboardClientROS](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/ros/dashboard_client_ros.h) as an example.
 
+## A word on the primary / secondary interface
+Currently, this library doesn't support the primary interface very well, as the [Universal Robots
+ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) was built mainly upon
+the RTDE interface. Therefore, there is also no `PrimaryClient` for directly accessing the primary
+interface. This may change in future, though.
+
 ## A word on Real-Time scheduling
 As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
 before the next message arrives. Due to this, both, the RTDE receive thread and the thread calling
