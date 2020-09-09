@@ -10,6 +10,7 @@ endif()
 
 find_package(Boost REQUIRED)
 
+
 ##
 ## Check C++11 support / enable global pedantic and Wall
 ##
@@ -55,7 +56,7 @@ if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(ur_lib PUBLIC "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries(ur_lib "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries(ur_lib PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 find_package(console_bridge)
@@ -82,6 +83,8 @@ endif()
 
 
 target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
+
+add_subdirectory(examples)
 
 include(GNUInstallDirs)
 install(TARGETS ur_lib EXPORT ur_lib_targets
