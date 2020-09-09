@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.12)
-project(ur_lib)
+project(ur_client_library)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/" ${CMAKE_MODULE_PATH})
 
@@ -18,7 +18,7 @@ include(DefineCXX11CompilerFlag)
 DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
-add_library(ur_lib SHARED
+add_library(ur_client_library SHARED
     src/comm/tcp_socket.cpp
     src/comm/server.cpp
     src/primary/primary_package.cpp
@@ -42,10 +42,10 @@ add_library(ur_lib SHARED
     src/ur/tool_communication.cpp
     src/rtde/rtde_writer.cpp
 )
-add_library(ur_lib::ur_lib ALIAS ur_lib)
-target_compile_options(ur_lib PRIVATE -Wall -Wextra -Wno-unused-parameter)
-target_compile_options(ur_lib PUBLIC ${CXX11_FLAG})
-target_include_directories( ur_lib PUBLIC
+add_library(ur_client_library::ur_client_library ALIAS ur_client_library)
+target_compile_options(ur_client_library PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(ur_client_library PUBLIC ${CXX11_FLAG})
+target_include_directories( ur_client_library PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${Boost_INCLUDE_DIRS}
@@ -53,20 +53,20 @@ target_include_directories( ur_lib PUBLIC
 
 find_package(Threads REQUIRED)
 if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(ur_lib PUBLIC "-pthread")
+  target_compile_options(ur_client_library PUBLIC "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries(ur_lib PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries(ur_client_library PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 find_package(console_bridge)
 if(console_bridge_FOUND)
   message(STATUS "Building with ROS logging support")
   add_definitions( -DROS_BUILD )
-  target_include_directories( ur_lib PRIVATE
+  target_include_directories( ur_client_library PRIVATE
     ${console_bridge_INCLUDE_DIRS}
   )
-  target_link_libraries(ur_lib INTERFACE console_bridge)
+  target_link_libraries(ur_client_library INTERFACE console_bridge)
 else()
   message(STATUS "Building without ROS logging support")
 endif()
@@ -82,25 +82,25 @@ else()
 endif()
 
 
-target_link_libraries(ur_lib INTERFACE ${Boost_Libraries})
+target_link_libraries(ur_client_library INTERFACE ${Boost_Libraries})
 
 add_subdirectory(examples)
 
 include(GNUInstallDirs)
-install(TARGETS ur_lib EXPORT ur_lib_targets
+install(TARGETS ur_client_library EXPORT ur_client_library_targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
 
-install(EXPORT ur_lib_targets
-  DESTINATION lib/cmake/ur_lib
-  FILE ur_libTargets.cmake
-  NAMESPACE ur_lib::)
+install(EXPORT ur_client_library_targets
+  DESTINATION lib/cmake/ur_client_library
+  FILE ur_client_libraryTargets.cmake
+  NAMESPACE ur_client_library::)
 
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ur_libConfigVersion.cmake VERSION 0.0.3
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ur_client_libraryConfigVersion.cmake VERSION 0.0.3
   COMPATIBILITY SameMajorVersion)
-install(FILES ur_libConfig.cmake
-  DESTINATION lib/cmake/ur_lib)
+install(FILES ur_client_libraryConfig.cmake
+  DESTINATION lib/cmake/ur_client_library)
 

@@ -1,4 +1,4 @@
-#ur_lib
+# Universal Robots Client Library
 
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots

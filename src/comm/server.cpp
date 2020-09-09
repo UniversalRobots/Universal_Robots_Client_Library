@@ -20,12 +20,12 @@
  * limitations under the License.
  */
 
-#include "ur_lib/comm/server.h"
+#include "ur_client_library/comm/server.h"
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
 #include <cstring>
-#include "ur_lib/log.h"
+#include "ur_client_library/log.h"
 
 namespace ur_driver
 {

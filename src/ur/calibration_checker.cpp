@@ -12,7 +12,7 @@
  */
 //----------------------------------------------------------------------
 
-#include <ur_lib/ur/calibration_checker.h>
+#include <ur_client_library/ur/calibration_checker.h>
 
 namespace ur_driver
 {

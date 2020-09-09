@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/rtde_writer.h"
+#include "ur_client_library/rtde/rtde_writer.h"
 
 namespace ur_driver
 {

@@ -26,9 +26,9 @@
 //----------------------------------------------------------------------
 
 #include <regex>
-#include <ur_lib/log.h>
-#include <ur_lib/ur/dashboard_client.h>
-#include <ur_lib/exceptions.h>
+#include <ur_client_library/log.h>
+#include <ur_client_library/ur/dashboard_client.h>
+#include <ur_client_library/exceptions.h>
 
 namespace ur_driver
 {

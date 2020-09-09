@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/control_package_start.h"
+#include "ur_client_library/rtde/control_package_start.h"
 
 namespace ur_driver
 {
