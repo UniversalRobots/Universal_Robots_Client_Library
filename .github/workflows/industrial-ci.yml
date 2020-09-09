@@ -19,7 +19,6 @@ jobs:
       matrix:
         env:
           - ROS_DISTRO: melodic
-            UPSTREAM_WORKSPACE: .ci.rosinstall
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
 
