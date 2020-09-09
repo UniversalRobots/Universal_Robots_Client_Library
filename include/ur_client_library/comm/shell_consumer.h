@@ -32,7 +32,7 @@
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/comm/package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -66,5 +66,5 @@ private:
   /* data */
 };
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_RTDE_DRIVER_SHELL_CONSUMER_H_INCLUDED

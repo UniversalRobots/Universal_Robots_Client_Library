@@ -29,7 +29,7 @@
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -181,4 +181,4 @@ private:
 };
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl

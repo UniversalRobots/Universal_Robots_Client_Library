@@ -31,7 +31,7 @@
 #include "ur_client_library/primary/primary_package.h"
 #include "ur_client_library/primary/package_header.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -100,6 +100,6 @@ private:
 };
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif /* UR_RTDE_DRIVER_ROBOT_STATE_H_INCLUDED */

@@ -31,7 +31,7 @@
 #include <endian.h>
 #include <cstring>
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -130,5 +130,5 @@ private:
 };
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // UR_RTDE_DRIVER_PACKAGE_SERIALIZER_H_INCLUDED

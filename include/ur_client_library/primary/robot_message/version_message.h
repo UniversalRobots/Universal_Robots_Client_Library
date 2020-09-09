@@ -30,7 +30,7 @@
 
 #include "ur_client_library/primary/robot_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -87,6 +87,6 @@ public:
   std::string build_date_;
 };
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_RTDE_DRIVER_VERSION_MESSAGE_H_INCLUDED

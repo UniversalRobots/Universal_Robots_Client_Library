@@ -17,7 +17,7 @@
 #include <iostream>
 #include <memory>
 
-using namespace ur_driver;
+using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
 // system such as Boost.Program_options

@@ -32,7 +32,7 @@
 #include "ur_client_library/types.h"
 #include <set>
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief Possible values for the tool voltage
@@ -244,5 +244,5 @@ private:
   RxIdleCharsT rx_idle_chars_;
   TxIdleCharsT tx_idle_chars_;
 };
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_RTDE_DRIVER_UR_TOOL_COMMUNICATION_H_INCLUDED

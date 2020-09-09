@@ -30,7 +30,7 @@
 
 #include "ur_client_library/primary/primary_package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -99,6 +99,6 @@ public:
 };
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif /* UR_RTDE_DRIVER_ROBOT_MESSAGE_H_INCLUDED */

@@ -29,7 +29,7 @@
 
 #include <ur_client_library/comm/tcp_socket.h>
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief This class is a wrapper around the dashboard server.
@@ -96,5 +96,5 @@ private:
   int port_;
   std::mutex write_mutex_;
 };
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED

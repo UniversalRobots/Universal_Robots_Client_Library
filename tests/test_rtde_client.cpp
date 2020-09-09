@@ -16,7 +16,7 @@
 
 #include <ur_client_library/rtde/rtde_client.h>
 
-using namespace ur_driver;
+using namespace urcl;
 
 const std::string ROBOT_IP = "192.168.56.101";
 

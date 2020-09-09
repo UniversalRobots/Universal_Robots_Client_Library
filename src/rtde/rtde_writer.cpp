@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -258,4 +258,4 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
 }
 
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

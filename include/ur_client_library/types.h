@@ -24,7 +24,7 @@
 #include <array>
 #include <iostream>
 
-namespace ur_driver
+namespace urcl
 {
 using vector3d_t = std::array<double, 3>;
 using vector6d_t = std::array<double, 6>;
@@ -59,4 +59,4 @@ constexpr typename std::underlying_type<E>::type toUnderlying(const E e) noexcep
 {
   return static_cast<typename std::underlying_type<E>::type>(e);
 }
-}  // namespace ur_driver
+}  // namespace urcl

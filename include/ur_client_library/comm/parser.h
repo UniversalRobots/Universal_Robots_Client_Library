@@ -23,7 +23,7 @@
 #include "ur_client_library/comm/bin_parser.h"
 #include "ur_client_library/comm/package.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -54,4 +54,4 @@ private:
 };
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

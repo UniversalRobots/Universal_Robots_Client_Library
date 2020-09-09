@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/control_package_start.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -50,4 +50,4 @@ size_t ControlPackageStartRequest::generateSerializedRequest(uint8_t* buffer)
   return PackageHeader::serializeHeader(buffer, PackageType::RTDE_CONTROL_PACKAGE_START, PAYLOAD_SIZE);
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

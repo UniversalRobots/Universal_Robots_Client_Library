@@ -27,7 +27,7 @@
 #include <string>
 #include <memory>
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -148,4 +148,4 @@ public:
   void setReceiveTimeout(const timeval& timeout);
 };
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

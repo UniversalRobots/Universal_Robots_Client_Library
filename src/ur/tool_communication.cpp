@@ -27,7 +27,7 @@
 
 #include "ur_client_library/ur/tool_communication.h"
 
-namespace ur_driver
+namespace urcl
 {
 ToolCommSetup::ToolCommSetup()
   : tool_voltage_(ToolVoltage::OFF)
@@ -50,4 +50,4 @@ void ToolCommSetup::setBaudRate(const uint32_t baud_rate)
     throw std::runtime_error("Provided baud rate is not allowed");
   }
 }
-}  // namespace ur_driver
+}  // namespace urcl

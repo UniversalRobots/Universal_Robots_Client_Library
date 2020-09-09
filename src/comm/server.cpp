@@ -27,7 +27,7 @@
 #include <cstring>
 #include "ur_client_library/log.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -153,4 +153,4 @@ bool URServer::readLine(char* buffer, size_t buf_len)
   return true;
 }
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl

@@ -32,7 +32,7 @@
 #include <stdexcept>
 #include <sstream>
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief Our base class for exceptions. Specialized exceptions should inherit from those.
@@ -123,5 +123,5 @@ public:
 private:
   std::string text_;
 };
-}  // namespace ur_driver
+}  // namespace urcl
 #endif  // ifndef UR_RTDE_DRIVER_EXCEPTIONS_H_INCLUDED

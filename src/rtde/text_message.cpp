@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/text_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -59,4 +59,4 @@ std::string TextMessage::toString() const
   return ss.str();
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

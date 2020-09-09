@@ -33,7 +33,7 @@
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
@@ -77,6 +77,6 @@ private:
   /* data */
 };
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_ROBOT_DRIVER_ABSTRACT_PRIMARY_CONSUMER_H_INCLUDED

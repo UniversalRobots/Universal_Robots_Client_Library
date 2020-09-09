@@ -28,7 +28,7 @@
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/exceptions.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -375,4 +375,4 @@ std::vector<std::string> RTDEClient::splitVariableTypes(const std::string& varia
   return result;
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

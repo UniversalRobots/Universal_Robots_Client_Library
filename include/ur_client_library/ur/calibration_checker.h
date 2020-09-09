@@ -31,7 +31,7 @@
 
 #include <ur_client_library/primary/robot_state/kinematics_info.h>
 
-namespace ur_driver
+namespace urcl
 {
 /*!
  * \brief The CalibrationChecker class consumes primary packages ignoring all but KinematicsInfo
@@ -99,6 +99,6 @@ private:
   std::string expected_hash_;
   bool checked_;
 };
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_RTDE_DRIVER_UR_CALIBRATION_CHECKER_H_INCLUDED

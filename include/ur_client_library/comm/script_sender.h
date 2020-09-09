@@ -32,7 +32,7 @@
 #include "ur_client_library/comm/server.h"
 #include "ur_client_library/log.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace comm
 {
@@ -133,6 +133,6 @@ private:
 };
 
 }  // namespace comm
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // UR_RTDE_DRIVER_SCRIPT_SENDER_H_INCLUDED

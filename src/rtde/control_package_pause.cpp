@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/control_package_pause.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -45,4 +45,4 @@ std::string ControlPackagePause::toString() const
   return ss.str();
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl

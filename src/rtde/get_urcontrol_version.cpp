@@ -27,7 +27,7 @@
 
 #include "ur_client_library/rtde/get_urcontrol_version.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace rtde_interface
 {
@@ -54,4 +54,4 @@ size_t GetUrcontrolVersionRequest::generateSerializedRequest(uint8_t* buffer)
   return PackageHeader::serializeHeader(buffer, PackageType::RTDE_GET_URCONTROL_VERSION, PAYLOAD_SIZE);
 }
 }  // namespace rtde_interface
-}  // namespace ur_driver
+}  // namespace urcl
