@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/control_package_setup_inputs.h"
+#include "ur_client_library/rtde/control_package_setup_inputs.h"
 
 namespace ur_driver
 {

@@ -12,7 +12,7 @@
  */
 //----------------------------------------------------------------------
 
-#include <ur_lib/rtde/rtde_client.h>
+#include <ur_client_library/rtde/rtde_client.h>
 
 #include <iostream>
 #include <memory>

@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/get_urcontrol_version.h"
+#include "ur_client_library/rtde/get_urcontrol_version.h"
 
 namespace ur_driver
 {

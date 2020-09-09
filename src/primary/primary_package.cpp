@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/primary/primary_package.h"
-#include "ur_lib/primary/abstract_primary_consumer.h"
+#include "ur_client_library/primary/primary_package.h"
+#include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace ur_driver
 {

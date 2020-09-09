@@ -28,9 +28,9 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/log.h"
-#include "ur_lib/primary/robot_message/version_message.h"
-#include "ur_lib/primary/abstract_primary_consumer.h"
+#include "ur_client_library/log.h"
+#include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace ur_driver
 {

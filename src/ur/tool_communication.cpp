@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/ur/tool_communication.h"
+#include "ur_client_library/ur/tool_communication.h"
 
 namespace ur_driver
 {

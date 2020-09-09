@@ -28,8 +28,8 @@
  */
 //----------------------------------------------------------------------
 
-#include <ur_lib/ur/ur_driver.h>
-#include <ur_lib/types.h>
+#include <ur_client_library/ur/ur_driver.h>
+#include <ur_client_library/types.h>
 
 #include <iostream>
 #include <memory>

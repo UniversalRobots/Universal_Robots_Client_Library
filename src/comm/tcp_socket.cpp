@@ -26,8 +26,8 @@
 #include <unistd.h>
 #include <cstring>
 
-#include "ur_lib/log.h"
-#include "ur_lib/comm/tcp_socket.h"
+#include "ur_client_library/log.h"
+#include "ur_client_library/comm/tcp_socket.h"
 
 namespace ur_driver
 {

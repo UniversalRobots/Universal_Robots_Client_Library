@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/request_protocol_version.h"
+#include "ur_client_library/rtde/request_protocol_version.h"
 
 namespace ur_driver
 {

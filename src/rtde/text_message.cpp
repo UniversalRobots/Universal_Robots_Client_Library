@@ -25,7 +25,7 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/rtde/text_message.h"
+#include "ur_client_library/rtde/text_message.h"
 
 namespace ur_driver
 {

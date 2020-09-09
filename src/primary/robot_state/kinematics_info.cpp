@@ -25,9 +25,9 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/log.h"
-#include "ur_lib/primary/robot_state/kinematics_info.h"
-#include "ur_lib/primary/abstract_primary_consumer.h"
+#include "ur_client_library/log.h"
+#include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/abstract_primary_consumer.h"
 
 #include <iomanip>
 

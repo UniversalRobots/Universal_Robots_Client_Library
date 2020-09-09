@@ -30,13 +30,13 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_lib/ur/ur_driver.h"
-#include "ur_lib/exceptions.h"
-#include "ur_lib/primary/primary_parser.h"
+#include "ur_client_library/ur/ur_driver.h"
+#include "ur_client_library/exceptions.h"
+#include "ur_client_library/primary/primary_parser.h"
 #include <memory>
 #include <sstream>
 
-#include <ur_lib/ur/calibration_checker.h>
+#include <ur_client_library/ur/calibration_checker.h>
 
 namespace ur_driver
 {

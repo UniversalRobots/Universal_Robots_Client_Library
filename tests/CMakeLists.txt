@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../CMakeModules/" ${CMAKE_MODULE_PATH})
 
-project(ur_lib_tests)
+project(ur_client_library_tests)
 
 # This will allow cmake 3.0 and above to fail on missing link targets (when specified with an double colon syntax)
 # Note that not all packages are support the colon syntax, but if they do it is recomended to use this syntax, since it is less error prone.
@@ -17,8 +17,8 @@ endif()
 # Find dependencies for testing
 include(FindGTestPackage)
 find_gtest_package(GTEST_LIBRARIES)
-if (NOT TARGET ur_lib::ur_lib)
-  find_package(ur_lib REQUIRED)
+if (NOT TARGET ur_client_library::urcl)
+  find_package(ur_client_library REQUIRED)
 endif()
 
 # Check C++11 support
@@ -30,7 +30,7 @@ DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
 add_executable(rtde_tests test_rtde_client.cpp)
 target_compile_options(rtde_tests PRIVATE ${CXX11_FLAG})
 target_include_directories(rtde_tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(rtde_tests PRIVATE ur_lib::ur_lib ${GTEST_LIBRARIES})
+target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      rtde_tests
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

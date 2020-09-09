@@ -24,7 +24,7 @@
  *
  */
 //----------------------------------------------------------------------
-#include "ur_lib/rtde/rtde_package.h"
+#include "ur_client_library/rtde/rtde_package.h"
 
 namespace ur_driver
 {
