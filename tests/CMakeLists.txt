@@ -47,3 +47,10 @@ target_include_directories(primary_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      primary_parser_tests
 )
+
+add_executable(rtde_parser_tests test_rtde_parser.cpp)
+target_compile_options(rtde_parser_tests PRIVATE ${CXX11_FLAG})
+target_include_directories(rtde_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      rtde_parser_tests
+)
