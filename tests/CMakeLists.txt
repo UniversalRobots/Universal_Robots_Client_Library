@@ -41,3 +41,9 @@ else()
   message(STATUS "Skipping integration tests.")
 endif()
 
+add_executable(primary_parser_tests test_primary_parser.cpp)
+target_compile_options(primary_parser_tests PRIVATE ${CXX11_FLAG})
+target_include_directories(primary_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      primary_parser_tests
+)
