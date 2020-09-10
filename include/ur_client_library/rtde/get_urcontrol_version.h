@@ -66,11 +66,6 @@ public:
   virtual std::string toString() const;
 
   VersionInformation version_information_;
-
-  uint32_t major_;
-  uint32_t minor_;
-  uint32_t bugfix_;
-  uint32_t build_;
 };
 
 /*!
