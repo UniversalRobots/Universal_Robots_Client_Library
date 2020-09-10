@@ -43,8 +43,8 @@ bool GetUrcontrolVersion::parseWith(comm::BinParser& bp)
 std::string GetUrcontrolVersion::toString() const
 {
   std::stringstream ss;
-  ss << "version: " << major_ << ".";
-  ss << minor_ << "." << bugfix_ << "." << build_;
+  ss << "version: " << version_information_.major << ".";
+  ss << version_information_.minor << "." << version_information_.bugfix << "." << version_information_.build;
 
   return ss.str();
 }

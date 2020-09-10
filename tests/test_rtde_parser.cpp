@@ -52,14 +52,43 @@ TEST(rtde_parser, get_urcontrol_version)
 
   EXPECT_EQ(products.size(), 1);
 
-  if (rtde_interface::GetUrcontrolVersion* data =
-          dynamic_cast<rtde_interface::GetUrcontrolVersion*>(products[0].get()))
+  if (rtde_interface::GetUrcontrolVersion* data = dynamic_cast<rtde_interface::GetUrcontrolVersion*>(products[0].get()))
   {
     EXPECT_EQ(data->version_information_.major, 5);
     EXPECT_EQ(data->version_information_.minor, 8);
     EXPECT_EQ(data->version_information_.bugfix, 0);
     EXPECT_EQ(data->version_information_.build, 0);
   }
+}
+
+TEST(rtde_parser, test_to_string)
+{
+  // Non-existent type
+  unsigned char raw_data[] = { 0x00, 0x05, 0x02, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  std::stringstream expected;
+  expected << "Type: 2" << std::endl;
+  expected << "Raw byte stream: 0 0 " << std::endl;
+
+  EXPECT_EQ(products[0]->toString(), expected.str());
+}
+
+TEST(rtde_parser, test_illegal_length)
+{
+  // Non-existent type with false size information
+  unsigned char raw_data[] = { 0x00, 0x06, 0x02, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  EXPECT_FALSE(parser.parse(bp, products));
 }
 
 int main(int argc, char* argv[])
