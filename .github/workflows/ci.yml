@@ -36,4 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Check URLs
-        run: .github/helpers/check_urls.sh -r --exclude-dir=.git --exclude-dir=build/ --exclude-dir=tests --exclude=package.xml --exclude-dir=CMakeModules --exclude=tcp_socket.cpp
+        run: |
+          .github/helpers/check_urls.sh -r \
+            --exclude-dir=.git \
+            --exclude-dir=build/ \
+            --exclude-dir=tests \
+            --exclude=package.xml \
+            --exclude-dir=CMakeModules \
+            --exclude=tcp_socket.cpp \
+            --exclude=real_time.md
+
