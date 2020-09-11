@@ -24,11 +24,8 @@
 FROM lsiobase/guacgui:latest
 
 # Set Version Information
-ARG BUILD_DATE="15/08/19"
 ARG VERSION="5.8.0.10253"
-LABEL build_version="URSim Version: ${VERSION} Build Date: ${BUILD_DATE}"
-LABEL maintainer="Arran Hobson Sayers"
-LABEL MAINTAINER="Arran Hobson Sayers"
+LABEL build_version="URSim Version: ${VERSION}"
 ENV APPNAME="URSim"
 
 # Set Timezone
@@ -58,10 +55,20 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
 RUN \
     echo "**** Downloading URSim ****" && \
     # Make sure we are in the root
-    cd / && \
+    cd /
     # Download URSim Linux tar.gz
-    curl https://s3-eu-west-1.amazonaws.com/ur-support-site/69987/URSim_Linux-5.8.0.10253.tar.gz -o URSim-Linux.tar.gz && \
-    #curl https://s3-eu-west-1.amazonaws.com/ur-support-site/54411/URSim_Linux-5.4.2.76197.tar.gz -o URSim-Linux.tar.gz && \
+RUN \
+    if [ "$VERSION" = "5.8.0.10253" ]; then \
+      curl https://s3-eu-west-1.amazonaws.com/ur-support-site/69987/URSim_Linux-5.8.0.10253.tar.gz -o URSim-Linux.tar.gz; \
+    elif [ "$VERSION" = "5.9.1.1031110" ]; then \
+      curl https://s3-eu-west-1.amazonaws.com/ur-support-site/77055/URSim_Linux-5.9.1.1031110.tar.gz -o URSim-Linux.tar.gz; \
+    elif [ "$VERSION" = "3.14.1.1031110" ]; then \
+      curl https://s3-eu-west-1.amazonaws.com/ur-support-site/77041/URSim_Linux-3.14.1.1031110.tar.gz -o URSim-Linux.tar.gz; \
+    else \
+      echo "Unknown version passed to Dockerfile. Exiting" &&\
+      exit 1; \
+    fi
+RUN \
     # Extract tarball
     tar xvzf URSim-Linux.tar.gz && \
     #Remove the tarball
@@ -87,7 +94,7 @@ RUN \
     # Remove commands that are not relevant on docker as we are root user
     sed -i 's|pkexec ||g' ./install.sh && \
     sed -i 's|sudo ||g' ./install.sh && \
-    sed -i 's|sudo ||g' ./ursim-certificate-check.sh && \
+    #sed -i 's|sudo ||g' ./ursim-certificate-check.sh && \
     #
     # Install URSim
     ./install.sh && \
