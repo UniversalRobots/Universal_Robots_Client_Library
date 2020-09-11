@@ -178,8 +178,8 @@ sure to
    to locate the required recipe files.
 
 #### RTDEWriter
-The `RTDEWriter` class provides an interface to write data to the RTDE interface. Datafields that
-should be written have to be defined inside the `INPUT_RECUPE` as noted above.
+The `RTDEWriter` class provides an interface to write data to the RTDE interface. Data fields that
+should be written have to be defined inside the `INPUT_RECIPE` as noted above.
 
 The class offers specific methods for every RTDE input possible to write.
 
