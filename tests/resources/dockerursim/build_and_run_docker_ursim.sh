@@ -1,10 +1,11 @@
 #!/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+URSIM_VERSION="${1:-5.8.0.10253}"
 
 docker network create --subnet=192.168.56.0/24 static_test_net
 
-docker build ${DIR} -t mydockerursim
+docker build ${DIR} -t mydockerursim --build-arg VERSION="${URSIM_VERSION}"
 docker volume create dockerursim
 docker run --name="mydockerursim" -d \
   -e ROBOT_MODEL=UR5 \
