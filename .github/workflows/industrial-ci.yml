@@ -18,9 +18,6 @@ jobs:
     strategy:
       matrix:
         env:
-          - ROS_DISTRO: kinetic
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
           - ROS_DISTRO: melodic
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
