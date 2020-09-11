@@ -29,11 +29,11 @@
 #define UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 #include "ur_client_library/types.h"
 #include "ur_client_library/rtde/rtde_package.h"
-#include <boost/variant.hpp>
 
 namespace urcl
 {
@@ -59,8 +59,8 @@ enum class RUNTIME_STATE : uint32_t
 class DataPackage : public RTDEPackage
 {
 public:
-  using _rtde_type_variant = boost::variant<bool, uint8_t, uint32_t, uint64_t, int32_t, double, vector3d_t, vector6d_t,
-                                            vector6int32_t, vector6uint32_t, std::string>;
+  using _rtde_type_variant = std::variant<bool, uint8_t, uint32_t, uint64_t, int32_t, double, vector3d_t, vector6d_t,
+                                          vector6int32_t, vector6uint32_t, std::string>;
 
   DataPackage() = delete;
 
@@ -116,7 +116,6 @@ public:
    *
    * \param name The string identifier for the data field as used in the documentation.
    * \param val Target variable. Make sure, it's the correct type.
-   * \exception boost::bad_get if the type under given \p name does not match the template type T.
    *
    * \returns True on success, false if the field cannot be found inside the package.
    */
@@ -125,7 +124,7 @@ public:
   {
     if (data_.find(name) != data_.end())
     {
-      val = boost::strict_get<T>(data_[name]);
+      val = std::get<T>(data_[name]);
     }
     else
     {
@@ -141,7 +140,6 @@ public:
    *
    * \param name The string identifier for the data field as used in the documentation.
    * \param val Target variable. Make sure, it's the correct type.
-   * \exception boost::bad_get if the type under given \p name does not match the template type T.
    *
    * \returns True on success, false if the field cannot be found inside the package.
    */
@@ -152,7 +150,7 @@ public:
 
     if (data_.find(name) != data_.end())
     {
-      val = std::bitset<N>(boost::strict_get<T>(data_[name]));
+      val = std::bitset<N>(std::get<T>(data_[name]));
     }
     else
     {
@@ -201,41 +199,6 @@ private:
   uint8_t recipe_id_;
   std::unordered_map<std::string, _rtde_type_variant> data_;
   std::vector<std::string> recipe_;
-
-  struct ParseVisitor : public boost::static_visitor<>
-  {
-    template <typename T>
-    void operator()(T& d, comm::BinParser& bp) const
-    {
-      bp.parse(d);
-    }
-  };
-  struct StringVisitor : public boost::static_visitor<std::string>
-  {
-    template <typename T>
-    std::string operator()(T& d) const
-    {
-      std::stringstream ss;
-      ss << d;
-      return ss.str();
-    }
-  };
-  struct SizeVisitor : public boost::static_visitor<uint16_t>
-  {
-    template <typename T>
-    uint16_t operator()(T& d) const
-    {
-      return sizeof(d);
-    }
-  };
-  struct SerializeVisitor : public boost::static_visitor<size_t>
-  {
-    template <typename T>
-    size_t operator()(T& d, uint8_t* buffer) const
-    {
-      return comm::PackageSerializer::serialize(buffer, d);
-    }
-  };
 };
 
 }  // namespace rtde_interface

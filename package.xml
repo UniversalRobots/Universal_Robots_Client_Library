@@ -20,7 +20,6 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <build_depend>boost</build_depend>
   <depend>libconsole-bridge-dev</depend>
 
   <export>

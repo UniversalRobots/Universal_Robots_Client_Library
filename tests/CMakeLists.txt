@@ -48,6 +48,13 @@ target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl ${GTE
 gtest_add_tests(TARGET      primary_parser_tests
 )
 
+add_executable(rtde_data_package test_rtde_data_package.cpp)
+target_compile_options(rtde_data_package PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_data_package PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_data_package PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      rtde_data_package
+)
+
 add_executable(rtde_parser_tests test_rtde_parser.cpp)
 target_compile_options(rtde_parser_tests PRIVATE ${CXX17_FLAG})
 target_include_directories(rtde_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
