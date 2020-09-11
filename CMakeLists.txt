@@ -8,14 +8,12 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
-find_package(Boost REQUIRED)
-
 
 ##
 ## Check C++11 support / enable global pedantic and Wall
 ##
-include(DefineCXX11CompilerFlag)
-DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
+include(DefineCXX17CompilerFlag)
+DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
 add_library(urcl SHARED
@@ -44,11 +42,10 @@ add_library(urcl SHARED
 )
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
-target_compile_options(urcl PUBLIC ${CXX11_FLAG})
+target_compile_options(urcl PUBLIC ${CXX17_FLAG})
 target_include_directories( urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  ${Boost_INCLUDE_DIRS}
 )
 
 find_package(Threads REQUIRED)
@@ -81,8 +78,6 @@ else()
   message(STATUS "Building tests disabled.")
 endif()
 
-
-target_link_libraries(urcl INTERFACE ${Boost_Libraries})
 
 add_subdirectory(examples)
 

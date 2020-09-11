@@ -22,8 +22,8 @@ if (NOT TARGET ur_client_library::urcl)
 endif()
 
 # Check C++11 support
-include(DefineCXX11CompilerFlag)
-DEFINE_CXX_11_COMPILER_FLAG(CXX11_FLAG)
+include(DefineCXX17CompilerFlag)
+DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
 
 
 # Build Tests
@@ -31,7 +31,7 @@ if (INTEGRATION_TESTS)
   # Integration tests require a robot reachable at 192.168.56.101. Therefore, they have to be
   # activated separately.
   add_executable(rtde_tests test_rtde_client.cpp)
-  target_compile_options(rtde_tests PRIVATE ${CXX11_FLAG})
+  target_compile_options(rtde_tests PRIVATE ${CXX17_FLAG})
   target_include_directories(rtde_tests PRIVATE ${GTEST_INCLUDE_DIRS})
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
   gtest_add_tests(TARGET      rtde_tests
@@ -42,14 +42,21 @@ else()
 endif()
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
-target_compile_options(primary_parser_tests PRIVATE ${CXX11_FLAG})
+target_compile_options(primary_parser_tests PRIVATE ${CXX17_FLAG})
 target_include_directories(primary_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      primary_parser_tests
 )
 
+add_executable(rtde_data_package test_rtde_data_package.cpp)
+target_compile_options(rtde_data_package PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_data_package PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_data_package PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      rtde_data_package
+)
+
 add_executable(rtde_parser_tests test_rtde_parser.cpp)
-target_compile_options(rtde_parser_tests PRIVATE ${CXX11_FLAG})
+target_compile_options(rtde_parser_tests PRIVATE ${CXX17_FLAG})
 target_include_directories(rtde_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      rtde_parser_tests

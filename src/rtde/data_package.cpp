@@ -574,8 +574,7 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
     if (g_type_list.find(item) != g_type_list.end())
     {
       _rtde_type_variant entry = g_type_list[item];
-      auto bound_visitor = std::bind(ParseVisitor(), std::placeholders::_1, bp);
-      boost::apply_visitor(bound_visitor, entry);
+      std::visit([&bp](auto&& arg) { bp.parse(arg); }, entry);
       data_[item] = entry;
     }
     else
@@ -592,7 +591,8 @@ std::string rtde_interface::DataPackage::toString() const
   for (auto& item : data_)
   {
     ss << item.first << ": ";
-    ss << boost::apply_visitor(StringVisitor{}, item.second) << std::endl;
+    std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+    ss << std::endl;
   }
   return ss.str();
 }
@@ -603,15 +603,16 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
 
   for (auto& item : data_)
   {
-    payload_size += boost::apply_visitor(SizeVisitor{}, item.second);
+    payload_size += std::visit([](auto&& arg) -> uint16_t { return sizeof(arg); }, item.second);
   }
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
   size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
   for (auto& item : recipe_)
   {
-    auto bound_visitor = std::bind(SerializeVisitor(), std::placeholders::_1, buffer + size);
-    size += boost::apply_visitor(bound_visitor, data_[item]);
+    size += std::visit(
+        [&buffer, &size](auto&& arg) -> size_t { return comm::PackageSerializer::serialize(buffer + size, arg); },
+        data_[item]);
   }
 
   return size;
