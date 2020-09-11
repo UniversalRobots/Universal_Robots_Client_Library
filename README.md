@@ -250,7 +250,7 @@ interface. This may change in future, though.
 ## A word on Real-Time scheduling
 As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
 before the next message arrives. Due to this, both, the RTDE receive thread and the thread calling
-`getDataPackage()` should be scheduled with real-time priority. See **TODO: migrate from driver**
+`getDataPackage()` should be scheduled with real-time priority. See [this guide](doc/real_time.md)
 for details on how to set this up.
 
 The RTDE receive thread will be scheduled to real-time priority automatically, if applicable. If
