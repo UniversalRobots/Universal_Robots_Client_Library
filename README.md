@@ -250,7 +250,9 @@ interface. This may change in future, though.
 The `comm::URStream` class can be used to open a connection to the primary / secondary interface and
 send data to it. The [producer/consumer](#producer--consumer-architecture) pipeline structure can also be used
 together with the primary / secondary interface. However, package parsing isn't implemented for most
-packages currently. See the `UrDriver::checkCalibration()` method for an example.
+packages currently. See the [`primary_pipeline` example](examples/primary_pipeline.cpp) on details
+how to set this up. Note that when running this example, most packages will just be printed as their
+raw byte streams in a hex notation, as they aren't implemented in the library, yet.
 
 ## A word on Real-Time scheduling
 As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
@@ -265,4 +267,8 @@ scheduled to real-time priority by the application. See the
 as an example.
 
 ## Producer / Consumer architecture
-
+Communication with the primary / secondary and RTDE interfaces is designed to use a
+consumer/producer pattern. The Producer reads data from the socket whenever it comes in, parses the
+contents and stores the parsed packages into a pipeline queue.
+You can write your own consumers that use the packages coming from the producer. See the
+[`comm::ShellConsumer`](include/ur_client_library/comm/shell_consumer.h) as an example.
