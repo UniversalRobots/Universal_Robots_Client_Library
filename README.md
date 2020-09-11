@@ -247,6 +247,11 @@ ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) was 
 the RTDE interface. Therefore, there is also no `PrimaryClient` for directly accessing the primary
 interface. This may change in future, though.
 
+The `comm::URStream` class can be used to open a connection to the primary / secondary interface and
+send data to it. The [producer/consumer](#producer--consumer-architecture) pipeline structure can also be used
+together with the primary / secondary interface. However, package parsing isn't implemented for most
+packages currently. See the `UrDriver::checkCalibration()` method for an example.
+
 ## A word on Real-Time scheduling
 As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
 before the next message arrives. Due to this, both, the RTDE receive thread and the thread calling
@@ -258,3 +263,6 @@ this doesn't work, an error is raised at startup. The main thread calling `getDa
 scheduled to real-time priority by the application. See the
 [ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/ros/hardware_interface_node.cpp)
 as an example.
+
+## Producer / Consumer architecture
+
