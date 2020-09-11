@@ -272,3 +272,17 @@ consumer/producer pattern. The Producer reads data from the socket whenever it c
 contents and stores the parsed packages into a pipeline queue.
 You can write your own consumers that use the packages coming from the producer. See the
 [`comm::ShellConsumer`](include/ur_client_library/comm/shell_consumer.h) as an example.
+
+## Logging configuration
+As this library was originally designed to be included into a ROS driver but also to be used as a
+standalone library, it uses custom logging macros instead of direct `printf` or `std::cout`
+statements.
+
+These logging macros will either be translated into `printf` statements or logging commands of
+[`console_bridge`](https://github.com/ros/console_bridge) if `console_bridge` is found on the system
+during the cmake run. In this case, the define `ROS_BUILD` will be set.When built inside a catkin
+workspace, logging commands are automatically translated into ROS logging commands.
+
+Whenever you compile this library against `console_bridge`, make sure to set the logging level in
+your application, as by default `console_bridge` will only print messages of level WARNING or
+higher. See [`examples/primary_pipeline.cpp`](examples/primary_pipeline.cpp) as an example.
