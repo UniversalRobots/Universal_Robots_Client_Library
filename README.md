@@ -294,7 +294,7 @@ statements.
 
 These logging macros will either be translated into `printf` statements or logging commands of
 [`console_bridge`](https://github.com/ros/console_bridge) if `console_bridge` is found on the system
-during the cmake run. In this case, the define `ROS_BUILD` will be set.When built inside a catkin
+during the cmake run. In this case, the define `ROS_BUILD` will be set. When built inside a catkin
 workspace, logging commands are automatically translated into ROS logging commands.
 
 Whenever you compile this library against `console_bridge`, make sure to set the logging level in
