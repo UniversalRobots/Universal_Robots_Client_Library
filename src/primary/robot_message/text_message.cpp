@@ -53,4 +53,4 @@ std::string TextMessage::toString() const
   return text_;
 }
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl

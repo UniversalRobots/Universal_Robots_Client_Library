@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_RTDE_DRIVER_PRIMARY_TEXT_MESSAGE_H_INCLUDED
-#define UR_RTDE_DRIVER_PRIMARY_TEXT_MESSAGE_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_TEXT_MESSAGE_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_TEXT_MESSAGE_H_INCLUDED
 
 #include "ur_client_library/primary/robot_message.h"
 
@@ -82,6 +82,6 @@ public:
   std::string text_;
 };
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
-#endif  // ifndef UR_RTDE_DRIVER_PRIMARY_TEXT_MESSAGE_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_TEXT_MESSAGE_H_INCLUDED
