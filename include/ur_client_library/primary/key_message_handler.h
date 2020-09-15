@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_ROBOT_DRIVER_KEY_MESSAGE_HANDLER_H_INCLUDED
-#define UR_ROBOT_DRIVER_KEY_MESSAGE_HANDLER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_KEY_MESSAGE_HANDLER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_KEY_MESSAGE_HANDLER_H_INCLUDED
 
 #include <ur_client_library/log.h>
 #include <ur_client_library/primary/primary_package_handler.h>
@@ -57,4 +57,4 @@ private:
 };
 }  // namespace primary_interface
 }  // namespace urcl
-#endif  // ifndef UR_ROBOT_DRIVER_KEY_MESSAGE_HANDLER_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_KEY_MESSAGE_HANDLER_H_INCLUDED

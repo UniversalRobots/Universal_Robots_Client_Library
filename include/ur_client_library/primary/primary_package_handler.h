@@ -25,8 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
-#define UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
 
 namespace urcl
 {
@@ -55,4 +55,4 @@ private:
 };
 }  // namespace primary_interface
 }  // namespace urcl
-#endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
