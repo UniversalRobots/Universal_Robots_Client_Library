@@ -13,6 +13,7 @@
   <license>Apache-2.0</license>
   <license>BSD-2-Clause</license>
   <license>Zlib</license>
+  <license>MIT</license>
 
   <url type="website">http://wiki.ros.org/ur_client_library</url>
   <url type="bugtracker">https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues</url>
