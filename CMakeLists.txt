@@ -19,6 +19,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 add_library(urcl SHARED
     src/comm/tcp_socket.cpp
     src/comm/server.cpp
+    src/primary/primary_client.cpp
     src/primary/primary_package.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
