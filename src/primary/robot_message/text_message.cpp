@@ -28,10 +28,10 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_robot_driver/log.h"
-#include "ur_robot_driver/primary/robot_message/text_message.h"
+#include "ur_client_library/log.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {

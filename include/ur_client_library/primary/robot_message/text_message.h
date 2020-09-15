@@ -28,9 +28,9 @@
 #ifndef UR_RTDE_DRIVER_PRIMARY_TEXT_MESSAGE_H_INCLUDED
 #define UR_RTDE_DRIVER_PRIMARY_TEXT_MESSAGE_H_INCLUDED
 
-#include "ur_robot_driver/primary/robot_message.h"
+#include "ur_client_library/primary/robot_message.h"
 
-namespace ur_driver
+namespace urcl
 {
 namespace primary_interface
 {
