@@ -30,6 +30,7 @@
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace urcl
 {
@@ -45,6 +46,11 @@ bool ErrorCodeMessage::parseWith(comm::BinParser& bp)
   bp.parseRemainder(text_);
 
   return true;  // not really possible to check dynamic size packets
+}
+
+bool ErrorCodeMessage::consumeWith(AbstractPrimaryConsumer& consumer)
+{
+  return consumer.consume(*this);
 }
 
 std::string ErrorCodeMessage::toString() const

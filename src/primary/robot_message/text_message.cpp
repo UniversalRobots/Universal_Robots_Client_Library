@@ -30,6 +30,7 @@
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/primary/robot_message/text_message.h"
+#include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace urcl
 {
@@ -40,6 +41,11 @@ bool TextMessage::parseWith(comm::BinParser& bp)
   bp.parseRemainder(text_);
 
   return true;  // not really possible to check dynamic size packets
+}
+
+bool TextMessage::consumeWith(AbstractPrimaryConsumer& consumer)
+{
+  return consumer.consume(*this);
 }
 
 std::string TextMessage::toString() const
