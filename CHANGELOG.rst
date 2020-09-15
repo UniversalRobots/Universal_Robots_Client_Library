@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2020-09-15)
+------------------
 * readme: missing whitespace
 * Further elaborated license statements in README
 * Install package.xml when built with catkin support
