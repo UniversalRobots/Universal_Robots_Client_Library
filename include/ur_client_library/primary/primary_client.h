@@ -31,6 +31,8 @@
 #include <ur_client_library/comm/producer.h>
 #include <ur_client_library/comm/stream.h>
 #include <ur_client_library/comm/pipeline.h>
+#include <ur_client_library/ur/calibration_checker.h>
+#include <ur_client_library/primary/primary_consumer.h>
 
 namespace urcl
 {
@@ -40,13 +42,31 @@ class PrimaryClient
 {
 public:
   PrimaryClient() = delete;
-  PrimaryClient(const std::string& robot_ip);
+  PrimaryClient(const std::string& robot_ip, const std::string& calibration_checksum);
   virtual ~PrimaryClient() = default;
+
+  /*!
+   * \brief Sends a custom script program to the robot.
+   *
+   * The given code must be valid according the UR Scripting Manual.
+   *
+   * \param script_code URScript code that shall be executed by the robot.
+   *
+   * \returns true on successful upload, false otherwise.
+   */
+  bool sendScript(const std::string& script_code);
+
+  /*!
+   * \brief Checks if the kinematics information in the used model fits the actual robot.
+   *
+   * \param checksum Hash of the used kinematics information
+   */
+  void checkCalibration(const std::string& checksum);
 
 private:
   std::string robot_ip_;
   PrimaryParser parser_;
-  std::unique_ptr<comm::IConsumer<PrimaryPackage>> consumer_;
+  std::unique_ptr<PrimaryConsumer> consumer_;
   comm::INotifier notifier_;
   std::unique_ptr<comm::URProducer<PrimaryPackage>> producer_;
   std::unique_ptr<comm::URStream<PrimaryPackage>> stream_;
@@ -54,6 +74,6 @@ private:
 };
 
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_CLIENT_H_INCLUDED

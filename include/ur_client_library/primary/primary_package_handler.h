@@ -1,7 +1,7 @@
 // this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
-
+//
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
-// Copyright 2019 FZI Forschungszentrum Informatik
+// Copyright 2020 FZI Forschungszentrum Informatik
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,35 +20,39 @@
 /*!\file
  *
  * \author  Felix Exner exner@fzi.de
- * \date    2019-06-14
+ * \date    2020-04-30
  *
  */
 //----------------------------------------------------------------------
 
-#include <ur_client_library/ur/calibration_checker.h>
+#ifndef UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+#define UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
 
 namespace urcl
 {
-CalibrationChecker::CalibrationChecker(const std::string& expected_hash)
-  : expected_hash_(expected_hash), checked_(false)
+namespace primary_interface
 {
-}
-void CalibrationChecker::handle(primary_interface::KinematicsInfo& kin_info)
+/*!
+ * \brief Interface for a class handling a primary interface package. Classes that implement this
+ * interface with a specific package type will be able to handle packages of this type.
+ */
+template <typename PackageT>
+class IPrimaryPackageHandler
 {
-  if (kin_info.toHash() != expected_hash_)
-  {
-    LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
-              "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use the "
-              "ur_calibration tool to extract the correct calibration from the robot and pass that into the "
-              "description. See "
-              "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] for "
-              "details.");
-  }
-  else
-  {
-    LOG_INFO("Calibration checked successfully.");
-  }
+public:
+  IPrimaryPackageHandler() = default;
+  virtual ~IPrimaryPackageHandler() = default;
 
-  checked_ = true;
-}
+  /*!
+   * \brief Actual worker function
+   *
+   * \param pkg package that should be handled
+   */
+  virtual void handle(PackageT& pkg) = 0;
+
+private:
+  /* data */
+};
+}  // namespace primary_interface
 }  // namespace urcl
+#endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_PACKAGE_HANDLER_H_INCLUDED

@@ -49,7 +49,7 @@ public:
   }
   virtual bool consume(RobotState& msg) override
   {
-    LOG_INFO("---RobotState:---\n%s", msg.toString().c_str());
+    // LOG_INFO("---RobotState:---\n%s", msg.toString().c_str());
     return true;
   }
   virtual bool consume(ErrorCodeMessage& msg) override
@@ -87,6 +87,6 @@ private:
   /* data */
 };
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
 
 #endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_SHELL_CONSUMER_H_INCLUDED
