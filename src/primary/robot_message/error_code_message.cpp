@@ -67,4 +67,4 @@ std::string ErrorCodeMessage::toString() const
   return ss.str();
 }
 }  // namespace primary_interface
-}  // namespace ur_driver
+}  // namespace urcl
