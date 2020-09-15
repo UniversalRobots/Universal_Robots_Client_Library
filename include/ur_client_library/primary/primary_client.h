@@ -24,8 +24,8 @@
  *
  */
 //----------------------------------------------------------------------
-#ifndef UR_ROBOT_DRIVER_PRIMARY_CLIENT_H_INCLUDED
-#define UR_ROBOT_DRIVER_PRIMARY_CLIENT_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 
 #include <ur_client_library/primary/primary_parser.h>
 #include <ur_client_library/comm/producer.h>
@@ -76,4 +76,4 @@ private:
 }  // namespace primary_interface
 }  // namespace urcl
 
-#endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_CLIENT_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED

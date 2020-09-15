@@ -26,8 +26,8 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_ROBOT_DRIVER_PRIMARY_SHELL_CONSUMER_H_INCLUDED
-#define UR_ROBOT_DRIVER_PRIMARY_SHELL_CONSUMER_H_INCLUDED
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_SHELL_CONSUMER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_SHELL_CONSUMER_H_INCLUDED
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
@@ -89,4 +89,4 @@ private:
 }  // namespace primary_interface
 }  // namespace urcl
 
-#endif  // ifndef UR_ROBOT_DRIVER_PRIMARY_SHELL_CONSUMER_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_SHELL_CONSUMER_H_INCLUDED
