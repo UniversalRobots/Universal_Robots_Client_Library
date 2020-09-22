@@ -54,20 +54,6 @@ void handleRobotProgramState(bool program_running)
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
 }
 
-void jogging()
-{
-  vector6d_t joint_position_command;
-
-  char c;
-
-  std::cout << "Press a key" << std::endl;
-  while (true)
-  {
-    c = getchar();
-    std::cout << "pressed " << c << std::endl;
-  }
-}
-
 int main(int argc, char* argv[])
 {
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
