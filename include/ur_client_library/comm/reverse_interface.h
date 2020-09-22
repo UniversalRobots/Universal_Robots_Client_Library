@@ -128,7 +128,7 @@ public:
    */
   std::string readKeepalive()
   {
-    size_t buf_len = 16;
+    const size_t buf_len = 16;
     char buffer[buf_len];
 
     bool read_successful = server_.readLine(buffer, buf_len);

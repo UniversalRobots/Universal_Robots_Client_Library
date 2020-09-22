@@ -92,7 +92,7 @@ private:
 
   bool requestRead()
   {
-    size_t buf_len = 1024;
+    const size_t buf_len = 1024;
     char buffer[buf_len];
 
     bool read_successful = server_.readLine(buffer, buf_len);
