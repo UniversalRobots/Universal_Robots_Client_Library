@@ -27,6 +27,10 @@
 #include "ur_client_library/primary/robot_state.h"
 #include "ur_client_library/primary/robot_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 
 namespace urcl
@@ -115,7 +119,7 @@ public:
       case RobotPackageType::ROBOT_MESSAGE:
       {
         uint64_t timestamp;
-        uint8_t source;
+        int8_t source;
         RobotMessagePackageType message_type;
 
         bp.parse(timestamp);
@@ -174,8 +178,16 @@ private:
         return new MBD;*/
       case RobotMessagePackageType::ROBOT_MESSAGE_VERSION:
         return new VersionMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_TEXT:
+        return new TextMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
+        return new KeyMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
+        return new ErrorCodeMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_RUNTIME_EXCEPTION:
+        return new RuntimeExceptionMessage(timestamp, source);
       default:
-        return new RobotMessage(timestamp, source);
+        return new RobotMessage(timestamp, source, type);
     }
   }
 };
