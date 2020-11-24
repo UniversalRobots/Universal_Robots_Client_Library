@@ -34,6 +34,13 @@ robotic manipulators.
    a C++17-requirement, please use the
    [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
    instead that requires the boost library.
+   For the C++17 features, please use those minimum compiler versions:
+   
+   | Compiler  | min. version |
+   |-----------|--------------|
+   | **GCC**   | 7            |
+   | **Clang** | 7            |
+   
 
 ## Build instructions
 ### Plain cmake
