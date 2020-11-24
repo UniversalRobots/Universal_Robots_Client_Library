@@ -27,6 +27,14 @@ A C++ library for accessing Universal Robots interfaces. With this library C++-b
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
 
+## Requirements
+ * The library requires an implementation of **POSIX threads** such as the `pthread` library
+ * The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
+   branch of this repository requires a C++17-compatible compiler. For building this library without
+   a C++17-requirement, please use the
+   [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
+   instead that requires the boost library.
+
 ## Build instructions
 ### Plain cmake
 To build this library standalone so that you can build you own applications using this library,
