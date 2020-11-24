@@ -23,12 +23,6 @@
 
 <!--te-->
 
----
-<div style="background-color:red;color:black;padding:5pt;">DISCLAIMER: This library is still
-under development. Documentation may be missing and things might change in the near future.</div>
-
----
-
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
