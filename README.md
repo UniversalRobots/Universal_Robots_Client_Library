@@ -23,15 +23,24 @@
 
 <!--te-->
 
----
-<div style="background-color:red;color:black;padding:5pt;">DISCLAIMER: This library is still
-under development. Documentation may be missing and things might change in the near future.</div>
-
----
-
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
+
+## Requirements
+ * The library requires an implementation of **POSIX threads** such as the `pthread` library
+ * The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
+   branch of this repository requires a C++17-compatible compiler. For building this library without
+   a C++17-requirement, please use the
+   [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
+   instead that requires the boost library.
+   For the C++17 features, please use those minimum compiler versions:
+   
+   | Compiler  | min. version |
+   |-----------|--------------|
+   | **GCC**   | 7            |
+   | **Clang** | 7            |
+   
 
 ## Build instructions
 ### Plain cmake
@@ -253,7 +262,7 @@ string from this function. If no answer is received, a `UrException` is thrown.
 
 Note: In order to make this more useful developers are expected to wrap this bare interface into
 something that checks the returned string for something that is expected. See the
-[DashboardClientROS](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/ros/dashboard_client_ros.h) as an example.
+[DashboardClientROS](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/dashboard_client_ros.h) as an example.
 
 ## A word on the primary / secondary interface
 Currently, this library doesn't support the primary interface very well, as the [Universal Robots
@@ -277,7 +286,7 @@ for details on how to set this up.
 The RTDE receive thread will be scheduled to real-time priority automatically, if applicable. If
 this doesn't work, an error is raised at startup. The main thread calling `getDataPackage` should be
 scheduled to real-time priority by the application. See the
-[ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/ros/hardware_interface_node.cpp)
+[ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/hardware_interface_node.cpp)
 as an example.
 
 ## Producer / Consumer architecture
