@@ -230,6 +230,7 @@ private:
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
   std::unique_ptr<comm::ReverseInterface> reverse_interface_;
+  std::unique_ptr<comm::ReverseInterface> trajectory_point_reverse_interface_;
   std::unique_ptr<comm::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
