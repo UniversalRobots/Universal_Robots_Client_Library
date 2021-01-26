@@ -149,6 +149,28 @@ public:
   bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode);
 
   /*!
+   * \brief Writes a trajectory point onto the dedicated socket.
+   *
+   * \param values Desired joint or cartesian positions
+   * \param goal_time Time for the robot to reach this point
+   * \param cartesian True, if the point sent is cartesian, false if joint-based
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time = 0.0,
+                            const float blend_radius = 0.052);
+
+  /*!
+   * \brief Writes a control message in trajectory forward mode.
+   *
+   * \param trajectory_action The action to be taken, such as starting a new trajectory.
+   * \param point_number The number of points of a new trajectory to be sent.
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryControlMessage(const int trajectory_action, const int point_number = 0);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still
