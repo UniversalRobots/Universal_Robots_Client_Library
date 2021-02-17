@@ -28,6 +28,11 @@
 #define LOG_ERROR CONSOLE_BRIDGE_logError
 #define LOG_FATAL CONSOLE_BRIDGE_logError
 
+#elif defined(ISAAC_BUILD)
+#include "engine/core/logger.hpp"
+
+#define LOG_WARN(format, ...)
+
 #else
 
 #define LOG_DEBUG(format, ...) printf("[DEBUG]: " format "\n", ##__VA_ARGS__)
