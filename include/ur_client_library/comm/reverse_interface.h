@@ -53,6 +53,16 @@ enum class ControlMode : int32_t
 };
 
 /*!
+ * \brief Control messages for forwarding and aborting trajectories.
+ */
+enum class TrajectoryControlMessage : int32_t
+{
+  TRAJECTORY_CANCEL = -1,  ///< Represents command to cancel currently active trajectory.
+  TRAJECTORY_NOOP = 0,     ///< Represents no new control command.
+  TRAJECTORY_START = 1,    ///< Represents command to start a new trajectory.
+};
+
+/*!
  * \brief The ReverseInterface class handles communication to the robot. It starts a server and
  * waits for the robot to connect via its URCaps program.
  */
@@ -127,12 +137,12 @@ public:
   /*!
    * \brief Writes needed information to the robot to be read by the URCaps program.
    *
-   * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
+   * \param trajectory_action Specifies action to be taken regarding trajectory control
    * \param point_number The number of points of the trajectory to be executed
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(const int trajectory_action, const int point_number = 0)
+  bool writeTrajectoryControlMessage(TrajectoryControlMessage trajectory_action, const int point_number = 0)
   {
     uint8_t buffer[sizeof(int32_t) * 8];
     uint8_t* b_pos = buffer;
@@ -141,7 +151,7 @@ public:
     int32_t val = htobe32(1);
     b_pos += append(b_pos, val);
 
-    val = htobe32(trajectory_action);
+    val = htobe32(toUnderlying(trajectory_action));
     b_pos += append(b_pos, val);
 
     val = htobe32(point_number);
