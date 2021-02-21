@@ -231,8 +231,8 @@ void UrDriver::startWatchdog()
 {
   handle_program_state_(false);
   reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-  // TODO swap to configurable or static port
-  trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(50010));
+  // TODO maybe swap to a manually configurable port
+  trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_+10));
   reverse_interface_active_ = true;
   LOG_DEBUG("Created reverse interface");
 
@@ -259,9 +259,9 @@ void UrDriver::startWatchdog()
     // instead of killing it all the time.
     reverse_interface_->~ReverseInterface();
     reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-    // TODO swap to configurable or static port
+    // TODO maybe swap to a manually configurable port
     trajectory_point_reverse_interface_->~ReverseInterface();
-    trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(50010));
+    trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_+10));
     reverse_interface_active_ = true;
   }
 }
