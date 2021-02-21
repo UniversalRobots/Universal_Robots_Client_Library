@@ -193,7 +193,7 @@ bool UrDriver::writeTrajectoryPoint(const vector6d_t& values, const bool cartesi
   return false;
 }
 
-bool UrDriver::writeTrajectoryControlMessage(const int trajectory_action, const int point_number)
+bool UrDriver::writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int point_number)
 {
   if (reverse_interface_active_)
   {
@@ -232,7 +232,7 @@ void UrDriver::startWatchdog()
   handle_program_state_(false);
   reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
   // TODO maybe swap to a manually configurable port
-  trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_+10));
+  trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_ + 10));
   reverse_interface_active_ = true;
   LOG_DEBUG("Created reverse interface");
 
@@ -261,7 +261,7 @@ void UrDriver::startWatchdog()
     reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
     // TODO maybe swap to a manually configurable port
     trajectory_point_reverse_interface_->~ReverseInterface();
-    trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_+10));
+    trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_ + 10));
     reverse_interface_active_ = true;
   }
 }

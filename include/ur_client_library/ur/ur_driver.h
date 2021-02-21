@@ -168,7 +168,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryControlMessage(const int trajectory_action, const int point_number = 0);
+  bool writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int point_number = 0);
 
   /*!
    * \brief Write a keepalive signal only.
