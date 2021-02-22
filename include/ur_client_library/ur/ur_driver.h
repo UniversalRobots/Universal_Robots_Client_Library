@@ -149,6 +149,29 @@ public:
   bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode);
 
   /*!
+   * \brief Writes a trajectory point onto the dedicated socket.
+   *
+   * \param values Desired joint or cartesian positions
+   * \param goal_time Time for the robot to reach this point
+   * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param blend_radius The blend radius in meter.
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time = 0.0,
+                            const float blend_radius = 0.052);
+
+  /*!
+   * \brief Writes a control message in trajectory forward mode.
+   *
+   * \param trajectory_action The action to be taken, such as starting a new trajectory.
+   * \param number_points The number of points of a new trajectory to be sent.
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int number_points = 0);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still
@@ -230,6 +253,7 @@ private:
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
   std::unique_ptr<comm::ReverseInterface> reverse_interface_;
+  std::unique_ptr<comm::ReverseInterface> trajectory_point_reverse_interface_;
   std::unique_ptr<comm::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;

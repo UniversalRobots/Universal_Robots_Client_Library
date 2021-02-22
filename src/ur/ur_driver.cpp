@@ -41,8 +41,10 @@
 namespace urcl
 {
 static const int32_t MULT_JOINTSTATE = 1000000;
+static const int32_t MULT_TIME = 1000;
 static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
 static const std::string JOINT_STATE_REPLACE("{{JOINT_STATE_REPLACE}}");
+static const std::string TIME_REPLACE("{{TIME_REPLACE}}");
 static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
 static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
 static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
@@ -107,6 +109,11 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   while (prog.find(SERVER_PORT_REPLACE) != std::string::npos)
   {
     prog.replace(prog.find(SERVER_PORT_REPLACE), SERVER_PORT_REPLACE.length(), std::to_string(reverse_port));
+  }
+
+  while (prog.find(TIME_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(TIME_REPLACE), TIME_REPLACE.length(), std::to_string(MULT_TIME));
   }
 
   robot_version_ = rtde_client_->getVersion();
@@ -176,6 +183,25 @@ bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMo
   return false;
 }
 
+bool UrDriver::writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time,
+                                    const float blend_radius)
+{
+  if (reverse_interface_active_)
+  {
+    return trajectory_point_reverse_interface_->writeTrajectoryPoint(&values, cartesian, goal_time, blend_radius);
+  }
+  return false;
+}
+
+bool UrDriver::writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int number_points)
+{
+  if (reverse_interface_active_)
+  {
+    return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, number_points);
+  }
+  return false;
+}
+
 bool UrDriver::writeKeepalive()
 {
   if (reverse_interface_active_)
@@ -205,6 +231,8 @@ void UrDriver::startWatchdog()
 {
   handle_program_state_(false);
   reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
+  // TODO maybe swap to a manually configurable port
+  trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_ + 10));
   reverse_interface_active_ = true;
   LOG_DEBUG("Created reverse interface");
 
@@ -231,6 +259,9 @@ void UrDriver::startWatchdog()
     // instead of killing it all the time.
     reverse_interface_->~ReverseInterface();
     reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
+    // TODO maybe swap to a manually configurable port
+    trajectory_point_reverse_interface_->~ReverseInterface();
+    trajectory_point_reverse_interface_.reset(new comm::ReverseInterface(reverse_port_ + 10));
     reverse_interface_active_ = true;
   }
 }

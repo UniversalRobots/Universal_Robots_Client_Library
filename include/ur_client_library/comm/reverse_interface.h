@@ -46,7 +46,20 @@ enum class ControlMode : int32_t
   MODE_UNINITIALIZED = -1,  ///< Startup default until another mode is sent to the script.
   MODE_IDLE = 0,            ///< Set when no controller is currently active controlling the robot.
   MODE_SERVOJ = 1,          ///< Set when servoj control is active.
-  MODE_SPEEDJ = 2           ///< Set when speedj control is active.
+  MODE_SPEEDJ = 2,          ///< Set when speedj control is active.
+  MODE_FORWARD = 3,         ///< Set when trajectory forwarding is active.
+  MODE_SPEEDL = 4,          ///< Set when cartesian velocity control is active
+  MODE_POSE = 5             ///< Set when cartesian pose control is active
+};
+
+/*!
+ * \brief Control messages for forwarding and aborting trajectories.
+ */
+enum class TrajectoryControlMessage : int32_t
+{
+  TRAJECTORY_CANCEL = -1,  ///< Represents command to cancel currently active trajectory.
+  TRAJECTORY_NOOP = 0,     ///< Represents no new control command.
+  TRAJECTORY_START = 1,    ///< Represents command to start a new trajectory.
 };
 
 /*!
@@ -122,6 +135,99 @@ public:
   }
 
   /*!
+   * \brief Writes needed information to the robot to be read by the URCaps program.
+   *
+   * \param trajectory_action Specifies action to be taken regarding trajectory control
+   * \param number_points The number of points of the trajectory to be executed
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeTrajectoryControlMessage(TrajectoryControlMessage trajectory_action, const int number_points = 0)
+  {
+    uint8_t buffer[sizeof(int32_t) * 8];
+    uint8_t* b_pos = buffer;
+
+    // The first element is always the keepalive signal.
+    int32_t val = htobe32(1);
+    b_pos += append(b_pos, val);
+
+    val = htobe32(toUnderlying(trajectory_action));
+    b_pos += append(b_pos, val);
+
+    val = htobe32(number_points);
+    b_pos += append(b_pos, val);
+
+    // writing zeros to allow usage in control loop with other control messages
+    for (size_t i = 0; i < 4; i++)
+    {
+      val = htobe32(0);
+      b_pos += append(b_pos, val);
+    }
+
+    val = htobe32(toUnderlying(ControlMode::MODE_FORWARD));
+    b_pos += append(b_pos, val);
+
+    size_t written;
+
+    return server_.write(buffer, sizeof(buffer), written);
+  }
+
+  /*!
+   * \brief Writes needed information to the robot to be read by the URCaps program.
+   *
+   * \param positions A vector of joint or cartesian targets for the robot
+   * \param time The goal time to reach the target
+   * \param blend_radius The radius used for blending. Unit is meter.
+   * \param cartesian Use \a true when the point is given in Cartesian coordinates, else \a false.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeTrajectoryPoint(const vector6d_t* positions, const bool cartesian, const float goal_time,
+                            const float blend_radius)
+  {
+    uint8_t buffer[sizeof(int32_t) * 9];
+    uint8_t* b_pos = buffer;
+
+    if (positions != nullptr)
+    {
+      for (auto const& pos : *positions)
+      {
+        int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+        val = htobe32(val);
+        b_pos += append(b_pos, val);
+      }
+    }
+    else
+    {
+      b_pos += 6 * sizeof(int32_t);
+    }
+
+    int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
+    val = htobe32(val);
+    b_pos += append(b_pos, val);
+
+    val = static_cast<int32_t>(blend_radius * MULT_TIME);
+    val = htobe32(val);
+    b_pos += append(b_pos, val);
+
+    if (cartesian)
+    {
+      val = CARTESIAN_POINT;
+    }
+    else
+    {
+      val = JOINT_POINT;
+    }
+
+    val = htobe32(val);
+    b_pos += append(b_pos, val);
+
+    size_t written;
+
+    return server_.write(buffer, sizeof(buffer), written);
+  }
+
+  /*!
    * \brief Reads a keepalive signal from the robot.
    *
    * \returns The received keepalive string or the empty string, if nothing was received
@@ -146,6 +252,9 @@ public:
 private:
   URServer server_;
   static const int32_t MULT_JOINTSTATE = 1000000;
+  static const int32_t MULT_TIME = 1000;
+  static const int32_t JOINT_POINT = 0;
+  static const int32_t CARTESIAN_POINT = 1;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)
