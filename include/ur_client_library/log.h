@@ -31,7 +31,7 @@
 #elif defined(ISAAC_BUILD)
 #include "engine/core/logger.hpp"
 
-#define LOG_WARN(format, ...)
+#define LOG_WARN(format, ...) LOG_WARNING(format, ##__VA_ARGS__)
 
 #else
 
