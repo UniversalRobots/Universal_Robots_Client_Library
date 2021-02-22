@@ -180,8 +180,8 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryPoint(const vector6d_t* positions, const float goal_time, const float blend_radius,
-                            const bool cartesian)
+  bool writeTrajectoryPoint(const vector6d_t* positions, const bool cartesian, const float goal_time,
+                            const float blend_radius)
   {
     uint8_t buffer[sizeof(int32_t) * 9];
     uint8_t* b_pos = buffer;

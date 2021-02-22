@@ -188,7 +188,7 @@ bool UrDriver::writeTrajectoryPoint(const vector6d_t& values, const bool cartesi
 {
   if (reverse_interface_active_)
   {
-    return trajectory_point_reverse_interface_->writeTrajectoryPoint(&values, goal_time, blend_radius, cartesian);
+    return trajectory_point_reverse_interface_->writeTrajectoryPoint(&values, cartesian, goal_time, blend_radius);
   }
   return false;
 }
