@@ -23,15 +23,73 @@
 
 <!--te-->
 
----
-<div style="background-color:red;color:black;padding:5pt;">DISCLAIMER: This library is still
-under development. Documentation may be missing and things might change in the near future.</div>
-
----
-
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
+
+## About this branch
+
+This branch is a beta test of new interfaces towards the robot.
+It is, as such, to be considered under development, and documentation may in parts be missing and
+things might change in the near future.
+It is primarily intended to be tested with the beta-testing branch of the [Universal Robots ROS Driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver), 
+but other existing applications using this library can also utilize the new features.
+In this case, the changes in the ROS Driver can be used as an example for how to utilize the new
+interfaces.
+
+### Features
+
+This branch introduces several new interfaces via which to communicate with the robot.
+
+* Cartesian pose streaming
+* Cartesian velocity streaming
+* Joint-based trajectory forwarding
+* Cartesian trajectory forwarding
+
+For the two new streaming interfaces, this only adds two new control modes to the library, as the
+actual streaming and receiving of these commands is placed in the application.
+
+### Trajectory forwarding
+
+Trajectory forwarding is intended to provide an interfaces for trajectory execution using the robots
+internal interpolation.
+Instead of streaming target positions with the control frequency, upon start of the trajectory a
+control message specifying the number of target points is sent using the
+`writeTrajectoryControlMessage` method.
+
+After this, the robot has to listen for the given number of trajectory points, sent via the
+`writeTrajectoryPoint` method.
+Other than the required data for a point, including the time the point is supposed to be reached in,
+two parameters can be provided.
+The `cartesian` bool is used to specify if the point is given as joint-based values or as a target
+TCP position.
+These can be mixed in the same trajectory.
+The `blend_radius` parameter is used to control the blending mechanism used in the UR internal
+trajectory implementation.
+Once the specified area around the target point is entered, the robot starts to smoothly blend the
+trajectory towards the next point.
+If the point has to be reached precisely, this can be set to 0.0 to disable blending.
+
+The Points are sent via an new socket that is added in this branch.
+This allows for sending an arbitrary number of points right away, while the robot reads data from
+the socket as needed, avoiding conflicts with e.g. high-frequency control messages.
+
+
+
+## Requirements
+ * The library requires an implementation of **POSIX threads** such as the `pthread` library
+ * The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
+   branch of this repository requires a C++17-compatible compiler. For building this library without
+   a C++17-requirement, please use the
+   [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
+   instead that requires the boost library.
+   For the C++17 features, please use those minimum compiler versions:
+   
+   | Compiler  | min. version |
+   |-----------|--------------|
+   | **GCC**   | 7            |
+   | **Clang** | 7            |
+   
 
 ## Build instructions
 ### Plain cmake
