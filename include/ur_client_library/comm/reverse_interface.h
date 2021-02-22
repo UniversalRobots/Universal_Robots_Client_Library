@@ -49,7 +49,7 @@ enum class ControlMode : int32_t
   MODE_SPEEDJ = 2,          ///< Set when speedj control is active.
   MODE_FORWARD = 3,         ///< Set when trajectory forwarding is active.
   MODE_SPEEDL = 4,          ///< Set when cartesian velocity control is active
-  MODE_POSE = 5             ///< Set when cartesian velocity control is active
+  MODE_POSE = 5             ///< Set when cartesian pose control is active
 };
 
 /*!
