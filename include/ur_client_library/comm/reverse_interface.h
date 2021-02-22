@@ -138,11 +138,11 @@ public:
    * \brief Writes needed information to the robot to be read by the URCaps program.
    *
    * \param trajectory_action Specifies action to be taken regarding trajectory control
-   * \param point_number The number of points of the trajectory to be executed
+   * \param number_points The number of points of the trajectory to be executed
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(TrajectoryControlMessage trajectory_action, const int point_number = 0)
+  bool writeTrajectoryControlMessage(TrajectoryControlMessage trajectory_action, const int number_points = 0)
   {
     uint8_t buffer[sizeof(int32_t) * 8];
     uint8_t* b_pos = buffer;
@@ -154,7 +154,7 @@ public:
     val = htobe32(toUnderlying(trajectory_action));
     b_pos += append(b_pos, val);
 
-    val = htobe32(point_number);
+    val = htobe32(number_points);
     b_pos += append(b_pos, val);
 
     // writing zeros to allow usage in control loop with other control messages

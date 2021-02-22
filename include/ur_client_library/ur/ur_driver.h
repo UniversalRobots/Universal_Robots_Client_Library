@@ -164,11 +164,11 @@ public:
    * \brief Writes a control message in trajectory forward mode.
    *
    * \param trajectory_action The action to be taken, such as starting a new trajectory.
-   * \param point_number The number of points of a new trajectory to be sent.
+   * \param number_points The number of points of a new trajectory to be sent.
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int point_number = 0);
+  bool writeTrajectoryControlMessage(comm::TrajectoryControlMessage trajectory_action, const int number_points = 0);
 
   /*!
    * \brief Write a keepalive signal only.
