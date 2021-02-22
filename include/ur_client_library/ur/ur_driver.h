@@ -154,6 +154,7 @@ public:
    * \param values Desired joint or cartesian positions
    * \param goal_time Time for the robot to reach this point
    * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param blend_radius The blend radius in meter.
    *
    * \returns True on successful write.
    */

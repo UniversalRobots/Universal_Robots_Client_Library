@@ -177,6 +177,8 @@ public:
    *
    * \param positions A vector of joint or cartesian targets for the robot
    * \param time The goal time to reach the target
+   * \param blend_radius The radius used for blending. Unit is meter.
+   * \param cartesian Use \a true when the point is given in Cartesian coordinates, else \a false.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
