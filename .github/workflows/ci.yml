@@ -24,6 +24,8 @@ jobs:
         env: ${{matrix.env}}
       - name: install gtest
         run: sudo apt-get install -y libgtest-dev
+      - name: install boost
+        run: sudo apt-get install -y libboost-dev
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
       - name: build
