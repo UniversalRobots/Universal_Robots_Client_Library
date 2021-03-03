@@ -122,7 +122,7 @@ public:
       if (stream_.closed())
         return false;
 
-      LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
+      URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
       std::this_thread::sleep_for(timeout_);
 
       if (stream_.connect())

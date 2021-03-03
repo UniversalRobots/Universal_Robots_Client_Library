@@ -58,7 +58,7 @@ public:
    */
   virtual bool consume(std::shared_ptr<T> product)
   {
-    LOG_INFO("%s", product->toString().c_str());
+    URCL_LOG_INFO("%s", product->toString().c_str());
     return true;
   }
 

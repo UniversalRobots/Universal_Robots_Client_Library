@@ -267,7 +267,7 @@ public:
    */
   virtual ~Pipeline()
   {
-    LOG_DEBUG("Destructing pipeline");
+    URCL_LOG_DEBUG("Destructing pipeline");
     stop();
   }
 
@@ -302,7 +302,7 @@ public:
     if (!running_)
       return;
 
-    LOG_DEBUG("Stopping pipeline! <%s>", name_.c_str());
+    URCL_LOG_DEBUG("Stopping pipeline! <%s>", name_.c_str());
 
     running_ = false;
 
@@ -342,7 +342,7 @@ private:
 
   void runProducer()
   {
-    LOG_DEBUG("Starting up producer");
+    URCL_LOG_DEBUG("Starting up producer");
     std::ifstream realtime_file("/sys/kernel/realtime", std::ios::in);
     bool has_realtime;
     realtime_file >> has_realtime;
@@ -363,7 +363,7 @@ private:
         int ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
         if (ret != 0)
         {
-          LOG_ERROR("Unsuccessful in setting producer thread realtime priority. Error code: %d", ret);
+          URCL_LOG_ERROR("Unsuccessful in setting producer thread realtime priority. Error code: %d", ret);
         }
         // Now verify the change in thread priority
         int policy = 0;
@@ -376,24 +376,24 @@ private:
         // Check the correct policy was applied
         if (policy != SCHED_FIFO)
         {
-          LOG_ERROR("Producer thread: Scheduling is NOT SCHED_FIFO!");
+          URCL_LOG_ERROR("Producer thread: Scheduling is NOT SCHED_FIFO!");
         }
         else
         {
-          LOG_INFO("Producer thread: SCHED_FIFO OK");
+          URCL_LOG_INFO("Producer thread: SCHED_FIFO OK");
         }
 
         // Print thread scheduling priority
-        LOG_INFO("Thread priority is %d", params.sched_priority);
+        URCL_LOG_INFO("Thread priority is %d", params.sched_priority);
       }
       else
       {
-        LOG_ERROR("Could not get maximum thread priority for producer thread");
+        URCL_LOG_ERROR("Could not get maximum thread priority for producer thread");
       }
     }
     else
     {
-      LOG_WARN("No realtime capabilities found. Consider using a realtime system for better performance");
+      URCL_LOG_WARN("No realtime capabilities found. Consider using a realtime system for better performance");
     }
     std::vector<std::unique_ptr<T>> products;
     while (running_)
@@ -409,13 +409,13 @@ private:
       {
         if (!queue_.tryEnqueue(std::move(p)))
         {
-          LOG_ERROR("Pipeline producer overflowed! <%s>", name_.c_str());
+          URCL_LOG_ERROR("Pipeline producer overflowed! <%s>", name_.c_str());
         }
       }
 
       products.clear();
     }
-    LOG_DEBUG("Pipeline producer ended! <%s>", name_.c_str());
+    URCL_LOG_DEBUG("Pipeline producer ended! <%s>", name_.c_str());
     notifier_.stopped(name_);
   }
 
@@ -442,7 +442,7 @@ private:
       }
     }
     consumer_->stopConsumer();
-    LOG_DEBUG("Pipeline consumer ended! <%s>", name_.c_str());
+    URCL_LOG_DEBUG("Pipeline consumer ended! <%s>", name_.c_str());
     notifier_.stopped(name_);
   }
 };
