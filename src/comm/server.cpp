@@ -48,7 +48,7 @@ std::string URServer::getIP()
 
   if (res < 0)
   {
-    LOG_ERROR("Could not get local IP");
+    URCL_LOG_ERROR("Could not get local IP");
     return std::string();
   }
 
@@ -90,7 +90,7 @@ bool URServer::accept()
   int retry = 0;
   while ((client_fd = ::accept(getSocketFD(), &addr, &addr_len)) == -1)
   {
-    LOG_ERROR("Accepting socket connection failed. (errno: %d)", errno);
+    URCL_LOG_ERROR("Accepting socket connection failed. (errno: %d)", errno);
     if (retry++ >= 5)
       return false;
   }

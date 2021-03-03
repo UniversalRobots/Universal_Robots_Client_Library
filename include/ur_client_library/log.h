@@ -22,18 +22,18 @@
 #ifdef ROS_BUILD
 #include <console_bridge/console.h>
 
-#define LOG_DEBUG CONSOLE_BRIDGE_logDebug
-#define LOG_WARN CONSOLE_BRIDGE_logWarn
-#define LOG_INFO CONSOLE_BRIDGE_logInform
-#define LOG_ERROR CONSOLE_BRIDGE_logError
-#define LOG_FATAL CONSOLE_BRIDGE_logError
+#define URCL_LOG_DEBUG CONSOLE_BRIDGE_logDebug
+#define URCL_LOG_WARN CONSOLE_BRIDGE_logWarn
+#define URCL_LOG_INFO CONSOLE_BRIDGE_logInform
+#define URCL_LOG_ERROR CONSOLE_BRIDGE_logError
+#define URCL_LOG_FATAL CONSOLE_BRIDGE_logError
 
 #else
 
-#define LOG_DEBUG(format, ...) printf("[DEBUG]: " format "\n", ##__VA_ARGS__)
-#define LOG_WARN(format, ...) printf("[WARNING]: " format "\n", ##__VA_ARGS__)
-#define LOG_INFO(format, ...) printf("[INFO]: " format "\n", ##__VA_ARGS__)
-#define LOG_ERROR(format, ...) printf("[ERROR]: " format "\n", ##__VA_ARGS__)
-#define LOG_FATAL(format, ...) printf("[FATAL]: " format "\n", ##__VA_ARGS__)
+#define URCL_LOG_DEBUG(format, ...) printf("[DEBUG]: " format "\n", ##__VA_ARGS__)
+#define URCL_LOG_WARN(format, ...) printf("[WARNING]: " format "\n", ##__VA_ARGS__)
+#define URCL_LOG_INFO(format, ...) printf("[INFO]: " format "\n", ##__VA_ARGS__)
+#define URCL_LOG_ERROR(format, ...) printf("[ERROR]: " format "\n", ##__VA_ARGS__)
+#define URCL_LOG_FATAL(format, ...) printf("[FATAL]: " format "\n", ##__VA_ARGS__)
 
 #endif

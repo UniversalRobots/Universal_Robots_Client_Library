@@ -83,7 +83,7 @@ private:
       }
       if (requestRead())
       {
-        LOG_INFO("Robot requested program");
+        URCL_LOG_INFO("Robot requested program");
         sendProgram();
       }
       server_.disconnectClient();
@@ -105,12 +105,12 @@ private:
       }
       else
       {
-        LOG_WARN("Received unexpected message on script request port ");
+        URCL_LOG_WARN("Received unexpected message on script request port ");
       }
     }
     else
     {
-      LOG_WARN("Could not read on script request port");
+      URCL_LOG_WARN("Could not read on script request port");
     }
     return false;
   }
@@ -123,11 +123,11 @@ private:
 
     if (server_.write(data, len, written))
     {
-      LOG_INFO("Sent program to robot");
+      URCL_LOG_INFO("Sent program to robot");
     }
     else
     {
-      LOG_ERROR("Could not send program to robot");
+      URCL_LOG_ERROR("Could not send program to robot");
     }
   }
 };
