@@ -59,7 +59,7 @@ void RTDEWriter::run()
       stream_->write(buffer, size, written);
     }
   }
-  LOG_DEBUG("Write thread ended.");
+  URCL_LOG_DEBUG("Write thread ended.");
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)

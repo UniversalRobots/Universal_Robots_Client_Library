@@ -61,8 +61,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
-  LOG_DEBUG("Initializing urdriver");
-  LOG_DEBUG("Initializing RTDE client");
+  URCL_LOG_DEBUG("Initializing urdriver");
+  URCL_LOG_DEBUG("Initializing RTDE client");
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
 
   primary_stream_.reset(
@@ -70,7 +70,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
-  LOG_INFO("Checking if calibration data matches connected robot.");
+  URCL_LOG_INFO("Checking if calibration data matches connected robot.");
   checkCalibration(calibration_checksum);
 
   non_blocking_read_ = non_blocking_read;
@@ -148,13 +148,13 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   {
     script_sender_.reset(new comm::ScriptSender(script_sender_port, prog));
     script_sender_->start();
-    LOG_DEBUG("Created script sender");
+    URCL_LOG_DEBUG("Created script sender");
   }
 
   reverse_port_ = reverse_port;
   watchdog_thread_ = std::thread(&UrDriver::startWatchdog, this);
 
-  LOG_DEBUG("Initialization done");
+  URCL_LOG_DEBUG("Initialization done");
 }
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
@@ -206,11 +206,11 @@ void UrDriver::startWatchdog()
   handle_program_state_(false);
   reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
   reverse_interface_active_ = true;
-  LOG_DEBUG("Created reverse interface");
+  URCL_LOG_DEBUG("Created reverse interface");
 
   while (true)
   {
-    LOG_INFO("Robot ready to receive control commands.");
+    URCL_LOG_INFO("Robot ready to receive control commands.");
     handle_program_state_(true);
     while (reverse_interface_active_ == true)
     {
@@ -222,7 +222,7 @@ void UrDriver::startWatchdog()
       }
     }
 
-    LOG_INFO("Connection to robot dropped, waiting for new connection.");
+    URCL_LOG_INFO("Connection to robot dropped, waiting for new connection.");
     handle_program_state_(false);
     // We explicitly call the destructor here, as unique_ptr.reset() creates a new object before
     // replacing the pointer and destroying the old object. This will result in a resource conflict
@@ -275,7 +275,7 @@ void UrDriver::checkCalibration(const std::string& checksum)
   {
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
-  LOG_DEBUG("Got calibration information from robot.");
+  URCL_LOG_DEBUG("Got calibration information from robot.");
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -302,10 +302,10 @@ bool UrDriver::sendScript(const std::string& program)
 
   if (secondary_stream_->write(data, len, written))
   {
-    LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
     return true;
   }
-  LOG_ERROR("Could not send program to robot");
+  URCL_LOG_ERROR("Could not send program to robot");
   return false;
 }
 
@@ -317,7 +317,7 @@ bool UrDriver::sendRobotProgram()
   }
   else
   {
-    LOG_ERROR("Tried to send robot program directly while not in headless mode");
+    URCL_LOG_ERROR("Tried to send robot program directly while not in headless mode");
     return false;
   }
 }

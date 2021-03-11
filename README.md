@@ -23,12 +23,6 @@
 
 <!--te-->
 
----
-<div style="background-color:red;color:black;padding:5pt;">DISCLAIMER: This library is still
-under development. Documentation may be missing and things might change in the near future.</div>
-
----
-
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
@@ -253,7 +247,7 @@ string from this function. If no answer is received, a `UrException` is thrown.
 
 Note: In order to make this more useful developers are expected to wrap this bare interface into
 something that checks the returned string for something that is expected. See the
-[DashboardClientROS](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/ros/dashboard_client_ros.h) as an example.
+[DashboardClientROS](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/dashboard_client_ros.h) as an example.
 
 ## A word on the primary / secondary interface
 Currently, this library doesn't support the primary interface very well, as the [Universal Robots
@@ -277,7 +271,7 @@ for details on how to set this up.
 The RTDE receive thread will be scheduled to real-time priority automatically, if applicable. If
 this doesn't work, an error is raised at startup. The main thread calling `getDataPackage` should be
 scheduled to real-time priority by the application. See the
-[ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/ros/hardware_interface_node.cpp)
+[ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/src/hardware_interface_node.cpp)
 as an example.
 
 ## Producer / Consumer architecture
@@ -292,11 +286,87 @@ As this library was originally designed to be included into a ROS driver but als
 standalone library, it uses custom logging macros instead of direct `printf` or `std::cout`
 statements.
 
-These logging macros will either be translated into `printf` statements or logging commands of
-[`console_bridge`](https://github.com/ros/console_bridge) if `console_bridge` is found on the system
-during the cmake run. In this case, the define `ROS_BUILD` will be set. When built inside a catkin
-workspace, logging commands are automatically translated into ROS logging commands.
+The macro based interface is by default using the [`DefaultLogHandler`](include/ur_client_library/default_log_handler.h)
+to print the logging messages as `printf` statements. It is possible to define your own log handler
+to change the behavior, [see create new log handler](#Create-new-log-handler) on how to.
 
-Whenever you compile this library against `console_bridge`, make sure to set the logging level in
-your application, as by default `console_bridge` will only print messages of level WARNING or
-higher. See [`examples/primary_pipeline.cpp`](examples/primary_pipeline.cpp) as an example.
+### Change logging level
+Make sure to set the logging level in your application, as by default only messages of level
+WARNING or higher will be printed. See below for an example:
+```c++
+#include "ur_client_library/log.h"
+
+int main(int argc, char* argv[])
+{
+  urcl::setLogLevel(urcl::LogLevel::DEBUG);
+
+  URCL_LOG_DEBUG("Logging debug message");
+  return 0;
+}
+```
+
+### Create new log handler
+The logger comes with an interface [`LogHandler`](include/ur_client_library/log.h), which can be
+used to implement your own log handler for messages logged with this library. This can be done by
+inheriting from the `LogHandler class`.
+
+If you want to create a new log handler in your application, you can use below example as
+inspiration:
+
+```c++
+#include "ur_client_library/log.h"
+#include <iostream>
+
+class MyLogHandler : public urcl::LogHandler
+{
+public:
+  MyLogHandler() = default;
+
+  void log(const char* file, int line, urcl::LogLevel loglevel, const char* log) override
+  {
+    switch (loglevel)
+    {
+      case urcl::LogLevel::INFO:
+        std::cout << "INFO " << file << " " << line << ": " << log << std::endl;
+        break;
+      case urcl::LogLevel::DEBUG:
+        std::cout << "DEBUG " << file << " " << line << ": " << log << std::endl;
+        break;
+      case urcl::LogLevel::WARN:
+        std::cout << "WARN " << file << " " << line << ": " << log << std::endl;
+        break;
+      case urcl::LogLevel::ERROR:
+        std::cout << "ERROR " << file << " " << line << ": " << log << std::endl;
+        break;
+      case urcl::LogLevel::FATAL:
+        std::cout << "ERROR " << file << " " << line << ": " << log << std::endl;
+        break;
+      default:
+        break;
+    }
+  }
+};
+
+int main(int argc, char* argv[])
+{
+  urcl::setLogLevel(urcl::LogLevel::DEBUG);
+  std::unique_ptr<MyLogHandler> log_handler(new MyLogHandler);
+  urcl::registerLogHandler(std::move(log_handler));
+
+  URCL_LOG_DEBUG("logging debug message");
+  URCL_LOG_INFO("logging info message");
+  return 0;
+}
+```
+
+### Console_bridge
+If [`console_bridge`](https://github.com/ros/console_bridge) is found on the system during the
+cmake run, logging commands will be done by `console_bridge`. In this case, the define `ROS_BUILD`
+will be set. When built inside a catkin workspace, logging commands are automatically translated
+into ROS logging commands.
+
+If you compile this library against `console_bridge`, make sure to set the logging level in your
+application, as by default `console_bridge` will only print messages of level WARNING or higher.
+See [`examples/primary_pipeline.cpp`](examples/primary_pipeline.cpp) as an example.
+
+The ROS logger will be moved to the ROS driver in a future release.
