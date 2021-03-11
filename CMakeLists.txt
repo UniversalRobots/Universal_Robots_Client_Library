@@ -106,3 +106,5 @@ find_package(catkin)
 if(catkin_FOUND)
   install(FILES package.xml DESTINATION share/${PROJECT_NAME})
 endif()
+
+install(FILES resources/external_control.urscript DESTINATION share/${PROJECT_NAME})

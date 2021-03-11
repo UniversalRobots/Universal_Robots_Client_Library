@@ -140,8 +140,8 @@ instance of the `UrDriver` class and prints the RTDE values read from the contro
 sure to
  * have an instance of a robot controller / URSim running at the configured IP address (or adapt the
    address to your needs)
- * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
-   to locate the required files.
+ * run it from the package's main folder (the one where this README.md file is stored), as for
+   simplicity reasons it doesn't use any sophisticated method to locate the required files.
 
 ## Architecture
 The image below shows a rough architecture overview that should help developers to use the different
@@ -197,8 +197,8 @@ An example of a standalone RTDE-client can be found in the `examples` subfolder.
 sure to
  * have an instance of a robot controller / URSim running at the configured IP address (or adapt the
    address to your needs)
- * run it from its source folder, as for simplicity reasons it doesn't use any sophisticated method
-   to locate the required recipe files.
+ * run it from the package's main folder (the one where this README.md file is stored), as for
+   simplicity reasons it doesn't use any sophisticated method to locate the required files.
 
 #### RTDEWriter
 The `RTDEWriter` class provides an interface to write data to the RTDE interface. Data fields that
