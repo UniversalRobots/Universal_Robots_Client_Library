@@ -62,7 +62,7 @@ public:
    *
    * \param port Port the Server is started on
    */
-  ReverseInterface(uint32_t port) : server_(port)
+  ReverseInterface(uint32_t port) : server_(port), keepalive_count_(1)
   {
     if (!server_.bind())
     {
@@ -96,7 +96,7 @@ public:
     uint8_t* b_pos = buffer;
 
     // The first element is always the keepalive signal.
-    int32_t val = htobe32(1);
+    int32_t val = htobe32(keepalive_count_);
     b_pos += append(b_pos, val);
 
     if (positions != nullptr)
@@ -143,9 +143,20 @@ public:
     }
   }
 
+  /*!
+   * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
+   *
+   * \param count Number of allowed timeout reads on the robot.
+   */
+  void setKeepaliveCount(const uint32_t& count)
+  {
+    keepalive_count_ = count;
+  }
+
 private:
   URServer server_;
   static const int32_t MULT_JOINTSTATE = 1000000;
+  uint32_t keepalive_count_;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)

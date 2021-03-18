@@ -321,4 +321,16 @@ bool UrDriver::sendRobotProgram()
     return false;
   }
 }
+
+void UrDriver::setKeepaliveCount(const uint32_t& count)
+{
+  if (reverse_interface_active_)
+  {
+    reverse_interface_->setKeepaliveCount(count);
+  }
+  else
+  {
+    URCL_LOG_WARN("Unable to set keepalive counter, reverse interface is not active");
+  }
+}
 }  // namespace urcl
