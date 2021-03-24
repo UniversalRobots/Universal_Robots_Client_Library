@@ -29,6 +29,8 @@ robotic manipulators.
 
 ## Requirements
  * The library requires an implementation of **POSIX threads** such as the `pthread` library
+ * Socket communication is currently based on Linux sockets. Thus, this library will require Linux
+   for building and using.
  * The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
    branch of this repository requires a C++17-compatible compiler. For building this library without
    a C++17-requirement, please use the
