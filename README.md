@@ -219,13 +219,9 @@ meant to send joint positions or velocities together with a mode that tells the 
 interpret those values (e.g. `SERVOJ`, `SPEEDJ`). Therefore, this interface can be used to do motion
 command streaming to the robot.
 
-Simultaneously this class offers a function to receive a keepalive signal from the robot. This
-function expects to read a terminated string from the opened socket and returns the string that has
-been read. If no string could be read, an empty string is returned instead.
-
 In order to use this class in an application together with a robot, make sure that a corresponding
-URScript is running on the robot that can interpret the commands sent and sends keepalive signals to
-the interface. See [this example script](examples/resources/scriptfile.urscript) for reference.
+URScript is running on the robot that can interpret the commands sent. See [this example
+script](resources/external_control.urscript) for reference.
 
 Also see the [ScriptSender](#scriptsender) for a way to define the corresponding URScript on the
 control PC and sending it to the robot upon request.

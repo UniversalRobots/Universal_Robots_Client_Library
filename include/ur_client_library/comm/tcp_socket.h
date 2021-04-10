@@ -88,19 +88,11 @@ public:
   {
     return socket_fd_;
   }
-  /*!
-   * \brief Setter for the file descriptor of the socket.
-   *
-   * \param socket_fd The new value
-   *
-   * \returns False, if the socket is in state connected
-   */
-  bool setSocketFD(int socket_fd);
 
   /*!
-   * \brief Determines the IP address of the local machine
+   * \brief Determines the local IP address of the currently configured socket
    *
-   * \returns The IP address of the local machine.
+   * \returns The local IP address of the socket associated to the current file descriptor
    */
   std::string getIP() const;
 
