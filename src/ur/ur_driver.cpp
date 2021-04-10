@@ -56,8 +56,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
-  , reverse_interface_active_(false)
-  , reverse_port_(reverse_port)
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -147,12 +145,10 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   else
   {
     script_sender_.reset(new comm::ScriptSender(script_sender_port, prog));
-    script_sender_->start();
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_port_ = reverse_port;
-  watchdog_thread_ = std::thread(&UrDriver::startWatchdog, this);
+  reverse_interface_.reset(new comm::ReverseInterface(reverse_port, handle_program_state));
 
   URCL_LOG_DEBUG("Initialization done");
 }
@@ -169,21 +165,13 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
 {
-  if (reverse_interface_active_)
-  {
-    return reverse_interface_->write(&values, control_mode);
-  }
-  return false;
+  return reverse_interface_->write(&values, control_mode);
 }
 
 bool UrDriver::writeKeepalive()
 {
-  if (reverse_interface_active_)
-  {
-    vector6d_t* fake = nullptr;
-    return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
-  }
-  return false;
+  vector6d_t* fake = nullptr;
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
 }
 
 void UrDriver::startRTDECommunication()
@@ -193,46 +181,8 @@ void UrDriver::startRTDECommunication()
 
 bool UrDriver::stopControl()
 {
-  if (reverse_interface_active_)
-  {
-    vector6d_t* fake = nullptr;
-    return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
-  }
-  return false;
-}
-
-void UrDriver::startWatchdog()
-{
-  handle_program_state_(false);
-  reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-  reverse_interface_active_ = true;
-  URCL_LOG_DEBUG("Created reverse interface");
-
-  while (true)
-  {
-    URCL_LOG_INFO("Robot ready to receive control commands.");
-    handle_program_state_(true);
-    while (reverse_interface_active_ == true)
-    {
-      std::string keepalive = readKeepalive();
-
-      if (keepalive == std::string(""))
-      {
-        reverse_interface_active_ = false;
-      }
-    }
-
-    URCL_LOG_INFO("Connection to robot dropped, waiting for new connection.");
-    handle_program_state_(false);
-    // We explicitly call the destructor here, as unique_ptr.reset() creates a new object before
-    // replacing the pointer and destroying the old object. This will result in a resource conflict
-    // when trying to bind the socket.
-    // TODO: It would probably make sense to keep the same instance alive for the complete runtime
-    // instead of killing it all the time.
-    reverse_interface_->~ReverseInterface();
-    reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-    reverse_interface_active_ = true;
-  }
+  vector6d_t* fake = nullptr;
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
 }
 
 std::string UrDriver::readScriptFile(const std::string& filename)
@@ -241,17 +191,6 @@ std::string UrDriver::readScriptFile(const std::string& filename)
   std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 
   return content;
-}
-std::string UrDriver::readKeepalive()
-{
-  if (reverse_interface_active_)
-  {
-    return reverse_interface_->readKeepalive();
-  }
-  else
-  {
-    return std::string("");
-  }
 }
 
 void UrDriver::checkCalibration(const std::string& checksum)
@@ -320,5 +259,10 @@ bool UrDriver::sendRobotProgram()
     URCL_LOG_ERROR("Tried to send robot program directly while not in headless mode");
     return false;
   }
+}
+
+std::vector<std::string> UrDriver::getRTDEOutputRecipe()
+{
+  return rtde_client_->getOutputRecipe();
 }
 }  // namespace urcl

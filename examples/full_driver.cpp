@@ -39,9 +39,9 @@ using namespace urcl;
 // In a real-world example it would be better to get those values from command line parameters / a
 // better configuration system such as Boost.Program_options
 const std::string ROBOT_IP = "192.168.56.101";
-const std::string SCRIPT_FILE = "resources/scriptfile.urscript";
-const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
-const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
+const std::string SCRIPT_FILE = "resources/external_control.urscript";
+const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
+const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 std::unique_ptr<UrDriver> g_my_driver;
