@@ -36,6 +36,7 @@
 #include <atomic>
 #include <functional>
 #include <thread>
+#include <vector>
 
 namespace urcl
 {
