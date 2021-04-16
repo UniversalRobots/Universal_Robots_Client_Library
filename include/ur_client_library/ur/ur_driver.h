@@ -223,6 +223,13 @@ public:
    */
   std::vector<std::string> getRTDEOutputRecipe();
 
+  /*!
+   * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
+   *
+   * \param count Number of allowed timeout reads on the robot.
+   */
+  void setKeepaliveCount(const uint32_t& count);
+
 private:
   std::string readScriptFile(const std::string& filename);
 
