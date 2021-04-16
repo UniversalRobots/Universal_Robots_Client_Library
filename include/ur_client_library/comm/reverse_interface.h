@@ -66,7 +66,7 @@ public:
    * \param handle_program_state Function handle to a callback on program state changes.
    */
   ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state)
-    : client_fd_(-1), server_(port), handle_program_state_(handle_program_state)
+    : client_fd_(-1), server_(port), handle_program_state_(handle_program_state), keepalive_count_(1)
   {
     handle_program_state_(false);
     server_.setMessageCallback(
@@ -102,7 +102,7 @@ public:
     uint8_t* b_pos = buffer;
 
     // The first element is always the keepalive signal.
-    int32_t val = htobe32(1);
+    int32_t val = htobe32(keepalive_count_);
     b_pos += append(b_pos, val);
 
     if (positions != nullptr)
@@ -125,6 +125,16 @@ public:
     size_t written;
 
     return server_.write(client_fd_, buffer, sizeof(buffer), written);
+  }
+
+  /*!
+   * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
+   *
+   * \param count Number of allowed timeout reads on the robot.
+   */
+  void setKeepaliveCount(const uint32_t& count)
+  {
+    keepalive_count_ = count;
   }
 
 private:
@@ -170,6 +180,7 @@ private:
   }
 
   std::function<void(bool)> handle_program_state_;
+  uint32_t keepalive_count_;
 };
 
 }  // namespace comm
