@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="2">
+<package format="3">
   <name>ur_client_library</name>
   <version>0.1.1</version>
   <description>Standalone C++ library for accessing Universal Robots interfaces. This has been forked off the ur_robot_driver.</description>
@@ -22,7 +22,8 @@
   <buildtool_depend>cmake</buildtool_depend>
 
   <depend>libconsole-bridge-dev</depend>
-  <exec_depend>catkin</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 1">catkin</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">ament_cmake</exec_depend>
 
   <export>
     <build_type>cmake</build_type>
