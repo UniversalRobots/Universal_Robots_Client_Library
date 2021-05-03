@@ -54,3 +54,10 @@ target_include_directories(rtde_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      rtde_parser_tests
 )
+
+add_executable(tcp_server_tests test_tcp_server.cpp)
+target_compile_options(tcp_server_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(tcp_server_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(tcp_server_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      tcp_server_tests
+)

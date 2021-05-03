@@ -67,13 +67,13 @@ public:
         {
           if (!bp.checkSize(sizeof(uint32_t)))
           {
-            LOG_ERROR("Failed to read sub-package length, there's likely a parsing error");
+            URCL_LOG_ERROR("Failed to read sub-package length, there's likely a parsing error");
             return false;
           }
           uint32_t sub_size = bp.peek<uint32_t>();
           if (!bp.checkSize(static_cast<size_t>(sub_size)))
           {
-            LOG_WARN("Invalid sub-package size of %" PRIu32 " received!", sub_size);
+            URCL_LOG_WARN("Invalid sub-package size of %" PRIu32 " received!", sub_size);
             return false;
           }
 
@@ -95,7 +95,7 @@ public:
 
           if (!packet->parseWith(sbp))
           {
-            LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(type));
+            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(type));
             return false;
           }
 
@@ -103,7 +103,7 @@ public:
 
           if (!sbp.empty())
           {
-            LOG_ERROR("Sub-package of type %d was not parsed completely!", static_cast<int>(type));
+            URCL_LOG_ERROR("Sub-package of type %d was not parsed completely!", static_cast<int>(type));
             sbp.debug();
             return false;
           }
@@ -125,7 +125,7 @@ public:
         std::unique_ptr<PrimaryPackage> packet(messageFromType(message_type, timestamp, source));
         if (!packet->parseWith(bp))
         {
-          LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(message_type));
+          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(message_type));
           return false;
         }
 
@@ -136,7 +136,7 @@ public:
 
       default:
       {
-        LOG_DEBUG("Invalid robot package type recieved: %u", static_cast<uint8_t>(type));
+        URCL_LOG_DEBUG("Invalid robot package type recieved: %u", static_cast<uint8_t>(type));
         bp.consume();
         return true;
       }

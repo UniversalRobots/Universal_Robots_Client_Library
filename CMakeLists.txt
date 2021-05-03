@@ -20,7 +20,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
 add_library(urcl SHARED
     src/comm/tcp_socket.cpp
-    src/comm/server.cpp
+    src/comm/tcp_server.cpp
     src/primary/primary_package.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
@@ -41,6 +41,8 @@ add_library(urcl SHARED
     src/ur/dashboard_client.cpp
     src/ur/tool_communication.cpp
     src/rtde/rtde_writer.cpp
+    src/default_log_handler.cpp
+    src/log.cpp
 )
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
@@ -109,3 +111,5 @@ find_package(catkin)
 if(catkin_FOUND)
   install(FILES package.xml DESTINATION share/${PROJECT_NAME})
 endif()
+
+install(FILES resources/external_control.urscript DESTINATION share/${PROJECT_NAME})

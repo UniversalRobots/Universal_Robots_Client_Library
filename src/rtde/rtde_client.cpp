@@ -45,6 +45,11 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 {
 }
 
+RTDEClient::~RTDEClient()
+{
+  pipeline_.stop();
+}
+
 bool RTDEClient::init()
 {
   // A running pipeline is needed inside setup
@@ -54,7 +59,7 @@ bool RTDEClient::init()
   uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
   while (!negotiateProtocolVersion(protocol_version))
   {
-    LOG_INFO("Robot did not accept RTDE protocol version '%hu'. Trying lower protocol version", protocol_version);
+    URCL_LOG_INFO("Robot did not accept RTDE protocol version '%hu'. Trying lower protocol version", protocol_version);
     protocol_version--;
     if (protocol_version == 0)
     {
@@ -62,7 +67,7 @@ bool RTDEClient::init()
                         "the suggested versions.");
     }
   }
-  LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
+  URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
   parser_.setProtocolVersion(protocol_version);
 
   queryURControlVersion();
@@ -114,7 +119,7 @@ bool RTDEClient::negotiateProtocolVersion(const uint16_t protocol_version)
       ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
-      LOG_WARN("%s", ss.str().c_str());
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
   std::stringstream ss;
@@ -152,7 +157,7 @@ void RTDEClient::queryURControlVersion()
       ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
-      LOG_WARN("%s", ss.str().c_str());
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
   std::stringstream ss;
@@ -168,7 +173,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   size_t size;
   size_t written;
   uint8_t buffer[4096];
-  LOG_INFO("Setting up RTDE communication with frequency %f", max_frequency_);
+  URCL_LOG_INFO("Setting up RTDE communication with frequency %f", max_frequency_);
   if (protocol_version == 2)
   {
     size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, max_frequency_, output_recipe_);
@@ -198,7 +203,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
       assert(output_recipe_.size() == variable_types.size());
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
-        LOG_DEBUG("%s confirmed as datatype: %s", output_recipe_[i].c_str(), variable_types[i].c_str());
+        URCL_LOG_DEBUG("%s confirmed as datatype: %s", output_recipe_[i].c_str(), variable_types[i].c_str());
         if (variable_types[i] == "NOT_FOUND")
         {
           std::string message = "Variable '" + output_recipe_[i] +
@@ -214,7 +219,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
       ss << "Did not receive answer to RTDE output setup. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
-      LOG_WARN("%s", ss.str().c_str());
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
   std::stringstream ss;
@@ -248,7 +253,7 @@ void RTDEClient::setupInputs()
       assert(input_recipe_.size() == variable_types.size());
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
-        LOG_DEBUG("%s confirmed as datatype: %s", input_recipe_[i].c_str(), variable_types[i].c_str());
+        URCL_LOG_DEBUG("%s confirmed as datatype: %s", input_recipe_[i].c_str(), variable_types[i].c_str());
         if (variable_types[i] == "NOT_FOUND")
         {
           std::string message = "Variable '" + input_recipe_[i] +
@@ -274,7 +279,7 @@ void RTDEClient::setupInputs()
       ss << "Did not receive answer to RTDE input setup. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
-      LOG_WARN("%s", ss.str().c_str());
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
   std::stringstream ss;
@@ -309,7 +314,7 @@ bool RTDEClient::start()
       std::stringstream ss;
       ss << "Did not receive answer to RTDE start request. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
-      LOG_WARN("%s", ss.str().c_str());
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
   std::stringstream ss;
@@ -327,7 +332,7 @@ std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file)
   {
     std::stringstream msg;
     msg << "Opening file '" << recipe_file << "' failed with error: " << strerror(errno);
-    LOG_ERROR("%s", msg.str().c_str());
+    URCL_LOG_ERROR("%s", msg.str().c_str());
     throw UrException(msg.str());
   }
   std::string line;

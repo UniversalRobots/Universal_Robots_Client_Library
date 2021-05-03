@@ -58,10 +58,10 @@ bool TCPSocket::setup(std::string& host, int port)
   if (state_ == SocketState::Connected)
     return false;
 
-  LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
+  URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
 
   // gethostbyname() is deprecated so use getadderinfo() as described in:
-  // http://www.beej.us/guide/bgnet/output/html/multipage/syscalls.html#getaddrinfo
+  // https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch
 
   const char* host_name = host.empty() ? nullptr : host.c_str();
   std::string service = std::to_string(port);
@@ -74,7 +74,7 @@ bool TCPSocket::setup(std::string& host, int port)
 
   if (getaddrinfo(host_name, service.c_str(), &hints, &result) != 0)
   {
-    LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
+    URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
     return false;
   }
 
@@ -96,24 +96,15 @@ bool TCPSocket::setup(std::string& host, int port)
   if (!connected)
   {
     state_ = SocketState::Invalid;
-    LOG_ERROR("Connection setup failed for %s:%d", host.c_str(), port);
+    URCL_LOG_ERROR("Connection setup failed for %s:%d", host.c_str(), port);
   }
   else
   {
     setOptions(socket_fd_);
     state_ = SocketState::Connected;
-    LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
+    URCL_LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
   }
   return connected;
-}
-
-bool TCPSocket::setSocketFD(int socket_fd)
-{
-  if (state_ == SocketState::Connected)
-    return false;
-  socket_fd_ = socket_fd;
-  state_ = SocketState::Connected;
-  return true;
 }
 
 void TCPSocket::close()
@@ -134,7 +125,7 @@ std::string TCPSocket::getIP() const
 
   if (res < 0)
   {
-    LOG_ERROR("Could not get local IP");
+    URCL_LOG_ERROR("Could not get local IP");
     return std::string();
   }
 
@@ -179,7 +170,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
 
   if (state_ != SocketState::Connected)
   {
-    LOG_ERROR("Attempt to write on a non-connected socket");
+    URCL_LOG_ERROR("Attempt to write on a non-connected socket");
     return false;
   }
 
@@ -192,7 +183,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
 
     if (sent <= 0)
     {
-      LOG_ERROR("Sending data through socket failed.");
+      URCL_LOG_ERROR("Sending data through socket failed.");
       return false;
     }
 

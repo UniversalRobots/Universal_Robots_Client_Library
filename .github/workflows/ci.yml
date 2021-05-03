@@ -24,12 +24,22 @@ jobs:
         env: ${{matrix.env}}
       - name: install gtest
         run: sudo apt-get install -y libgtest-dev
+      - name: install boost
+        run: sudo apt-get install -y libboost-dev
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBoost_INCLUDE_DIR=$BOOST_ROOT_1_72_0/include -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
+        env:
+            CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
+            CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+            LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
         run: cmake --build build --config Debug
       - name: test
         run: cd build && make test
+      - name: install gcovr
+        run: sudo apt-get install -y gcovr
+      - name: gcovr
+        run: cd build && gcovr -r ..
 
   check_links:
     runs-on: ubuntu-latest

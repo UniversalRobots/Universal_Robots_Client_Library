@@ -175,12 +175,6 @@ public:
   bool stopControl();
 
   /*!
-   * \brief Starts the watchdog checking if the URCaps program is running on the robot and it is
-   * ready to receive control commands.
-   */
-  void startWatchdog();
-
-  /*!
    * \brief Checks if the kinematics information in the used model fits the actual robot.
    *
    * \param checksum Hash of the used kinematics information
@@ -222,9 +216,22 @@ public:
     return robot_version_;
   }
 
+  /*!
+   * \brief Getter for the RTDE output recipe used in the RTDE client.
+   *
+   * \returns The used RTDE output recipe
+   */
+  std::vector<std::string> getRTDEOutputRecipe();
+
+  /*!
+   * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
+   *
+   * \param count Number of allowed timeout reads on the robot.
+   */
+  void setKeepaliveCount(const uint32_t& count);
+
 private:
   std::string readScriptFile(const std::string& filename);
-  std::string readKeepalive();
 
   int rtde_frequency_;
   comm::INotifier notifier_;
@@ -238,9 +245,6 @@ private:
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
 
-  std::thread watchdog_thread_;
-  bool reverse_interface_active_;
-  uint32_t reverse_port_;
   std::function<void(bool)> handle_program_state_;
 
   std::string robot_ip_;

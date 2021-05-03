@@ -93,7 +93,7 @@ public:
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
              const std::string& input_recipe_file);
-  ~RTDEClient() = default;
+  ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
    * used protocol version and setting of input and output recipes.
@@ -150,6 +150,16 @@ public:
    * \returns A reference to the used RTDEWriter
    */
   RTDEWriter& getWriter();
+
+  /*!
+   * \brief Getter for the RTDE output recipe.
+   *
+   * \returns The output recipe
+   */
+  std::vector<std::string> getOutputRecipe()
+  {
+    return output_recipe_;
+  }
 
 private:
   comm::URStream<RTDEPackage> stream_;

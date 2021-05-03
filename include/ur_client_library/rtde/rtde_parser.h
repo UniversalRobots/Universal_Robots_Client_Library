@@ -75,7 +75,7 @@ public:
 
     if (!bp.checkSize(size - sizeof(size) - sizeof(type)))
     {
-      LOG_ERROR("Buffer len shorter than expected packet length");
+      URCL_LOG_ERROR("Buffer len shorter than expected packet length");
       return false;
     }
 
@@ -87,7 +87,7 @@ public:
 
         if (!package->parseWith(bp))
         {
-          LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
+          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
           return false;
         }
         results.push_back(std::move(package));
@@ -98,7 +98,7 @@ public:
         std::unique_ptr<RTDEPackage> package(packageFromType(type));
         if (!package->parseWith(bp))
         {
-          LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
+          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
           return false;
         }
 
@@ -108,7 +108,7 @@ public:
     }
     if (!bp.empty())
     {
-      LOG_ERROR("Package of type %d was not parsed completely!", static_cast<int>(type));
+      URCL_LOG_ERROR("Package of type %d was not parsed completely!", static_cast<int>(type));
       bp.debug();
       return false;
     }
