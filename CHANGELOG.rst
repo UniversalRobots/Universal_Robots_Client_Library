@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.0 (2021-05-03)
+------------------
 * Add function to set keepalive counter
 * Use a non-blocking tcp server for the `ReverseInterface` and `ScriptSender`.
 * Added header and control loop definitions.
