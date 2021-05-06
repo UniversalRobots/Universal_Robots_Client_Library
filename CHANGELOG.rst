@@ -2,6 +2,13 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Run ci also for ROS2 foxy
+* Prepare package.xml and cmakelists for ROS2
+* Add downstream workspace
+* Contributors: Felix Exner, Lennart Puck
+
 0.2.0 (2021-05-03)
 ------------------
 * Add function to set keepalive counter
