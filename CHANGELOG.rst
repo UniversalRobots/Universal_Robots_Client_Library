@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.1 (2021-05-06)
+------------------
 * Run ci also for ROS2 foxy
 * Prepare package.xml and cmakelists for ROS2
 * Add downstream workspace
