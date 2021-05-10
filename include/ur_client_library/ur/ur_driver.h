@@ -178,8 +178,11 @@ public:
    * \brief Checks if the kinematics information in the used model fits the actual robot.
    *
    * \param checksum Hash of the used kinematics information
+   *
+   * \returns True if the robot's calibration checksum matches the one given to the checker. False
+   * if it doesn't match or the check was not yet performed.
    */
-  void checkCalibration(const std::string& checksum);
+  bool checkCalibration(const std::string& checksum);
 
   /*!
    * \brief Getter for the RTDE writer used to write to the robot's RTDE interface.

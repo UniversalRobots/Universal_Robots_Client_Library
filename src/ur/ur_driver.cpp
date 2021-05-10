@@ -68,8 +68,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
-  URCL_LOG_INFO("Checking if calibration data matches connected robot.");
-  checkCalibration(calibration_checksum);
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -193,7 +191,7 @@ std::string UrDriver::readScriptFile(const std::string& filename)
   return content;
 }
 
-void UrDriver::checkCalibration(const std::string& checksum)
+bool UrDriver::checkCalibration(const std::string& checksum)
 {
   if (primary_stream_ == nullptr)
   {
@@ -215,6 +213,7 @@ void UrDriver::checkCalibration(const std::string& checksum)
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   URCL_LOG_DEBUG("Got calibration information from robot.");
+  return consumer.checkSuccessful();
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
