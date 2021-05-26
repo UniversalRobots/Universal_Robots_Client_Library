@@ -87,7 +87,7 @@ public:
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
-           bool non_blocking_read = false);
+           bool non_blocking_read = false, const std::string& reverse_ip = "");
 
   /*!
    * \brief Constructs a new UrDriver object.
