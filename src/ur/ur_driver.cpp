@@ -50,14 +50,12 @@ static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
                          std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
-                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                         double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip)
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
+                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
+                         bool non_blocking_read, const std::string& reverse_ip)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
-  , reverse_interface_active_(false)
-  , reverse_port_(reverse_port)
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -70,8 +68,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
-  URCL_LOG_INFO("Checking if calibration data matches connected robot.");
-  checkCalibration(calibration_checksum);
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -148,14 +144,41 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   else
   {
     script_sender_.reset(new comm::ScriptSender(script_sender_port, prog));
-    script_sender_->start();
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_port_ = reverse_port;
-  watchdog_thread_ = std::thread(&UrDriver::startWatchdog, this);
+  reverse_interface_.reset(new comm::ReverseInterface(reverse_port, handle_program_state));
 
   URCL_LOG_DEBUG("Initialization done");
+}
+
+urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
+                         const std::string& output_recipe_file, const std::string& input_recipe_file,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
+                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
+                         double servoj_lookahead_time, bool non_blocking_read)
+  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
+             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
+             non_blocking_read)
+{
+  URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
+                "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
+                "notice is for application developers using this library. If you are only using an application using "
+                "this library, you can ignore this message.");
+  if (checkCalibration(calibration_checksum))
+  {
+    URCL_LOG_INFO("Calibration checked successfully.");
+  }
+  else
+  {
+    URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
+                   "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
+                   "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
+                   "description. See "
+                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                   "for details.");
+  }
 }
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
@@ -170,21 +193,13 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
 {
-  if (reverse_interface_active_)
-  {
-    return reverse_interface_->write(&values, control_mode);
-  }
-  return false;
+  return reverse_interface_->write(&values, control_mode);
 }
 
 bool UrDriver::writeKeepalive()
 {
-  if (reverse_interface_active_)
-  {
-    vector6d_t* fake = nullptr;
-    return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
-  }
-  return false;
+  vector6d_t* fake = nullptr;
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
 }
 
 void UrDriver::startRTDECommunication()
@@ -194,46 +209,8 @@ void UrDriver::startRTDECommunication()
 
 bool UrDriver::stopControl()
 {
-  if (reverse_interface_active_)
-  {
-    vector6d_t* fake = nullptr;
-    return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
-  }
-  return false;
-}
-
-void UrDriver::startWatchdog()
-{
-  handle_program_state_(false);
-  reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-  reverse_interface_active_ = true;
-  URCL_LOG_DEBUG("Created reverse interface");
-
-  while (true)
-  {
-    URCL_LOG_INFO("Robot ready to receive control commands.");
-    handle_program_state_(true);
-    while (reverse_interface_active_ == true)
-    {
-      std::string keepalive = readKeepalive();
-
-      if (keepalive == std::string(""))
-      {
-        reverse_interface_active_ = false;
-      }
-    }
-
-    URCL_LOG_INFO("Connection to robot dropped, waiting for new connection.");
-    handle_program_state_(false);
-    // We explicitly call the destructor here, as unique_ptr.reset() creates a new object before
-    // replacing the pointer and destroying the old object. This will result in a resource conflict
-    // when trying to bind the socket.
-    // TODO: It would probably make sense to keep the same instance alive for the complete runtime
-    // instead of killing it all the time.
-    reverse_interface_->~ReverseInterface();
-    reverse_interface_.reset(new comm::ReverseInterface(reverse_port_));
-    reverse_interface_active_ = true;
-  }
+  vector6d_t* fake = nullptr;
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
 }
 
 std::string UrDriver::readScriptFile(const std::string& filename)
@@ -243,19 +220,8 @@ std::string UrDriver::readScriptFile(const std::string& filename)
 
   return content;
 }
-std::string UrDriver::readKeepalive()
-{
-  if (reverse_interface_active_)
-  {
-    return reverse_interface_->readKeepalive();
-  }
-  else
-  {
-    return std::string("");
-  }
-}
 
-void UrDriver::checkCalibration(const std::string& checksum)
+bool UrDriver::checkCalibration(const std::string& checksum)
 {
   if (primary_stream_ == nullptr)
   {
@@ -277,6 +243,7 @@ void UrDriver::checkCalibration(const std::string& checksum)
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   URCL_LOG_DEBUG("Got calibration information from robot.");
+  return consumer.checkSuccessful();
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -288,7 +255,8 @@ bool UrDriver::sendScript(const std::string& program)
 {
   if (secondary_stream_ == nullptr)
   {
-    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. This "
+    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
+                             "This "
                              "should not happen.");
   }
 
@@ -326,5 +294,10 @@ bool UrDriver::sendRobotProgram()
 std::vector<std::string> UrDriver::getRTDEOutputRecipe()
 {
   return rtde_client_->getOutputRecipe();
+}
+
+void UrDriver::setKeepaliveCount(const uint32_t& count)
+{
+  reverse_interface_->setKeepaliveCount(count);
 }
 }  // namespace urcl

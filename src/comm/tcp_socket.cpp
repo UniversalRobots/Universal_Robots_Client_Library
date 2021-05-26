@@ -61,7 +61,7 @@ bool TCPSocket::setup(std::string& host, int port)
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
 
   // gethostbyname() is deprecated so use getadderinfo() as described in:
-  // http://www.beej.us/guide/bgnet/output/html/multipage/syscalls.html#getaddrinfo
+  // https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch
 
   const char* host_name = host.empty() ? nullptr : host.c_str();
   std::string service = std::to_string(port);
@@ -105,15 +105,6 @@ bool TCPSocket::setup(std::string& host, int port)
     URCL_LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
   }
   return connected;
-}
-
-bool TCPSocket::setSocketFD(int socket_fd)
-{
-  if (state_ == SocketState::Connected)
-    return false;
-  socket_fd_ = socket_fd;
-  state_ = SocketState::Connected;
-  return true;
 }
 
 void TCPSocket::close()

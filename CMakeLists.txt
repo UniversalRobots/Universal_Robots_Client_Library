@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
 add_library(urcl SHARED
     src/comm/tcp_socket.cpp
-    src/comm/server.cpp
+    src/comm/tcp_server.cpp
     src/primary/primary_package.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
@@ -102,9 +102,10 @@ install(FILES ur_client_libraryConfig.cmake
   DESTINATION lib/cmake/ur_client_library)
 
 # When built with catkin available, install package.xml
-find_package(catkin)
-if(catkin_FOUND)
+find_package(catkin QUIET)
+find_package(ament_cmake QUIET)
+if(catkin_FOUND OR ament_cmake_FOUND)
   install(FILES package.xml DESTINATION share/${PROJECT_NAME})
 endif()
 
-install(FILES resources/external_control.urscript DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY resources DESTINATION share/${PROJECT_NAME})
