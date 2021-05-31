@@ -16,22 +16,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         env:
-          - ROS_DISTRO: kinetic
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
           - ROS_DISTRO: melodic
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.ci.rosinstall"
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.melodic.rosinstall"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             URSIM_VERSION: 5.8.0.10253
           - ROS_DISTRO: noetic
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.ci.rosinstall"
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.noetic.rosinstall"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             URSIM_VERSION: 5.8.0.10253
