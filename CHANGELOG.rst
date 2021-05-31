@@ -2,6 +2,14 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add reverse_ip parameter to UrDriver (`#52 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/52>`_)
+* Make calibration check optionally callable
+* Use file= fields for license tags in package.xml (`#63 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/63>`_)
+* Install the resources folder instead of the script file directly (`#62 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/62>`_)
+* Contributors: Felix Exner, JS00000
+
 0.2.1 (2021-05-06)
 ------------------
 * Run ci also for ROS2 foxy
