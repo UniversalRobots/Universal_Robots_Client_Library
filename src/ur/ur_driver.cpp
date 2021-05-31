@@ -52,7 +52,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::function<void(bool)> handle_program_state, bool headless_mode,
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
-                         bool non_blocking_read)
+                         bool non_blocking_read, const std::string& reverse_ip)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
@@ -80,7 +80,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   rtde_frequency_ = rtde_client_->getMaxFrequency();
   servoj_time_ = 1.0 / rtde_frequency_;
 
-  std::string local_ip = rtde_client_->getIP();
+  // Figure out the ip automatically if the user didn't provide it
+  std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
 
   std::string prog = readScriptFile(script_file);
   while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
@@ -156,10 +157,10 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::function<void(bool)> handle_program_state, bool headless_mode,
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
                          const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                         double servoj_lookahead_time, bool non_blocking_read)
+                         double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip)
   : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
              std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
-             non_blocking_read)
+             non_blocking_read, reverse_ip)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                 "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
