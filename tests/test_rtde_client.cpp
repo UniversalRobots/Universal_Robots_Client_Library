@@ -31,7 +31,7 @@
 
 using namespace urcl;
 
-const std::string ROBOT_IP = "192.168.56.101";
+std::string ROBOT_IP = "192.168.56.101";
 
 TEST(UrRobotDriver, rtde_handshake)
 {
@@ -84,6 +84,15 @@ TEST(UrRobotDriver, empty_recipe)
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
+
+  for (int i = 0; i < argc; i++)
+  {
+    if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
+    {
+      ROBOT_IP = argv[i + 1];
+      break;
+    }
+  }
 
   return RUN_ALL_TESTS();
 }
