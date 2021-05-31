@@ -82,6 +82,8 @@ public:
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
    * \param servoj_lookahead_time Time [S], range [0.03,0.2] smoothens the trajectory with this lookahead time
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
@@ -109,6 +111,8 @@ public:
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
    * \param servoj_lookahead_time Time [S], range [0.03,0.2] smoothens the trajectory with this lookahead time
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
@@ -135,6 +139,8 @@ public:
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
    * \param servoj_lookahead_time Time [S], range [0.03,0.2] smoothens the trajectory with this lookahead time
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
