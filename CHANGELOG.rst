@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.2 (2021-05-31)
+------------------
 * Add reverse_ip parameter to UrDriver (`#52 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/52>`_)
 * Make calibration check optionally callable
 * Use file= fields for license tags in package.xml (`#63 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/63>`_)
