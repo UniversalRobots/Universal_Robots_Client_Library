@@ -95,9 +95,21 @@ public:
     return checked_;
   }
 
+  /*!
+   * \brief Returns whether the calibration check was successful.
+   *
+   * \returns True if the robot's calibration checksum matches the one given to the checker. False
+   * if it doesn't match or the check was not yet performed.
+   */
+  bool checkSuccessful()
+  {
+    return matches_;
+  }
+
 private:
   std::string expected_hash_;
   bool checked_;
+  bool matches_;
 };
 }  // namespace urcl
 

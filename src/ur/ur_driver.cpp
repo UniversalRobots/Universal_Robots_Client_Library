@@ -50,9 +50,9 @@ static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
                          std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
-                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                         double servoj_lookahead_time, bool non_blocking_read)
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
+                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
+                         bool non_blocking_read, const std::string& reverse_ip)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
@@ -68,8 +68,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
-  URCL_LOG_INFO("Checking if calibration data matches connected robot.");
-  checkCalibration(calibration_checksum);
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -82,7 +80,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   rtde_frequency_ = rtde_client_->getMaxFrequency();
   servoj_time_ = 1.0 / rtde_frequency_;
 
-  std::string local_ip = rtde_client_->getIP();
+  // Figure out the ip automatically if the user didn't provide it
+  std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
 
   std::string prog = readScriptFile(script_file);
   while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
@@ -153,6 +152,35 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   URCL_LOG_DEBUG("Initialization done");
 }
 
+urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
+                         const std::string& output_recipe_file, const std::string& input_recipe_file,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
+                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
+                         double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip)
+  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
+             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
+             non_blocking_read, reverse_ip)
+{
+  URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
+                "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
+                "notice is for application developers using this library. If you are only using an application using "
+                "this library, you can ignore this message.");
+  if (checkCalibration(calibration_checksum))
+  {
+    URCL_LOG_INFO("Calibration checked successfully.");
+  }
+  else
+  {
+    URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
+                   "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
+                   "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
+                   "description. See "
+                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                   "for details.");
+  }
+}
+
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
   // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
@@ -193,7 +221,7 @@ std::string UrDriver::readScriptFile(const std::string& filename)
   return content;
 }
 
-void UrDriver::checkCalibration(const std::string& checksum)
+bool UrDriver::checkCalibration(const std::string& checksum)
 {
   if (primary_stream_ == nullptr)
   {
@@ -215,6 +243,7 @@ void UrDriver::checkCalibration(const std::string& checksum)
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   URCL_LOG_DEBUG("Got calibration information from robot.");
+  return consumer.checkSuccessful();
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -226,7 +255,8 @@ bool UrDriver::sendScript(const std::string& program)
 {
   if (secondary_stream_ == nullptr)
   {
-    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. This "
+    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
+                             "This "
                              "should not happen.");
   }
 
