@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
         increment = 0.02;
       }
       g_joint_positions[5] += increment;
-      g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ);
+      g_my_driver->writeJointCommand(g_joint_positions, control::ControlMode::MODE_SERVOJ);
       std::cout << data_pkg->toString() << std::endl;
     }
     else
