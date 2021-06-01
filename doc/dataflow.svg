@@ -63,7 +63,7 @@
       <rect x="995" y="404.8438" clip-path="url(#clipPath2)" fill="rgb(183,182,158)" width="192" height="21.4609" stroke="none"/>
     </g>
     <g font-size="15px" stroke-linecap="butt" transform="matrix(1,0,0,1,15,15)" text-rendering="geometricPrecision" font-family="sans-serif" shape-rendering="geometricPrecision" stroke-miterlimit="1.45">
-      <text x="1000.1221" xml:space="preserve" y="420.7671" clip-path="url(#clipPath2)" stroke="none">comm::ReverseInterface</text>
+      <text x="1000.1221" xml:space="preserve" y="420.7671" clip-path="url(#clipPath2)" stroke="none">control::ReverseInterface</text>
       <rect fill="none" x="995" width="192" height="97.4609" y="404.8438" clip-path="url(#clipPath2)"/>
     </g>
     <g fill="rgb(255,204,0)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" transform="matrix(1,0,0,1,15,15)" stroke="rgb(255,204,0)">
@@ -81,7 +81,7 @@
       <rect x="5" y="264.8438" clip-path="url(#clipPath2)" fill="rgb(183,182,158)" width="192" height="21.4609" stroke="none"/>
     </g>
     <g font-size="15px" stroke-linecap="butt" transform="matrix(1,0,0,1,15,15)" text-rendering="geometricPrecision" font-family="sans-serif" shape-rendering="geometricPrecision" stroke-miterlimit="1.45">
-      <text x="41.5649" xml:space="preserve" y="280.7671" clip-path="url(#clipPath2)" stroke="none">comm::ScriptSender</text>
+      <text x="41.5649" xml:space="preserve" y="280.7671" clip-path="url(#clipPath2)" stroke="none">control::ScriptSender</text>
       <rect fill="none" x="5" width="192" height="97.4609" y="264.8438" clip-path="url(#clipPath2)"/>
     </g>
     <g fill="rgb(255,204,0)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" transform="matrix(1,0,0,1,15,15)" stroke="rgb(255,204,0)">

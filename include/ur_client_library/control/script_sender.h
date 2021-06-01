@@ -36,7 +36,7 @@
 
 namespace urcl
 {
-namespace comm
+namespace control
 {
 /*!
  * \brief The ScriptSender class starts a TCPServer for a robot to connect to and waits for a
@@ -52,59 +52,25 @@ public:
    * \param port Port to start the server on
    * \param program Program to send to the robot upon request
    */
-  ScriptSender(uint32_t port, const std::string& program) : server_(port), script_thread_(), program_(program)
-  {
-    server_.setMessageCallback(
-        std::bind(&ScriptSender::messageCallback, this, std::placeholders::_1, std::placeholders::_2));
-    server_.setConnectCallback(std::bind(&ScriptSender::connectionCallback, this, std::placeholders::_1));
-    server_.setDisconnectCallback(std::bind(&ScriptSender::disconnectionCallback, this, std::placeholders::_1));
-    server_.start();
-  }
+  ScriptSender(uint32_t port, const std::string& program);
 
 private:
-  TCPServer server_;
+  comm::TCPServer server_;
   std::thread script_thread_;
   std::string program_;
 
   const std::string PROGRAM_REQUEST_ = std::string("request_program\n");
 
-  void connectionCallback(const int filedescriptor)
-  {
-    URCL_LOG_DEBUG("New client connected at FD %d.", filedescriptor);
-  }
+  void connectionCallback(const int filedescriptor);
 
-  void disconnectionCallback(const int filedescriptor)
-  {
-    URCL_LOG_DEBUG("Client at FD %d disconnected.", filedescriptor);
-  }
+  void disconnectionCallback(const int filedescriptor);
 
-  void messageCallback(const int filedescriptor, char* buffer)
-  {
-    if (std::string(buffer) == PROGRAM_REQUEST_)
-    {
-      URCL_LOG_INFO("Robot requested program");
-      sendProgram(filedescriptor);
-    }
-  }
+  void messageCallback(const int filedescriptor, char* buffer);
 
-  void sendProgram(const int filedescriptor)
-  {
-    size_t len = program_.size();
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(program_.c_str());
-    size_t written;
-
-    if (server_.write(filedescriptor, data, len, written))
-    {
-      URCL_LOG_INFO("Sent program to robot");
-    }
-    else
-    {
-      URCL_LOG_ERROR("Could not send program to robot");
-    }
-  }
+  void sendProgram(const int filedescriptor);
 };
 
-}  // namespace comm
+}  // namespace control
 }  // namespace urcl
 
 #endif  // UR_CLIENT_LIBRARY_SCRIPT_SENDER_H_INCLUDED

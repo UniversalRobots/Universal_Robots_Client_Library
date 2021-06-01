@@ -30,8 +30,8 @@
 #include <functional>
 
 #include "ur_client_library/rtde/rtde_client.h"
-#include "ur_client_library/comm/reverse_interface.h"
-#include "ur_client_library/comm/script_sender.h"
+#include "ur_client_library/control/reverse_interface.h"
+#include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
@@ -178,7 +178,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode);
+  bool writeJointCommand(const vector6d_t& values, const control::ControlMode control_mode);
 
   /*!
    * \brief Write a keepalive signal only.
@@ -271,8 +271,8 @@ private:
   int rtde_frequency_;
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
-  std::unique_ptr<comm::ReverseInterface> reverse_interface_;
-  std::unique_ptr<comm::ScriptSender> script_sender_;
+  std::unique_ptr<control::ReverseInterface> reverse_interface_;
+  std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
 
