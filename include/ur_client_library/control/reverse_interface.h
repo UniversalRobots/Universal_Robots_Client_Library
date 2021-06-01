@@ -29,6 +29,7 @@
 #define UR_CLIENT_LIBRARY_REVERSE_INTERFACE_H_INCLUDED
 
 #include "ur_client_library/comm/tcp_server.h"
+#include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/log.h"
 #include <cstring>
@@ -39,18 +40,6 @@ namespace urcl
 {
 namespace control
 {
-/*!
- * \brief Control modes as interpreted from the script runnning on the robot.
- */
-enum class ControlMode : int32_t
-{
-  MODE_STOPPED = -2,        ///< When this is set, the program is expected to stop and exit.
-  MODE_UNINITIALIZED = -1,  ///< Startup default until another mode is sent to the script.
-  MODE_IDLE = 0,            ///< Set when no controller is currently active controlling the robot.
-  MODE_SERVOJ = 1,          ///< Set when servoj control is active.
-  MODE_SPEEDJ = 2           ///< Set when speedj control is active.
-};
-
 /*!
  * \brief The ReverseInterface class handles communication to the robot. It starts a server and
  * waits for the robot to connect via its URCaps program.
@@ -76,12 +65,12 @@ public:
    * \brief Writes needed information to the robot to be read by the URCaps program.
    *
    * \param positions A vector of joint targets for the robot
-   * \param control_mode Control mode assigned to this command. See documentation of ::ControlMode
+   * \param control_mode Control mode assigned to this command. See documentation of comm::ControlMode
    * for details on possible values.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool write(const vector6d_t* positions, const ControlMode control_mode = ControlMode::MODE_IDLE);
+  bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE);
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.

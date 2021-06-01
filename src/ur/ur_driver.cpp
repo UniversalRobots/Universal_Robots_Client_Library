@@ -191,7 +191,7 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
-bool UrDriver::writeJointCommand(const vector6d_t& values, const control::ControlMode control_mode)
+bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
 {
   return reverse_interface_->write(&values, control_mode);
 }
@@ -199,7 +199,7 @@ bool UrDriver::writeJointCommand(const vector6d_t& values, const control::Contro
 bool UrDriver::writeKeepalive()
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, control::ControlMode::MODE_IDLE);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
 }
 
 void UrDriver::startRTDECommunication()
@@ -210,7 +210,7 @@ void UrDriver::startRTDECommunication()
 bool UrDriver::stopControl()
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, control::ControlMode::MODE_STOPPED);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
 }
 
 std::string UrDriver::readScriptFile(const std::string& filename)

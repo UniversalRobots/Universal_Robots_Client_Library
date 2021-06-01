@@ -178,7 +178,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeJointCommand(const vector6d_t& values, const control::ControlMode control_mode);
+  bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode);
 
   /*!
    * \brief Write a keepalive signal only.

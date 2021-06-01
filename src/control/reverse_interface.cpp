@@ -43,7 +43,7 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
   server_.start();
 }
 
-bool ReverseInterface::write(const vector6d_t* positions, const ControlMode control_mode)
+bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode)
 {
   if (client_fd_ == -1)
   {
