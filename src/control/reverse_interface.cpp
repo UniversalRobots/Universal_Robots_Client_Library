@@ -78,6 +78,41 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
+                                                     const int point_number)
+{
+  if (client_fd_ == -1)
+  {
+    return false;
+  }
+  uint8_t buffer[sizeof(int32_t) * 8];
+  uint8_t* b_pos = buffer;
+
+  // The first element is always the keepalive signal.
+  int32_t val = htobe32(1);
+  b_pos += append(b_pos, val);
+
+  val = htobe32(toUnderlying(trajectory_action));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(point_number);
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage in control loop with other control messages
+  for (size_t i = 0; i < 4; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+
+  val = htobe32(toUnderlying(comm::ControlMode::MODE_FORWARD));
+  b_pos += append(b_pos, val);
+
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 void ReverseInterface::connectionCallback(const int filedescriptor)
 {
   if (client_fd_ < 0)

@@ -41,7 +41,8 @@ enum class ControlMode : int32_t
   MODE_UNINITIALIZED = -1,  ///< Startup default until another mode is sent to the script.
   MODE_IDLE = 0,            ///< Set when no controller is currently active controlling the robot.
   MODE_SERVOJ = 1,          ///< Set when servoj control is active.
-  MODE_SPEEDJ = 2           ///< Set when speedj control is active.
+  MODE_SPEEDJ = 2,          ///< Set when speedj control is active.
+  MODE_FORWARD = 3          ///< Set when trajectory forwarding is active.
 };
 }  // namespace comm
 }  // namespace urcl

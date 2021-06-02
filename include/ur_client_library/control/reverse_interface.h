@@ -41,6 +41,16 @@ namespace urcl
 namespace control
 {
 /*!
+ * \brief Control messages for forwarding and aborting trajectories.
+ */
+enum class TrajectoryControlMessage : int32_t
+{
+  TRAJECTORY_CANCEL = -1,  ///< Represents command to cancel currently active trajectory.
+  TRAJECTORY_NOOP = 0,     ///< Represents no new control command.
+  TRAJECTORY_START = 1,    ///< Represents command to start a new trajectory.
+};
+
+/*!
  * \brief The ReverseInterface class handles communication to the robot. It starts a server and
  * waits for the robot to connect via its URCaps program.
  */
@@ -61,7 +71,7 @@ public:
   /*!
    * \brief Disconnects possible clients so the reverse interface object can be safely destroyed.
    */
-  ~ReverseInterface() = default;
+  virtual ~ReverseInterface() = default;
 
   /*!
    * \brief Writes needed information to the robot to be read by the URCaps program.
@@ -72,28 +82,37 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE);
+  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE);
+
+  /*!
+   * \brief Writes needed information to the robot to be read by the URScript program.
+   *
+   * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
+   * \param point_number The number of points of the trajectory to be executed
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0);
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  void setKeepaliveCount(const uint32_t& count)
+  virtual void setKeepaliveCount(const uint32_t& count)
   {
     keepalive_count_ = count;
   }
 
-private:
-  void connectionCallback(const int filedescriptor);
+protected:
+  virtual void connectionCallback(const int filedescriptor);
 
-  void disconnectionCallback(const int filedescriptor);
+  virtual void disconnectionCallback(const int filedescriptor);
 
-  void messageCallback(const int filedescriptor, char* buffer);
+  virtual void messageCallback(const int filedescriptor, char* buffer);
 
   int client_fd_;
   comm::TCPServer server_;
-
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)

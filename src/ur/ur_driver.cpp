@@ -42,6 +42,7 @@ namespace urcl
 {
 static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
 static const std::string JOINT_STATE_REPLACE("{{JOINT_STATE_REPLACE}}");
+static const std::string TIME_REPLACE("{{TIME_REPLACE}}");
 static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
 static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
 static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
@@ -87,6 +88,11 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   {
     prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(),
                  std::to_string(control::ReverseInterface::MULT_JOINTSTATE));
+  }
+  while (prog.find(TIME_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(TIME_REPLACE), TIME_REPLACE.length(),
+                 std::to_string(control::TrajectoryPointInterface::MULT_TIME));
   }
 
   std::ostringstream out;
@@ -148,6 +154,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
 
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
+  // TODO swap to configurable or static port
+  trajectory_interface_.reset(new control::TrajectoryPointInterface(reverse_port + 10));
 
   URCL_LOG_DEBUG("Initialization done");
 }
@@ -194,6 +202,18 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
 {
   return reverse_interface_->write(&values, control_mode);
+}
+
+bool UrDriver::writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time,
+                                    const float blend_radius)
+{
+  return trajectory_interface_->writeTrajectoryPoint(&values, goal_time, blend_radius, cartesian);
+}
+
+bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
+                                             const int point_number)
+{
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
 }
 
 bool UrDriver::writeKeepalive()
