@@ -27,6 +27,10 @@ TRAJECTORY_POINT_JOINT = 0
 TRAJECTORY_POINT_CARTESIAN = 1
 TRAJECTORY_DATA_DIMENSION = 7
 
+TRAJECTORY_RESULT_SUCCESS = 0
+TRAJECTORY_RESULT_CANCELED = 1
+TRAJECTORY_RESULT_FAILURE = 2
+
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -150,6 +154,7 @@ thread jointTrajectoryThread():
     #add some form of error handling here
     end
   end
+  socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
   textmsg("Trajectory finished")
 end
 
@@ -212,6 +217,7 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         textmsg("cancel received")
         kill thread_trajectory
         clear_remaining_trajectory_points()
+        socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     end
   else:

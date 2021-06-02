@@ -272,7 +272,7 @@ void TCPServer::readData(const int fd)
   {
     if (message_callback_)
     {
-      message_callback_(fd, input_buffer_);
+      message_callback_(fd, input_buffer_, nbytesrecv);
     }
   }
   else

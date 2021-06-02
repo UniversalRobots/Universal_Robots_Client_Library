@@ -38,6 +38,17 @@ namespace urcl
 namespace control
 {
 /*!
+ * \brief Types for encoding trajectory execution result
+ */
+enum class TrajectoryResult : int32_t
+{
+
+  TRAJECTORY_RESULT_SUCCESS = 0,   ///< Successful execution
+  TRAJECTORY_RESULT_CANCELED = 1,  ///< Canceled by user
+  TRAJECTORY_RESULT_FAILURE = 2    ///< Aborted due to error during execution
+};
+
+/*!
  * \brief The TrajectoryPointInterface class handles trajectory forwarding to the robot. Full
  * trajectories are forwarded to the robot controller and are executed there.
  */
@@ -72,12 +83,20 @@ public:
   bool writeTrajectoryPoint(const vector6d_t* positions, const float goal_time, const float blend_radius,
                             const bool cartesian);
 
+  void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
+  {
+    handle_trajectory_end_ = callback;
+  }
+
 protected:
   virtual void connectionCallback(const int filedescriptor) override;
 
   virtual void disconnectionCallback(const int filedescriptor) override;
 
-  virtual void messageCallback(const int filedescriptor, char* buffer) override;
+  virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv) override;
+
+private:
+  std::function<void(TrajectoryResult)> handle_trajectory_end_;
 };
 
 }  // namespace control

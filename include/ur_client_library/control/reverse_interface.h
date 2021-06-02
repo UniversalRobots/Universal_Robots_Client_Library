@@ -109,7 +109,7 @@ protected:
 
   virtual void disconnectionCallback(const int filedescriptor);
 
-  virtual void messageCallback(const int filedescriptor, char* buffer);
+  virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv);
 
   int client_fd_;
   comm::TCPServer server_;

@@ -35,8 +35,8 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
   : client_fd_(-1), server_(port), handle_program_state_(handle_program_state), keepalive_count_(1)
 {
   handle_program_state_(false);
-  server_.setMessageCallback(
-      std::bind(&ReverseInterface::messageCallback, this, std::placeholders::_1, std::placeholders::_2));
+  server_.setMessageCallback(std::bind(&ReverseInterface::messageCallback, this, std::placeholders::_1,
+                                       std::placeholders::_2, std::placeholders::_3));
   server_.setConnectCallback(std::bind(&ReverseInterface::connectionCallback, this, std::placeholders::_1));
   server_.setDisconnectCallback(std::bind(&ReverseInterface::disconnectionCallback, this, std::placeholders::_1));
   server_.setMaxClientsAllowed(1);
@@ -135,7 +135,7 @@ void ReverseInterface::disconnectionCallback(const int filedescriptor)
   handle_program_state_(false);
 }
 
-void ReverseInterface::messageCallback(const int filedescriptor, char* buffer)
+void ReverseInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
 {
   URCL_LOG_WARN("Message on ReverseInterface received. The reverse interface currently does not support any message "
                 "handling. This message will be ignored.");

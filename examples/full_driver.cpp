@@ -53,12 +53,16 @@ void handleRobotProgramState(bool program_running)
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
 }
+void trajectoryDoneCb(urcl::control::TrajectoryResult result)
+{
+  std::cout << "Trajectory finished in state " << toUnderlying(result) << std::endl;
+}
 
 int main(int argc, char* argv[])
 {
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  g_my_driver.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, false,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+  g_my_driver.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
+                                 &trajectoryDoneCb, false, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.

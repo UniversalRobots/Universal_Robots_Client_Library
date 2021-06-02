@@ -105,10 +105,27 @@ void TrajectoryPointInterface::disconnectionCallback(const int filedescriptor)
   client_fd_ = -1;
 }
 
-void TrajectoryPointInterface::messageCallback(const int filedescriptor, char* buffer)
+void TrajectoryPointInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
 {
-  // TODO: Send up. This will be things like "finished trajectory"
-  URCL_LOG_INFO("Received message %s on TrajectoryPointInterface", buffer);
+  if (nbytesrecv == 4)
+  {
+    int32_t* status = reinterpret_cast<int*>(buffer);
+    URCL_LOG_DEBUG("Received message %d on TrajectoryPointInterface", be32toh(*status));
+
+    if (handle_trajectory_end_)
+    {
+      handle_trajectory_end_(static_cast<TrajectoryResult>(be32toh(*status)));
+    }
+    else
+    {
+      URCL_LOG_DEBUG("Trajectory execution finished with result %d, but no callback was given");
+    }
+  }
+  else
+  {
+    URCL_LOG_WARN("Received %d bytes on TrajectoryPointInterface. Expecting 4 bytes, so ignoring this message",
+                  nbytesrecv);
+  }
 }
 }  // namespace control
 }  // namespace urcl
