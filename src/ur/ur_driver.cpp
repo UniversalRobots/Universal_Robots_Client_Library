@@ -143,11 +143,11 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
   else
   {
-    script_sender_.reset(new comm::ScriptSender(script_sender_port, prog));
+    script_sender_.reset(new control::ScriptSender(script_sender_port, prog));
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_interface_.reset(new comm::ReverseInterface(reverse_port, handle_program_state));
+  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
 
   URCL_LOG_DEBUG("Initialization done");
 }
