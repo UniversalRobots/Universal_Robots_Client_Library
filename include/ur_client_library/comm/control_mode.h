@@ -27,7 +27,6 @@
 
 #ifndef UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
-#endif  // ifndef UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 
 namespace urcl
 {
@@ -46,3 +45,5 @@ enum class ControlMode : int32_t
 };
 }  // namespace comm
 }  // namespace urcl
+
+#endif  // ifndef UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED

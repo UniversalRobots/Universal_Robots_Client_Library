@@ -40,7 +40,6 @@
 
 namespace urcl
 {
-static const int32_t MULT_JOINTSTATE = 1000000;
 static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
 static const std::string JOINT_STATE_REPLACE("{{JOINT_STATE_REPLACE}}");
 static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
@@ -86,7 +85,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   std::string prog = readScriptFile(script_file);
   while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
   {
-    prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(), std::to_string(MULT_JOINTSTATE));
+    prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(),
+                 std::to_string(control::ReverseInterface::MULT_JOINTSTATE));
   }
 
   std::ostringstream out;

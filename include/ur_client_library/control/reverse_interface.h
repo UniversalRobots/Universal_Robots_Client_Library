@@ -47,6 +47,8 @@ namespace control
 class ReverseInterface
 {
 public:
+  static const int32_t MULT_JOINTSTATE = 1000000;
+
   ReverseInterface() = delete;
   /*!
    * \brief Creates a ReverseInterface object including a TCPServer.
@@ -92,7 +94,6 @@ private:
   int client_fd_;
   comm::TCPServer server_;
 
-  static const int32_t MULT_JOINTSTATE = 1000000;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)
