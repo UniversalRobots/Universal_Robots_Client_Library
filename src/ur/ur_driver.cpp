@@ -49,8 +49,7 @@ static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
-                         std::function<void(bool)> handle_program_state,
-                         std::function<void(control::TrajectoryResult)> trajectory_done_cb, bool headless_mode,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip)
@@ -157,21 +156,19 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
   // TODO swap to configurable or static port
   trajectory_interface_.reset(new control::TrajectoryPointInterface(reverse_port + 10));
-  trajectory_interface_->setTrajectoryEndCallback(trajectory_done_cb);
 
   URCL_LOG_DEBUG("Initialization done");
 }
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
-                         std::function<void(bool)> handle_program_state,
-                         std::function<void(control::TrajectoryResult)> trajectory_done_cb, bool headless_mode,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
                          const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
                          double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip)
-  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, trajectory_done_cb,
-             headless_mode, std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain,
-             servoj_lookahead_time, non_blocking_read, reverse_ip)
+  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
+             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
+             non_blocking_read, reverse_ip)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                 "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
