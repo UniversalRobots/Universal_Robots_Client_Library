@@ -111,10 +111,8 @@ thread speedThread():
 end
 
 thread jointTrajectoryThread():
-  textmsg("Executing trajectory")
-  textmsg(trajectory_points_left)
+  textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
   while trajectory_points_left > 0:
-    textmsg("Waiting to read point")
     enter_critical
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket")
@@ -125,33 +123,23 @@ thread jointTrajectoryThread():
       tmptime = raw_point[7] / MULT_time
       blend_radius = raw_point[8] / MULT_time
 
-      textmsg("Executing Point")
-      textmsg(trajectory_points_left)
-      textmsg(q)
-      textmsg(tmptime)
-      textmsg(blend_radius)
-      textmsg(raw_point[9])
-
       if trajectory_points_left > 0:
         if raw_point[9] == TRAJECTORY_POINT_JOINT:
-          textmsg("Executing movej with blending")
+          # textmsg("Executing movej with blending")
           movej(q, t=tmptime, r=blend_radius)
-          textmsg("done")
         elif raw_point[9] == TRAJECTORY_POINT_CARTESIAN:
-          textmsg("Executing movel with blending")
+          # textmsg("Executing movel with blending")
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
         end
       else:
         if raw_point[9] == TRAJECTORY_POINT_JOINT:
-          textmsg("Executing movej without blending")
+          # textmsg("Executing movej without blending")
           movej(q, t=tmptime, r=0.0)
-          textmsg("done")
         elif raw_point[9] == TRAJECTORY_POINT_CARTESIAN:
-          textmsg("Executing movel without blending")
+          # textmsg("Executing movel without blending")
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
         end
       end
-    #add some form of error handling here
     end
   end
   socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
