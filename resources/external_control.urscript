@@ -158,8 +158,7 @@ end
 # NODE_CONTROL_LOOP_BEGINS
 
 socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
-trajectory_port = {{SERVER_PORT_REPLACE}}+10
-socket_open("{{SERVER_IP_REPLACE}}", trajectory_port, "trajectory_socket")
+socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
