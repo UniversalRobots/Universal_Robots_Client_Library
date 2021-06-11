@@ -185,8 +185,9 @@ public:
    * \brief Writes a trajectory point onto the dedicated socket.
    *
    * \param values Desired joint or cartesian positions
-   * \param goal_time Time for the robot to reach this point
    * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param goal_time Time for the robot to reach this point
+   * \param blend_radius  The radius to be used for blending between control points
    *
    * \returns True on successful write.
    */
@@ -196,8 +197,8 @@ public:
   /*!
    * \brief Writes a control message in trajectory forward mode.
    *
-   * \param trajectory_action The action to be taken, such as starting a new trajectory.
-   * \param point_number The number of points of a new trajectory to be sent.
+   * \param trajectory_action The action to be taken, such as starting a new trajectory
+   * \param point_number The number of points of a new trajectory to be sent
    *
    * \returns True on successful write.
    */
@@ -292,11 +293,11 @@ public:
   /*!
    * \brief Register a callback for the robot-based trajectory execution completion.
    *
-   * One modes of robot control is to forward a complete trajectory to the robot for execution.
-   * When the execution is done, the callback function registered here, will be triggered.
+   * One mode of robot control is to forward a complete trajectory to the robot for execution.
+   * When the execution is done, the callback function registered here will be triggered.
    *
    * \param trajectory_done_cb Callback function that will be triggered in the event of finishing
-   * a trajectory execution.
+   * a trajectory execution
    */
   void registerTrajectoryDoneCallback(std::function<void(control::TrajectoryResult)> trajectory_done_cb)
   {

@@ -94,8 +94,7 @@ void TrajectoryPointInterface::connectionCallback(const int filedescriptor)
   else
   {
     URCL_LOG_ERROR("Connection request to TrajectoryPointInterface received while connection already established. Only "
-                   "one "
-                   "connection is allowed at a time. Ignoring this request.");
+                   "one connection is allowed at a time. Ignoring this request.");
   }
 }
 
@@ -118,7 +117,7 @@ void TrajectoryPointInterface::messageCallback(const int filedescriptor, char* b
     }
     else
     {
-      URCL_LOG_DEBUG("Trajectory execution finished with result %d, but no callback was given");
+      URCL_LOG_DEBUG("Trajectory execution finished with result %d, but no callback was given.");
     }
   }
   else

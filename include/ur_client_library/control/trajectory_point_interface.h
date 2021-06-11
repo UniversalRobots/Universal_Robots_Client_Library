@@ -38,7 +38,7 @@ namespace urcl
 namespace control
 {
 /*!
- * \brief Types for encoding trajectory execution result
+ * \brief Types for encoding trajectory execution result.
  */
 enum class TrajectoryResult : int32_t
 {
@@ -77,6 +77,8 @@ public:
    *
    * \param positions A vector of joint or cartesian targets for the robot
    * \param time The goal time to reach the target
+   * \param blend_radius The radius to be used for blending between control points
+   * \param cartesian True, if the written point is specified in cartesian space, false if in joint space
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
