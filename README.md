@@ -1,10 +1,11 @@
 # Universal Robots Client Library
-<!--ts-->
    * [Universal Robots Client Library](#universal-robots-client-library)
+      * [Requirements](#requirements)
       * [Build instructions](#build-instructions)
          * [Plain cmake](#plain-cmake)
          * [Inside a ROS workspace](#inside-a-ros-workspace)
       * [Use this library in other projects](#use-this-library-in-other-projects)
+      * [License](#license)
       * [Library contents](#library-contents)
       * [Example driver](#example-driver)
       * [Architecture](#architecture)
@@ -18,10 +19,13 @@
          * [DashboardClient](#dashboardclient)
       * [A word on the primary / secondary interface](#a-word-on-the-primary--secondary-interface)
       * [A word on Real-Time scheduling](#a-word-on-real-time-scheduling)
+      * [Producer / Consumer architecture](#producer--consumer-architecture)
+      * [Logging configuration](#logging-configuration)
+         * [Change logging level](#change-logging-level)
+         * [Create new log handler](#create-new-log-handler)
+         * [Console_bridge](#console_bridge)
+      * [Acknowledgement](#acknowledgement)
 
-<!-- Added by: mauch, at: Do 10. Sep 13:37:24 CEST 2020 -->
-
-<!--te-->
 
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
@@ -366,3 +370,31 @@ application, as by default `console_bridge` will only print messages of level WA
 See [`examples/primary_pipeline.cpp`](examples/primary_pipeline.cpp) as an example.
 
 The ROS logger will be moved to the ROS driver in a future release.
+
+
+## Acknowledgment
+Many parts of this library are forked from the [ur_modern_driver](https://github.com/ros-industrial/ur_modern_driver).
+
+Developed in collaboration between:
+
+[<img height="60" alt="Universal Robots A/S" src="doc/resources/ur_logo.jpg">](https://www.universal-robots.com/) &nbsp; and &nbsp;
+[<img height="60" alt="FZI Research Center for Information Technology" src="doc/resources/fzi-logo_transparenz.png">](https://www.fzi.de).
+
+<!--
+    ROSIN acknowledgement from the ROSIN press kit
+    @ https://github.com/rosin-project/press_kit
+-->
+
+<a href="http://rosin-project.eu">
+  <img src="http://rosin-project.eu/wp-content/uploads/rosin_ack_logo_wide.png"
+       alt="rosin_logo" height="60" >
+</a>
+
+Supported by ROSIN - ROS-Industrial Quality-Assured Robot Software Components.
+More information: <a href="http://rosin-project.eu">rosin-project.eu</a>
+
+<img src="http://rosin-project.eu/wp-content/uploads/rosin_eu_flag.jpg"
+     alt="eu_flag" height="45" align="left" >
+
+This project has received funding from the European Union’s Horizon 2020
+research and innovation programme under grant agreement no. 732287.

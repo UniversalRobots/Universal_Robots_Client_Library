@@ -91,7 +91,7 @@ public:
    * \param func Function handling the event information. The file client's file_descriptor will be
    * passed to the function as well as the actual message received from the client.
    */
-  void setMessageCallback(std::function<void(const int, char*)> func)
+  void setMessageCallback(std::function<void(const int, char*, int)> func)
   {
     message_callback_ = func;
   }
@@ -185,7 +185,7 @@ private:
 
   std::function<void(const int)> new_connection_callback_;
   std::function<void(const int)> disconnect_callback_;
-  std::function<void(const int, char* buffer)> message_callback_;
+  std::function<void(const int, char* buffer, int nbytesrecv)> message_callback_;
 };
 
 }  // namespace comm
