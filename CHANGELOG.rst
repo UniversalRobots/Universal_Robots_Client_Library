@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2021-06-18)
+------------------
 * Added Cartesian streaming interface `#75 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/75>`_ from UniversalRobots/cartesian_interface
 * Add trajectory interface to library `#72 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/72>`_ from fmauch/trajectory_interface
 * Refactor reverse interface `#70 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/70>`_ from fmauch/refactor_reverse_interface
