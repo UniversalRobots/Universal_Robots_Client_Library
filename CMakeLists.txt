@@ -104,11 +104,9 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ur_client_libraryCo
 install(FILES ur_client_libraryConfig.cmake
   DESTINATION lib/cmake/ur_client_library)
 
-# When built with catkin available, install package.xml
-find_package(catkin QUIET)
-find_package(ament_cmake QUIET)
-if(catkin_FOUND OR ament_cmake_FOUND)
-  install(FILES package.xml DESTINATION share/${PROJECT_NAME})
-endif()
+# Install package.xml file so this package can be processed by ROS toolings
+# See REP 136 for details
+# Installing this in non-ROS environments won't have any effect, but it won't harm, either.
+install(FILES package.xml DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY resources DESTINATION share/${PROJECT_NAME})
