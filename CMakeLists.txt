@@ -109,11 +109,25 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ur_client_libraryCo
 install(FILES ur_client_libraryConfig.cmake
   DESTINATION lib/cmake/ur_client_library)
 
-# When built with catkin available, install package.xml
-find_package(catkin QUIET)
-find_package(ament_cmake QUIET)
-if(catkin_FOUND OR ament_cmake_FOUND)
-  install(FILES package.xml DESTINATION share/${PROJECT_NAME})
-endif()
+# Install package.xml file so this package can be processed by ROS toolings
+# See REP 136 for details
+# Installing this in non-ROS environments won't have any effect, but it won't harm, either.
+install(FILES package.xml DESTINATION share/${PROJECT_NAME})
+
+#### Begin import ####
+# Imported from ros-industrial/ros_industrial_cmake_boilerplate
+# https://github.com/ros-industrial/ros_industrial_cmake_boilerplate/blob/master/ros_industrial_cmake_boilerplate/cmake/cmake_tools.cmake
+# Copyright (C) 2018 by George Cave - gcave@stablecoder.ca
+# Copyright (c) 2020, Southwest Research Institute
+# Licensed under Apache-2.0 license
+
+# Allows Colcon to find non-Ament packages when using workspace underlays
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} "")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} DESTINATION share/ament_index/resource_index/packages)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ament_prefix_path.dsv "prepend-non-duplicate;AMENT_PREFIX_PATH;")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ament_prefix_path.dsv DESTINATION share/${PROJECT_NAME}/hook)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ros_package_path.dsv "prepend-non-duplicate;ROS_PACKAGE_PATH;")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ros_package_path.dsv DESTINATION share/${PROJECT_NAME}/hook)
+#### End iport ####
 
 install(DIRECTORY resources DESTINATION share/${PROJECT_NAME})
