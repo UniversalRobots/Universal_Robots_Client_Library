@@ -2,6 +2,11 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Always install package.xml file
+* Contributors: Felix Exner
+
 0.3.0 (2021-06-18)
 ------------------
 * Added Cartesian streaming interface `#75 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/75>`_ from UniversalRobots/cartesian_interface
