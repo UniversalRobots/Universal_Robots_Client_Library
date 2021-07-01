@@ -79,7 +79,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller.
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port. If
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
    * the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
@@ -110,7 +110,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller.
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port. If
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
    * the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
@@ -141,7 +141,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port.
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port.
    * If the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]

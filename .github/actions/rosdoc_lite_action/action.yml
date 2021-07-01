@@ -1,0 +1,6 @@
+# action.yml
+name: 'check rosdoc_lite'
+description: 'runs rosdoc_lite and check for warnings and errors'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'

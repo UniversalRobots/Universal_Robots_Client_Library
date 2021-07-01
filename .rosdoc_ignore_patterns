@@ -1,0 +1,11 @@
+To avoid this warning please remove this line from your configuration file or upgrade it using "doxygen -u"
+warning: Tag 'TCL_SUBST' at line [0-9]+ of file '[a-zA-Z0-9_/]+' has become obsolete.
+warning: Tag 'COLS_IN_ALPHA_INDEX' at line 986 of file '[a-zA-Z0-9_/]+' has become obsolete.
+warning: Tag 'PERL_PATH' at line [0-9]+ of file '[a-zA-Z0-9_/]+' has become obsolete.
+warning: Tag 'MSCGEN_PATH' at line [0-9]+ of file '[a-zA-Z0-9_/]+' has become obsolete.
+warning: argument 'a4wide' for option PAPER_TYPE is not a valid enum value
+Using the default: a4!
+warning: tag INCLUDE_PATH: include path '\$INCLUDE_PATH' does not exist
+warning: source '\$INCLUDE_PATH' is not a readable file or directory... skipping.
+warning: source \$INCLUDE_PATH is not a readable file or directory... skipping.
+^$
