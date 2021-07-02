@@ -30,10 +30,6 @@
 #include <ur_client_library/comm/shell_consumer.h>
 #include <ur_client_library/primary/primary_parser.h>
 
-#ifdef ROS_BUILD
-#include <console_bridge/console.h>
-#endif
-
 using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
@@ -42,12 +38,6 @@ const std::string ROBOT_IP = "192.168.56.101";
 
 int main(int argc, char* argv[])
 {
-#ifdef ROS_BUILD
-  // When compiled with ROS support we have to set the logging level in order to see output with a
-  // lower level than WARNING
-  console_bridge::setLogLevel(console_bridge::CONSOLE_BRIDGE_LOG_DEBUG);
-#endif
-
   // First of all, we need a stream that connects to the robot
   comm::URStream<primary_interface::PrimaryPackage> primary_stream(ROBOT_IP, urcl::primary_interface::UR_PRIMARY_PORT);
 

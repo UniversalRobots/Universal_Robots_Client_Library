@@ -20,24 +20,11 @@
 #include <inttypes.h>
 #include <memory>
 
-#ifdef ROS_BUILD
-#include <console_bridge/console.h>
-
-#define URCL_LOG_DEBUG CONSOLE_BRIDGE_logDebug
-#define URCL_LOG_WARN CONSOLE_BRIDGE_logWarn
-#define URCL_LOG_INFO CONSOLE_BRIDGE_logInform
-#define URCL_LOG_ERROR CONSOLE_BRIDGE_logError
-#define URCL_LOG_FATAL CONSOLE_BRIDGE_logError
-
-#else
-
 #define URCL_LOG_DEBUG(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::DEBUG, __VA_ARGS__)
 #define URCL_LOG_WARN(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::WARN, __VA_ARGS__)
 #define URCL_LOG_INFO(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::INFO, __VA_ARGS__)
 #define URCL_LOG_ERROR(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::ERROR, __VA_ARGS__)
 #define URCL_LOG_FATAL(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::FATAL, __VA_ARGS__)
-
-#endif
 
 namespace urcl
 {

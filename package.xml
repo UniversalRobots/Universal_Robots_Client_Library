@@ -21,7 +21,6 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <depend>libconsole-bridge-dev</depend>
   <exec_depend condition="$ROS_VERSION == 1">catkin</exec_depend>
   <exec_depend condition="$ROS_VERSION == 2">ament_cmake</exec_depend>
 
