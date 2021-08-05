@@ -34,7 +34,7 @@ namespace urcl
 namespace rtde_interface
 {
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-                       const std::string& input_recipe_file)
+                       const std::string& input_recipe_file, double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(readRecipe(output_recipe_file))
   , input_recipe_(readRecipe(input_recipe_file))
@@ -43,6 +43,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , pipeline_(prod_, PIPELINE_NAME, notifier)
   , writer_(&stream_, input_recipe_)
   , max_frequency_(URE_MAX_FREQUENCY)
+  , target_frequency_(target_frequency)
 {
 }
 
@@ -75,6 +76,17 @@ bool RTDEClient::init()
   if (urcontrol_version_.major < 5)
   {
     max_frequency_ = CB3_MAX_FREQUENCY;
+  }
+
+  if (target_frequency_ == 0)
+  {
+    // Default to maximum frequency
+    target_frequency_ = max_frequency_;
+  }
+  else if (target_frequency_ <= 0.0 || target_frequency_ > max_frequency_)
+  {
+    // Target frequency outside valid range
+    throw UrException("Invalid target frequency of RTDE connection");
   }
 
   setupOutputs(protocol_version);
@@ -174,10 +186,10 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   size_t size;
   size_t written;
   uint8_t buffer[4096];
-  URCL_LOG_INFO("Setting up RTDE communication with frequency %f", max_frequency_);
+  URCL_LOG_INFO("Setting up RTDE communication with frequency %f", target_frequency_);
   if (protocol_version == 2)
   {
-    size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, max_frequency_, output_recipe_);
+    size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, target_frequency_, output_recipe_);
   }
   else
   {
