@@ -105,6 +105,8 @@ public:
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
              const std::string& input_recipe_file, double target_frequency = 0.0);
+  RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
+             const std::vector<std::string>& input_recipe, double target_frequency = 0.0);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the

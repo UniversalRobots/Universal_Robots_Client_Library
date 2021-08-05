@@ -49,6 +49,21 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 {
 }
 
+RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
+                       const std::vector<std::string>& input_recipe, double target_frequency)
+  : stream_(robot_ip, UR_RTDE_PORT)
+  , output_recipe_(output_recipe)
+  , input_recipe_(input_recipe)
+  , parser_(output_recipe_)
+  , prod_(stream_, parser_)
+  , pipeline_(prod_, PIPELINE_NAME, notifier)
+  , writer_(&stream_, input_recipe_)
+  , max_frequency_(URE_MAX_FREQUENCY)
+  , target_frequency_(target_frequency)
+  , client_state_(ClientState::UNINITIALIZED)
+{
+}
+
 RTDEClient::~RTDEClient()
 {
   disconnect();
