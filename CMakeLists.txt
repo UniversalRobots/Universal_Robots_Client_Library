@@ -64,18 +64,6 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries(urcl PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-find_package(console_bridge)
-if(console_bridge_FOUND)
-  message(STATUS "Building with ROS logging support")
-  add_definitions( -DROS_BUILD )
-  target_include_directories( urcl PRIVATE
-    ${console_bridge_INCLUDE_DIRS}
-  )
-  target_link_libraries(urcl INTERFACE console_bridge)
-else()
-  message(STATUS "Building without ROS logging support")
-endif()
-
 ##
 ## Build testing if enabled by option
 ##

@@ -359,19 +359,6 @@ int main(int argc, char* argv[])
 }
 ```
 
-### Console_bridge
-If [`console_bridge`](https://github.com/ros/console_bridge) is found on the system during the
-cmake run, logging commands will be done by `console_bridge`. In this case, the define `ROS_BUILD`
-will be set. When built inside a catkin workspace, logging commands are automatically translated
-into ROS logging commands.
-
-If you compile this library against `console_bridge`, make sure to set the logging level in your
-application, as by default `console_bridge` will only print messages of level WARNING or higher.
-See [`examples/primary_pipeline.cpp`](examples/primary_pipeline.cpp) as an example.
-
-The ROS logger will be moved to the ROS driver in a future release.
-
-
 ## Acknowledgment
 Many parts of this library are forked from the [ur_modern_driver](https://github.com/ros-industrial/ur_modern_driver).
 
