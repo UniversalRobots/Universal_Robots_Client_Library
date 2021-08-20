@@ -91,9 +91,10 @@ public:
    * \param notifier The notifier to use in the pipeline
    * \param output_recipe_file Path to the file containing the output recipe
    * \param input_recipe_file Path to the file containing the input recipe
+   * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-             const std::string& input_recipe_file);
+             const std::string& input_recipe_file, double target_frequency = 0.0);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
@@ -174,6 +175,7 @@ private:
   VersionInformation urcontrol_version_;
 
   double max_frequency_;
+  double target_frequency_;
 
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
