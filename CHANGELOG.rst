@@ -2,6 +2,14 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Removed console_bridge dependency (`#74 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/74>`_)
+  As log handlers for the client library has been created in the drivers, the console bridge dependency is no longer needed.
+* Added "On behalf of Universal Robots A/S" notice (`#81 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/81>`_)
+  to all files that have been created by FZI
+* Contributors: Felix Exner, Mads Holm Peters
+
 0.3.1 (2021-06-22)
 ------------------
 * Always install package.xml file
