@@ -31,6 +31,7 @@
 #define UR_CLIENT_LIBRARY_SCRIPT_SENDER_H_INCLUDED
 
 #include <thread>
+#include <string>
 
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/log.h"
