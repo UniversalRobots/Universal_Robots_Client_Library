@@ -20,11 +20,11 @@
 #include <inttypes.h>
 #include <memory>
 
-#define URCL_LOG_DEBUG(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::DEBUG, __VA_ARGS__)
-#define URCL_LOG_WARN(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::WARN, __VA_ARGS__)
-#define URCL_LOG_INFO(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::INFO, __VA_ARGS__)
-#define URCL_LOG_ERROR(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::ERROR, __VA_ARGS__)
-#define URCL_LOG_FATAL(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::FATAL, __VA_ARGS__)
+#define URCL_LOG_DEBUG(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::Debug, __VA_ARGS__)
+#define URCL_LOG_WARN(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::Warn, __VA_ARGS__)
+#define URCL_LOG_INFO(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::Info, __VA_ARGS__)
+#define URCL_LOG_ERROR(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::Error, __VA_ARGS__)
+#define URCL_LOG_FATAL(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::Fatal, __VA_ARGS__)
 
 namespace urcl
 {
@@ -33,12 +33,12 @@ namespace urcl
  */
 enum class LogLevel
 {
-  DEBUG = 0,
-  INFO,
-  WARN,
-  ERROR,
-  FATAL,
-  NONE
+  Debug = 0,
+  Info,
+  Warn,
+  Error,
+  Fatal,
+  None
 };
 
 /*!
