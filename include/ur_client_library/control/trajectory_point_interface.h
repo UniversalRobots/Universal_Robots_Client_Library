@@ -56,9 +56,13 @@ enum class TrajectoryResult : int32_t
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
+  enum class PointType : int32_t
+  {
+    JOINT_POINT = 0,
+    CARTESIAN_POINT = 1,
+    JOINT_SPLINE = 2
+  };
   static const int32_t MULT_TIME = 1000;
-  static const int32_t JOINT_POINT = 0;
-  static const int32_t CARTESIAN_POINT = 1;
 
   TrajectoryPointInterface() = delete;
   /*!
@@ -79,12 +83,28 @@ public:
    * \param positions A vector of joint or cartesian targets for the robot
    * \param goal_time The goal time to reach the target
    * \param blend_radius The radius to be used for blending between control points
-   * \param cartesian True, if the written point is specified in cartesian space, false if in joint space
+   * \param type The type used for the trajectory point
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryPoint(const vector6d_t* positions, const float goal_time, const float blend_radius,
-                            const bool cartesian);
+  bool writeTrajectoryPoint(vector6d_t const* positions, const float goal_time, const float blend_radius,
+                            const PointType type);
+
+  /*!
+   * \brief Writes needed information to the robot to be read by the URScript program including
+   * velocity and acceleration information.
+   *
+   * \param positions A vector of joint or cartesian target positions for the robot
+   * \param velocities A vector of joint or cartesian target velocities for the robot
+   * \param accelerations A vector of joint or cartesian target accelerations for the robot
+   * \param time The goal time to reach the target
+   * \param blend_radius The radius to be used for blending between control points
+   * \param type The type used for the trajectory point
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeTrajectoryPoint(vector6d_t const* positions, vector6d_t const* velocities, vector6d_t const* accelerations,
+                            const float goal_time, const float blend_radius, const PointType type);
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
   {

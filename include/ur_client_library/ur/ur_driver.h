@@ -201,14 +201,30 @@ public:
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
    *
-   * \param values Desired joint or cartesian positions
-   * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param positions Desired joint or cartesian positions
+   * \param type The type used for the trajectory point
    * \param goal_time Time for the robot to reach this point
    * \param blend_radius  The radius to be used for blending between control points
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time = 0.0,
+  bool writeTrajectoryPoint(const vector6d_t& positions, const control::TrajectoryPointInterface::PointType type,
+                            const float goal_time = 0.0, const float blend_radius = 0.052);
+
+  /*!
+   * \brief Writes a trajectory point onto the dedicated socket.
+   *
+   * \param positions Desired joint or cartesian positions
+   * \param velocities Desired joint or cartesian velocities
+   * \param accelerations Desired joint or cartesian accelerations
+   * \param type The type used for the trajectory point
+   * \param goal_time Time for the robot to reach this point
+   * \param blend_radius  The radius to be used for blending between control points
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryPoint(const vector6d_t& positions, const vector6d_t& velocities, const vector6d_t& accelerations,
+                            const control::TrajectoryPointInterface::PointType type, const float goal_time = 0.0,
                             const float blend_radius = 0.052);
 
   /*!

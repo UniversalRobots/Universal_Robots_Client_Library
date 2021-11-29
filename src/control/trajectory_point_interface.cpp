@@ -36,14 +36,18 @@ TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInter
 {
 }
 
-bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float goal_time,
-                                                    const float blend_radius, const bool cartesian)
+bool TrajectoryPointInterface::writeTrajectoryPoint(vector6d_t const* positions, vector6d_t const* velocities,
+                                                    vector6d_t const* accelerations, const float goal_time,
+                                                    const float blend_radius,
+                                                    const TrajectoryPointInterface::PointType type)
 {
   if (client_fd_ == -1)
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * 9];
+  // 6 positions, 6 velocities, 6 accelerations, 1 goal time, 1 blend radius, 1 type
+  const size_t BUFFER_SIZE_INT = 3 * 6 + 3;
+  uint8_t buffer[sizeof(int32_t) * BUFFER_SIZE_INT] = { 0 };
   uint8_t* b_pos = buffer;
 
   if (positions != nullptr)
@@ -51,6 +55,34 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
     for (auto const& pos : *positions)
     {
       int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+      val = htobe32(val);
+      b_pos += append(b_pos, val);
+    }
+  }
+  else
+  {
+    b_pos += 6 * sizeof(int32_t);
+  }
+
+  if (velocities != nullptr)
+  {
+    for (auto const& vel : *velocities)
+    {
+      int32_t val = static_cast<int32_t>(vel * MULT_JOINTSTATE);
+      val = htobe32(val);
+      b_pos += append(b_pos, val);
+    }
+  }
+  else
+  {
+    b_pos += 6 * sizeof(int32_t);
+  }
+
+  if (accelerations != nullptr)
+  {
+    for (auto const& acc : *accelerations)
+    {
+      int32_t val = static_cast<int32_t>(acc * MULT_JOINTSTATE);
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
@@ -68,21 +100,19 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  if (cartesian)
-  {
-    val = CARTESIAN_POINT;
-  }
-  else
-  {
-    val = JOINT_POINT;
-  }
-
+  val = static_cast<int32_t>(type);
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
   size_t written;
-
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool TrajectoryPointInterface::writeTrajectoryPoint(vector6d_t const* positions, const float goal_time,
+                                                    const float blend_radius,
+                                                    const TrajectoryPointInterface::PointType type)
+{
+  return writeTrajectoryPoint(positions, nullptr, nullptr, goal_time, blend_radius, type);
 }
 
 void TrajectoryPointInterface::connectionCallback(const int filedescriptor)
