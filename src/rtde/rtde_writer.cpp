@@ -26,6 +26,10 @@
  */
 //----------------------------------------------------------------------
 
+#ifdef WIN32
+#include <asio.hpp>
+#endif
+
 #include "ur_client_library/rtde/rtde_writer.h"
 
 namespace urcl

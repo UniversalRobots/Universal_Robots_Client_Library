@@ -29,7 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 
-#include <endian.h>
+#include "ur_client_library/portable_endian.h"
 #include <cstring>
 
 namespace urcl

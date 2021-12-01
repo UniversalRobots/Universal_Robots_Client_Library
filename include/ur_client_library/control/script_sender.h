@@ -32,7 +32,8 @@
 
 #include <thread>
 
-#include "ur_client_library/comm/tcp_server.h"
+//#include "ur_client_library/comm/tcp_server.h"
+#include "ur_client_library/comm/Server.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -56,7 +57,8 @@ public:
   ScriptSender(uint32_t port, const std::string& program);
 
 private:
-  comm::TCPServer server_;
+  // comm::TCPServer server_;
+  comm::Server server_;
   std::thread script_thread_;
   std::string program_;
 
@@ -66,7 +68,7 @@ private:
 
   void disconnectionCallback(const int filedescriptor);
 
-  void messageCallback(const int filedescriptor, char* buffer);
+  void messageCallback(const int filedescriptor, char* buffer, size_t size);
 
   void sendProgram(const int filedescriptor);
 };

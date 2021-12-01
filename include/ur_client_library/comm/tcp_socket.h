@@ -19,9 +19,14 @@
  */
 
 #pragma once
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+
+#ifdef WIN32
+# include <asio.hpp>
+#else
+# include <netdb.h>
+# include <sys/socket.h>
+# include <sys/types.h>
+#endif
 #include <atomic>
 #include <mutex>
 #include <string>
@@ -50,6 +55,11 @@ class TCPSocket
 private:
   std::atomic<int> socket_fd_;
   std::atomic<SocketState> state_;
+
+#ifdef WIN32
+  std::unique_ptr<asio::io_context> m_pContext;
+  std::unique_ptr<asio::ip::tcp::socket> m_pSocket;
+#endif
 
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)

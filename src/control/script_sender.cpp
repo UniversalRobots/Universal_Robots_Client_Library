@@ -34,8 +34,8 @@ namespace control
 ScriptSender::ScriptSender(uint32_t port, const std::string& program)
   : server_(port), script_thread_(), program_(program)
 {
-  server_.setMessageCallback(
-      std::bind(&ScriptSender::messageCallback, this, std::placeholders::_1, std::placeholders::_2));
+  server_.setMessageCallback(std::bind(&ScriptSender::messageCallback, this, std::placeholders::_1,
+                                       std::placeholders::_2, std::placeholders::_3));
   server_.setConnectCallback(std::bind(&ScriptSender::connectionCallback, this, std::placeholders::_1));
   server_.setDisconnectCallback(std::bind(&ScriptSender::disconnectionCallback, this, std::placeholders::_1));
   server_.start();
@@ -51,9 +51,9 @@ void ScriptSender::disconnectionCallback(const int filedescriptor)
   URCL_LOG_DEBUG("Client at FD %d disconnected.", filedescriptor);
 }
 
-void ScriptSender::messageCallback(const int filedescriptor, char* buffer)
+void ScriptSender::messageCallback(const int filedescriptor, char* buffer, size_t size)
 {
-  if (std::string(buffer) == PROGRAM_REQUEST_)
+  if (std::string(buffer, size) == PROGRAM_REQUEST_)
   {
     URCL_LOG_INFO("Robot requested program");
     sendProgram(filedescriptor);

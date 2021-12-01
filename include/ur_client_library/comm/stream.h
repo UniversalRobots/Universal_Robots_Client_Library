@@ -19,9 +19,13 @@
  */
 
 #pragma once
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+
+#ifdef WIN32
+#else
+# include <netdb.h>
+# include <sys/socket.h>
+# include <sys/types.h>
+#endif
 #include <atomic>
 #include <mutex>
 #include <string>

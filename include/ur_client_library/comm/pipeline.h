@@ -344,52 +344,54 @@ private:
   {
     URCL_LOG_DEBUG("Starting up producer");
     std::ifstream realtime_file("/sys/kernel/realtime", std::ios::in);
-    bool has_realtime;
-    realtime_file >> has_realtime;
+    bool has_realtime = false;
+    //realtime_file >> has_realtime;
     if (has_realtime)
     {
-      const int max_thread_priority = sched_get_priority_max(SCHED_FIFO);
-      if (max_thread_priority != -1)
-      {
-        // We'll operate on the currently running thread.
-        pthread_t this_thread = pthread_self();
+      assert(false);
 
-        // struct sched_param is used to store the scheduling priority
-        struct sched_param params;
+      //const int max_thread_priority = sched_get_priority_max(SCHED_FIFO);
+      //if (max_thread_priority != -1)
+      //{
+      //  // We'll operate on the currently running thread.
+      //  pthread_t this_thread = pthread_self();
 
-        // We'll set the priority to the maximum.
-        params.sched_priority = max_thread_priority;
+      //  // struct sched_param is used to store the scheduling priority
+      //  struct sched_param params;
 
-        int ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
-        if (ret != 0)
-        {
-          URCL_LOG_ERROR("Unsuccessful in setting producer thread realtime priority. Error code: %d", ret);
-        }
-        // Now verify the change in thread priority
-        int policy = 0;
-        ret = pthread_getschedparam(this_thread, &policy, &params);
-        if (ret != 0)
-        {
-          std::cout << "Couldn't retrieve real-time scheduling paramers" << std::endl;
-        }
+      //  // We'll set the priority to the maximum.
+      //  params.sched_priority = max_thread_priority;
 
-        // Check the correct policy was applied
-        if (policy != SCHED_FIFO)
-        {
-          URCL_LOG_ERROR("Producer thread: Scheduling is NOT SCHED_FIFO!");
-        }
-        else
-        {
-          URCL_LOG_INFO("Producer thread: SCHED_FIFO OK");
-        }
+      //  int ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+      //  if (ret != 0)
+      //  {
+      //    URCL_LOG_ERROR("Unsuccessful in setting producer thread realtime priority. Error code: %d", ret);
+      //  }
+      //  // Now verify the change in thread priority
+      //  int policy = 0;
+      //  ret = pthread_getschedparam(this_thread, &policy, &params);
+      //  if (ret != 0)
+      //  {
+      //    std::cout << "Couldn't retrieve real-time scheduling paramers" << std::endl;
+      //  }
 
-        // Print thread scheduling priority
-        URCL_LOG_INFO("Thread priority is %d", params.sched_priority);
-      }
-      else
-      {
-        URCL_LOG_ERROR("Could not get maximum thread priority for producer thread");
-      }
+      //  // Check the correct policy was applied
+      //  if (policy != SCHED_FIFO)
+      //  {
+      //    URCL_LOG_ERROR("Producer thread: Scheduling is NOT SCHED_FIFO!");
+      //  }
+      //  else
+      //  {
+      //    URCL_LOG_INFO("Producer thread: SCHED_FIFO OK");
+      //  }
+
+      //  // Print thread scheduling priority
+      //  URCL_LOG_INFO("Thread priority is %d", params.sched_priority);
+      //}
+      //else
+      //{
+      //  URCL_LOG_ERROR("Could not get maximum thread priority for producer thread");
+      //}
     }
     else
     {

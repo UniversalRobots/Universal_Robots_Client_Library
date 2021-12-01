@@ -31,6 +31,10 @@
  */
 //----------------------------------------------------------------------
 
+#ifdef WIN32
+#include <asio.hpp>
+#endif
+
 #include "ur_client_library/ur/ur_driver.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/primary/primary_parser.h"

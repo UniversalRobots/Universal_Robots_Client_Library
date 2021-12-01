@@ -31,7 +31,7 @@
 #define UR_CLIENT_LIBRARY_RTDE__HEADER_H_INCLUDED
 
 #include <cstddef>
-#include <endian.h>
+#include "ur_client_library/portable_endian.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/comm/package_serializer.h"
 

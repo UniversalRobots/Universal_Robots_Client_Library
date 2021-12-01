@@ -28,6 +28,7 @@
 #ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
 #define UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
 
+#include <cassert>
 #include <ur_client_library/comm/tcp_socket.h>
 
 namespace urcl

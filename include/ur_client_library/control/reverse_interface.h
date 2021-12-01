@@ -29,12 +29,13 @@
 #ifndef UR_CLIENT_LIBRARY_REVERSE_INTERFACE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_REVERSE_INTERFACE_H_INCLUDED
 
-#include "ur_client_library/comm/tcp_server.h"
+//#include "ur_client_library/comm/tcp_server.h"
+#include "ur_client_library/comm/Server.h"
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/log.h"
 #include <cstring>
-#include <endian.h>
+#include "ur_client_library/portable_endian.h"
 #include <condition_variable>
 
 namespace urcl
@@ -113,7 +114,8 @@ protected:
   virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv);
 
   int client_fd_;
-  comm::TCPServer server_;
+  //comm::TCPServer server_;
+  comm::Server server_;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)
