@@ -6,9 +6,15 @@ project(ur_driver_examples)
 ##
 ## Check C++11 support / enable global pedantic and Wall
 ##
-include(DefineCXX17CompilerFlag)
-DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
+if (WIN32)
+  if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+  endif()
+else ()
+  include(DefineCXX17CompilerFlag)
+  DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
+endif ()
 
 add_executable(driver_example
   full_driver.cpp)
