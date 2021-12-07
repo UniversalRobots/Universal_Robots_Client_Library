@@ -23,7 +23,7 @@ else ()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 endif ()
 
-add_library(urcl SHARED
+add_library(urcl STATIC
     src/comm/Server.cpp
     src/comm/SocketConnection.cpp
     src/comm/SocketListener.cpp
@@ -56,6 +56,9 @@ add_library(urcl SHARED
     src/default_log_handler.cpp
     src/log.cpp
 )
+
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 add_library(ur_client_library::urcl ALIAS urcl)
 if (UNIX)
   target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)

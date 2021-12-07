@@ -8,3 +8,4 @@ endif()
 set(ur_client_library_LIBRARIES ur_client_library::urcl)
 get_target_property(ur_client_library_INCLUDE_DIRS ur_client_library::urcl INTERFACE_INCLUDE_DIRECTORIES)
 
+find_package(asio CONFIG REQUIRED)
