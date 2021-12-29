@@ -411,7 +411,7 @@ private:
       {
         if (!queue_.tryEnqueue(std::move(p)))
         {
-          URCL_LOG_ERROR("Pipeline producer overflowed! <%s>", name_.c_str());
+          //URCL_LOG_ERROR("Pipeline producer overflowed! <%s>", name_.c_str());
         }
       }
 
