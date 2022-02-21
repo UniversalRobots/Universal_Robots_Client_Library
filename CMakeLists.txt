@@ -21,8 +21,10 @@ add_library(urcl SHARED
     src/comm/server.cpp
     src/primary/primary_client.cpp
     src/primary/primary_package.cpp
+    src/primary/program_state_message.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
+    src/primary/program_state_message/global_variables_update_message.cpp
     src/primary/robot_message/error_code_message.cpp
     src/primary/robot_message/runtime_exception_message.cpp
     src/primary/robot_message/version_message.cpp

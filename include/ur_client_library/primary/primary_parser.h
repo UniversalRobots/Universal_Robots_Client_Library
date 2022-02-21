@@ -32,6 +32,8 @@
 #include "ur_client_library/primary/robot_message/runtime_exception_message.h"
 #include "ur_client_library/primary/robot_message/text_message.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/program_state_message/global_variables_update_message.h"
+
 
 namespace urcl
 {
@@ -138,6 +140,28 @@ public:
         break;
       }
 
+      case RobotPackageType::PROGRAM_STATE_MESSAGE:
+      {
+        uint64_t timestamp;
+        ProgramStateMessageType state_type;
+        LOG_DEBUG("ProgramStateMessage  received");
+
+        bp.parse(timestamp);
+        bp.parse(state_type);
+
+        LOG_DEBUG("ProgramStateMessage of type %d received", static_cast<int>(state_type));
+
+        std::unique_ptr<PrimaryPackage> packet(programStateFromType(state_type, timestamp));
+        if (!packet->parseWith(bp))
+        {
+          LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(state_type));
+          return false;
+        }
+
+        results.push_back(std::move(packet));
+        return true;
+      }
+
       default:
       {
         LOG_DEBUG("Invalid robot package type recieved: %u", static_cast<uint8_t>(type));
@@ -188,6 +212,21 @@ private:
         return new RuntimeExceptionMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source, type);
+    }
+  }
+
+  ProgramStateMessage* programStateFromType(ProgramStateMessageType type, uint64_t timestamp)
+  {
+    switch(type)
+    {
+      //case ProgramStateMessageType::GLOBAL_VARIABLES_SETUP:
+        //return new GlobalVariablesSetupMessage(timestamp);
+      case ProgramStateMessageType::GLOBAL_VARIABLES_UPDATE:
+        return new GlobalVariablesUpdateMessage(timestamp);
+      //case ProgramStateMessageType::TYPE_VARIABLES_UPDATE:
+        //return new TypeVariablesUpdateMessage(timestamp);
+      default:
+      return new ProgramStateMessage(timestamp, type);
     }
   }
 };

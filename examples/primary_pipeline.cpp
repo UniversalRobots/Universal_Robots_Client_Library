@@ -27,7 +27,7 @@
 
 #include <ur_client_library/comm/pipeline.h>
 #include <ur_client_library/comm/producer.h>
-#include <ur_client_library/comm/shell_consumer.h>
+#include <ur_client_library/primary/primary_shell_consumer.h>
 #include <ur_client_library/primary/primary_parser.h>
 
 #ifdef ROS_BUILD
@@ -38,7 +38,7 @@ using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
 // system such as Boost.Program_options
-const std::string ROBOT_IP = "192.168.56.101";
+const std::string ROBOT_IP = "172.17.0.2";
 
 int main(int argc, char* argv[])
 {
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 
   // The shell consumer will print the package contents to the shell
   std::unique_ptr<comm::IConsumer<primary_interface::PrimaryPackage>> consumer;
-  consumer.reset(new comm::ShellConsumer<primary_interface::PrimaryPackage>());
+  consumer.reset(new primary_interface::PrimaryShellConsumer());
 
   // The notifer will be called at some points during connection setup / loss. This isn't fully
   // implemented atm.
@@ -69,6 +69,18 @@ int main(int argc, char* argv[])
   // Now that we have all components, we can create and start the pipeline to run it all.
   comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, consumer.get(), "Pipeline", notifier);
   pipeline.run();
+
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
+  std::string script_code = "zero_ftsensor()";
+
+  auto program_with_newline = script_code + '\n';
+
+  size_t len = program_with_newline.size();
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
+  size_t written;
+
+  primary_stream.write(data, len, written);
 
   // Package contents will be printed while not being interrupted
   // Note: Packages for which the parsing isn't implemented, will only get their raw bytes printed.

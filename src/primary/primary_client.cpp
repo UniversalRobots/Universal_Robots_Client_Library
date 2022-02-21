@@ -41,19 +41,21 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, const std::string& cal
   producer_.reset(new comm::URProducer<PrimaryPackage>(*stream_, parser_));
   producer_->setupProducer();
 
-  consumer_.reset(new PrimaryConsumer());
-  std::shared_ptr<CalibrationChecker> calibration_checker(new CalibrationChecker(calibration_checksum));
-  consumer_->setKinematicsInfoHandler(calibration_checker);
+  //consumer_.reset(new PrimaryConsumer());
+  //std::shared_ptr<CalibrationChecker> calibration_checker(new CalibrationChecker(calibration_checksum));
+  //consumer_->setKinematicsInfoHandler(calibration_checker);
 
+  std::unique_ptr<comm::IConsumer<primary_interface::PrimaryPackage>> consumer;
+  consumer.reset(new primary_interface::PrimaryShellConsumer());
   pipeline_.reset(new comm::Pipeline<PrimaryPackage>(*producer_, consumer_.get(), "primary pipeline", notifier_));
   pipeline_->run();
 
-  calibration_checker->isChecked();
-  while (!calibration_checker->isChecked())
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  LOG_DEBUG("Got calibration information from robot.");
+  //calibration_checker->isChecked();
+  //while (!calibration_checker->isChecked())
+  //{
+    //std::this_thread::sleep_for(std::chrono::seconds(1));
+  //}
+  //LOG_DEBUG("Got calibration information from robot.");
 }
 
 bool PrimaryClient::sendScript(const std::string& script_code)
