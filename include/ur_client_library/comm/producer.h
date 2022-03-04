@@ -66,9 +66,14 @@ public:
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     stream_.setReceiveTimeout(tv);
-    if (!stream_.connect())
+    while (!stream_.connect())
     {
-      throw UrException("Failed to connect to robot. Please check if the robot is booted and connected.");
+      std::stringstream ss;
+      ss << "Failed to connect to robot on IP " << stream_.getHost()
+         << ". Please check that the robot is booted and reachable on " << stream_.getHost()
+         << ". Retrying in 10 seconds";
+      URCL_LOG_ERROR("%s", ss.str().c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
   /*!

@@ -82,6 +82,18 @@ public:
   {
   }
   virtual ~ControlPackagePauseRequest() = default;
+
+  /*!
+   * \brief Generates a serialized package.
+   *
+   * \param buffer Buffer to fill with the serialization
+   *
+   * \returns The total size of the serialized package
+   */
+  static size_t generateSerializedRequest(uint8_t* buffer);
+
+private:
+  static const uint16_t PAYLOAD_SIZE = 0;
 };
 
 }  // namespace rtde_interface
