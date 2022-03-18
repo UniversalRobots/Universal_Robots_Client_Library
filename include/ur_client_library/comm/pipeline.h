@@ -319,7 +319,7 @@ public:
   }
 
   /*!
-   * \brief Returns the next package in the queue. Can be used instead of registering a consumer.
+   * \brief Returns the most recent package in the queue. Can be used instead of registering a consumer.
    *
    * \param product Unique pointer to be set to the package
    * \param timeout Time to wait if no package is in the queue before returning
@@ -328,7 +328,15 @@ public:
    */
   bool getLatestProduct(std::unique_ptr<T>& product, std::chrono::milliseconds timeout)
   {
-    return queue_.waitDequeTimed(product, timeout);
+    // If the queue has more than one package, get the latest one.
+    bool res = false;
+    while (queue_.tryDequeue(product))
+    {
+      res = true;
+    }
+
+    // If the queue is empty, wait for a package.
+    return res || queue_.waitDequeTimed(product, timeout);
   }
 
 private:
