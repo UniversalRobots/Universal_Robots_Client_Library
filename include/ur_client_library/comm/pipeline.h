@@ -319,7 +319,7 @@ public:
   }
 
   /*!
-   * \brief Returns the most recent package in the queue. Can be used instead of registering a consumer.
+   * \brief Returns the most recent package in the queue. Can be used instead of registering a consumer. If the queue already contains one or more items, the queue will be flushed and the newest item will be returned. If there is no item inside the queue, the function will wait for \p timeout for a new package
    *
    * \param product Unique pointer to be set to the package
    * \param timeout Time to wait if no package is in the queue before returning
