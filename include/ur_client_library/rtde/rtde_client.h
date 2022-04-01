@@ -217,9 +217,9 @@ private:
    *
    * \returns true if the robot is booted, false otherwise which will essentially trigger a reconnection.
    */
-  bool IsRobotBooted();
-  bool send_start();
-  bool send_pause();
+  bool isRobotBooted();
+  bool sendStart();
+  bool sendPause();
 
   /*!
    * \brief Splits a variable_types string as reported from the robot into single variable type

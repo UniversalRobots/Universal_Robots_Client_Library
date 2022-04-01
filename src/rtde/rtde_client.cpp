@@ -56,7 +56,7 @@ RTDEClient::~RTDEClient()
 
 bool RTDEClient::init()
 {
-  if (client_state_ != ClientState::UNINITIALIZED)
+  if (client_state_ > ClientState::UNINITIALIZED)
   {
     return true;
   }
@@ -127,7 +127,7 @@ void RTDEClient::setupCommunication()
   if (client_state_ == ClientState::UNINITIALIZED)
     return;
 
-  if (!IsRobotBooted())
+  if (!isRobotBooted())
   {
     disconnect();
     return;
@@ -379,7 +379,7 @@ void RTDEClient::setupInputs()
 void RTDEClient::disconnect()
 {
   // If communication is started it should be paused before disconnecting
-  send_pause();
+  sendPause();
   pipeline_.stop();
   stream_.disconnect();
   client_state_ = ClientState::UNINITIALIZED;
@@ -389,13 +389,18 @@ bool RTDEClient::IsRobotBooted()
 {
   // We need  to trigger the robot to start sending RTDE data packages in the negotiated format, in order to read
   // the time since the controller was started.
-  if (!send_start())
+  if (!sendStart())
     return false;
 
   std::unique_ptr<RTDEPackage> package;
   double timestamp = 0;
   int reading_count = 0;
-  // This will ensure that the robot is booted before we finallize intialization
+  // During bootup the RTDE interface gets restarted once. If we connect to the RTDE interface before that happens, we
+  // might end up in a situation where the RTDE connection is in an invalid state.
+  // It should be fine if we manage to read from the RTDE interface for at least one second or if the robot has been up
+  // for more then 40 seconds (During the reset the timestamp will also be reset to 0).
+  // TODO (anyone): Find a better solution to check for a proper connection.
+
   while (timestamp < 40 && reading_count < 1000)
   {
     if (pipeline_.getLatestProduct(package, std::chrono::milliseconds(1000)))
@@ -411,7 +416,7 @@ bool RTDEClient::IsRobotBooted()
   }
 
   // Pause connection again
-  if (!send_pause())
+  if (!sendPause())
     return false;
 
   return true;
@@ -430,7 +435,7 @@ bool RTDEClient::start()
 
   pipeline_.run();
 
-  if (send_start())
+  if (sendStart())
   {
     client_state_ = ClientState::RUNNING;
     return true;
@@ -451,7 +456,7 @@ bool RTDEClient::pause()
     return false;
   }
 
-  if (send_pause())
+  if (sendPause())
   {
     client_state_ = ClientState::PAUSED;
     return true;
@@ -462,7 +467,7 @@ bool RTDEClient::pause()
   }
 }
 
-bool RTDEClient::send_start()
+bool RTDEClient::sendStart()
 {
   uint8_t buffer[4096];
   size_t size;
@@ -504,7 +509,7 @@ bool RTDEClient::send_start()
   throw UrException(ss.str());
 }
 
-bool RTDEClient::send_pause()
+bool RTDEClient::sendPause()
 {
   uint8_t buffer[4096];
   size_t size;
