@@ -85,8 +85,6 @@ void RTDEClient::setupCommunication()
   pipeline_.run();
 
   uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
-  // Protocol version should always be 1 when starting negotiation
-  parser_.setProtocolVersion(1);
   while (!negotiateProtocolVersion(protocol_version) && client_state_ == ClientState::INITIALIZING)
   {
     URCL_LOG_INFO("Robot did not accept RTDE protocol version '%hu'. Trying lower protocol version", protocol_version);
@@ -144,6 +142,8 @@ void RTDEClient::setupCommunication()
 
 bool RTDEClient::negotiateProtocolVersion(const uint16_t protocol_version)
 {
+  // Protocol version should always be 1 before starting negotiation
+  parser_.setProtocolVersion(1);
   static unsigned num_retries = 0;
   uint8_t buffer[4096];
   size_t size;
@@ -385,7 +385,7 @@ void RTDEClient::disconnect()
   client_state_ = ClientState::UNINITIALIZED;
 }
 
-bool RTDEClient::IsRobotBooted()
+bool RTDEClient::isRobotBooted()
 {
   // We need  to trigger the robot to start sending RTDE data packages in the negotiated format, in order to read
   // the time since the controller was started.
