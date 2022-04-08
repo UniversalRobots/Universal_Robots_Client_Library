@@ -101,8 +101,7 @@ bool TCPSocket::setup(std::string& host, int port)
       state_ = SocketState::Invalid;
       std::stringstream ss;
       ss << "Failed to connect to robot on IP " << host_name
-         << ". Please check that the robot is booted and reachable on " << host_name
-         << ". Retrying in 10 seconds";
+         << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in 10 seconds";
       URCL_LOG_ERROR("%s", ss.str().c_str());
       std::this_thread::sleep_for(std::chrono::seconds(10));
     }
