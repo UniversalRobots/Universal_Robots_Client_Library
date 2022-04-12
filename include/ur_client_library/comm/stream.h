@@ -104,6 +104,16 @@ public:
    */
   bool write(const uint8_t* buf, const size_t buf_len, size_t& written);
 
+  /*!
+   * \brief Get the host IP
+   *
+   * \returns The host IP
+   */
+  std::string getHost()
+  {
+    return host_;
+  }
+
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
   {
