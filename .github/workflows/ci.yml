@@ -54,6 +54,7 @@ jobs:
             --exclude=package.xml \
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
+            --exclude-dir=debian \
             --exclude=real_time.md
 
   rosdoc_lite_check:
