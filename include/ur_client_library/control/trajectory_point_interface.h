@@ -56,13 +56,9 @@ enum class TrajectoryResult : int32_t
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
-  enum class PointType : int32_t
-  {
-    JOINT_POINT = 0,
-    CARTESIAN_POINT = 1,
-    JOINT_SPLINE = 2
-  };
   static const int32_t MULT_TIME = 1000;
+  static const int32_t JOINT_POINT = 0;
+  static const int32_t CARTESIAN_POINT = 1;
 
   TrajectoryPointInterface() = delete;
   /*!
@@ -83,12 +79,12 @@ public:
    * \param positions A vector of joint or cartesian targets for the robot
    * \param goal_time The goal time to reach the target
    * \param blend_radius The radius to be used for blending between control points
-   * \param type The type used for the trajectory point
+   * \param cartesian True, if the written point is specified in cartesian space, false if in joint space
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryPoint(vector6d_t const* positions, const float goal_time, const float blend_radius,
-                            const PointType type);
+  bool writeTrajectoryPoint(const vector6d_t* positions, const float goal_time, const float blend_radius,
+                            const bool cartesian);
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program including
@@ -97,14 +93,34 @@ public:
    * \param positions A vector of joint or cartesian target positions for the robot
    * \param velocities A vector of joint or cartesian target velocities for the robot
    * \param accelerations A vector of joint or cartesian target accelerations for the robot
-   * \param time The goal time to reach the target
-   * \param blend_radius The radius to be used for blending between control points
-   * \param type The type used for the trajectory point
+   * \param goal_time The goal time to reach the target
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryPoint(vector6d_t const* positions, vector6d_t const* velocities, vector6d_t const* accelerations,
-                            const float goal_time, const float blend_radius, const PointType type);
+  bool writeSplinePoint(const vector6d_t* positions, const vector6d_t* velocities, const vector6d_t* accelerations,
+                        const float goal_time);
+
+  /*!
+   * \brief Writes needed information to the robot to be read by the URScript program including
+   * velocity information.
+   *
+   * \param positions A vector of joint or cartesian target positions for the robot
+   * \param velocities A vector of joint or cartesian target velocities for the robot
+   * \param goal_time The goal time to reach the target
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeSplinePoint(const vector6d_t* positions, const vector6d_t* velocities, const float goal_time);
+
+  /*!
+   * \brief Writes needed information to the robot to be read by the URScript program.
+   *
+   * \param positions A vector of joint or cartesian target positions for the robot
+   * \param goal_time The goal time to reach the target
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeSplinePoint(const vector6d_t* positions, const float goal_time);
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
   {

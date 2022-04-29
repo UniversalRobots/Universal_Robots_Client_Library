@@ -80,7 +80,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int point_number)
+                                                     const int point_number, bool spline_interpolation)
 {
   if (client_fd_ == -1)
   {
@@ -99,8 +99,19 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   val = htobe32(point_number);
   b_pos += append(b_pos, val);
 
+  if (spline_interpolation)
+  {
+    val = SPLINE_INTERPOLATION;
+  }
+  else
+  {
+    val = POINT_INTERPOLATION;
+  }
+  val = htobe32(val);
+  b_pos += append(b_pos, val);
+
   // writing zeros to allow usage in control loop with other control messages
-  for (size_t i = 0; i < 4; i++)
+  for (size_t i = 0; i < 3; i++)
   {
     val = htobe32(0);
     b_pos += append(b_pos, val);

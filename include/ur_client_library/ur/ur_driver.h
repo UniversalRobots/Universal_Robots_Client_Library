@@ -202,41 +202,60 @@ public:
    * \brief Writes a trajectory point onto the dedicated socket.
    *
    * \param positions Desired joint or cartesian positions
-   * \param type The type used for the trajectory point
+   * \param cartesian True, if the point sent is cartesian, false if joint-based
    * \param goal_time Time for the robot to reach this point
    * \param blend_radius  The radius to be used for blending between control points
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryPoint(const vector6d_t& positions, const control::TrajectoryPointInterface::PointType type,
-                            const float goal_time = 0.0, const float blend_radius = 0.052);
+  bool writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time = 0.0,
+                            const float blend_radius = 0.052);
 
   /*!
-   * \brief Writes a trajectory point onto the dedicated socket.
+   * \brief Writes a trajectory spline point onto the dedicated socket.
    *
    * \param positions Desired joint or cartesian positions
    * \param velocities Desired joint or cartesian velocities
    * \param accelerations Desired joint or cartesian accelerations
-   * \param type The type used for the trajectory point
    * \param goal_time Time for the robot to reach this point
-   * \param blend_radius  The radius to be used for blending between control points
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryPoint(const vector6d_t& positions, const vector6d_t& velocities, const vector6d_t& accelerations,
-                            const control::TrajectoryPointInterface::PointType type, const float goal_time = 0.0,
-                            const float blend_radius = 0.052);
+  bool writeSplinePoint(const vector6d_t& positions, const vector6d_t& velocities, const vector6d_t& accelerations,
+                        const float goal_time = 0.0);
+
+  /*!
+   * \brief Writes a trajectory spline point onto the dedicated socket.
+   *
+   * \param positions Desired joint or cartesian positions
+   * \param velocities Desired joint or cartesian velocities
+   * \param goal_time Time for the robot to reach this point
+   *
+   * \returns True on successful write.
+   */
+  bool writeSplinePoint(const vector6d_t& positions, const vector6d_t& velocities, const float goal_time = 0.0);
+
+  /*!
+   * \brief Writes a trajectory spline point onto the dedicated socket.
+   *
+   * \param positions Desired joint or cartesian positions
+   * \param goal_time Time for the robot to reach this point
+   *
+   * \returns True on successful write.
+   */
+  bool writeSplinePoint(const vector6d_t& positions, const float goal_time = 0.0);
 
   /*!
    * \brief Writes a control message in trajectory forward mode.
    *
    * \param trajectory_action The action to be taken, such as starting a new trajectory
    * \param point_number The number of points of a new trajectory to be sent
+   * \param spline_interpolation True, if spline interpolation should be used, false if not
    *
    * \returns True on successful write.
    */
   bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                     const int point_number = 0);
+                                     const int point_number = 0, const bool spline_interpolation = false);
 
   /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to

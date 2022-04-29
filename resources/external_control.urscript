@@ -23,14 +23,17 @@ MODE_SPEEDJ = 2
 MODE_FORWARD = 3
 MODE_SPEEDL = 4
 MODE_POSE = 5
+MODE_SPLINE = 6
 
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
 
+TRAJECTORY_POINT_INTERPOLATION = 0
+TRAJECTORY_SPLINE_INTERPOLATION = 1
+
 TRAJECTORY_POINT_JOINT = 0
 TRAJECTORY_POINT_CARTESIAN = 1
-TRAJECTORY_POINT_JOINT_SPLINE = 2
-TRAJECTORY_DATA_DIMENSION = 3*6 + 1
+TRAJECTORY_DATA_DIMENSION = 7
 
 TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
@@ -40,6 +43,11 @@ ZERO_FTSENSOR = 0
 SET_PAYLOAD = 1
 SET_TOOL_VOLTAGE = 2
 SCRIPT_COMMAND_DATA_DIMENSION = 5
+
+CUBIC_SPLINES = 0
+QUINTIC_SPLINES = 1
+
+TRAJECTORY_SPLINE_DATA_DIMENSION = 3*6 + 1
 
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
@@ -120,7 +128,6 @@ thread speedThread():
 end
 
 #Calculate Cubic Spline coefficients
-# coefficients = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
 coefficients0 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 coefficients1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 coefficients2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -131,7 +138,6 @@ splineTimer = 0.0
 splineTravelTime = 0.0
 
 def reset_spline_coeff():
-  # coefficients = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
   coefficients0 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   coefficients1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   coefficients2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -142,74 +148,76 @@ def reset_spline_coeff():
   splineTravelTime = 0.0
 end
 
-def cubicSplineCal(q_target, qd_target, time):
-  q = get_target_joint_positions()
-  qd = get_target_joint_speeds()
-
-  coefficients0 = q
-  coefficients1 = qd
-  coefficients2 = (-3 * q + q_target * 3- qd * 2 * time - qd_target * time) / pow(time,2)
-  coefficients3 = (2 * q - 2 * q_target+ qd * time + qd_target * time) / pow(time,3)
+def cubicSplineCal(start_q, end_q, start_qd, end_qd, time):
+  if time == 0.0:
+    coefficients0 = start_q
+    coefficients1 = start_qd
+    coefficients2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    coefficients3 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
+  else:
+    coefficients0 = start_q
+    coefficients1 = start_qd
+    coefficients2 = (-3 * start_q + end_q * 3 - start_qd * 2 * time - end_qd * time) / pow(time,2)
+    coefficients3 = (2 * start_q - 2 * end_q + start_qd * time + end_qd * time) / pow(time,3)
+  end
+  coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
   splineTimer = 0.0
-  splineTravelTime  = time
+  splineTravelTime = time
 end
 
-#Spline polynomial and move function
-def cubicSplineRun():      
-  splineTimer = splineTimer + get_steptime()
-  t1 = splineTimer
-  t2 = t1 * t1
-  t3 = t2 * t1
-
-  #q = coefficients0 + t1*coefficients1  + t2*coefficients2  +  t3*coefficients3
-  qd = coefficients1 + 2*t1*coefficients2 + 3*t2*coefficients3
-
-  speedj(qd,1,get_steptime())
-
-  # Return True as long it is running the spline
-  return (splineTimer < (splineTravelTime + get_steptime()))
-end
-
-qdd_last = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-def quinticSplineCal(q_target, qd_target, qdd_target, time):
-  q = get_target_joint_positions()
-  qd = get_target_joint_speeds()
-  qdd = qdd_last
+def quinticSplineCal(start_q, end_q, start_qd, end_qd, start_qdd, end_qdd, time):
   TIME1 =  time
   TIME2 = pow(time,2)
   TIME3 = pow(time,3)
   TIME4 = pow(time,4)
   TIME5 = pow(time,5)
 
-  # M = [[-6/TIME5, -3/TIME4, -0.5/TIME3, 6/TIME5, -3/TIME4, 0.5/TIME3], [15/TIME4, 8/TIME3, 1.5/TIME2, -15/TIME4, 7/TIME3, -1/TIME2], [-10/TIME3, -6/TIME2, -1.5/TIME, 10/TIME3, -4/TIME2, 0.5/TIME], [0, 0, 0.5, 0, 0, 0], [0, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0]]
-  # coefficients = M * [q, q_target, qd, qd_target, qdd, qdd_target]
-
-  coefficients0 = q
-  coefficients1 = qd
-  coefficients2 = 0.5*qdd
-  coefficients3 = (-20.0 * q + 20.0 * q_target - 3.0 * qdd * TIME2 + qdd_target * TIME2 - 12.0 * qd * time - 8.0 * qd_target * time) / (2.0 * TIME3)
-  coefficients4 = (30.0 * q - 30.0 * q_target + 3.0* qdd * TIME2 - 2.0 * qdd_target * TIME2 + 16.0 * qd * time + 14.0 * qd_target * time) / (2.0 * TIME4)
-  coefficients5 = (-12.0 * q + 12.0 * q_target - qdd * TIME2 + qdd_target * TIME2 - 6.0 * qd * time - 6.0 * qd_target * time) / (2.0 * TIME5)
+  if time == 0.0:
+    coefficients0 = start_q
+    coefficients1 = start_qd
+    coefficients2 = 0.5*start_qdd
+    coefficients3 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
+  else:
+    coefficients0 = start_q
+    coefficients1 = start_qd
+    coefficients2 = 0.5*start_qdd
+    coefficients3 = (-20.0 * start_q + 20.0 * end_q - 3.0 * start_qdd * TIME2 + end_qdd * TIME2 - 12.0 * start_qd * time - 8.0 * end_qd * time) / (2.0 * TIME3)
+    coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0* start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * TIME4)
+    coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * TIME5)
+  end
   splineTimer = 0.0
   splineTravelTime  = time
 end
 
-def quinticSplineRun():
-  splineTimer = splineTimer + get_steptime()
-  TIME1 = splineTimer
-  TIME2  = pow(TIME1,2)
-  TIME3  = pow(TIME1,3)
-  TIME4  = pow(TIME1,4)
-  TIME5  = pow(TIME1,5)
+def splineRun():
+  spline_step_time = get_steptime()
+  if splineTravelTime < spline_step_time:
+    TIME1 = splineTimer
+    TIME2  = pow(TIME1,2)
+    TIME3  = pow(TIME1,3)
+    TIME4  = pow(TIME1,4)
+    qd = coefficients1 + 2.0*TIME1*coefficients2 + 3.0*TIME2*coefficients3 + 4.0*TIME3*coefficients4 + 5.0*TIME4*coefficients5
+    speedj(qd,1,spline_step_time)
+  end
 
-  #q = coefficients0 + coefficients1 + TIME2*coefficients2 + TIME3*coefficients3 + TIME4*coefficients4 + TIME5*coefficients5
-  qd = coefficients1 + 2.0*coefficients2 + 3.0*TIME2*coefficients3 + 4.0*TIME3*coefficients4 + 5.0*TIME4*coefficients5
-  qdd_last = 2.0*coefficients2 + 6.0*coefficients3 + 12.0*TIME2*coefficients4 + 20.0*TIME3*coefficients5
+  splineTimer = splineTimer + spline_step_time
+  while splineTimer <= splineTravelTime:
+    TIME1 = splineTimer
+    TIME2  = pow(TIME1,2)
+    TIME3  = pow(TIME1,3)
+    TIME4  = pow(TIME1,4)
 
-  speedj(qd,1,get_steptime())
+    #q = coefficients0 + coefficients1 + TIME2*coefficients2 + TIME3*coefficients3 + TIME4*coefficients4 + TIME5*coefficients5
+    qd = coefficients1 + 2.0*TIME1*coefficients2 + 3.0*TIME2*coefficients3 + 4.0*TIME3*coefficients4 + 5.0*TIME4*coefficients5
+    qdd = 2.0*coefficients2 + 6.0*coefficients3 + 12.0*TIME2*coefficients4 + 20.0*TIME3*coefficients5 # Do we need this?
 
-  # Return True as long it is running the spline
-  return (splineTimer < (splineTravelTime + get_steptime()))
+    speedj(qd,1000,spline_step_time)
+
+    splineTimer = splineTimer + spline_step_time
+  end
 end
 
 thread jointTrajectoryThread():
@@ -217,14 +225,12 @@ thread jointTrajectoryThread():
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   local INDEX_POINT_TYPE = INDEX_BLEND + 1
-  reset_spline_coeff()
   while trajectory_points_left > 0:
     enter_critical
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket")
     trajectory_points_left = trajectory_points_left - 1
     exit_critical
-    textmsg("raw point", raw_point)
     if raw_point[0] > 0:
       q = [ raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
       tmptime = raw_point[INDEX_TIME] / MULT_time
@@ -232,23 +238,11 @@ thread jointTrajectoryThread():
 
       if trajectory_points_left > 0:
         if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-          textmsg("Executing movej with blending")
+          # textmsg("Executing movej with blending")
           movej(q, t=tmptime, r=blend_radius)
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-          textmsg("Executing movel with blending")
+          # textmsg("Executing movel with blending")
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-          textmsg("Executing splind with blending")
-          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          qdd = [ raw_point[13] / MULT_jointstate, raw_point[14] / MULT_jointstate, raw_point[15] / MULT_jointstate, raw_point[16] / MULT_jointstate, raw_point[17] / MULT_jointstate, raw_point[18] / MULT_jointstate]
-          #cubicSplineCal(q, qd, tmptime)
-          quinticSplineCal(q, qd, qdd, tmptime)
-
-          running_spline = True
-          while running_spline:
-            #running_spline = cubicSplineRun()
-            running_spline = quinticSplineRun()
-          end
         end
       else:
         if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
@@ -257,14 +251,44 @@ thread jointTrajectoryThread():
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
           # textmsg("Executing movel without blending")
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE: 
-          cubicSplineCal(q, [0,0,0,0,0,0], tmptime)
-          running_spline = True
-          while running_spline:
-            #running_spline = cubicSplineRun()
-            running_spline = quinticSplineRun()
-          end
         end
+      end
+    end
+  end
+  socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
+  textmsg("Trajectory finished")
+end
+
+thread splineThread():
+  textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
+  local INDEX_TIME = TRAJECTORY_SPLINE_DATA_DIMENSION
+  local INDEX_SPLINE_TYPE = INDEX_TIME + 1
+  old_qdd = [0, 0, 0, 0, 0, 0]
+  reset_spline_coeff()
+  while trajectory_points_left > 0:
+    # reading trajectory point + spline type
+    enter_critical
+    raw_point = socket_read_binary_integer(TRAJECTORY_SPLINE_DATA_DIMENSION+2, "trajectory_socket")
+    trajectory_points_left = trajectory_points_left - 1
+    exit_critical
+    if raw_point[0] > 0:
+      q = [ raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
+      tmptime = raw_point[INDEX_TIME] / MULT_time
+      if trajectory_points_left > 0:
+        if raw_point[INDEX_SPLINE_TYPE] == CUBIC_SPLINES:
+          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+          cubicSplineCal(get_actual_joint_positions(), q, get_actual_joint_speeds(), qd, tmptime)
+          old_qdd = [0, 0, 0, 0, 0, 0]
+        elif raw_point[INDEX_SPLINE_TYPE] == QUINTIC_SPLINES:
+          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+          qdd = [ raw_point[13] / MULT_jointstate, raw_point[14] / MULT_jointstate, raw_point[15] / MULT_jointstate, raw_point[16] / MULT_jointstate, raw_point[17] / MULT_jointstate, raw_point[18] / MULT_jointstate]
+          quinticSplineCal(get_actual_joint_positions(),q, get_actual_joint_speeds(), qd, old_qdd, qdd, tmptime)
+          old_qdd = qdd
+        end
+        splineRun()
+      else:
+        cubicSplineCal(get_actual_joint_positions(), q, get_actual_joint_speeds(), [0,0,0,0,0,0], tmptime)
+        splineRun()
       end
     end
   end
@@ -277,6 +301,7 @@ def clear_remaining_trajectory_points():
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+2, "trajectory_socket")
     trajectory_points_left = trajectory_points_left - 1
   end
+  reset_spline_coeff()
 end
 
 # Helpers for speed control
@@ -373,13 +398,14 @@ thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
 global keepalive = -2
+read_timeout = 0.02
 params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0)
 textmsg("ExternalControl: External control active")
 keepalive = params_mult[1]
 thread_script_commands = run script_commands()
 while keepalive > 0 and control_mode > MODE_STOPPED:
   enter_critical
-  params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
+  params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
     keepalive = params_mult[1]
 
@@ -390,16 +416,14 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         kill thread_trajectory
         stopj(STOPJ_ACCELERATION)
         clear_remaining_trajectory_points()
+      else:
+        kill thread_move
+        stopj(STOPJ_ACCELERATION)
       end
 
-      # Stop the movement currently running
-      textmsg("terminating all ongoing motion")
-      kill thread_move
-      stopj(STOPJ_ACCELERATION)
 
       #Run the new type of motion
       control_mode = params_mult[8]
-      textmsg("robot is standing still")
       if control_mode == MODE_SERVOJ:
         thread_move = run servoThread()
       elif control_mode == MODE_SPEEDJ:
@@ -423,7 +447,11 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         kill thread_trajectory
         clear_remaining_trajectory_points()
         trajectory_points_left = params_mult[3]
-        thread_trajectory = run jointTrajectoryThread()
+        if TRAJECTORY_POINT_INTERPOLATION == params_mult[4]:
+          thread_trajectory = run jointTrajectoryThread()
+        elif TRAJECTORY_SPLINE_INTERPOLATION == params_mult[4]:
+          thread_trajectory = run splineThread()
+        end
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
         textmsg("cancel received")
         kill thread_trajectory

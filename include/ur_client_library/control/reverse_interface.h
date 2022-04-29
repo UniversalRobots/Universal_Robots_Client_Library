@@ -59,6 +59,8 @@ class ReverseInterface
 {
 public:
   static const int32_t MULT_JOINTSTATE = 1000000;
+  static const int32_t POINT_INTERPOLATION = 0;
+  static const int32_t SPLINE_INTERPOLATION = 1;
 
   ReverseInterface() = delete;
   /*!
@@ -90,10 +92,12 @@ public:
    *
    * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
    * \param point_number The number of points of the trajectory to be executed
+   * \param spline_interpolation True, if spline interpolation should be used, false if not
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0);
+  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                     const bool spline_interpolation = false);
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
