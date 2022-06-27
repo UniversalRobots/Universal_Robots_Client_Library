@@ -401,7 +401,7 @@ bool RTDEClient::isRobotBooted()
   // for more then 40 seconds (During the reset the timestamp will also be reset to 0).
   // TODO (anyone): Find a better solution to check for a proper connection.
 
-  while (timestamp < 40 && reading_count < 1000)
+  while (timestamp < 40 && reading_count < target_frequency_ * 2)
   {
     if (pipeline_.getLatestProduct(package, std::chrono::milliseconds(1000)))
     {
