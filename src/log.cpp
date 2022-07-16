@@ -31,6 +31,7 @@
 #include "ur_client_library/log.h"
 #include "ur_client_library/default_log_handler.h"
 #include <cstdarg>
+#include <cstdio>
 
 namespace urcl
 {

@@ -54,5 +54,12 @@ jobs:
             --exclude=package.xml \
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
+            --exclude-dir=debian \
             --exclude=real_time.md
+
+  rosdoc_lite_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ./.github/actions/rosdoc_lite_action
 

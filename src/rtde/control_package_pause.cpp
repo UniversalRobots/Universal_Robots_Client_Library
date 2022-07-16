@@ -45,5 +45,11 @@ std::string ControlPackagePause::toString() const
 
   return ss.str();
 }
+
+size_t ControlPackagePauseRequest::generateSerializedRequest(uint8_t* buffer)
+{
+  return PackageHeader::serializeHeader(buffer, PackageType::RTDE_CONTROL_PACKAGE_PAUSE, PAYLOAD_SIZE);
+}
+
 }  // namespace rtde_interface
 }  // namespace urcl
