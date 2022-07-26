@@ -321,11 +321,19 @@ bool TCPServer::write(const int fd, const uint8_t* buf, const size_t buf_len, si
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(fd, buf + written, remaining, 0);
+    ssize_t sent = ::send(fd, buf + written, remaining, MSG_NOSIGNAL);
 
     if (sent <= 0)
     {
-      URCL_LOG_ERROR("Sending data through socket failed.");
+      if (errno == EPIPE)
+      {
+        URCL_LOG_ERROR("Sending data through socket failed because the connection was shut down");
+        handleDisconnect(fd);
+      }
+      else
+      {
+        URCL_LOG_ERROR("Sending data through socket failed");
+      }
       return false;
     }
 
