@@ -65,10 +65,10 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   URCL_LOG_DEBUG("Initializing RTDE client");
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
 
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
+  primary_stream_.reset(new comm::URPersistentStream<primary_interface::PrimaryPackage>(
+      robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
+  secondary_stream_.reset(new comm::URPersistentStream<primary_interface::PrimaryPackage>(
+      robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
 
   non_blocking_read_ = non_blocking_read;
