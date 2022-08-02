@@ -55,7 +55,8 @@ jobs:
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
             --exclude-dir=debian \
-            --exclude=real_time.md
+            --exclude=real_time.md \
+            --exclude=atomicops.h
 
   rosdoc_lite_check:
     runs-on: ubuntu-latest
