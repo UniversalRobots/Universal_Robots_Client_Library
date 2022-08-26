@@ -350,7 +350,8 @@ public:
   template <typename T>
   bool checkSize(void)
   {
-    return checkSize(T::SIZE);
+    size_t size = sizeof(T);
+    return checkSize(size);
   }
 
   /*!
