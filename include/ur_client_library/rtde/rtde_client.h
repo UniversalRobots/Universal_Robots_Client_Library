@@ -122,7 +122,7 @@ public:
   /*!
    * \brief Pauses RTDE data package communication
    *
-   * \returns Wheter the RTDE data package communication was paussed succesfully
+   * \returns Whether the RTDE data package communication was paused successfully
    */
   bool pause();
   /*!
@@ -135,13 +135,23 @@ public:
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage(std::chrono::milliseconds timeout);
 
   /*!
-   * \brief Getter for the frequency the robot will publish RTDE data packages with.
+   * \brief Getter for the maximum frequency the robot can publish RTDE data packages with.
    *
-   * \returns The used frequency
+   * \returns The maximum frequency
    */
   double getMaxFrequency() const
   {
     return max_frequency_;
+  }
+
+  /*!
+   * \brief Getter for the target frequency that the robot will publish RTDE data packages with.
+   *
+   * \returns The target frequency
+   */
+  double getTargetFrequency() const
+  {
+    return target_frequency_;
   }
 
   /*!
@@ -208,7 +218,7 @@ private:
   void disconnect();
 
   /*!
-   * \brief Checks wheter the robot is booted, this is done by looking at the timestamp from the robot controller, this
+   * \brief Checks whether the robot is booted, this is done by looking at the timestamp from the robot controller, this
    * will show the time in seconds since the controller was started. If the timestamp is below 40, we will read from
    * the stream for approximately 1 second to ensure that the RTDE interface is up and running. This will ensure that we
    * don't finalize setting up communication, before the controller is up and running. Else we could end up connecting

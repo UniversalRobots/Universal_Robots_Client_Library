@@ -65,6 +65,15 @@ void RTDEWriter::run()
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
 {
+  if (speed_slider_fraction > 1.0 || speed_slider_fraction < 0.0)
+  {
+    std::stringstream ss;
+    ss << "Speed slider fraction should be between 0 and 1. The speed slider fraction is "
+       << static_cast<int>(speed_slider_fraction);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint32_t mask = 1;
   bool success = true;
@@ -85,6 +94,14 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
 
 bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 {
+  if (output_pin > 7)
+  {
+    std::stringstream ss;
+    ss << "Standard digital output pins goes from 0 to 7. The output pin to change is " << static_cast<int>(output_pin);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
@@ -114,6 +131,15 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 {
+  if (output_pin > 7)
+  {
+    std::stringstream ss;
+    ss << "Configurable digital output pins goes from 0 to 7. The output pin to change is "
+       << static_cast<int>(output_pin);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
@@ -143,6 +169,14 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
 {
+  if (output_pin > 1)
+  {
+    std::stringstream ss;
+    ss << "Tool digital output pins goes from 0 to 1. The output pin to change is " << static_cast<int>(output_pin);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
@@ -172,6 +206,21 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value)
 {
+  if (output_pin > 1)
+  {
+    std::stringstream ss;
+    ss << "Standard analog output goes from 0 to 1. The output pin to change is " << static_cast<int>(output_pin);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+  if (value > 1.0 || value < 0.0)
+  {
+    std::stringstream ss;
+    ss << "Analog output value should be between 0 and 1. The value is " << static_cast<int>(value);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
   // default to current for now, as no functionality to choose included in set io service
@@ -206,6 +255,14 @@ uint8_t RTDEWriter::pinToMask(uint8_t pin)
 
 bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
 {
+  if (register_id < 64 || register_id > 127)
+  {
+    std::stringstream ss;
+    ss << "Input bit register goes from 64 to 127. The register id to change is " << static_cast<int>(register_id);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   std::stringstream ss;
   ss << "input_bit_register_" << register_id;
@@ -224,6 +281,14 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
 
 bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
 {
+  if (register_id < 24 || register_id > 47)
+  {
+    std::stringstream ss;
+    ss << "Input int register goes from 24 to 47. The register id to change is " << static_cast<int>(register_id);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   std::stringstream ss;
   ss << "input_int_register_" << register_id;
@@ -242,6 +307,14 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
 
 bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
 {
+  if (register_id < 24 || register_id > 47)
+  {
+    std::stringstream ss;
+    ss << "Input double register goes from 24 to 47. The register id to change is " << static_cast<int>(register_id);
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
   std::lock_guard<std::mutex> guard(package_mutex_);
   std::stringstream ss;
   ss << "input_double_register_" << register_id;
