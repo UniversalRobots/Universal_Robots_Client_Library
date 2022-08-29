@@ -569,7 +569,10 @@ void rtde_interface::DataPackage::initEmpty()
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 {
-  bp.parse(recipe_id_);
+  if (protocol_version_ == 2)
+  {
+    bp.parse(recipe_id_);
+  }
   for (auto& item : recipe_)
   {
     if (g_type_list.find(item) != g_type_list.end())

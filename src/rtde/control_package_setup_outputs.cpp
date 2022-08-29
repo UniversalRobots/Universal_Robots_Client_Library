@@ -34,16 +34,30 @@ namespace rtde_interface
 {
 bool ControlPackageSetupOutputs::parseWith(comm::BinParser& bp)
 {
-  bp.parse(output_recipe_id_);
-  bp.parseRemainder(variable_types_);
+  if (protocol_version_ == 2)
+  {
+    bp.parse(output_recipe_id_);
+    bp.parseRemainder(variable_types_);
+  }
+  else if (protocol_version_ == 1)
+  {
+    bp.parseRemainder(variable_types_);
+  }
 
   return true;
 }
 std::string ControlPackageSetupOutputs::toString() const
 {
   std::stringstream ss;
-  ss << "output recipe id: " << static_cast<int>(output_recipe_id_) << std::endl;
-  ss << "variable types: " << variable_types_;
+  if (protocol_version_ == 2)
+  {
+    ss << "output recipe id: " << static_cast<int>(output_recipe_id_) << std::endl;
+    ss << "variable types: " << variable_types_;
+  }
+  else if (protocol_version_ == 1)
+  {
+    ss << "variable types: " << variable_types_;
+  }
 
   return ss.str();
 }

@@ -68,14 +68,18 @@ public:
   DataPackage(const DataPackage& other) : DataPackage(other.recipe_)
   {
     this->data_ = other.data_;
+    this->protocol_version_ = other.protocol_version_;
   }
 
   /*!
    * \brief Creates a new DataPackage object, based on a given recipe.
    *
    * \param recipe The used recipe
+   *
+   * \param protocol_version Protocol version used for the RTDE communication
    */
-  DataPackage(const std::vector<std::string>& recipe) : RTDEPackage(PackageType::RTDE_DATA_PACKAGE), recipe_(recipe)
+  DataPackage(const std::vector<std::string>& recipe, const uint16_t& protocol_version = 2)
+    : RTDEPackage(PackageType::RTDE_DATA_PACKAGE), recipe_(recipe), protocol_version_(protocol_version)
   {
   }
   virtual ~DataPackage() = default;
@@ -200,6 +204,7 @@ private:
   uint8_t recipe_id_;
   std::unordered_map<std::string, _rtde_type_variant> data_;
   std::vector<std::string> recipe_;
+  uint16_t protocol_version_;
 };
 
 }  // namespace rtde_interface
