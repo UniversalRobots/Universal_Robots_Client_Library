@@ -277,6 +277,21 @@ bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
 
 bool UrDriver::setToolVoltage(const ToolVoltage voltage)
 {
+  // Test that the tool voltage is either 0, 12 or 24.
+  switch (voltage)
+  {
+    case ToolVoltage::OFF:
+      break;
+    case ToolVoltage::_12V:
+      break;
+    case ToolVoltage::_24V:
+      break;
+    default:
+      std::stringstream ss;
+      ss << "The tool voltage should be 0, 12 or 24. The tool voltage is " << toUnderlying(voltage);
+      throw UrException(ss.str().c_str());
+  }
+
   if (script_command_interface_->clientConnected())
   {
     return script_command_interface_->setToolVoltage(voltage);
