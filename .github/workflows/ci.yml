@@ -40,6 +40,10 @@ jobs:
         run: sudo apt-get install -y gcovr
       - name: gcovr
         run: cd build && gcovr -r ..
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          gcov: true
 
   check_links:
     runs-on: ubuntu-latest
