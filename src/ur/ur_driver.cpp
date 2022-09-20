@@ -251,6 +251,8 @@ bool UrDriver::zeroFTSensor()
     }
     else
     {
+      URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. This will "
+                    "only work, if the robot is in remote_control mode.");
       std::stringstream cmd;
       cmd << "sec tareSetup():" << std::endl << " zero_ftsensor()" << std::endl << "end";
       return sendScript(cmd.str());
@@ -266,6 +268,8 @@ bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
   }
   else
   {
+    URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+                  "robots this will only work, if the robot is in remote_control mode.");
     std::stringstream cmd;
     cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
     cmd << "sec setup():" << std::endl
@@ -298,6 +302,8 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
   }
   else
   {
+    URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+                  "robots this will only work, if the robot is in remote_control mode.");
     std::stringstream cmd;
     cmd << "sec setup():" << std::endl << " set_tool_voltage(" << toUnderlying(voltage) << ")" << std::endl << "end";
     return sendScript(cmd.str());
