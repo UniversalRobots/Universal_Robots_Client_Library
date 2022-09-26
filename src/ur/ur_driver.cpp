@@ -293,7 +293,8 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
     default:
       std::stringstream ss;
       ss << "The tool voltage should be 0, 12 or 24. The tool voltage is " << toUnderlying(voltage);
-      throw UrException(ss.str().c_str());
+      URCL_LOG_ERROR(ss.str().c_str());
+      return false;
   }
 
   if (script_command_interface_->clientConnected())

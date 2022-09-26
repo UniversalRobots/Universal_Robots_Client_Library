@@ -37,17 +37,6 @@ namespace urcl
 namespace control
 {
 /*!
- * \brief Available script commands
- */
-enum class ScriptCommand : int32_t
-{
-
-  ZERO_FTSENSOR = 0,     ///< Zero force torque sensor
-  SET_PAYLOAD = 1,       ///< Set payload
-  SET_TOOL_VOLTAGE = 2,  ///< Set tool voltage
-};
-
-/*!
  * \brief The ScriptCommandInterface class starts a TCPServer for a robot to connect to and this connection is then used
  * to forward script commands to the robot, which will be executed locally on the robot.
  *
@@ -104,6 +93,17 @@ protected:
   virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv) override;
 
 private:
+  /*!
+   * \brief Available script commands
+   */
+  enum class ScriptCommand : int32_t
+  {
+
+    ZERO_FTSENSOR = 0,     ///< Zero force torque sensor
+    SET_PAYLOAD = 1,       ///< Set payload
+    SET_TOOL_VOLTAGE = 2,  ///< Set tool voltage
+  };
+
   bool client_connected_;
   static const int MAX_MESSAGE_LENGTH = 5;
 };
