@@ -46,8 +46,11 @@ class ControlPackageSetupOutputs : public RTDEPackage
 public:
   /*!
    * \brief Creates a new ControlPackageSetupOutputs object.
+   *
+   * \param protocol_version Protocol version used for the RTDE communication
    */
-  ControlPackageSetupOutputs() : RTDEPackage(PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS)
+  ControlPackageSetupOutputs(uint16_t protocol_version)
+    : RTDEPackage(PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS), protocol_version_(protocol_version)
   {
   }
   virtual ~ControlPackageSetupOutputs() = default;
@@ -70,6 +73,7 @@ public:
 
   uint8_t output_recipe_id_;
   std::string variable_types_;
+  uint16_t protocol_version_;
 };
 
 /*!

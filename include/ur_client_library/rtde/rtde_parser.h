@@ -83,7 +83,7 @@ public:
     {
       case PackageType::RTDE_DATA_PACKAGE:
       {
-        std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_));
+        std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_, protocol_version_));
 
         if (!package->parseWith(bp))
         {
@@ -143,7 +143,7 @@ private:
         return new ControlPackageSetupInputs;
         break;
       case PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
-        return new ControlPackageSetupOutputs;
+        return new ControlPackageSetupOutputs(protocol_version_);
         break;
       case PackageType::RTDE_CONTROL_PACKAGE_START:
         return new ControlPackageStart;
