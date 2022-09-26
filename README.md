@@ -32,6 +32,11 @@ implemented in order to create external applications leveraging the versatility 
 robotic manipulators.
 
 ## Requirements
+ * **Polyscope** (The software running on the robot controller) version **3.12.0** (for CB3-Series),
+   or **5.5.1** (for e-Series) or higher. If you use an older Polyscope version it is suggested to
+   update your robot. If for some reason (please tell us in the issues why) you cannot upgrade your
+   robot, please see the [version compatibility table](doc/polyscope_compatibility.md) for a
+   compatible tag.
  * The library requires an implementation of **POSIX threads** such as the `pthread` library
  * Socket communication is currently based on Linux sockets. Thus, this library will require Linux
    for building and using.
