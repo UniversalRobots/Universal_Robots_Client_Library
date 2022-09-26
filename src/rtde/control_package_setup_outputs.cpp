@@ -43,6 +43,13 @@ bool ControlPackageSetupOutputs::parseWith(comm::BinParser& bp)
   {
     bp.parseRemainder(variable_types_);
   }
+  else
+  {
+    std::stringstream ss;
+    ss << "Unknown protocol version, protocol version is " << protocol_version_;
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
 
   return true;
 }
@@ -57,6 +64,10 @@ std::string ControlPackageSetupOutputs::toString() const
   else if (protocol_version_ == 1)
   {
     ss << "variable types: " << variable_types_;
+  }
+  else
+  {
+    ss << "Unknown protocol version, protocol version is " << protocol_version_ << std::endl;
   }
 
   return ss.str();
