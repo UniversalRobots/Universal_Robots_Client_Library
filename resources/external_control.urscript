@@ -228,7 +228,7 @@ thread script_commands():
         zero_ftsensor()
       elif command == SET_PAYLOAD:
         mass = raw_command[2] / MULT_jointstate
-        cog = [raw_command[3] / MULT_jointstate,raw_command[4] / MULT_jointstate,raw_command[5] / MULT_jointstate]
+        cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
         set_payload(mass, cog)
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
