@@ -48,13 +48,15 @@ static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
 static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
 static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLACE}}");
+static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
                          std::function<void(bool)> handle_program_state, bool headless_mode,
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
-                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port)
+                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
+                         const uint32_t script_command_port)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
@@ -119,6 +121,12 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     prog.replace(prog.find(TRAJECTORY_PORT_REPLACE), TRAJECTORY_PORT_REPLACE.length(), std::to_string(trajectory_port));
   }
 
+  while (prog.find(SCRIPT_COMMAND_PORT_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(SCRIPT_COMMAND_PORT_REPLACE), SCRIPT_COMMAND_PORT_REPLACE.length(),
+                 std::to_string(script_command_port));
+  }
+
   robot_version_ = rtde_client_->getVersion();
 
   std::stringstream begin_replace;
@@ -162,6 +170,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
 
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
   trajectory_interface_.reset(new control::TrajectoryPointInterface(trajectory_port));
+  script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
 
   URCL_LOG_DEBUG("Initialization done");
 }
@@ -172,7 +181,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
                          const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
                          double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip,
-                         const uint32_t trajectory_port)
+                         const uint32_t trajectory_port, const uint32_t script_command_port)
   : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
              std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
              non_blocking_read, reverse_ip, trajectory_port)
@@ -221,6 +230,85 @@ bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMes
                                              const int point_number)
 {
   return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
+}
+
+bool UrDriver::zeroFTSensor()
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Zeroing the Force-Torque sensor is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+  else
+  {
+    if (script_command_interface_->clientConnected())
+    {
+      return script_command_interface_->zeroFTSensor();
+    }
+    else
+    {
+      URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. This will "
+                    "only work, if the robot is in remote_control mode.");
+      std::stringstream cmd;
+      cmd << "sec tareSetup():" << std::endl << " zero_ftsensor()" << std::endl << "end";
+      return sendScript(cmd.str());
+    }
+  }
+}
+
+bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setPayload(mass, &cog);
+  }
+  else
+  {
+    URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+                  "robots this will only work, if the robot is in remote_control mode.");
+    std::stringstream cmd;
+    cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
+    cmd << "sec setup():" << std::endl
+        << " set_payload(" << mass << ", [" << cog[0] << ", " << cog[1] << ", " << cog[2] << "])" << std::endl
+        << "end";
+    return sendScript(cmd.str());
+  }
+}
+
+bool UrDriver::setToolVoltage(const ToolVoltage voltage)
+{
+  // Test that the tool voltage is either 0, 12 or 24.
+  switch (voltage)
+  {
+    case ToolVoltage::OFF:
+      break;
+    case ToolVoltage::_12V:
+      break;
+    case ToolVoltage::_24V:
+      break;
+    default:
+      std::stringstream ss;
+      ss << "The tool voltage should be 0, 12 or 24. The tool voltage is " << toUnderlying(voltage);
+      URCL_LOG_ERROR(ss.str().c_str());
+      return false;
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setToolVoltage(voltage);
+  }
+  else
+  {
+    URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+                  "robots this will only work, if the robot is in remote_control mode.");
+    std::stringstream cmd;
+    cmd << "sec setup():" << std::endl << " set_tool_voltage(" << toUnderlying(voltage) << ")" << std::endl << "end";
+    return sendScript(cmd.str());
+  }
 }
 
 bool UrDriver::writeKeepalive()

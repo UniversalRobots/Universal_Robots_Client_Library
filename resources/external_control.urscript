@@ -33,6 +33,11 @@ TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
 TRAJECTORY_RESULT_FAILURE = 2
 
+ZERO_FTSENSOR = 0
+SET_PAYLOAD = 1
+SET_TOOL_VOLTAGE = 2
+SCRIPT_COMMAND_DATA_DIMENSION = 5
+
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -213,6 +218,26 @@ def set_servo_pose(pose):
   cmd_servo_q = get_inverse_kin(pose, cmd_servo_q)
 end
 
+# Thread to receive script commands
+thread script_commands():
+  while control_mode > MODE_STOPPED:
+    raw_command = socket_read_binary_integer(SCRIPT_COMMAND_DATA_DIMENSION, "script_command_socket", 0)
+    if raw_command[0] > 0:
+      command = raw_command[1]
+      if command == ZERO_FTSENSOR:
+        zero_ftsensor()
+      elif command == SET_PAYLOAD:
+        mass = raw_command[2] / MULT_jointstate
+        cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
+        set_payload(mass, cog)
+      elif command == SET_TOOL_VOLTAGE:
+        tool_voltage = raw_command[2] / MULT_jointstate
+        set_tool_voltage(tool_voltage)
+      end
+    end
+  end
+end
+
 
 # HEADER_END
 
@@ -220,6 +245,7 @@ end
 
 socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
 socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
+socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
@@ -229,6 +255,7 @@ global keepalive = -2
 params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0)
 textmsg("ExternalControl: External control active")
 keepalive = params_mult[1]
+thread_script_commands = run script_commands()
 while keepalive > 0 and control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
@@ -288,8 +315,11 @@ textmsg("ExternalControl: Stopping communication and control")
 control_mode = MODE_STOPPED
 join thread_move
 join thread_trajectory
+kill thread_script_commands
+join thread_script_commands
 textmsg("ExternalControl: All threads ended")
 socket_close("reverse_socket")
 socket_close("trajectory_socket")
+socket_close("script_command_socket")
 
 # NODE_CONTROL_LOOP_ENDS

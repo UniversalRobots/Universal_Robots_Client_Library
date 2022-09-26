@@ -22,6 +22,7 @@ add_library(urcl SHARED
     src/control/reverse_interface.cpp
     src/control/script_sender.cpp
     src/control/trajectory_point_interface.cpp
+    src/control/script_command_interface.cpp
     src/primary/primary_package.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
