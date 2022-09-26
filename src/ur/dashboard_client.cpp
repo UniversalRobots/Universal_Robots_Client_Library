@@ -50,6 +50,12 @@ bool DashboardClient::connect()
     URCL_LOG_INFO("%s", read().c_str());
     ret_val = true;
   }
+
+  timeval tv;
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  TCPSocket::setReceiveTimeout(tv);
+
   return ret_val;
 }
 
@@ -77,9 +83,12 @@ std::string DashboardClient::read()
     if (!TCPSocket::read((uint8_t*)&character, 1, read_chars))
     {
       disconnect();
-      throw TimeoutException("Did not receive answer from dashboard server in time. Disconnecting from dashboard "
-                             "server.",
-                             *recv_timeout_);
+      std::stringstream ss;
+      ss << "Did not receive answer from dashboard server in time. Disconnecting from dashboard server. (receive "
+            "timeout is "
+         << recv_timeout_->tv_sec << "." << recv_timeout_->tv_usec << " seconds)";
+      URCL_LOG_WARN(ss.str().c_str());
+      return "";
     }
     result << character;
     if (character == '\n')
