@@ -1,31 +1,31 @@
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
 // Copyright 2022 Universal Robots A/S
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// All source code contained in and/or linked to in this message (the “Source Code”) is subject to the copyright of
-// Universal Robots A/S and/or its licensors. THE SOURCE CODE IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING – BUT NOT LIMITED TO – WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
-// NONINFRINGEMENT. USE OF THE SOURCE CODE IS AT YOUR OWN RISK AND UNIVERSAL ROBOTS A/S AND ITS LICENSORS SHALL, TO THE
-// MAXIMUM EXTENT PERMITTED BY LAW, NOT BE LIABLE FOR ANY ERRORS OR MALICIOUS CODE IN THE SOURCE CODE, ANY THIRD-PARTY
-// CLAIMS, OR ANY OTHER CLAIMS AND DAMAGES, INCLUDING INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR PUNITIVE DAMAGES,
-// OR ANY LOSS OF PROFITS, EXPECTED SAVINGS, OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA,
-// USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM YOUR USE OF THE SOURCE CODE. You may make copies of the
-// Source Code for use in connection with a Universal Robots or UR+ product, provided that you include (i) an
-// appropriate copyright notice (“©  [the year in which you received the Source Code or the Source Code was first
-// published, e.g. “2021”] Universal Robots A/S and/or its licensors”) along with the capitalized section of this notice
-// in all copies of the Source Code. By using the Source Code, you agree to the above terms. For more information,
-// please contact legal@universal-robots.com.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the {copyright_holder} nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
@@ -142,6 +142,25 @@ protected:
     }
   };
 
+  void SetUp()
+  {
+    traj_point_interface_.reset(new control::TrajectoryPointInterface(50003));
+    client_.reset(new Client(50003));
+    // Need to be sure that the client has connected to the server
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+
+  void TearDown()
+  {
+    if (client_->getState() == comm::SocketState::Connected)
+    {
+      client_->close();
+    }
+  }
+
+  std::unique_ptr<control::TrajectoryPointInterface> traj_point_interface_;
+  std::unique_ptr<Client> client_;
+
 public:
   void handleTrajectoryEnd(control::TrajectoryResult result)
   {
@@ -173,97 +192,68 @@ private:
 
 TEST_F(TrajectoryPointInterfaceTest, write_postions)
 {
-  control::TrajectoryPointInterface traj_point_interface(50002);
-  Client client(50002);
-
-  // Need to be sure that the client has connected to the server
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
   urcl::vector6d_t send_positions = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
-  traj_point_interface.writeTrajectoryPoint(&send_positions, 0, 0, 0);
-  vector6int32_t received_positions = client.getPosition();
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, 0);
+  vector6int32_t received_positions = client_->getPosition();
 
-  EXPECT_EQ(send_positions[0], ((double)received_positions[0]) / traj_point_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(send_positions[1], ((double)received_positions[1]) / traj_point_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(send_positions[2], ((double)received_positions[2]) / traj_point_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(send_positions[3], ((double)received_positions[3]) / traj_point_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(send_positions[4], ((double)received_positions[4]) / traj_point_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(send_positions[5], ((double)received_positions[5]) / traj_point_interface.MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[0], ((double)received_positions[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[1], ((double)received_positions[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[2], ((double)received_positions[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[3], ((double)received_positions[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[4], ((double)received_positions[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_positions[5], ((double)received_positions[5]) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
 {
-  control::TrajectoryPointInterface traj_point_interface(50002);
-  Client client(50002);
-
-  // Need to be sure that the client has connected to the server
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   float send_goal_time = 0.5;
-  traj_point_interface.writeTrajectoryPoint(&send_positions, send_goal_time, 0, 0);
-  int32_t received_goal_time = client.getGoalTime();
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, 0);
+  int32_t received_goal_time = client_->getGoalTime();
 
-  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface.MULT_TIME);
+  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_TIME);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_blend_radius)
 {
-  control::TrajectoryPointInterface traj_point_interface(50002);
-  Client client(50002);
-
-  // Need to be sure that the client has connected to the server
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   float send_blend_radius = 0.5;
-  traj_point_interface.writeTrajectoryPoint(&send_positions, 0, send_blend_radius, 0);
-  int32_t received_blend_radius = client.getBlendRadius();
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, send_blend_radius, 0);
+  int32_t received_blend_radius = client_->getBlendRadius();
 
-  EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface.MULT_TIME);
+  EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface_->MULT_TIME);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cartesian)
 {
-  control::TrajectoryPointInterface traj_point_interface(50002);
-  Client client(50002);
-
-  // Need to be sure that the client has connected to the server
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
   // Write cartesian point
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   bool send_cartesian = true;
-  traj_point_interface.writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
-  bool received_cartesian = bool(client.getCartesian());
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
+  bool received_cartesian = bool(client_->getCartesian());
 
   EXPECT_EQ(send_cartesian, received_cartesian);
 
   // Write joint point
   send_cartesian = false;
-  traj_point_interface.writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
-  received_cartesian = bool(client.getCartesian());
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
+  received_cartesian = bool(client_->getCartesian());
 
   EXPECT_EQ(send_cartesian, received_cartesian);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, trajectory_result)
 {
-  control::TrajectoryPointInterface traj_point_interface(50002);
-  traj_point_interface.setTrajectoryEndCallback(
+  traj_point_interface_->setTrajectoryEndCallback(
       std::bind(&TrajectoryPointInterfaceTest::handleTrajectoryEnd, this, std::placeholders::_1));
-  Client client(50002);
 
-  // Need to make sure that the client has connected to the server
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  client.send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED));
+  client_->send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED));
   EXPECT_TRUE(waitTrajectoryEnd(1000, control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED));
 
-  client.send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE));
+  client_->send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE));
   EXPECT_TRUE(waitTrajectoryEnd(1000, control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE));
 
-  client.send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS));
+  client_->send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS));
   EXPECT_TRUE(waitTrajectoryEnd(1000, control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS));
 }
 

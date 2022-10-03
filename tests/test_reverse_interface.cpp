@@ -1,31 +1,31 @@
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
 // Copyright 2022 Universal Robots A/S
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// All source code contained in and/or linked to in this message (the “Source Code”) is subject to the copyright of
-// Universal Robots A/S and/or its licensors. THE SOURCE CODE IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING – BUT NOT LIMITED TO – WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
-// NONINFRINGEMENT. USE OF THE SOURCE CODE IS AT YOUR OWN RISK AND UNIVERSAL ROBOTS A/S AND ITS LICENSORS SHALL, TO THE
-// MAXIMUM EXTENT PERMITTED BY LAW, NOT BE LIABLE FOR ANY ERRORS OR MALICIOUS CODE IN THE SOURCE CODE, ANY THIRD-PARTY
-// CLAIMS, OR ANY OTHER CLAIMS AND DAMAGES, INCLUDING INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR PUNITIVE DAMAGES,
-// OR ANY LOSS OF PROFITS, EXPECTED SAVINGS, OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA,
-// USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM YOUR USE OF THE SOURCE CODE. You may make copies of the
-// Source Code for use in connection with a Universal Robots or UR+ product, provided that you include (i) an
-// appropriate copyright notice (“©  [the year in which you received the Source Code or the Source Code was first
-// published, e.g. “2021”] Universal Robots A/S and/or its licensors”) along with the capitalized section of this notice
-// in all copies of the Source Code. By using the Source Code, you agree to the above terms. For more information,
-// please contact legal@universal-robots.com.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the {copyright_holder} nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
@@ -37,7 +37,7 @@ using namespace urcl;
 class ReverseIntefaceTest : public ::testing::Test
 {
 protected:
-  class Client : public comm::TCPSocket  // maybe just use stream instead
+  class Client : public comm::TCPSocket
   {
   public:
     Client(const int& port)
@@ -143,7 +143,22 @@ protected:
     }
   };
 
-public:
+  void SetUp()
+  {
+    reverse_interface_.reset(new control::ReverseInterface(
+        50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1)));
+    client_.reset(new Client(50001));
+  }
+
+  void TearDown()
+  {
+    if (client_->getState() == comm::SocketState::Connected)
+    {
+      client_->close();
+      waitForProgramState(1000, false);
+    }
+  }
+
   void handleProgramState(bool program_state)
   {
     std::lock_guard<std::mutex> lk(program_running_mutex_);
@@ -165,6 +180,9 @@ public:
     return false;
   }
 
+  std::unique_ptr<control::ReverseInterface> reverse_interface_;
+  std::unique_ptr<Client> client_;
+
 private:
   std::atomic<bool> program_state_ = ATOMIC_VAR_INIT(false);
   std::condition_variable program_running_;
@@ -173,233 +191,173 @@ private:
 
 TEST_F(ReverseIntefaceTest, handle_program_state)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Test that handle program state is called when the client connects to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   // Test that handle program state is called when the client disconnects from the server
-  client.close();
+  client_->close();
   EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, write_positions)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   urcl::vector6d_t written_positions = { 1.2, -3.1, -2.2, -3.4, 1.1, 1.2 };
-  reverse_interface.write(&written_positions);
-  vector6int32_t received_positions = client.getPositions();
+  reverse_interface_->write(&written_positions);
+  vector6int32_t received_positions = client_->getPositions();
 
-  EXPECT_EQ(written_positions[0], ((double)received_positions[0]) / reverse_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(written_positions[1], ((double)received_positions[1]) / reverse_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(written_positions[2], ((double)received_positions[2]) / reverse_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(written_positions[3], ((double)received_positions[3]) / reverse_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(written_positions[4], ((double)received_positions[4]) / reverse_interface.MULT_JOINTSTATE);
-  EXPECT_EQ(written_positions[5], ((double)received_positions[5]) / reverse_interface.MULT_JOINTSTATE);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
+  EXPECT_EQ(written_positions[0], ((double)received_positions[0]) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(written_positions[1], ((double)received_positions[1]) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(written_positions[2], ((double)received_positions[2]) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(written_positions[3], ((double)received_positions[3]) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(written_positions[4], ((double)received_positions[4]) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(written_positions[5], ((double)received_positions[5]) / reverse_interface_->MULT_JOINTSTATE);
 }
 
 TEST_F(ReverseIntefaceTest, write_trajectory_control_message)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   control::TrajectoryControlMessage written_control_message = control::TrajectoryControlMessage::TRAJECTORY_CANCEL;
-  reverse_interface.writeTrajectoryControlMessage(written_control_message, 1);
-  int32_t received_control_message = client.getTrajectoryControlMode();
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  int32_t received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
 
   written_control_message = control::TrajectoryControlMessage::TRAJECTORY_NOOP;
-  reverse_interface.writeTrajectoryControlMessage(written_control_message, 1);
-  received_control_message = client.getTrajectoryControlMode();
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
 
   written_control_message = control::TrajectoryControlMessage::TRAJECTORY_START;
-  reverse_interface.writeTrajectoryControlMessage(written_control_message, 1);
-  received_control_message = client.getTrajectoryControlMode();
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, write_trajectory_point_number)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   int32_t written_point_number = 2;
-  reverse_interface.writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                  written_point_number);
-  int32_t received_point_number = client.getTrajectoryPointNumber();
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                    written_point_number);
+  int32_t received_point_number = client_->getTrajectoryPointNumber();
 
   EXPECT_EQ(written_point_number, received_point_number);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, control_mode_is_forward)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   // When writing trajectory control message, the control mode should always be mode forward
   comm::ControlMode expected_control_mode = comm::ControlMode::MODE_FORWARD;
-  reverse_interface.writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
-  int32_t received_control_mode = client.getControlMode();
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  int32_t received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, remaining_message_points_are_zeros)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   // When using trajectory control message, the received message is keep_alive_signal=keep_alive_signal,
   // received_pos[0]=control::TrajectoryControlMessage, received_pos[1]=point_number and received_pos[2]-received_pos[5]
   // should be zeros.
-  reverse_interface.writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
-  vector6int32_t received_pos = client.getPositions();
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  vector6int32_t received_pos = client_->getPositions();
 
   EXPECT_EQ(0, received_pos[2]);
   EXPECT_EQ(0, received_pos[3]);
   EXPECT_EQ(0, received_pos[4]);
   EXPECT_EQ(0, received_pos[5]);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, keep_alive_count)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   int expected_keep_alive_count = 5;
-  reverse_interface.setKeepaliveCount(expected_keep_alive_count);
+  reverse_interface_->setKeepaliveCount(expected_keep_alive_count);
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
-  reverse_interface.write(&pos);
-  int32_t received_keep_alive_count = client.getKeepAliveCount();
+  reverse_interface_->write(&pos);
+  int32_t received_keep_alive_count = client_->getKeepAliveCount();
 
   EXPECT_EQ(expected_keep_alive_count, received_keep_alive_count);
 
   // Test that keep alive signal works with trajectory controll message as well
-  reverse_interface.writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
-  received_keep_alive_count = client.getKeepAliveCount();
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  received_keep_alive_count = client_->getKeepAliveCount();
 
   EXPECT_EQ(expected_keep_alive_count, received_keep_alive_count);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 TEST_F(ReverseIntefaceTest, write_control_mode)
 {
-  control::ReverseInterface reverse_interface(
-      50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1));
-  Client client(50001);
-
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
 
   comm::ControlMode expected_control_mode = comm::ControlMode::MODE_FORWARD;
-  reverse_interface.write(&pos, expected_control_mode);
-  int32_t received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  int32_t received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_IDLE;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_POSE;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_SERVOJ;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_SPEEDJ;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_SPEEDL;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_STOPPED;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_UNINITIALIZED;
-  reverse_interface.write(&pos, expected_control_mode);
-  received_control_mode = client.getControlMode();
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
-
-  // Correctly shutdown the connection
-  client.close();
-  EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
 int main(int argc, char* argv[])
