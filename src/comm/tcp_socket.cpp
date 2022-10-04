@@ -25,6 +25,8 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 #include <cstring>
+#include <sstream>
+#include <thread>
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/tcp_socket.h"
@@ -72,38 +74,41 @@ bool TCPSocket::setup(std::string& host, int port)
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if (getaddrinfo(host_name, service.c_str(), &hints, &result) != 0)
-  {
-    URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
-    return false;
-  }
-
   bool connected = false;
-  // loop through the list of addresses untill we find one that's connectable
-  for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
+  while (!connected)
   {
-    socket_fd_ = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-
-    if (socket_fd_ != -1 && open(socket_fd_, p->ai_addr, p->ai_addrlen))
+    if (getaddrinfo(host_name, service.c_str(), &hints, &result) != 0)
     {
-      connected = true;
-      break;
+      URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
+      return false;
+    }
+    // loop through the list of addresses untill we find one that's connectable
+    for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
+    {
+      socket_fd_ = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+
+      if (socket_fd_ != -1 && open(socket_fd_, p->ai_addr, p->ai_addrlen))
+      {
+        connected = true;
+        break;
+      }
+    }
+
+    freeaddrinfo(result);
+
+    if (!connected)
+    {
+      state_ = SocketState::Invalid;
+      std::stringstream ss;
+      ss << "Failed to connect to robot on IP " << host_name
+         << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in 10 seconds";
+      URCL_LOG_ERROR("%s", ss.str().c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
-
-  freeaddrinfo(result);
-
-  if (!connected)
-  {
-    state_ = SocketState::Invalid;
-    URCL_LOG_ERROR("Connection setup failed for %s:%d", host.c_str(), port);
-  }
-  else
-  {
-    setOptions(socket_fd_);
-    state_ = SocketState::Connected;
-    URCL_LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
-  }
+  setOptions(socket_fd_);
+  state_ = SocketState::Connected;
+  URCL_LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
   return connected;
 }
 

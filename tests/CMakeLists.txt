@@ -61,3 +61,24 @@ target_include_directories(tcp_server_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(tcp_server_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      tcp_server_tests
 )
+
+add_executable(script_sender_tests test_script_sender.cpp)
+target_compile_options(script_sender_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(script_sender_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(script_sender_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      script_sender_tests
+)
+
+add_executable(reverse_interface_tests test_reverse_interface.cpp)
+target_compile_options(reverse_interface_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(reverse_interface_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(reverse_interface_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET reverse_interface_tests
+)
+
+add_executable(trajectory_point_interface_tests test_trajectory_point_interface.cpp)
+target_compile_options(trajectory_point_interface_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(trajectory_point_interface_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(trajectory_point_interface_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET trajectory_point_interface_tests
+)

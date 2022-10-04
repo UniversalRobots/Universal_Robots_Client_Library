@@ -90,7 +90,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   uint8_t* b_pos = buffer;
 
   // The first element is always the keepalive signal.
-  int32_t val = htobe32(1);
+  int32_t val = htobe32(keepalive_count_);
   b_pos += append(b_pos, val);
 
   val = htobe32(toUnderlying(trajectory_action));
