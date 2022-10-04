@@ -50,6 +50,12 @@ bool DashboardClient::connect()
     URCL_LOG_INFO("%s", read().c_str());
     ret_val = true;
   }
+
+  timeval tv;
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  TCPSocket::setReceiveTimeout(tv);
+
   return ret_val;
 }
 
