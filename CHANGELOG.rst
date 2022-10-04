@@ -2,6 +2,25 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Initialized receive timeout and changed exception to warning (`#118 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/118>`_)
+* Added tests for the control interface classes (`#112 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/112>`_)
+* Added note about Polyscope version requirement
+* Added tcp_offset
+* Added interface for forwarding script commands to the robot, that is … (`#111 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/111>`_)
+* Fixed parsing of incomming packages when using rtde protocol v1 (`#114 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/114>`_)
+  The received rtde packages should be parsed slightly different whether we use protocol v1 or v2.
+* Add codecov step (`#116 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/116>`_)
+* Added humble build
+* Fixed downstream test instructions
+* Update atomicops.h (`#117 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/117>`_)
+  Fix the url in the comment regarding POSIX semaphores to fix error in the CI
+* Make the read during boot depend on the frequency of the robot controller (`#102 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/102>`_)
+* Ignore debian folder in check_links (`#100 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/100>`_)
+  Otherwise this job raises an error in the release repository.
+* Contributors: Felix Exner, Mads Holm Peters, Rune Søe-Knudsen, urmahp, urmarp
+
 1.1.0 (2022-04-22)
 ------------------
 * Support starting the driver, before the robot is booted (`#98 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/98>`_)
