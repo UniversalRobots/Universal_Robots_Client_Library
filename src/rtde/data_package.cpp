@@ -553,6 +553,7 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "standard_analog_output_type", uint8_t() },
   { "standard_analog_output_0", double() },
   { "standard_analog_output_1", double() },
+  { "tcp_offset", vector6d_t() },
 };
 
 void rtde_interface::DataPackage::initEmpty()
@@ -569,7 +570,10 @@ void rtde_interface::DataPackage::initEmpty()
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 {
-  bp.parse(recipe_id_);
+  if (protocol_version_ == 2)
+  {
+    bp.parse(recipe_id_);
+  }
   for (auto& item : recipe_)
   {
     if (g_type_list.find(item) != g_type_list.end())

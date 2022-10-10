@@ -40,6 +40,10 @@ jobs:
         run: sudo apt-get install -y gcovr
       - name: gcovr
         run: cd build && gcovr -r ..
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          gcov: true
 
   check_links:
     runs-on: ubuntu-latest
@@ -54,5 +58,12 @@ jobs:
             --exclude=package.xml \
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
+            --exclude-dir=debian \
             --exclude=real_time.md
+
+  rosdoc_lite_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ./.github/actions/rosdoc_lite_action
 

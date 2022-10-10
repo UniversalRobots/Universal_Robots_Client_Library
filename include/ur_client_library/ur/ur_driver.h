@@ -33,6 +33,7 @@
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
+#include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
@@ -79,7 +80,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller.
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port. If
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
    * the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
@@ -88,12 +89,15 @@ public:
    * address of the interface that is used for connecting to the robot's RTDE port will be used.
    * \param trajectory_port Port used for sending trajectory points to the robot in case of
    * trajectory forwarding.
+   * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
+   * executed locally on the robot.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
-           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003);
+           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
+           const uint32_t script_command_port = 50004);
 
   /*!
    * \brief Constructs a new UrDriver object.
@@ -110,7 +114,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller.
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port. If
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
    * the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
@@ -119,13 +123,15 @@ public:
    * address of the interface that is used for connecting to the robot's RTDE port will be used.
    * \param trajectory_port Port used for sending trajectory points to the robot in case of
    * trajectory forwarding.
+   * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
+   * executed locally on the robot.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum = "",
            const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
            double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
-           const uint32_t trajectory_port = 50003);
+           const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004);
   /*!
    * \brief Constructs a new UrDriver object.
    *
@@ -141,7 +147,7 @@ public:
    * calibration reported by the robot.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller
-   * \param script_sending_port The driver will offer an interface to receive the program's URScript on this port.
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port.
    * If the robot cannot connect to this port, `External Control` will stop immediately.
    * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
    * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
@@ -150,12 +156,15 @@ public:
    * address of the interface that is used for connecting to the robot's RTDE port will be used.
    * \param trajectory_port Port used for sending trajectory points to the robot in case of
    * trajectory forwarding.
+   * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
+   * executed locally on the robot.
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            const std::string& calibration_checksum = "", const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
-           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003)
+           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
+           const uint32_t script_command_port = 50004)
     : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
                std::unique_ptr<ToolCommSetup>{}, calibration_checksum, reverse_port, script_sender_port, servoj_gain,
                servoj_lookahead_time, non_blocking_read, reverse_ip)
@@ -212,6 +221,36 @@ public:
    */
   bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
                                      const int point_number = 0);
+
+  /*!
+   * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
+   * be running or the robot to be in headless mode
+   *
+   * \returns True on successful write.
+   */
+  bool zeroFTSensor();
+
+  /*!
+   * \brief Set the payload mass and center of gravity. Note: It requires the external control script to be running or
+   * the robot to be in headless mode.
+   *
+   * \param mass mass in kilograms
+   * \param cog Center of Gravity, a vector [CoGx, CoGy, CoGz] specifying the displacement (in meters) from the
+   * toolmount
+   *
+   * \returns True on successful write.
+   */
+  bool setPayload(const float mass, const vector3d_t& cog);
+
+  /*!
+   * \brief Set the tool voltage. Note: It requires the external control script to be running or the robot to be in
+   * headless mode.
+   *
+   * \param voltage tool voltage.
+   *
+   * \returns True on successful write.
+   */
+  bool setToolVoltage(const ToolVoltage voltage);
 
   /*!
    * \brief Write a keepalive signal only.
@@ -320,6 +359,7 @@ private:
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
+  std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;

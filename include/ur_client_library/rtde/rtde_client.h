@@ -51,6 +51,7 @@ namespace rtde_interface
 {
 static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 2;
 static const unsigned MAX_REQUEST_RETRIES = 5;
+static const unsigned MAX_INITIALIZE_ATTEMPTS = 10;
 
 enum class UrRtdeRobotStatusBits
 {
@@ -75,6 +76,15 @@ enum class UrRtdeSafetyStatusBits
   IS_STOPPED_DUE_TO_SAFETY = 10
 };
 
+enum class ClientState
+{
+  UNINITIALIZED = 0,
+  INITIALIZING = 1,
+  INITIALIZED = 2,
+  RUNNING = 3,
+  PAUSED = 4
+};
+
 /*!
  * \brief The RTDEClient class manages communication over the RTDE interface. It contains the RTDE
  * handshake and read and write functionality to and from the robot.
@@ -91,9 +101,10 @@ public:
    * \param notifier The notifier to use in the pipeline
    * \param output_recipe_file Path to the file containing the output recipe
    * \param input_recipe_file Path to the file containing the input recipe
+   * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-             const std::string& input_recipe_file);
+             const std::string& input_recipe_file, double target_frequency = 0.0);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
@@ -108,6 +119,12 @@ public:
    * \returns Success of the requested start
    */
   bool start();
+  /*!
+   * \brief Pauses RTDE data package communication
+   *
+   * \returns Wheter the RTDE data package communication was paussed succesfully
+   */
+  bool pause();
   /*!
    * \brief Reads the pipeline to fetch the next data package.
    *
@@ -174,16 +191,36 @@ private:
   VersionInformation urcontrol_version_;
 
   double max_frequency_;
+  double target_frequency_;
+
+  ClientState client_state_;
 
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
 
   std::vector<std::string> readRecipe(const std::string& recipe_file);
 
+  void setupCommunication();
   bool negotiateProtocolVersion(const uint16_t protocol_version);
   void queryURControlVersion();
   void setupOutputs(const uint16_t protocol_version);
   void setupInputs();
+  void disconnect();
+
+  /*!
+   * \brief Checks wheter the robot is booted, this is done by looking at the timestamp from the robot controller, this
+   * will show the time in seconds since the controller was started. If the timestamp is below 40, we will read from
+   * the stream for approximately 1 second to ensure that the RTDE interface is up and running. This will ensure that we
+   * don't finalize setting up communication, before the controller is up and running. Else we could end up connecting
+   * to the RTDE interface, before a restart occurs during robot boot which would then destroy the connection
+   * established.
+   *
+   * \returns true if the robot is booted, false otherwise which will essentially trigger a reconnection.
+   */
+  bool isRobotBooted();
+  bool sendStart();
+  bool sendPause();
+
   /*!
    * \brief Splits a variable_types string as reported from the robot into single variable type
    * strings
