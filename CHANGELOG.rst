@@ -2,6 +2,37 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Initialized receive timeout and changed exception to warning (`#118 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/118>`_)
+* Added tests for the control interface classes (`#112 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/112>`_)
+* Added note about Polyscope version requirement
+* Added tcp_offset
+* Added interface for forwarding script commands to the robot, that is … (`#111 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/111>`_)
+* Fixed parsing of incomming packages when using rtde protocol v1 (`#114 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/114>`_)
+  The received rtde packages should be parsed slightly different whether we use protocol v1 or v2.
+* Add codecov step (`#116 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/116>`_)
+* Added humble build
+* Fixed downstream test instructions
+* Update atomicops.h (`#117 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/117>`_)
+  Fix the url in the comment regarding POSIX semaphores to fix error in the CI
+* Make the read during boot depend on the frequency of the robot controller (`#102 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/102>`_)
+* Ignore debian folder in check_links (`#100 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/100>`_)
+  Otherwise this job raises an error in the release repository.
+* Support starting the driver, before the robot is booted (`#98 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/98>`_)
+* Clear the queue when consumer reads from it (`#96 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/96>`_)
+* Fix build with newer glibc
+* Doxygen check (`#77 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/77>`_)
+* Added target_frequency to RTDEClient (`#85 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/85>`_)
+* Removed console_bridge dependency (`#74 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/74>`_)
+* Added "On behalf of Universal Robots A/S" notice (`#81 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/81>`_)
+  to all files that have been created by FZI
+* Always install package.xml file (`#78 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/78>`_)
+* register package with ament index
+* Corrected smaller doxygen errors
+* Added rosdoc_lite check
+* Contributors: Cory Crean, Felix Exner, Jørn Bersvendsen, Mads Holm Peters, Martin Jansa, Stefan Scherzinger, Rune Søe-Knudsen, urmahp, urmarp
+
 0.3.2 (2021-09-15)
 ------------------
 * Removed console_bridge dependency (`#74 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/74>`_)
