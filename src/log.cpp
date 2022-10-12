@@ -108,7 +108,7 @@ void log(const char* file, int line, LogLevel level, const char* fmt, ...)
   if (level >= g_logger.getLogLevel())
   {
     size_t buffer_size = 1024;
-    std::unique_ptr<char> buffer;
+    std::unique_ptr<char[]> buffer;
     buffer.reset(new char[buffer_size]);
 
     va_list args;
