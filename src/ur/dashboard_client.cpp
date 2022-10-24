@@ -45,13 +45,31 @@ bool DashboardClient::connect()
     return false;
   }
   bool ret_val = false;
-  if (TCPSocket::setup(host_, port_))
-  {
-    URCL_LOG_INFO("%s", read().c_str());
-    ret_val = true;
-  }
 
   timeval tv;
+
+  while (not ret_val)
+  {
+    // The first read after connection can take more time.
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    TCPSocket::setReceiveTimeout(tv);
+    try
+    {
+      if (TCPSocket::setup(host_, port_))
+      {
+        URCL_LOG_INFO("%s", read().c_str());
+        ret_val = true;
+      }
+    }
+    catch (TimeoutException)
+    {
+      URCL_LOG_WARN("Did not receive dashboard bootup message although connection was established. This should not "
+                    "happen, please contact the package maintainers. Retrying anyway...");
+    }
+  }
+
+  // Reset read timeout to "normal" socket timeout
   tv.tv_sec = 1;
   tv.tv_usec = 0;
   TCPSocket::setReceiveTimeout(tv);
