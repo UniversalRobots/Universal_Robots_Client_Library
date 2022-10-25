@@ -48,11 +48,11 @@ target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl ${GTE
 gtest_add_tests(TARGET      primary_parser_tests
 )
 
-add_executable(rtde_data_package test_rtde_data_package.cpp)
-target_compile_options(rtde_data_package PRIVATE ${CXX17_FLAG})
-target_include_directories(rtde_data_package PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(rtde_data_package PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
-gtest_add_tests(TARGET      rtde_data_package
+add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
+target_compile_options(rtde_data_package_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_data_package_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_data_package_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      rtde_data_package_tests
 )
 
 add_executable(rtde_parser_tests test_rtde_parser.cpp)
@@ -89,3 +89,53 @@ target_include_directories(trajectory_point_interface_tests PRIVATE ${GTEST_INCL
 target_link_libraries(trajectory_point_interface_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET trajectory_point_interface_tests
 )
+
+add_executable(rtde_control_package_pause_tests test_rtde_control_package_pause.cpp)
+target_compile_options(rtde_control_package_pause_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_control_package_pause_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_control_package_pause_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_control_package_pause_tests
+)
+
+add_executable(rtde_control_package_start_tests test_rtde_control_package_start.cpp)
+target_compile_options(rtde_control_package_start_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_control_package_start_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_control_package_start_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_control_package_start_tests
+)
+
+add_executable(rtde_control_package_setup_outputs_tests test_rtde_control_package_setup_outputs.cpp)
+target_compile_options(rtde_control_package_setup_outputs_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_control_package_setup_outputs_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_control_package_setup_outputs_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_control_package_setup_outputs_tests
+)
+
+add_executable(rtde_control_package_setup_inputs_tests test_rtde_control_package_setup_inputs.cpp)
+target_compile_options(rtde_control_package_setup_inputs_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_control_package_setup_inputs_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_control_package_setup_inputs_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_control_package_setup_inputs_tests
+)
+
+add_executable(rtde_get_urcontrol_version_tests test_rtde_get_urcontrol_version.cpp)
+target_compile_options(rtde_get_urcontrol_version_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_get_urcontrol_version_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_get_urcontrol_version_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_get_urcontrol_version_tests
+)
+
+add_executable(rtde_request_protocol_version_tests test_rtde_request_protocol_version.cpp)
+target_compile_options(rtde_request_protocol_version_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_request_protocol_version_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_request_protocol_version_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_request_protocol_version_tests
+)
+
+add_executable(rtde_writer_tests test_rtde_writer.cpp)
+target_compile_options(rtde_writer_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(rtde_writer_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(rtde_writer_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET rtde_writer_tests
+)
+

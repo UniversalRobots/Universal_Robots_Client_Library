@@ -61,7 +61,6 @@ public:
   ~RTDEWriter()
   {
     running_ = false;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
     if (writer_thread_.joinable())
     {
       writer_thread_.join();
@@ -118,7 +117,7 @@ public:
    * \brief Creates a package to request setting a new value for one of the standard analog output pins.
    *
    * \param output_pin The pin to change
-   * \param value The new value
+   * \param value The new value, it should be between 0 and 1, where 0 is 4mA and 1 is 20mA.
    *
    * \returns Success of the package creation
    */

@@ -30,7 +30,6 @@
 
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/rtde/rtde_parser.h>
-#include <ur_client_library/rtde/request_protocol_version.h>
 
 using namespace urcl;
 
@@ -50,6 +49,11 @@ TEST(rtde_parser, request_protocol_version)
           dynamic_cast<rtde_interface::RequestProtocolVersion*>(products[0].get()))
   {
     EXPECT_EQ(data->accepted_, true);
+  }
+  else
+  {
+    std::cout << "Failed to get request protocol version data" << std::endl;
+    GTEST_FAIL();
   }
 }
 
@@ -73,6 +77,141 @@ TEST(rtde_parser, get_urcontrol_version)
     EXPECT_EQ(data->version_information_.bugfix, 0);
     EXPECT_EQ(data->version_information_.build, 0);
   }
+  else
+  {
+    std::cout << "Failed to get urcontrol version data" << std::endl;
+    GTEST_FAIL();
+  }
+}
+
+TEST(rtde_parser, control_package_pause)
+{
+  // Accepted control package pause
+  unsigned char raw_data[] = { 0x00, 0x04, 0x50, 0x01 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (rtde_interface::ControlPackagePause* data = dynamic_cast<rtde_interface::ControlPackagePause*>(products[0].get()))
+  {
+    EXPECT_EQ(data->accepted_, true);
+  }
+  else
+  {
+    std::cout << "Failed to get control package pause data" << std::endl;
+    GTEST_FAIL();
+  }
+}
+
+TEST(rtde_parser, control_package_start)
+{
+  // Accepted control package start
+  unsigned char raw_data[] = { 0x00, 0x04, 0x53, 0x01 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (rtde_interface::ControlPackageStart* data = dynamic_cast<rtde_interface::ControlPackageStart*>(products[0].get()))
+  {
+    EXPECT_EQ(data->accepted_, true);
+  }
+  else
+  {
+    std::cout << "Failed to get control package start data" << std::endl;
+    GTEST_FAIL();
+  }
+}
+
+TEST(rtde_parser, control_package_setup_inputs)
+{
+  // Accepted control package setup inputs, variable types are uint32 and double
+  unsigned char raw_data[] = { 0x00, 0x11, 0x49, 0x01, 0x55, 0x49, 0x4e, 0x54, 0x33,
+                               0x32, 0x2c, 0x44, 0x4f, 0x55, 0x42, 0x4c, 0x45 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (rtde_interface::ControlPackageSetupInputs* data =
+          dynamic_cast<rtde_interface::ControlPackageSetupInputs*>(products[0].get()))
+  {
+    EXPECT_EQ(data->input_recipe_id_, 1);
+    EXPECT_EQ(data->variable_types_, "UINT32,DOUBLE");
+  }
+  else
+  {
+    std::cout << "Failed to get control package setup inputs data" << std::endl;
+    GTEST_FAIL();
+  }
+}
+
+TEST(rtde_parser, control_package_setup_outputs)
+{
+  // Accepted control package setup outputs, variable types are double and vector6d
+  unsigned char raw_data[] = { 0x00, 0x11, 0x4f, 0x01, 0x44, 0x4f, 0x55, 0x42, 0x4c, 0x45,
+                               0x2c, 0x56, 0x45, 0x43, 0x54, 0x4f, 0x52, 0x36, 0x44 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  parser.setProtocolVersion(2);
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (rtde_interface::ControlPackageSetupOutputs* data =
+          dynamic_cast<rtde_interface::ControlPackageSetupOutputs*>(products[0].get()))
+  {
+    EXPECT_EQ(data->output_recipe_id_, 1);
+    EXPECT_EQ(data->variable_types_, "DOUBLE,VECTOR6D");
+  }
+  else
+  {
+    std::cout << "Failed to get control package setup outputs data" << std::endl;
+    GTEST_FAIL();
+  }
+}
+
+TEST(rtde_parser, data_package)
+{
+  // received data package,
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  rtde_interface::RTDEParser parser(recipe);
+  parser.setProtocolVersion(2);
+  parser.parse(bp, products);
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(products[0].get()))
+  {
+    double timestamp, target_speed_fraction;
+    data->getData("timestamp", timestamp);
+    data->getData("target_speed_fraction", target_speed_fraction);
+
+    EXPECT_FLOAT_EQ(timestamp, 16412.2);
+    EXPECT_EQ(target_speed_fraction, 1);
+  }
+  else
+  {
+    std::cout << "Failed to get data package data" << std::endl;
+    GTEST_FAIL();
+  }
 }
 
 TEST(rtde_parser, test_to_string)
@@ -94,10 +233,21 @@ TEST(rtde_parser, test_to_string)
   EXPECT_EQ(products[0]->toString(), expected.str());
 }
 
-TEST(rtde_parser, test_illegal_length)
+TEST(rtde_parser, test_buffer_too_short)
 {
   // Non-existent type with false size information
   unsigned char raw_data[] = { 0x00, 0x06, 0x02, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  rtde_interface::RTDEParser parser({ "" });
+  EXPECT_FALSE(parser.parse(bp, products));
+}
+
+TEST(rtde_parser, test_buffer_too_long)
+{
+  // Non-existent type with false size information
+  unsigned char raw_data[] = { 0x00, 0x04, 0x56, 0x01, 0x02, 0x01, 0x02 };
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;

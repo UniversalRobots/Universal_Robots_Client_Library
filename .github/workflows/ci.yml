@@ -35,7 +35,7 @@ jobs:
       - name: build
         run: cmake --build build --config Debug
       - name: test
-        run: cd build && make test
+        run: cd build && ctest --output-on-failure
       - name: install gcovr
         run: sudo apt-get install -y gcovr
       - name: gcovr

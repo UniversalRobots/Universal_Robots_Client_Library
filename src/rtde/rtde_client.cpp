@@ -254,6 +254,11 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   }
   else
   {
+    if (target_frequency_ != max_frequency_)
+    {
+      URCL_LOG_WARN("It is not possible to set a target frequency when using protocol version 1. A frequency "
+                    "equivalent to the maximum frequency will be used instead.");
+    }
     size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, output_recipe_);
   }
 
@@ -403,7 +408,9 @@ bool RTDEClient::isRobotBooted()
 
   while (timestamp < 40 && reading_count < target_frequency_ * 2)
   {
-    if (pipeline_.getLatestProduct(package, std::chrono::milliseconds(1000)))
+    // Set timeout based on target frequency, to make sure that reading doesn't timeout
+    int timeout = static_cast<int>((1 / target_frequency_) * 1000) * 10;
+    if (pipeline_.getLatestProduct(package, std::chrono::milliseconds(timeout)))
     {
       rtde_interface::DataPackage* tmp_input = dynamic_cast<rtde_interface::DataPackage*>(package.get());
       tmp_input->getData("timestamp", timestamp);
@@ -520,35 +527,24 @@ bool RTDEClient::sendPause()
     URCL_LOG_ERROR("Sending RTDE pause command failed!");
     return false;
   }
-  static unsigned num_retries = 0;
-  while (num_retries < MAX_REQUEST_RETRIES)
+  std::unique_ptr<RTDEPackage> package;
+  std::chrono::time_point start = std::chrono::steady_clock::now();
+  int seconds = 5;
+  while (std::chrono::steady_clock::now() - start < std::chrono::seconds(seconds))
   {
-    std::unique_ptr<RTDEPackage> package;
-
     if (!pipeline_.getLatestProduct(package, std::chrono::milliseconds(1000)))
     {
       URCL_LOG_ERROR("Could not get response to RTDE communication pause request from robot");
       return false;
     }
-
     if (rtde_interface::ControlPackagePause* tmp = dynamic_cast<rtde_interface::ControlPackagePause*>(package.get()))
     {
       client_state_ = ClientState::PAUSED;
       return tmp->accepted_;
     }
-    else
-    {
-      std::stringstream ss;
-      ss << "Did not receive answer to RTDE pause request. Message received instead: " << std::endl
-         << package->toString();
-      URCL_LOG_WARN("%s", ss.str().c_str());
-      num_retries++;
-    }
   }
   std::stringstream ss;
-  ss << "Could not pause RTDE communication after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
+  ss << "Could not receive answer to pause RTDE communication after " << seconds << " seconds.";
   throw UrException(ss.str());
 }
 
