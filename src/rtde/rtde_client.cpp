@@ -256,7 +256,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   {
     if (target_frequency_ != max_frequency_)
     {
-      URCL_LOG_WARN("It is not possible to set a target frequency when using protocol version 1");
+      URCL_LOG_WARN("It is not possible to set a target frequency when using protocol version 1. A frequency equivalent to the maximum frequency will be used instead.");
     }
     size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, output_recipe_);
   }
