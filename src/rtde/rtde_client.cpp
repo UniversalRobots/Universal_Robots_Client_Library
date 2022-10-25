@@ -407,7 +407,7 @@ bool RTDEClient::isRobotBooted()
 
   while (timestamp < 40 && reading_count < target_frequency_ * 2)
   {
-    // Set timeout based on target frequency, to make sure that we doesn't timeout
+    // Set timeout based on target frequency, to make sure that reading doesn't timeout
     int timeout = static_cast<int>((1 / target_frequency_) * 1000) * 10;
     if (pipeline_.getLatestProduct(package, std::chrono::milliseconds(timeout)))
     {
