@@ -8,22 +8,24 @@ jobs:
     strategy:
       matrix:
         env:
-          - DOCKER_RUN_OPTS: --network static_test_net
+          - DOCKER_RUN_OPTS: --network ursim_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_cb3:3.12.1'
-            PROGRAM_FOLDER: 'programs/cb3'
-          - DOCKER_RUN_OPTS: --network static_test_net
+            ROBOT_MODEL: 'ur5'
+            URSIM_VERSION: '3.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - DOCKER_RUN_OPTS: --network ursim_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
-            PROGRAM_FOLDER: 'programs/e-series'
+            ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.5.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
     steps:
       - uses: actions/checkout@v1
       - name: start ursim
         run: |
-          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_DOCKER_IMAGE $PROGRAM_FOLDER
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
         env: ${{matrix.env}}
       - name: install gtest
         run: sudo apt-get install -y libgtest-dev
@@ -64,7 +66,8 @@ jobs:
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
             --exclude-dir=debian \
-            --exclude=real_time.md
+            --exclude=real_time.md \
+            --exclude=start_ursim.sh
 
   rosdoc_lite_check:
     runs-on: ubuntu-latest
