@@ -25,7 +25,8 @@ jobs:
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.melodic.rosinstall"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
           - ROS_DISTRO: noetic
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
@@ -33,14 +34,16 @@ jobs:
             BUILDER: catkin_tools
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
           - ROS_DISTRO: foxy
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#foxy"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
             NOT_TEST_DOWNSTREAM: true
           - ROS_DISTRO: galactic
             ROS_REPO: main
@@ -48,7 +51,8 @@ jobs:
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#galactic"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
             NOT_TEST_DOWNSTREAM: true
           - ROS_DISTRO: humble
             ROS_REPO: main
@@ -56,7 +60,8 @@ jobs:
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/main/Universal_Robots_ROS2_Driver-not-released.humble.repos"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
             NOT_TEST_DOWNSTREAM: true
           - ROS_DISTRO: rolling
             ROS_REPO: main
@@ -64,14 +69,15 @@ jobs:
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/main/Universal_Robots_ROS2_Driver-not-released.rolling.repos"
             DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
             NOT_TEST_DOWNSTREAM: true
 
     steps:
       - uses: actions/checkout@v1
       - name: start ursim
         run: |
-          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_VERSION
+          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_DOCKER_IMAGE $PROGRAM_FOLDER
         env: ${{matrix.env}}
       - uses: 'ros-industrial/industrial_ci@master'
         env: ${{matrix.env}}

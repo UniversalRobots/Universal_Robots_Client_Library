@@ -3,6 +3,7 @@ on: [push, pull_request]
 
 jobs:
   build:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -10,17 +11,19 @@ jobs:
           - DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_VERSION: 3.14.1.1031110
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_cb3:3.12.1'
+            PROGRAM_FOLDER: 'programs/cb3'
           - DOCKER_RUN_OPTS: --network static_test_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_VERSION: 5.8.0.10253
+            URSIM_DOCKER_IMAGE: 'universalrobots/ursim_e-series:5.5.1'
+            PROGRAM_FOLDER: 'programs/e-series'
 
     steps:
       - uses: actions/checkout@v1
       - name: start ursim
         run: |
-          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_VERSION
+          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_DOCKER_IMAGE $PROGRAM_FOLDER
         env: ${{matrix.env}}
       - name: install gtest
         run: sudo apt-get install -y libgtest-dev
