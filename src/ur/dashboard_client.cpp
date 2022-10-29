@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <regex>
+#include <unistd.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/exceptions.h>
@@ -35,6 +36,11 @@ namespace urcl
 {
 DashboardClient::DashboardClient(const std::string& host) : host_(host), port_(DASHBOARD_SERVER_PORT)
 {
+}
+
+void DashboardClient::rtrim(std::string& str, const std::string& chars)
+{
+  str.erase(str.find_last_not_of(chars) + 1);
 }
 
 bool DashboardClient::connect()
@@ -111,6 +117,126 @@ std::string DashboardClient::sendAndReceive(const std::string& text)
   rtrim(response);
 
   return response;
+}
+
+bool DashboardClient::sendRequest(const std::string& command, const std::string& expected)
+{
+  URCL_LOG_DEBUG("Send Request: %s", command.c_str());
+  std::string response = sendAndReceive(command + "\n");
+  bool ret = std::regex_match(response, std::regex(expected));
+  if (!ret)
+  {
+    URCL_LOG_WARN("Expected: \"%s\", but received: \"%s\"", expected.c_str(), response.c_str());
+  }
+  return ret;
+}
+
+bool DashboardClient::waitForReply(const std::string& command, const std::string& expected, double timeout)
+{
+  const unsigned int TIME_STEP_SIZE_US(100000);  // 100ms
+
+  double count = 0;
+  std::string response;
+
+  while (count < timeout)
+  {
+    // Send the request
+    response = sendAndReceive(command + "\n");
+
+    // Check it the response was as expected
+    if (std::regex_match(response, std::regex(expected)))
+    {
+      return true;
+    }
+
+    // wait 100ms before trying again
+    usleep(TIME_STEP_SIZE_US);
+    count = count + (0.000001 * TIME_STEP_SIZE_US);
+  }
+
+  URCL_LOG_WARN("Did not got the expected \"%s\" respone within the timeout. Last respone was: \"%s\"",
+                expected.c_str(), response.c_str());
+  return false;
+}
+
+bool DashboardClient::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
+                                   const std::string& waitRequest, const std::string& waitExpectedResponse,
+                                   unsigned int timeout)
+{
+  const double RETRY_EVERY_SECOND(1.0);
+  unsigned int count(0);
+  do
+  {
+    sendRequest(requestCommand, requestExpectedResponse);
+    count++;
+
+    if (waitForReply(waitRequest, waitExpectedResponse, RETRY_EVERY_SECOND))
+    {
+      return true;
+    }
+  } while (count < timeout);
+  return false;
+}
+
+bool DashboardClient::commandPowerOff()
+{
+  return sendRequest("power off", "Powering off") && waitForReply("robotmode", "Robotmode: POWER_OFF");
+}
+
+bool DashboardClient::commandPowerOn(unsigned int timeout)
+{
+  return retryCommand("power on", "Powering on", "robotmode", "Robotmode: IDLE", timeout);
+}
+
+bool DashboardClient::commandBreakeRelease()
+{
+  return sendRequest("brake release", "Brake releasing") && waitForReply("robotmode", "Robotmode: RUNNING");
+}
+
+bool DashboardClient::commandLoadProgram(const std::string& program_file_name)
+{
+  return sendRequest("load " + program_file_name + "", "(?:Loading program: ).*(?:" + program_file_name + ").*") &&
+         waitForReply("programState", "STOPPED " + program_file_name);
+}
+
+bool DashboardClient::commandPlay()
+{
+  return sendRequest("play", "Starting program") && waitForReply("programState", "(?:PLAYING ).*");
+}
+
+bool DashboardClient::commandPause()
+{
+  return sendRequest("pause", "Pausing program") && waitForReply("programState", "(?:PAUSED ).*");
+}
+
+bool DashboardClient::commandStop()
+{
+  return sendRequest("stop", "Stopped") && waitForReply("programState", "(?:STOPPED ).*");
+}
+
+bool DashboardClient::commandClosePopup()
+{
+  return sendRequest("close popup", "closing popup");
+}
+
+bool DashboardClient::commandCloseSafetyPopup()
+{
+  return sendRequest("close safety popup", "closing safety popup");
+}
+
+bool DashboardClient::commandRestartSafety()
+{
+  return sendRequest("restart safety", "Restarting safety") && waitForReply("robotmode", "Robotmode: POWER_OFF");
+}
+
+bool DashboardClient::commandUnlockProtectiveStop()
+{
+  return sendRequest("unlock protective stop", "Protective stop releasing");
+}
+
+bool DashboardClient::commandShutdown()
+{
+  return sendRequest("shutdown", "Shutting down");
 }
 
 }  // namespace urcl
