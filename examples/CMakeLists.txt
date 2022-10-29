@@ -29,3 +29,8 @@ add_executable(rtde_client_example
   rtde_client.cpp)
 target_compile_options(rtde_client_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(rtde_client_example ur_client_library::urcl)
+
+add_executable(dashboard_example
+  dashboard_example.cpp)
+target_compile_options(dashboard_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(dashboard_example ur_client_library::urcl)

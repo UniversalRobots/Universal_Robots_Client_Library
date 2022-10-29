@@ -34,12 +34,29 @@ using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
 // system such as Boost.Program_options
-const std::string ROBOT_IP = "192.168.56.101";
+const std::string DEFAULT_ROBOT_IP = "127.0.0.1";
 
 int main(int argc, char* argv[])
 {
+  // Set the loglevel to info get print out the DH parameters
+  urcl::setLogLevel(urcl::LogLevel::INFO);
+
+  // Parse the ip arguments if given
+  std::string robot_ip = DEFAULT_ROBOT_IP;
+  if (argc > 1)
+  {
+    robot_ip = std::string(argv[1]);
+  }
+
+  // Parse how may seconds to run
+  int second_to_run = -1;
+  if (argc > 2)
+  {
+    second_to_run = std::stoi(argv[2]);
+  }
+
   // First of all, we need a stream that connects to the robot
-  comm::URStream<primary_interface::PrimaryPackage> primary_stream(ROBOT_IP, urcl::primary_interface::UR_PRIMARY_PORT);
+  comm::URStream<primary_interface::PrimaryPackage> primary_stream(robot_ip, urcl::primary_interface::UR_PRIMARY_PORT);
 
   // This will parse the primary packages
   primary_interface::PrimaryParser parser;
@@ -62,9 +79,9 @@ int main(int argc, char* argv[])
 
   // Package contents will be printed while not being interrupted
   // Note: Packages for which the parsing isn't implemented, will only get their raw bytes printed.
-  while (true)
+  do
   {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
+    std::this_thread::sleep_for(std::chrono::seconds(second_to_run));
+  } while (second_to_run < 0);
   return 0;
 }
