@@ -152,7 +152,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   in_headless_mode_ = headless_mode;
   if (in_headless_mode_)
   {
-    full_robot_program_ = "def externalControl():\n";
+    full_robot_program_ = "stop program\n";
+    full_robot_program_ += "def externalControl():\n";
     std::istringstream prog_stream(prog);
     std::string line;
     while (std::getline(prog_stream, line))
