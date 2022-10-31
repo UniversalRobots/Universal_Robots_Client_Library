@@ -188,7 +188,7 @@ bool DashboardClient::commandPowerOn(unsigned int timeout)
   return retryCommand("power on", "Powering on", "robotmode", "Robotmode: IDLE", timeout);
 }
 
-bool DashboardClient::commandBreakeRelease()
+bool DashboardClient::commandBrakeRelease()
 {
   return sendRequest("brake release", "Brake releasing") && waitForReply("robotmode", "Robotmode: RUNNING");
 }

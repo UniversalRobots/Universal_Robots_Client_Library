@@ -136,7 +136,7 @@ public:
    *
    * \return True succeeded
    */
-  bool commandBreakeRelease();
+  bool commandBrakeRelease();
 
   /*!
    * \brief Send Load program command

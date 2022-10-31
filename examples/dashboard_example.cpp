@@ -72,9 +72,9 @@ int main(int argc, char* argv[])
   }
 
   // Release the brakes
-  if (!my_dashboard->commandBreakeRelease())
+  if (!my_dashboard->commandBrakeRelease())
   {
-    URCL_LOG_ERROR("Could not send BreakeRelease command");
+    URCL_LOG_ERROR("Could not send BrakeRelease command");
     return 1;
   }
 
