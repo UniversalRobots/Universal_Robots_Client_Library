@@ -57,7 +57,7 @@ public:
   const int DASHBOARD_SERVER_PORT = 29999;
 
   /*!
-   * \brief Opens a connection to the dasboard server on the host as specified in the constructor.
+   * \brief Opens a connection to the dashboard server on the host as specified in the constructor.
    *
    * \returns True on successful connection, false otherwise.
    */
@@ -88,6 +88,17 @@ public:
    * \return True if the reply to the command is as expected
    */
   bool sendRequest(const std::string& command, const std::string& expected);
+
+  /*!
+   * \brief Sends command and compare it with the expected answer
+   *
+   * \param command Command that will be sent to the server. It is important, that the command sent is finished with a
+   * '\n' (newline) so it will be processed by the server.
+   * \param expected Expected replay
+   *
+   * \return Answer string as received by the server
+   */
+  std::string sendRequestString(const std::string& command, const std::string& expected);
 
   /*!
    * \brief brief Sends a command and wait until it returns the expected answer
@@ -153,6 +164,15 @@ public:
   bool commandLoadProgram(const std::string& program_file_name);
 
   /*!
+   * \brief Send Load installation command
+   *
+   * \param installation_file_name The installation file name with the installation extension
+   *
+   * \return True succeeded
+   */
+  bool commandLoadInstallation(const std::string& installation_file_name);
+
+  /*!
    * \brief Send Play program command
    *
    * \return True succeeded
@@ -208,6 +228,186 @@ public:
    */
   bool commandShutdown();
 
+  /*!
+   * \brief Send Quit command
+   *
+   * \return True succeeded
+   */
+  bool commandQuit();
+
+  /*!
+   * \brief Send Running command
+   *
+   * \return True succeeded
+   */
+  bool commandRunning();
+
+  /*!
+   * \brief Send Is program saved command
+   *
+   * \return True succeeded
+   */
+  bool commandIsProgramSaved();
+
+  /*!
+   * \brief Send Is in remote control command
+   *
+   * \return True succeeded
+   */
+  bool commandIsInRemoteControl();
+
+  /*!
+   * \brief Send popup command
+   *
+   * \param popup_text The text to be shown in the popup
+   *
+   * \return True succeeded
+   */
+  bool commandPopup(const std::string& popup_text);
+
+  /*!
+   * \brief Send text to log
+   *
+   * \param log_text The text to be sent to the log
+   *
+   * \return True succeeded
+   */
+  bool commandAddToLog(const std::string& log_text);
+
+  /*!
+   * \brief Get Polyscope version
+   *
+   * \param polyscope_version The string for the polyscope version number returned
+   *
+   * \return True succeeded
+   */
+  bool commandPolyscopeVersion(std::string& polyscope_version);
+
+  /*!
+   * \brief Get Robot model
+   *
+   * \param robot_model The string for the robot model returned
+   *
+   * \return True succeeded
+   */
+  bool commandGetRobotModel(std::string& robot_model);
+
+  /*!
+   * \brief Get Serial number
+   *
+   * \param serial_number The serial number of the robot returned
+   *
+   * \return True succeeded
+   */
+  bool commandGetSerialNumber(std::string& serial_number);
+
+  /*!
+   * \brief Get Robot mode
+   *
+   * \param robot_mode The mode of the robot returned
+   *
+   * \return True succeeded
+   */
+  bool commandRobotMode(std::string& robot_mode);
+
+  /*!
+   * \brief Get Loaded Program
+   *
+   * \param loaded_program The path to the loaded program
+   *
+   * \return True succeeded
+   */
+  bool commandGetLoadedProgram(std::string& loaded_program);
+
+  /*!
+   * \brief Get Safety mode
+   *
+   * \param safety_mode The safety mode of the robot returned
+   *
+   * \return True succeeded
+   */
+  bool commandSafetyMode(std::string& safety_mode);
+
+  /*!
+   * \brief Get Safety status
+   *
+   * \param safety_status The safety status of the robot returned
+   *
+   * \return True succeeded
+   */
+  bool commandSafetyStatus(std::string& safety_status);
+
+  /*!
+   * \brief Get Program state
+   *
+   * \param program_state The program state of the robot returned
+   *
+   * \return True succeeded
+   */
+  bool commandProgramState(std::string& program_state);
+
+  /*!
+   * \brief Get Operational mode
+   *
+   * \param operational_mode The operational mode of the robot returned (Only available for e-series)
+   *
+   * \return True succeeded
+   */
+  bool commandGetOperationalMode(std::string& operational_mode);
+
+  /*!
+   * \brief Send Set operational mode command (Only available for e-series)
+   *
+   * \param operational_mode The operational mode to set on the robot
+   *
+   * \return True succeeded
+   */
+  bool commandSetOperationalMode(const std::string& operational_mode);
+
+  /*!
+   * \brief Send Clear operational mode command
+   *
+   * \return True succeeded
+   */
+  bool commandClearOperationalMode();
+
+  /*!
+   * \brief Send Set user role command (Only available for CB3)
+   *
+   * \param user_role The user role to set on the robot
+   *
+   * \return True succeeded
+   */
+  bool commandSetUserRole(const std::string& user_role);
+
+  /*!
+   * \brief Send Get user role command (Only available for CB3)
+   *
+   * \param user_role The user role on the robot
+   *
+   * \return True succeeded
+   */
+  bool commandGetUserRole(std::string& user_role);
+
+  /*!
+   * \brief Send Generate flight report command
+   *
+   * \param report_type The report type to set for the flight report
+   *
+   * \return True succeeded
+   */
+  bool commandGenerateFlightReport(const std::string& report_type);
+
+  /*!
+   * \brief Send Generate support file command
+   *
+   * \param dir_path The path to the directory of an already existing directory location inside the programs directory,
+   * where the support file is saved
+   *
+   * \return True succeeded
+   */
+  bool commandGenerateSupportFile(const std::string& dir_path);
+
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
   {
@@ -215,10 +415,29 @@ protected:
   }
 
 private:
+  /*!
+   * \brief Parse input for comparison of sw versions
+   *
+   * \param result Parsed result
+   * \param input Input sw version string
+   */
+  void parseSWVersion(int result[4], const std::string& input);
+  /*!
+   * \brief Compare two sw versions
+   *
+   * \param a Sw version string for e-series
+   * \param b Sw version string for cb3
+   * \param c Sw version string read from robot
+   *
+   * \return If a/b is less than c return true else return false
+   */
+  bool lessThanVersion(const std::string& a, const std::string& b, const std::string& c);
   bool send(const std::string& text);
   std::string read();
   void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
 
+  bool e_series_;  // Is the robot e-series or cb3
+  std::string polyscope_version_;
   std::string host_;
   int port_;
   std::mutex write_mutex_;
