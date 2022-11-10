@@ -1,0 +1,6 @@
+{
+  "hooks": [
+    "share/ur_client_library/hook/ament_prefix_path.dsv",
+    "share/ur_client_library/hook/ros_package_path.dsv",
+  ]
+}
