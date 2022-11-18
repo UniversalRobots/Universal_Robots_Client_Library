@@ -106,6 +106,114 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const vector6uint32_t* selection_vector,
+                                            const vector6d_t* wrench, const unsigned int type, const vector6d_t* limits)
+{
+  const int message_length = 26;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::START_FORCE_MODE));
+  b_pos += append(b_pos, val);
+
+  for (auto const& frame : *task_frame)
+  {
+    val = htobe32(static_cast<int32_t>(frame * MULT_JOINTSTATE));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& selection : *selection_vector)
+  {
+    val = htobe32(static_cast<int32_t>(selection * MULT_JOINTSTATE));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& force_torque : *wrench)
+  {
+    val = htobe32(static_cast<int32_t>(force_torque * MULT_JOINTSTATE));
+    b_pos += append(b_pos, val);
+  }
+
+  val = htobe32(static_cast<int32_t>(type * MULT_JOINTSTATE));
+  b_pos += append(b_pos, val);
+
+  for (auto const& lim : *limits)
+  {
+    val = htobe32(static_cast<int32_t>(lim * MULT_JOINTSTATE));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::endForceMode()
+{
+  const int message_length = 1;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::END_FORCE_MODE));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::startToolContact()
+{
+  const int message_length = 1;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::START_TOOL_CONTACT));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::endToolContact()
+{
+  const int message_length = 1;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::END_TOOL_CONTACT));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::clientConnected()
 {
   return client_connected_;
@@ -135,8 +243,25 @@ void ScriptCommandInterface::disconnectionCallback(const int filedescriptor)
 
 void ScriptCommandInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
 {
-  URCL_LOG_WARN("Message on script command interface received. The script command interfacee currently does not "
-                "support any message handling. This message will be ignored.");
+  if (nbytesrecv == 4)
+  {
+    int32_t* status = reinterpret_cast<int*>(buffer);
+    URCL_LOG_DEBUG("Received message %d on Script command interface", be32toh(*status));
+
+    if (handle_tool_contact_result_)
+    {
+      handle_tool_contact_result_(static_cast<ToolContactResult>(be32toh(*status)));
+    }
+    else
+    {
+      URCL_LOG_DEBUG("Tool contact execution finished with result %d, but no callback was given.", be32toh(*status));
+    }
+  }
+  else
+  {
+    URCL_LOG_WARN("Received %d bytes on script command interface. Expecting 4 bytes, so ignoring this message",
+                  nbytesrecv);
+  }
 }
 
 }  // namespace control

@@ -21,6 +21,10 @@ MODE_SPEEDJ = 2
 MODE_FORWARD = 3
 MODE_SPEEDL = 4
 MODE_POSE = 5
+MODE_FREEDRIVE = 6
+MODE_TOOL_IN_CONTACT = 7
+# Data dimensions of the message received on the reverse interface
+REVERSE_INTERFACE_DATA_DIMENSION = 8
 
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
@@ -36,7 +40,17 @@ TRAJECTORY_RESULT_FAILURE = 2
 ZERO_FTSENSOR = 0
 SET_PAYLOAD = 1
 SET_TOOL_VOLTAGE = 2
-SCRIPT_COMMAND_DATA_DIMENSION = 5
+START_FORCE_MODE = 3
+END_FORCE_MODE = 4
+START_TOOL_CONTACT = 5
+END_TOOL_CONTACT = 6
+SCRIPT_COMMAND_DATA_DIMENSION = 26
+
+FREEDRIVE_MODE_START = 1
+FREEDRIVE_MODE_STOP = -1
+
+UNTIL_TOOL_CONTACT_RESULT_SUCCESS = 0
+UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
@@ -48,6 +62,12 @@ global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
+global tool_contact_running = False
+
+# Global thread variables
+thread_move = 0
+thread_trajectory = 0
+thread_script_commands = 0
 
 def set_servo_setpoint(q):
   cmd_servo_state = SERVO_RUNNING
@@ -218,7 +238,34 @@ def set_servo_pose(pose):
   cmd_servo_q = get_inverse_kin(pose, cmd_servo_q)
 end
 
-# Thread to receive script commands
+def tool_contact_detection():
+  # Detect tool contact in the directions that the TCP is moving
+  step_back = tool_contact(direction = get_actual_tcp_speed())
+
+  # If tool contact is detected stop movement and move back to intial contact point
+  if step_back > 0:
+    if control_mode == MODE_FORWARD:
+      kill thread_trajectory
+      clear_remaining_trajectory_points()
+    elif control_mode == MODE_FREEDRIVE:
+      end_freedrive_mode()
+    else:
+      kill thread_move
+    end
+
+    # Set control mode to tool in contact, should be cleared by stopping tool contact detection
+    control_mode = MODE_TOOL_IN_CONTACT
+    stopl(3)
+
+    # Move to initial contact point
+    q = get_actual_joint_positions_history(step_back)
+    movel(q)
+    socket_send_int(UNTIL_TOOL_CONTACT_RESULT_SUCCESS, "script_command_socket")
+    textmsg("tool contact detected")
+  end
+end
+
+# Thread to receive one shot script commands, the commands shouldn't be blocking
 thread script_commands():
   while control_mode > MODE_STOPPED:
     raw_command = socket_read_binary_integer(SCRIPT_COMMAND_DATA_DIMENSION, "script_command_socket", 0)
@@ -233,41 +280,71 @@ thread script_commands():
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
         set_tool_voltage(tool_voltage)
+      elif command == START_FORCE_MODE:
+        task_frame = p[raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
+        selection_vector = [raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate, raw_command[12] / MULT_jointstate, raw_command[13] / MULT_jointstate]
+        wrench = [raw_command[14] / MULT_jointstate, raw_command[15] / MULT_jointstate, raw_command[16] / MULT_jointstate, raw_command[17] / MULT_jointstate, raw_command[18] / MULT_jointstate, raw_command[19] / MULT_jointstate]
+        force_type = raw_command[20] / MULT_jointstate
+        force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
+        force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
+      elif command == END_FORCE_MODE:
+        end_force_mode()
+      elif command == START_TOOL_CONTACT:
+        tool_contact_running = True
+      elif command == END_TOOL_CONTACT:
+        if control_mode != MODE_TOOL_IN_CONTACT:
+          # If tool contact hasn't been detected send canceled result
+          socket_send_int(UNTIL_TOOL_CONTACT_RESULT_CANCELED, "script_command_socket")
+        end
+        tool_contact_running = False
       end
     end
   end
 end
 
-
 # HEADER_END
 
 # NODE_CONTROL_LOOP_BEGINS
-
 socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
 socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
 socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
+
+force_mode_set_damping({{FORCE_MODE_SET_DAMPING_REPLACE}})
+force_mode_set_gain_scaling({{FORCE_MODE_SET_GAIN_SCALING_REPLACE}})
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
 global keepalive = -2
-params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0)
+params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0)
 textmsg("ExternalControl: External control active")
 keepalive = params_mult[1]
 thread_script_commands = run script_commands()
 while keepalive > 0 and control_mode > MODE_STOPPED:
   enter_critical
-  params_mult = socket_read_binary_integer(1+6+1, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
+  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
   if params_mult[0] > 0:
     keepalive = params_mult[1]
-    if control_mode != params_mult[8]:
+    if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
+      # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
         kill thread_trajectory
         clear_remaining_trajectory_points()
+      # Stop freedrive
+      elif control_mode == MODE_FREEDRIVE:
+        end_freedrive_mode()
       end
-      control_mode = params_mult[8]
-      join thread_move
+
+      # If tool is in contact, tool contact should be ended before switching control mode
+      if control_mode == MODE_TOOL_IN_CONTACT:
+        if tool_contact_running == False:
+          control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
+        end
+      else:
+        control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
+        join thread_move
+      end
       if control_mode == MODE_SERVOJ:
         thread_move = run servoThread()
       elif control_mode == MODE_SPEEDJ:
@@ -304,6 +381,16 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
     elif control_mode == MODE_POSE:
       pose = p[params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
       set_servo_pose(pose)
+    elif control_mode == MODE_FREEDRIVE:
+      if params_mult[2] == FREEDRIVE_MODE_START:
+        freedrive_mode()
+      elif params_mult[2] == FREEDRIVE_MODE_STOP:
+        end_freedrive_mode()
+      end
+    end
+    # Tool contact is running, but hasn't been detected
+    if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
+      tool_contact_detection()
     end
   else:
     keepalive = keepalive - 1

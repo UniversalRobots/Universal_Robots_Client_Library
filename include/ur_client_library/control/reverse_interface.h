@@ -52,6 +52,16 @@ enum class TrajectoryControlMessage : int32_t
 };
 
 /*!
+ * \brief Control messages for starting and stopping freedrive mode.
+ */
+enum class FreedriveControlMessage : int32_t
+{
+  FREEDRIVE_STOP = -1,  ///< Represents command to stop freedrive mode.
+  FREEDRIVE_NOOP = 0,   ///< Represents keep running in freedrive mode.
+  FREEDRIVE_START = 1,  ///< Represents command to start freedrive mode.
+};
+
+/*!
  * \brief The ReverseInterface class handles communication to the robot. It starts a server and
  * waits for the robot to connect via its URCaps program.
  */
@@ -96,6 +106,15 @@ public:
   bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0);
 
   /*!
+   * \brief Writes needed information to the robot to be read by the URScript program.
+   *
+   * \param freedrive_action 1 if freedrive mode is to be started, -1 if it should be stopped and 0 to keep it running
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action);
+
+  /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
@@ -122,6 +141,8 @@ protected:
     std::memcpy(buffer, &val, s);
     return s;
   }
+
+  static const int MAX_MESSAGE_LENGTH = 8;
 
   std::function<void(bool)> handle_program_state_;
   uint32_t keepalive_count_;

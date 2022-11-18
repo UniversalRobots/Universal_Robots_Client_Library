@@ -91,13 +91,16 @@ public:
    * trajectory forwarding.
    * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
    * executed locally on the robot.
+   * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
+   * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
-           const uint32_t script_command_port = 50004);
+           const uint32_t script_command_port = 50004, double force_mode_damping = 0.025,
+           double force_mode_gain_scaling = 0.5);
 
   /*!
    * \brief Constructs a new UrDriver object.
@@ -125,13 +128,16 @@ public:
    * trajectory forwarding.
    * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
    * executed locally on the robot.
+   * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
+   * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum = "",
            const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
            double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
-           const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004);
+           const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004,
+           double force_mode_damping = 0.025, double force_mode_gain_scaling = 0.5);
   /*!
    * \brief Constructs a new UrDriver object.
    *
@@ -158,16 +164,20 @@ public:
    * trajectory forwarding.
    * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
    * executed locally on the robot.
+   * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
+   * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            const std::string& calibration_checksum = "", const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
-           const uint32_t script_command_port = 50004)
+           const uint32_t script_command_port = 50004, double force_mode_damping = 0.025,
+           double force_mode_gain_scaling = 0.5)
     : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
                std::unique_ptr<ToolCommSetup>{}, calibration_checksum, reverse_port, script_sender_port, servoj_gain,
-               servoj_lookahead_time, non_blocking_read, reverse_ip)
+               servoj_lookahead_time, non_blocking_read, reverse_ip, trajectory_port, script_command_port,
+               force_mode_damping, force_mode_gain_scaling)
   {
   }
 
@@ -223,6 +233,15 @@ public:
                                      const int point_number = 0);
 
   /*!
+   * \brief Writes a control message in freedrive mode.
+   *
+   * \param freedrive_action The action to be taken, such as starting or stopping freedrive
+   *
+   * \returns True on successful write.
+   */
+  bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action);
+
+  /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
    * be running or the robot to be in headless mode
    *
@@ -251,6 +270,54 @@ public:
    * \returns True on successful write.
    */
   bool setToolVoltage(const ToolVoltage voltage);
+
+  /*!
+   * \brief Start the robot to be controlled in force mode.
+   *
+   * \param task_frame A pose vector that defines the force frame relative to the base frame
+   * \param selection_vector A 6d vector of 0s and 1s. 1 means that the robot will be compliant in the corresponding
+   * axis of the task frame
+   * \param wrench The forces/torques the robot will apply to its environment. The robot adjusts its position
+   * along/about compliant axis in order to achieve the specified force/torque. Values have no effect for non-compliant
+   * axes
+   * \param type An integer [1;3] specifying how the robot interprets the force frame.
+   *  1: The force frame is transformed in a way such that its y-axis is aligned with a vector pointing from the robot
+   *  tcp towards the origin of the force frame
+   *  2: The force frame is not transformed
+   *  3: The force frame is transformed in a way such that its x-axis is the projection of the robot tcp velocity vector
+   *  onto the x-y plane of the force frame
+   * \param limits (Float) 6d vector. For compliant axes, these values are the maximum allowed tcp speed along/about the
+   * axis. For non-compliant axes, these values are the maximum allowed deviation along/about an axis between the actual
+   * tcp position and the one set by the program
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
+                      const unsigned int type, const vector6d_t& limits);
+
+  /*!
+   * \brief Stop force mode and put the robot into normal operation mode.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool endForceMode();
+
+  /*!
+   * \brief This will make the robot look for tool contact in the tcp directions that the robot is currently
+   * moving. Once a tool contact has been detected all movements will be canceled. Call endToolContact to enable
+   * movements again.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool startToolContact();
+
+  /*!
+   * \brief This will stop the robot from looking for a tool contact, it will also enable sending move commands to the
+   * robot again if the robot's tool is in contact
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool endToolContact();
 
   /*!
    * \brief Write a keepalive signal only.
@@ -349,6 +416,19 @@ public:
   void registerTrajectoryDoneCallback(std::function<void(control::TrajectoryResult)> trajectory_done_cb)
   {
     trajectory_interface_->setTrajectoryEndCallback(trajectory_done_cb);
+  }
+
+  /*!
+   * \brief Register a callback for the robot-based tool contact execution completion.
+   *
+   * If a tool contact is detected or tool contact is canceled, this callback function will be triggered mode of robot
+   * control is to move until tool contact. It requires that tool contact has been started using startToolContact()
+   *
+   * \param tool_contact_result_cb Callback function that will be triggered when the robot enters tool contact
+   */
+  void registerToolContactResultCallback(std::function<void(control::ToolContactResult)> tool_contact_result_cb)
+  {
+    script_command_interface_->setToolContactResultCallback(tool_contact_result_cb);
   }
 
 private:

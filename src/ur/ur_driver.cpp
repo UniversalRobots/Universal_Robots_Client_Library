@@ -49,6 +49,8 @@ static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
 static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
 static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLACE}}");
 static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
+static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
+static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
@@ -56,7 +58,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
-                         const uint32_t script_command_port)
+                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
@@ -127,6 +129,45 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                  std::to_string(script_command_port));
   }
 
+  while (prog.find(FORCE_MODE_SET_DAMPING_REPLACE) != std::string::npos)
+  {
+    if (force_mode_damping < 0 || force_mode_damping > 1)
+    {
+      std::stringstream ss;
+      ss << "Force mode damping, should be between 0 and 1, but it is " << force_mode_damping
+         << " setting it to default 0.5";
+      URCL_LOG_ERROR(ss.str().c_str());
+      force_mode_damping = 0.025;
+    }
+    prog.replace(prog.find(FORCE_MODE_SET_DAMPING_REPLACE), FORCE_MODE_SET_DAMPING_REPLACE.length(),
+                 std::to_string(force_mode_damping));
+  }
+
+  while (prog.find(FORCE_MODE_SET_GAIN_SCALING_REPLACE) != std::string::npos)
+  {
+    if (robot_version_.major < 5)
+    {
+      // force_mode_set_gain_scaling is only available for e-series and is therefore removed, if the robot is not
+      // e-series
+      std::stringstream ss;
+      ss << "force_mode_set_gain_scaling(" << FORCE_MODE_SET_GAIN_SCALING_REPLACE << ")";
+      prog.replace(prog.find(ss.str()), ss.str().length(), "");
+    }
+    else
+    {
+      if (force_mode_gain_scaling < 0 || force_mode_gain_scaling > 2)
+      {
+        std::stringstream ss;
+        ss << "Force mode gain scaling, should be between 0 and 2, but it is " << force_mode_gain_scaling
+           << " setting it to default 0.5";
+        URCL_LOG_ERROR(ss.str().c_str());
+        force_mode_gain_scaling = 0.5;
+      }
+      prog.replace(prog.find(FORCE_MODE_SET_GAIN_SCALING_REPLACE), FORCE_MODE_SET_GAIN_SCALING_REPLACE.length(),
+                   std::to_string(force_mode_gain_scaling));
+    }
+  }
+
   robot_version_ = rtde_client_->getVersion();
 
   std::stringstream begin_replace;
@@ -182,10 +223,12 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
                          const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
                          double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip,
-                         const uint32_t trajectory_port, const uint32_t script_command_port)
+                         const uint32_t trajectory_port, const uint32_t script_command_port, double force_mode_damping,
+                         double force_mode_gain_scaling)
   : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
              std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
-             non_blocking_read, reverse_ip, trajectory_port)
+             non_blocking_read, reverse_ip, trajectory_port, script_command_port, force_mode_damping,
+             force_mode_gain_scaling)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                 "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
@@ -231,6 +274,11 @@ bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMes
                                              const int point_number)
 {
   return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
+}
+
+bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action)
+{
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action);
 }
 
 bool UrDriver::zeroFTSensor()
@@ -309,6 +357,103 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
     std::stringstream cmd;
     cmd << "sec setup():" << std::endl << " set_tool_voltage(" << toUnderlying(voltage) << ")" << std::endl << "end";
     return sendScript(cmd.str());
+  }
+}
+
+bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector,
+                              const vector6d_t& wrench, const unsigned int type, const vector6d_t& limits)
+{
+  // Test that the type is either 1, 2 or 3.
+  switch (type)
+  {
+    case 1:
+      break;
+    case 2:
+      break;
+    case 3:
+      break;
+    default:
+      std::stringstream ss;
+      ss << "The type should be 1, 2 or 3. The type is " << type;
+      URCL_LOG_ERROR(ss.str().c_str());
+      return false;
+  }
+  for (unsigned int i = 0; i < selection_vector.size(); ++i)
+  {
+    if (selection_vector[i] > 1)
+    {
+      URCL_LOG_ERROR("The selection vector should only consist of 0's and 1's");
+      return false;
+    }
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, type, &limits);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to start Force mode.");
+    return false;
+  }
+}
+
+bool UrDriver::endForceMode()
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->endForceMode();
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to end Force mode.");
+    return false;
+  }
+}
+
+bool UrDriver::startToolContact()
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Tool contact is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->startToolContact();
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to enable tool contact mode.");
+    return 0;
+  }
+}
+
+bool UrDriver::endToolContact()
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Tool contact is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->endToolContact();
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    return 0;
   }
 }
 
