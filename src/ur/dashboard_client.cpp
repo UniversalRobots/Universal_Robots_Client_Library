@@ -62,7 +62,7 @@ bool DashboardClient::connect()
         ret_val = true;
       }
     }
-    catch (TimeoutException)
+    catch (const TimeoutException&)
     {
       URCL_LOG_WARN("Did not receive dashboard bootup message although connection was established. This should not "
                     "happen, please contact the package maintainers. Retrying anyway...");
