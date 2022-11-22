@@ -29,6 +29,7 @@
 #define UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
 
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/ur/version_information.h>
 
 namespace urcl
 {
@@ -416,28 +417,20 @@ protected:
 
 private:
   /*!
-   * \brief Parse input for comparison of sw versions
+   * \brief Makes sure that the dashboard_server's version is above the required version
    *
-   * \param result Parsed result
-   * \param input Input sw version string
+   * \param e_series_min_ver SW version for e-Series
+   * \param cb3_min_ver SW version for cb3
+   * \param required_call The dashboard call that should be checked
+   *
+   * \throws UrException if the robot's version isn't large enough
    */
-  void parseSWVersion(int result[4], const std::string& input);
-  /*!
-   * \brief Compare two sw versions
-   *
-   * \param a Sw version string for e-series
-   * \param b Sw version string for cb3
-   * \param c Sw version string read from robot
-   *
-   * \return If a/b is less than c return true else return false
-   */
-  bool lessThanVersion(const std::string& a, const std::string& b, const std::string& c);
+  void assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver, const std::string& required_call);
   bool send(const std::string& text);
   std::string read();
   void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
 
-  bool e_series_;  // Is the robot e-series or cb3
-  std::string polyscope_version_;
+  VersionInformation polyscope_version_;
   std::string host_;
   int port_;
   std::mutex write_mutex_;

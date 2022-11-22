@@ -33,12 +33,10 @@
 
 using namespace urcl;
 
-
 TEST(version_information, test_split)
 {
   const std::string version_string1 = "5.12.0.1101319";
-  std::vector<std::string> expected = {"5", "12", "0", "1101319"};
-
+  std::vector<std::string> expected = { "5", "12", "0", "1101319" };
 
   EXPECT_EQ(expected, splitString(version_string1));
 }

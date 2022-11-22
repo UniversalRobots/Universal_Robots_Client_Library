@@ -198,166 +198,121 @@ bool DashboardClient::retryCommand(const std::string& requestCommand, const std:
   return false;
 }
 
-void DashboardClient::parseSWVersion(int result[4], const std::string& input)
-{
-  std::istringstream parser(input);
-  parser >> result[0];
-  for (int idx = 1; idx < 4; idx++)
-  {
-    parser.get();  // Skip period
-    parser >> result[idx];
-  }
-}
-
-bool DashboardClient::lessThanVersion(const std::string& a, const std::string& b, const std::string& c)
-{
-  std::string ref = e_series_ == true ? a : b;
-  int parsedRef[4], parsedC[4];
-  parseSWVersion(parsedRef, ref);
-  parseSWVersion(parsedC, c);
-  bool ret = std::lexicographical_compare(parsedRef, parsedRef + 4, parsedC, parsedC + 4);
-  if (!ret)
-  {
-    throw UrException("Polyscope software version required is: " + ref + ", but actual version is: " + c);
-  }
-  return ret;
-}
-
 bool DashboardClient::commandPowerOff()
 {
-  if (!lessThanVersion("5.0.0", "3.0", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.0", "power off");
   return sendRequest("power off", "Powering off") && waitForReply("robotmode", "Robotmode: POWER_OFF");
 }
 
 bool DashboardClient::commandPowerOn(const std::chrono::duration<double> timeout)
 {
-  if (!lessThanVersion("5.0.0", "3.0", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.0", "power on");
   return retryCommand("power on", "Powering on", "robotmode", "Robotmode: IDLE", timeout);
 }
 
 bool DashboardClient::commandBrakeRelease()
 {
-  if (!lessThanVersion("5.0.0", "3.0", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.0", "brake release");
   return sendRequest("brake release", "Brake releasing") && waitForReply("robotmode", "Robotmode: RUNNING");
 }
 
 bool DashboardClient::commandLoadProgram(const std::string& program_file_name)
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "load <program>");
   return sendRequest("load " + program_file_name + "", "(?:Loading program: ).*(?:" + program_file_name + ").*") &&
          waitForReply("programState", "STOPPED " + program_file_name);
 }
 
 bool DashboardClient::commandLoadInstallation(const std::string& installation_file_name)
 {
-  if (!lessThanVersion("5.0.0", "3.2", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.2", "load installation");
   return sendRequest("load installation " + installation_file_name,
                      "(?:Loading installation: ).*(?:" + installation_file_name + ").*");
 }
 
 bool DashboardClient::commandPlay()
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "play");
   return sendRequest("play", "Starting program") && waitForReply("programState", "(?:PLAYING ).*");
 }
 
 bool DashboardClient::commandPause()
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "pause");
   return sendRequest("pause", "Pausing program") && waitForReply("programState", "(?:PAUSED ).*");
 }
 
 bool DashboardClient::commandStop()
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "stop");
   return sendRequest("stop", "Stopped") && waitForReply("programState", "(?:STOPPED ).*");
 }
 
 bool DashboardClient::commandClosePopup()
 {
-  if (!lessThanVersion("5.0.0", "1.6", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.6", "close popup");
   return sendRequest("close popup", "closing popup");
 }
 
 bool DashboardClient::commandCloseSafetyPopup()
 {
-  if (!lessThanVersion("5.0.0", "3.1", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.1", "close safety popup");
   return sendRequest("close safety popup", "closing safety popup");
 }
 
 bool DashboardClient::commandRestartSafety()
 {
-  if (!lessThanVersion("5.1.0", "3.7", polyscope_version_))
-    return false;
+  assertVersion("5.1.0", "3.7", "restart safety");
   return sendRequest("restart safety", "Restarting safety") && waitForReply("robotmode", "Robotmode: POWER_OFF");
 }
 
 bool DashboardClient::commandUnlockProtectiveStop()
 {
-  if (!lessThanVersion("5.0.0", "3.1", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.1", "unlock protective stop");
   return sendRequest("unlock protective stop", "Protective stop releasing");
 }
 
 bool DashboardClient::commandShutdown()
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "shutdown");
   return sendRequest("shutdown", "Shutting down");
 }
 
 bool DashboardClient::commandQuit()
 {
-  if (!lessThanVersion("5.0.0", "1.4", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.4", "quit");
   return sendRequest("quit", "Disconnected");
 }
 
 bool DashboardClient::commandRunning()
 {
-  if (!lessThanVersion("5.0.0", "1.6", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.6", "running");
   return sendRequest("running", "Program running: true");
 }
 
 bool DashboardClient::commandIsProgramSaved()
 {
-  if (!lessThanVersion("5.0.0", "1.8", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.8", "isProgramSaved");
   return sendRequest("isProgramSaved", "(?:true ).*");
 }
 
 bool DashboardClient::commandIsInRemoteControl()
 {
-  if (!lessThanVersion("5.6.0", "10. Only available on e-series robot", polyscope_version_))  // Only available on
-                                                                                              // e-series
-    return false;
-  std::string response = sendAndReceive("is in remote control\n");
+  assertVersion("5.6.0", "-", "is in remote control");
+  std::string response = sendAndReceive("is in remote control");
   bool ret = std::regex_match(response, std::regex("true"));
   return ret;
 }
 
 bool DashboardClient::commandPopup(const std::string& popup_text)
 {
-  if (!lessThanVersion("5.0.0", "1.6", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.6", "popup");
   return sendRequest("popup " + popup_text, "showing popup");
 }
 
 bool DashboardClient::commandAddToLog(const std::string& log_text)
 {
-  if (!lessThanVersion("5.0.0", "1.8", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.8", "addToLog");
   return sendRequest("addToLog " + log_text, "Added log message");
 }
 
@@ -365,16 +320,15 @@ bool DashboardClient::commandPolyscopeVersion(std::string& polyscope_version)
 {
   std::string expected = "(?:URSoftware ).*";
   polyscope_version = sendRequestString("PolyscopeVersion", expected);
-  polyscope_version_ = polyscope_version.substr(polyscope_version.find(" ") + 1,
-                                                polyscope_version.find(" (") - polyscope_version.find(" ") - 1);
-  e_series_ = stoi(polyscope_version_.substr(0, 1)) >= 5;
+  std::string version_string = polyscope_version.substr(polyscope_version.find(" ") + 1,
+                                                        polyscope_version.find(" (") - polyscope_version.find(" ") - 1);
+  polyscope_version_ = VersionInformation::fromString(version_string);
   return std::regex_match(polyscope_version, std::regex(expected));
 }
 
 bool DashboardClient::commandGetRobotModel(std::string& robot_model)
 {
-  if (!lessThanVersion("5.6.0", "3.12", polyscope_version_))
-    return false;
+  assertVersion("5.6.0", "3.12", "get robot model");
   std::string expected = "(?:UR).*";
   robot_model = sendRequestString("get robot model", expected);
   return std::regex_match(robot_model, std::regex(expected));
@@ -382,8 +336,7 @@ bool DashboardClient::commandGetRobotModel(std::string& robot_model)
 
 bool DashboardClient::commandGetSerialNumber(std::string& serial_number)
 {
-  if (!lessThanVersion("5.6.0", "3.12", polyscope_version_))
-    return false;
+  assertVersion("5.6.0", "3.12", "get serial number");
   std::string expected = "(?:20).*";
   serial_number = sendRequestString("get serial number", expected);
   return std::regex_match(serial_number, std::regex(expected));
@@ -391,8 +344,7 @@ bool DashboardClient::commandGetSerialNumber(std::string& serial_number)
 
 bool DashboardClient::commandRobotMode(std::string& robot_mode)
 {
-  if (!lessThanVersion("5.0.0", "1.6", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.6", "robotmode");
   std::string expected = "(?:Robotmode: ).*";
   robot_mode = sendRequestString("robotmode", expected);
   return std::regex_match(robot_mode, std::regex(expected));
@@ -400,8 +352,7 @@ bool DashboardClient::commandRobotMode(std::string& robot_mode)
 
 bool DashboardClient::commandGetLoadedProgram(std::string& loaded_program)
 {
-  if (!lessThanVersion("5.0.0", "1.6", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.6", "get loaded program");
   std::string expected = "(?:Loaded program: ).*";
   loaded_program = sendRequestString("get loaded program", expected);
   return std::regex_match(loaded_program, std::regex(expected));
@@ -409,8 +360,7 @@ bool DashboardClient::commandGetLoadedProgram(std::string& loaded_program)
 
 bool DashboardClient::commandSafetyMode(std::string& safety_mode)
 {
-  if (!lessThanVersion("5.0.0", "3.0", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "3.0", "safetymode");
   std::string expected = "(?:Safetymode: ).*";
   safety_mode = sendRequestString("safetymode", expected);
   return std::regex_match(safety_mode, std::regex(expected));
@@ -418,8 +368,7 @@ bool DashboardClient::commandSafetyMode(std::string& safety_mode)
 
 bool DashboardClient::commandSafetyStatus(std::string& safety_status)
 {
-  if (!lessThanVersion("5.4.0", "3.11", polyscope_version_))
-    return false;
+  assertVersion("5.4.0", "3.11", "safetystatus");
   std::string expected = "(?:Safetystatus: ).*";
   safety_status = sendRequestString("safetystatus", expected);
   return std::regex_match(safety_status, std::regex(expected));
@@ -427,8 +376,7 @@ bool DashboardClient::commandSafetyStatus(std::string& safety_status)
 
 bool DashboardClient::commandProgramState(std::string& program_state)
 {
-  if (!lessThanVersion("5.0.0", "1.8", polyscope_version_))
-    return false;
+  assertVersion("5.0.0", "1.8", "programState");
   std::string expected = "(?:).*";
   program_state = sendRequestString("programState", expected);
   return !std::regex_match(program_state, std::regex("(?:could not understand).*"));
@@ -436,9 +384,7 @@ bool DashboardClient::commandProgramState(std::string& program_state)
 
 bool DashboardClient::commandGetOperationalMode(std::string& operational_mode)
 {
-  if (!lessThanVersion("5.6.0", "10. Only available on e-series robot", polyscope_version_))  // Only available on
-                                                                                              // e-series
-    return false;
+  assertVersion("5.6.0", "-", "get operational mode");
   std::string expected = "(?:).*";
   operational_mode = sendRequestString("get operational mode", expected);
   return !std::regex_match(operational_mode, std::regex("(?:could not understand).*"));
@@ -446,34 +392,26 @@ bool DashboardClient::commandGetOperationalMode(std::string& operational_mode)
 
 bool DashboardClient::commandSetOperationalMode(const std::string& operational_mode)
 {
-  if (!lessThanVersion("5.0.0", "10. Only available on e-series robot", polyscope_version_))  // Only available on
-                                                                                              // e-series
-    return false;
+  assertVersion("5.0.0", "-", "set operational mode");
   return sendRequest("set operational mode " + operational_mode,
                      "(?:Operational mode ).*(?:" + operational_mode + ").*");
 }
 
 bool DashboardClient::commandClearOperationalMode()
 {
-  if (!lessThanVersion("5.0.0", "10. Only available on e-series robot", polyscope_version_))  // Only available on
-                                                                                              // e-series
-    return false;
+  assertVersion("5.0.0", "-", "clear operational mode");
   return sendRequest("clear operational mode", "(?:No longer controlling the operational mode. ).*");
 }
 
 bool DashboardClient::commandSetUserRole(const std::string& user_role)
 {
-  if (!lessThanVersion("10. Only available on CB3 robot", "1.8", polyscope_version_))  // Only available on
-                                                                                       // e-series
-    return false;
+  assertVersion("-", "1.8", "setUserRole");
   return sendRequest("setUserRole " + user_role, "(?:Setting user role: ).*");
 }
 
 bool DashboardClient::commandGetUserRole(std::string& user_role)
 {
-  if (!lessThanVersion("10. Only available on CB3 robot", "1.8", polyscope_version_))  // Only available on
-                                                                                       // e-series
-    return false;
+  assertVersion("-", "1.8", "getUserRole");
   std::string expected = "(?:).*";
   user_role = sendRequestString("getUserRole", expected);
   return !std::regex_match(user_role, std::regex("(?:could not understand).*"));
@@ -481,8 +419,7 @@ bool DashboardClient::commandGetUserRole(std::string& user_role)
 
 bool DashboardClient::commandGenerateFlightReport(const std::string& report_type)
 {
-  if (!lessThanVersion("5.8.0", "3.13", polyscope_version_))
-    return false;
+  assertVersion("5.8.0", "3.13", "generate flight report");
   timeval tv;
   tv.tv_sec = 180;
   tv.tv_usec = 0;
@@ -495,8 +432,7 @@ bool DashboardClient::commandGenerateFlightReport(const std::string& report_type
 
 bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
 {
-  if (!lessThanVersion("5.8.0", "3.13", polyscope_version_))
-    return false;
+  assertVersion("5.8.0", "3.13", "generate support file");
   timeval tv;
   tv.tv_sec = 600;
   tv.tv_usec = 0;
@@ -505,6 +441,37 @@ bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
   tv.tv_sec = 1;  // Reset timeout to standard timeout
   TCPSocket::setReceiveTimeout(tv);
   return ret;
+}
+
+void DashboardClient::assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,
+                                    const std::string& required_call)
+{
+  if (!polyscope_version_.isESeries() && cb3_min_ver == "-")
+  {
+    std::stringstream ss;
+    ss << "The dasboard call '" << required_call
+       << "' is only available on e-series robots, but you seem to be running version " << polyscope_version_;
+    throw UrException(ss.str());
+  }
+
+  if (polyscope_version_.isESeries() && e_series_min_ver == "-")
+  {
+    std::stringstream ss;
+    ss << "The dasboard call '" << required_call
+       << "' is only available on pre-e-series robots (5.x.y), but you seem to be running version " << polyscope_version_;
+    throw UrException(ss.str());
+  }
+
+
+  auto ref = polyscope_version_.isESeries() ? VersionInformation::fromString(e_series_min_ver) :
+                                              VersionInformation::fromString(cb3_min_ver);
+  if (ref > polyscope_version_)
+  {
+    std::stringstream ss;
+    ss << "Polyscope version " << polyscope_version_ << " isn't recent enough to use dashboard call '" << required_call
+       << "'";
+    throw UrException(ss.str());
+  }
 }
 
 }  // namespace urcl

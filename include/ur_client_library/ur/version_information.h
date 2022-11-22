@@ -56,12 +56,12 @@ public:
 
   bool isESeries() const;
 
-  friend bool operator== (const VersionInformation& v1, const VersionInformation& v2);
-  friend bool operator!= (const VersionInformation& v1, const VersionInformation& v2);
-  friend bool operator< (const VersionInformation& v1, const VersionInformation& v2);
-  friend bool operator<= (const VersionInformation& v1, const VersionInformation& v2);
-  friend bool operator> (const VersionInformation& v1, const VersionInformation& v2);
-  friend bool operator>= (const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator==(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator!=(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator<(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator<=(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator>(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator>=(const VersionInformation& v1, const VersionInformation& v2);
 
   friend std::ostream& operator<<(std::ostream& os, const VersionInformation& version_info)
   {
