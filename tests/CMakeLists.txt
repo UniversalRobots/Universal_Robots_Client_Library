@@ -147,3 +147,9 @@ target_link_libraries(rtde_writer_tests PRIVATE ur_client_library::urcl ${GTEST_
 gtest_add_tests(TARGET rtde_writer_tests
 )
 
+add_executable(version_information_tests test_version_information.cpp)
+target_compile_options(version_information_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(version_information_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(version_information_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET version_information_tests
+)
