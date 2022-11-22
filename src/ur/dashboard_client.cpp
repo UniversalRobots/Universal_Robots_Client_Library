@@ -111,9 +111,14 @@ std::string DashboardClient::read()
 
 std::string DashboardClient::sendAndReceive(const std::string& text)
 {
+  std::string command = text;
+  if (text.back() != '\n')
+  {
+    command = text + "\n";
+  }
   std::string response = "ERROR";
   std::lock_guard<std::mutex> lock(write_mutex_);
-  if (send(text))
+  if (send(command))
   {
     response = read();
   }
@@ -129,7 +134,7 @@ std::string DashboardClient::sendAndReceive(const std::string& text)
 bool DashboardClient::sendRequest(const std::string& command, const std::string& expected)
 {
   URCL_LOG_DEBUG("Send Request: %s", command.c_str());
-  std::string response = sendAndReceive(command + "\n");
+  std::string response = sendAndReceive(command);
   bool ret = std::regex_match(response, std::regex(expected));
   if (!ret)
   {
@@ -141,7 +146,7 @@ bool DashboardClient::sendRequest(const std::string& command, const std::string&
 std::string DashboardClient::sendRequestString(const std::string& command, const std::string& expected)
 {
   URCL_LOG_DEBUG("Send Request: %s", command.c_str());
-  std::string response = sendAndReceive(command + "\n");
+  std::string response = sendAndReceive(command);
   bool ret = std::regex_match(response, std::regex(expected));
   if (!ret)
   {
@@ -161,7 +166,7 @@ bool DashboardClient::waitForReply(const std::string& command, const std::string
   while (time_done < timeout)
   {
     // Send the request
-    response = sendAndReceive(command + "\n");
+    response = sendAndReceive(command);
 
     // Check if the response was as expected
     if (std::regex_match(response, std::regex(expected)))
@@ -458,10 +463,10 @@ void DashboardClient::assertVersion(const std::string& e_series_min_ver, const s
   {
     std::stringstream ss;
     ss << "The dasboard call '" << required_call
-       << "' is only available on pre-e-series robots (5.x.y), but you seem to be running version " << polyscope_version_;
+       << "' is only available on pre-e-series robots (5.x.y), but you seem to be running version "
+       << polyscope_version_;
     throw UrException(ss.str());
   }
-
 
   auto ref = polyscope_version_.isESeries() ? VersionInformation::fromString(e_series_min_ver) :
                                               VersionInformation::fromString(cb3_min_ver);

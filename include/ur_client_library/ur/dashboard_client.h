@@ -72,8 +72,9 @@ public:
   /*!
    * \brief Sends a command through the socket and waits for an answer.
    *
-   * \param command Command that will be sent to the server. It is important, that the
-   * command sent is finished with a '\n' (newline) so it will be processed by the server.
+   * \param command Command that will be sent to the server.
+   *
+   * \throws UrException if no response was read from the dashboard server
    *
    * \returns Answer as received by the server cut off any trailing newlines.
    */
@@ -82,9 +83,8 @@ public:
   /*!
    * \brief Sends command and compare it with the expected answer
    *
-   * \param command Command that will be sent to the server. It is important, that the command sent is finished with a
-   * '\n' (newline) so it will be processed by the server.
-   * \param expected Expected replay
+   * \param command Command that will be sent to the server.
+   * \param expected Expected response
    *
    * \return True if the reply to the command is as expected
    */
@@ -93,9 +93,10 @@ public:
   /*!
    * \brief Sends command and compare it with the expected answer
    *
-   * \param command Command that will be sent to the server. It is important, that the command sent is finished with a
-   * '\n' (newline) so it will be processed by the server.
-   * \param expected Expected replay
+   * \param command Command that will be sent to the server.
+   * \param expected Expected response
+   *
+   * \throws UrException if the received answer does not match the expected one.
    *
    * \return Answer string as received by the server
    */
@@ -425,7 +426,8 @@ private:
    *
    * \throws UrException if the robot's version isn't large enough
    */
-  void assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver, const std::string& required_call);
+  void assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,
+                     const std::string& required_call);
   bool send(const std::string& text);
   std::string read();
   void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
