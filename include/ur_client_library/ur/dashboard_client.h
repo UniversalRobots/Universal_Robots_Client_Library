@@ -94,26 +94,30 @@ public:
    *
    * \param command Command that will be sent to the server
    * \param expected Expected replay
-   * \param timeout Timeout time in seconds
+   * \param timeout Timeout to wait before the command is considered failed.
    *
    *  \return True if the reply was as expected within the timeout time
    */
-  bool waitForReply(const std::string& command, const std::string& expected, double timeout = 30.0);
+  bool waitForReply(const std::string& command, const std::string& expected,
+                    std::chrono::duration<double> timeout = std::chrono::seconds(30));
 
   /*!
-   * \brief Keep Sending the requesting Command and wait until it returns the expected answer
+   * \brief Keep Sending the requesting Command and wait until it returns the expected answer.
    *
    * \param requestCommand Request command that will be sent to the server
    * \param requestExpectedResponse The expected reply to the request
    * \param waitRequest The status request
    * \param waitExpectedResponse The expected reply on the status
-   * \param timeout Timeout time in seconds
+   * \param timeout Timeout before the command is ultimately considered failed
+   * \param retry_period Retries will be done with this period
    *
    * \return True when both the requested command was receive with the expected reply as well as the resulting status
    * also is as expected within the timeout time
    */
   bool retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
-                    const std::string& waitRequest, const std::string& waitExpectedResponse, unsigned int timeout);
+                    const std::string& waitRequest, const std::string& waitExpectedResponse,
+                    const std::chrono::duration<double> timeout,
+                    const std::chrono::duration<double> retry_period = std::chrono::seconds(1));
 
   /*!
    * \brief Send Power off command
@@ -125,11 +129,12 @@ public:
   /*!
    * \brief Send Power on command
    *
-   * \param timeout Timeout in seconds
+   * \param timeout Timeout in seconds - The robot might take some time to boot before this call can
+   * be made successfully.
    *
    * \return True succeeded
    */
-  bool commandPowerOn(unsigned int timeout = 1200);
+  bool commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300));
 
   /*!
    * \brief Send Brake release command

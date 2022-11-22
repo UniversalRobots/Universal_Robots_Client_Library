@@ -27,10 +27,13 @@
 //----------------------------------------------------------------------
 
 #include <regex>
+#include <thread>
 #include <unistd.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/exceptions.h>
+
+using namespace std::chrono_literals;
 
 namespace urcl
 {
@@ -131,14 +134,15 @@ bool DashboardClient::sendRequest(const std::string& command, const std::string&
   return ret;
 }
 
-bool DashboardClient::waitForReply(const std::string& command, const std::string& expected, double timeout)
+bool DashboardClient::waitForReply(const std::string& command, const std::string& expected,
+                                   const std::chrono::duration<double> timeout)
 {
-  const unsigned int TIME_STEP_SIZE_US(100000);  // 100ms
+  const std::chrono::duration<double> wait_period = 100ms;
 
-  double count = 0;
+  std::chrono::duration<double> time_done(0);
   std::string response;
 
-  while (count < timeout)
+  while (time_done < timeout)
   {
     // Send the request
     response = sendAndReceive(command + "\n");
@@ -150,8 +154,8 @@ bool DashboardClient::waitForReply(const std::string& command, const std::string
     }
 
     // wait 100ms before trying again
-    usleep(TIME_STEP_SIZE_US);
-    count = count + (0.000001 * TIME_STEP_SIZE_US);
+    std::this_thread::sleep_for(wait_period);
+    time_done += wait_period;
   }
 
   URCL_LOG_WARN("Did not got the expected \"%s\" respone within the timeout. Last respone was: \"%s\"",
@@ -161,20 +165,20 @@ bool DashboardClient::waitForReply(const std::string& command, const std::string
 
 bool DashboardClient::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
                                    const std::string& waitRequest, const std::string& waitExpectedResponse,
-                                   unsigned int timeout)
+                                   const std::chrono::duration<double> timeout,
+                                   const std::chrono::duration<double> retry_period)
 {
-  const double RETRY_EVERY_SECOND(1.0);
-  unsigned int count(0);
+  std::chrono::duration<double> time_done(0);
   do
   {
     sendRequest(requestCommand, requestExpectedResponse);
-    count++;
+    time_done += retry_period;
 
-    if (waitForReply(waitRequest, waitExpectedResponse, RETRY_EVERY_SECOND))
+    if (waitForReply(waitRequest, waitExpectedResponse, retry_period))
     {
       return true;
     }
-  } while (count < timeout);
+  } while (time_done < timeout);
   return false;
 }
 
@@ -183,7 +187,7 @@ bool DashboardClient::commandPowerOff()
   return sendRequest("power off", "Powering off") && waitForReply("robotmode", "Robotmode: POWER_OFF");
 }
 
-bool DashboardClient::commandPowerOn(unsigned int timeout)
+bool DashboardClient::commandPowerOn(const std::chrono::duration<double> timeout)
 {
   return retryCommand("power on", "Powering on", "robotmode", "Robotmode: IDLE", timeout);
 }
