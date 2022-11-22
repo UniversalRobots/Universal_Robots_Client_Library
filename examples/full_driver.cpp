@@ -46,7 +46,7 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 std::unique_ptr<UrDriver> g_my_driver;
-std::unique_ptr<DashboardClient> my_dashboard;
+std::unique_ptr<DashboardClient> g_my_dashboard;
 vector6d_t g_joint_positions;
 
 // We need a callback function to register. See UrDriver's parameters for details.
@@ -69,36 +69,36 @@ int main(int argc, char* argv[])
 
   // Making the robot ready for the program by:
   // Connect the the robot Dashboard
-  my_dashboard.reset(new DashboardClient(robot_ip));
-  if (!my_dashboard->connect())
+  g_my_dashboard.reset(new DashboardClient(robot_ip));
+  if (!g_my_dashboard->connect())
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
     return 1;
   }
 
   // Stop program, if there is one running
-  if (!my_dashboard->commandStop())
+  if (!g_my_dashboard->commandStop())
   {
     URCL_LOG_ERROR("Could not send stop program command");
     return 1;
   }
 
-  // Power it on
-  if (!my_dashboard->commandPowerOff())
+  // Power it off
+  if (!g_my_dashboard->commandPowerOff())
   {
     URCL_LOG_ERROR("Could not send Power off command");
     return 1;
   }
 
   // Power it on
-  if (!my_dashboard->commandPowerOn())
+  if (!g_my_dashboard->commandPowerOn())
   {
     URCL_LOG_ERROR("Could not send Power on command");
     return 1;
   }
 
   // Release the brakes
-  if (!my_dashboard->commandBrakeRelease())
+  if (!g_my_dashboard->commandBrakeRelease())
   {
     URCL_LOG_ERROR("Could not send BrakeRelease command");
     return 1;

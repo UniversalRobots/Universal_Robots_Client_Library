@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // Parse how may seconds to run
+  // Parse how many seconds to run
   int second_to_run = -1;
   if (argc > 2)
   {

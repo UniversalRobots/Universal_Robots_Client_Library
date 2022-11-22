@@ -143,7 +143,7 @@ bool DashboardClient::waitForReply(const std::string& command, const std::string
     // Send the request
     response = sendAndReceive(command + "\n");
 
-    // Check it the response was as expected
+    // Check if the response was as expected
     if (std::regex_match(response, std::regex(expected)))
     {
       return true;

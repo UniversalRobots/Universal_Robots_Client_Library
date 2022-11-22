@@ -29,14 +29,7 @@ using namespace urcl;
 // better configuration system such as Boost.Program_options
 const std::string DEFAULT_ROBOT_IP = "127.0.0.1";
 
-std::unique_ptr<DashboardClient> my_dashboard;
-
 // We need a callback function to register. See UrDriver's parameters for details.
-void handleRobotProgramState(bool program_running)
-{
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
-}
 
 int main(int argc, char* argv[])
 {
@@ -51,6 +44,7 @@ int main(int argc, char* argv[])
 
   // Making the robot ready for the program by:
   // Connect the the robot Dashboard
+  std::unique_ptr<DashboardClient> my_dashboard;
   my_dashboard.reset(new DashboardClient(robot_ip));
   if (!my_dashboard->connect())
   {
