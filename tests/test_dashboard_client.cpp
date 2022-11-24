@@ -38,7 +38,6 @@
 
 using namespace urcl;
 
-// std::string ROBOT_IP = "192.168.56.101";
 std::string ROBOT_IP = "127.0.0.1";
 
 class DashboardClientTest : public ::testing::Test

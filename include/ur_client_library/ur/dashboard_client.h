@@ -245,16 +245,18 @@ public:
   bool commandRunning();
 
   /*!
-   * \brief Send Is program saved command
+   * \brief Send "Is program saved" request command
    *
-   * \return True succeeded
+   * \return True if the program is saved correctly
    */
   bool commandIsProgramSaved();
 
   /*!
-   * \brief Send Is in remote control command
+   * \brief Send "Is in remote control" query command
    *
-   * \return True succeeded
+   * \throws an UrException when called on CB3 robots
+   *
+   * \return True if the robot is currently in remote control
    */
   bool commandIsInRemoteControl();
 
@@ -353,6 +355,8 @@ public:
    *
    * \param operational_mode The operational mode of the robot returned (Only available for e-series)
    *
+   * \throws an UrException when called on CB3 robots
+   *
    * \return True succeeded
    */
   bool commandGetOperationalMode(std::string& operational_mode);
@@ -362,12 +366,16 @@ public:
    *
    * \param operational_mode The operational mode to set on the robot
    *
+   * \throws an UrException when called on CB3 robots
+   *
    * \return True succeeded
    */
   bool commandSetOperationalMode(const std::string& operational_mode);
 
   /*!
    * \brief Send Clear operational mode command
+   *
+   * \throws an UrException when called on CB3 robots
    *
    * \return True succeeded
    */
@@ -378,6 +386,8 @@ public:
    *
    * \param user_role The user role to set on the robot
    *
+   * \throws an UrException when called on e-series robots
+   *
    * \return True succeeded
    */
   bool commandSetUserRole(const std::string& user_role);
@@ -386,6 +396,8 @@ public:
    * \brief Send Get user role command (Only available for CB3)
    *
    * \param user_role The user role on the robot
+   *
+   * \throws an UrException when called on e-series robots
    *
    * \return True succeeded
    */
