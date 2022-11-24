@@ -32,6 +32,7 @@
 #include <ur_client_library/exceptions.h>
 #include <chrono>
 #include <thread>
+#include "ur_client_library/ur/version_information.h"
 #define private public
 #include <ur_client_library/ur/dashboard_client.h>
 
@@ -118,10 +119,9 @@ TEST_F(DashboardClientTest, flight_report_and_support_file)
   bool correct_polyscope_version = true;
   try
   {
-    correct_polyscope_version =
-        dashboard_client_->lessThanVersion("5.6.0", "3.13", dashboard_client_->polyscope_version_);
+    dashboard_client_->assertVersion("5.6.0", "3.13", "test_function");
   }
-  catch (const std::exception& e)
+  catch (const UrException& e)
   {
     correct_polyscope_version = false;
   }
@@ -143,11 +143,11 @@ TEST_F(DashboardClientTest, e_series_version)
 {
   std::string msg;
   EXPECT_TRUE(dashboard_client_->connect());
-  if (!dashboard_client_->e_series_)
+  if (!dashboard_client_->polyscope_version_.isESeries())
     GTEST_SKIP();
-  dashboard_client_->polyscope_version_ = "5.0.0";
+  dashboard_client_->polyscope_version_ = VersionInformation::fromString("5.0.0");
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(msg), UrException);
-  dashboard_client_->polyscope_version_ = "5.5.0";
+  dashboard_client_->polyscope_version_ = VersionInformation::fromString("5.5.0");
   EXPECT_TRUE(dashboard_client_->commandSafetyStatus(msg));
   EXPECT_THROW(dashboard_client_->commandSetUserRole("none"), UrException);
 }
@@ -157,11 +157,11 @@ TEST_F(DashboardClientTest, cb3_version)
 {
   std::string msg;
   EXPECT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->e_series_)
+  if (dashboard_client_->polyscope_version_.isESeries())
     GTEST_SKIP();
-  dashboard_client_->polyscope_version_ = "1.6.0";
+  dashboard_client_->polyscope_version_ = VersionInformation::fromString("1.6.0");
   EXPECT_THROW(dashboard_client_->commandIsProgramSaved(), UrException);
-  dashboard_client_->polyscope_version_ = "1.8.0";
+  dashboard_client_->polyscope_version_ = VersionInformation::fromString("1.8.0");
   EXPECT_TRUE(dashboard_client_->commandIsProgramSaved());
   EXPECT_THROW(dashboard_client_->commandIsInRemoteControl(), UrException);
 }
