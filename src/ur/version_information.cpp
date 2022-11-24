@@ -46,8 +46,14 @@ std::vector<std::string> splitString(std::string input, const std::string& delim
   return result;
 }
 
-VersionInformation::VersionInformation() : major(0), minor(0), bugfix(0), build(0)
+VersionInformation::VersionInformation()
 {
+  // Since 'major' and 'minor' are keywords in  <sys/types> we don't use the initializer list and
+  // specify this->major explicitly.
+  this->major = 0;
+  this->minor = 0;
+  this->bugfix = 0;
+  this->build = 0;
 }
 
 VersionInformation VersionInformation::fromString(const std::string& str)
@@ -81,7 +87,7 @@ VersionInformation VersionInformation::fromString(const std::string& str)
 
 bool VersionInformation::isESeries() const
 {
-  return major >= 5;
+  return this->major >= 5;
 }
 
 bool operator==(const VersionInformation& v1, const VersionInformation& v2)
