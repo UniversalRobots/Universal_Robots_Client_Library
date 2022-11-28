@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.0 (2022-11-28)
+------------------
 * Dashboard commands, Docker Image and CI step for running the examples `#127 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/127>`_
 * Added tests for the rtde interface clasess (`#125 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/125>`_)
 * Fix unique_ptr type (`#124 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/124>`_)
