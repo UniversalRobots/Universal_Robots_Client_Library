@@ -37,9 +37,17 @@ if (INTEGRATION_TESTS)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
+
+  add_executable(dashboard_client_tests test_dashboard_client.cpp)
+  target_compile_options(dashboard_client_tests PRIVATE ${CXX17_FLAG})
+  target_include_directories(dashboard_client_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+  target_link_libraries(dashboard_client_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+  gtest_add_tests(TARGET      dashboard_client_tests
+  )
 else()
   message(STATUS "Skipping integration tests.")
 endif()
+
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_compile_options(primary_parser_tests PRIVATE ${CXX17_FLAG})
@@ -139,3 +147,9 @@ target_link_libraries(rtde_writer_tests PRIVATE ur_client_library::urcl ${GTEST_
 gtest_add_tests(TARGET rtde_writer_tests
 )
 
+add_executable(version_information_tests test_version_information.cpp)
+target_compile_options(version_information_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(version_information_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(version_information_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET version_information_tests
+)

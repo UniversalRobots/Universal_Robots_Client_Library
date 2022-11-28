@@ -3,24 +3,29 @@ on: [push, pull_request]
 
 jobs:
   build:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       matrix:
         env:
-          - DOCKER_RUN_OPTS: --network static_test_net
+          - DOCKER_RUN_OPTS: --network ursim_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_VERSION: 3.14.1.1031110
-          - DOCKER_RUN_OPTS: --network static_test_net
+            ROBOT_MODEL: 'ur5'
+            URSIM_VERSION: '3.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - DOCKER_RUN_OPTS: --network ursim_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
-            URSIM_VERSION: 5.8.0.10253
+            ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.5.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
     steps:
       - uses: actions/checkout@v1
       - name: start ursim
         run: |
-          tests/resources/dockerursim/build_and_run_docker_ursim.sh $URSIM_VERSION
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
         env: ${{matrix.env}}
       - name: install gtest
         run: sudo apt-get install -y libgtest-dev
@@ -36,6 +41,8 @@ jobs:
         run: cmake --build build --config Debug
       - name: test
         run: cd build && ctest --output-on-failure
+      - name: run examples
+        run: run-parts -v --exit-on-error -a "192.168.56.101" -a "1"  ./build/examples
       - name: install gcovr
         run: sudo apt-get install -y gcovr
       - name: gcovr
@@ -59,11 +66,11 @@ jobs:
             --exclude-dir=CMakeModules \
             --exclude=tcp_socket.cpp \
             --exclude-dir=debian \
-            --exclude=real_time.md
+            --exclude=real_time.md \
+            --exclude=start_ursim.sh
 
   rosdoc_lite_check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - uses: ./.github/actions/rosdoc_lite_action
-
