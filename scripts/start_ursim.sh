@@ -153,6 +153,8 @@ docker run --rm -d --net ursim_net --ip 192.168.56.101\
   -v "${URCAP_STORAGE}":/urcaps \
   -v "${PROGRAM_STORAGE}":/ursim/programs \
   -e ROBOT_MODEL="${ROBOT_MODEL}" \
+  -p 30001-30004:30001-30004 \
+  -p 29999:29999 \
   --name ursim \
   universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION || exit
 
