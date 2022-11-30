@@ -2,6 +2,21 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.1 (2022-11-30)
+------------------
+* CI: Add a prerelease check that calls `bloom-generate` (`#134 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/134>`_)
+* Contributors: Felix Exner
+
+1.3.0 (2022-11-28)
+------------------
+* Dashboard commands, Docker Image and CI step for running the examples `#127 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/127>`_
+* Added tests for the rtde interface clasess (`#125 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/125>`_)
+* Fix unique_ptr type (`#124 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/124>`_)
+* Fix 'BEGIN_REPLACE' - used in tool_communication (copy `#101 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/101>`_) (`#120 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/120>`_)
+  (cherry picked from commit f7ce9f73181848f3957c660647fac0e5325862b9)
+  Co-authored-by: rxjia <60809735+rxjia@users.noreply.github.com>
+* Contributors: Felix Exner, Mads Holm Peters, RobertWilbrandt, Rune Søe-Knudsen, mergify[bot], urmarp, urrsk
+
 1.2.0 (2022-10-04)
 ------------------
 * Initialized receive timeout and changed exception to warning (`#118 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/118>`_)

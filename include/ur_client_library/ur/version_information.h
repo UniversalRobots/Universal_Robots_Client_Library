@@ -29,6 +29,9 @@
 #ifndef UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED
 
+#include <string>
+#include <vector>
+
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -36,15 +39,29 @@ namespace urcl
 /*!
  * \brief Struct containing a robot's version information
  */
-struct VersionInformation
+class VersionInformation
 {
-  VersionInformation()
-  {
-    major = 0;
-    minor = 0;
-    bugfix = 0;
-    build = 0;
-  }
+public:
+  VersionInformation();
+  ~VersionInformation() = default;
+
+  /*!
+   * \brief Parses a version string into a VersionInformation object
+   *
+   * \param str Version string such as "5.12.0.1101319"
+   *
+   * \returns A parsed VersionInformation object
+   */
+  static VersionInformation fromString(const std::string& str);
+
+  bool isESeries() const;
+
+  friend bool operator==(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator!=(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator<(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator<=(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator>(const VersionInformation& v1, const VersionInformation& v2);
+  friend bool operator>=(const VersionInformation& v1, const VersionInformation& v2);
 
   friend std::ostream& operator<<(std::ostream& os, const VersionInformation& version_info)
   {
@@ -56,6 +73,8 @@ struct VersionInformation
   uint32_t bugfix;  ///< Bugfix version number
   uint32_t build;   ///< Build number
 };
+
+std::vector<std::string> splitString(std::string input, const std::string& delimiter = ".");
 }  // namespace urcl
 
 #endif  // ifndef UR_CLIENT_LIBRARY_UR_VERSION_INFORMATION_H_INCLUDED

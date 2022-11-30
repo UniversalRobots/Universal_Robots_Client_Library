@@ -29,21 +29,36 @@
 
 #include <iostream>
 #include <memory>
+#include <ctime>
 
 using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
 // system such as Boost.Program_options
-const std::string ROBOT_IP = "192.168.56.101";
+const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::chrono::milliseconds READ_TIMEOUT{ 100 };
 
 int main(int argc, char* argv[])
 {
+  // Parse the ip arguments if given
+  std::string robot_ip = DEFAULT_ROBOT_IP;
+  if (argc > 1)
+  {
+    robot_ip = std::string(argv[1]);
+  }
+
+  // Parse how may seconds to run
+  int second_to_run = -1;
+  if (argc > 2)
+  {
+    second_to_run = std::stoi(argv[2]);
+  }
+
   // TODO: Write good docstring for notifier
   comm::INotifier notifier;
-  rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
+  rtde_interface::RTDEClient my_client(robot_ip, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
   my_client.init();
 
   // We will use the speed_slider_fraction as an example how to write to RTDE
@@ -54,7 +69,9 @@ int main(int argc, char* argv[])
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
   my_client.start();
-  while (true)
+
+  unsigned long startTime = clock();
+  while (second_to_run < 0 || ((clock() - startTime) / CLOCKS_PER_SEC) < static_cast<unsigned int>(second_to_run))
   {
     // Read latest RTDE package. This will block for READ_TIMEOUT, so the
     // robot will effectively be in charge of setting the frequency of this loop unless RTDE
@@ -69,6 +86,7 @@ int main(int argc, char* argv[])
     else
     {
       std::cout << "Could not get fresh data package from robot" << std::endl;
+      return 1;
     }
 
     if (!my_client.getWriter().sendSpeedSlider(speed_slider_fraction))
@@ -78,6 +96,7 @@ int main(int argc, char* argv[])
       std::cout << "\033[1;31mSending RTDE data failed."
                 << "\033[0m\n"
                 << std::endl;
+      return 1;
     }
 
     // Change the speed slider so that it will move between 0 and 1 all the time. This is for
@@ -95,6 +114,9 @@ int main(int argc, char* argv[])
     }
     speed_slider_fraction += speed_slider_increment;
   }
+
+  // Resetting the speedslider back to 100%
+  my_client.getWriter().sendSpeedSlider(1);
 
   return 0;
 }
