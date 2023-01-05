@@ -50,6 +50,7 @@ class TCPSocket
 private:
   std::atomic<int> socket_fd_;
   std::atomic<SocketState> state_;
+  std::chrono::seconds reconnection_time_;
 
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
@@ -138,6 +139,17 @@ public:
    * \param timeout Timeout used for setting things up
    */
   void setReceiveTimeout(const timeval& timeout);
+
+  /*!
+   * \brief Set reconnection time, if the server is unavailable during connection this will set the time before
+   * trying connect to the server again.
+   *
+   * \param reconnection_time time in between connection attempts to the server
+   */
+  void setReconnectionTime(std::chrono::seconds reconnection_time)
+  {
+    reconnection_time_ = reconnection_time;
+  }
 };
 }  // namespace comm
 }  // namespace urcl

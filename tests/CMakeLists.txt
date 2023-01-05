@@ -153,3 +153,45 @@ target_include_directories(version_information_tests PRIVATE ${GTEST_INCLUDE_DIR
 target_link_libraries(version_information_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET version_information_tests
 )
+
+add_executable(bin_parser_tests test_bin_parser.cpp)
+target_compile_options(bin_parser_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(bin_parser_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(bin_parser_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET bin_parser_tests
+)
+
+add_executable(package_serializer_tests test_package_serializer.cpp)
+target_compile_options(package_serializer_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(package_serializer_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(package_serializer_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET package_serializer_tests
+)
+
+add_executable(tcp_socket_tests test_tcp_socket.cpp)
+target_compile_options(tcp_socket_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(tcp_socket_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(tcp_socket_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET tcp_socket_tests
+)
+
+add_executable(stream_tests test_stream.cpp)
+target_compile_options(stream_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(stream_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(stream_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET stream_tests
+)
+
+add_executable(producer_tests test_producer.cpp)
+target_compile_options(producer_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(producer_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(producer_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET producer_tests
+)
+
+add_executable(pipeline_tests test_pipeline.cpp)
+target_compile_options(pipeline_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(pipeline_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(pipeline_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET pipeline_tests
+)
