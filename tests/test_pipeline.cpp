@@ -230,6 +230,8 @@ TEST_F(PipelineTest, consumer_pipeline)
   // Test that the package was consumed
   double expected_timestamp = 7103.8579;
   EXPECT_FLOAT_EQ(consumer.timestamp_, expected_timestamp);
+
+  pipeline_->stop();
 }
 
 int main(int argc, char* argv[])
