@@ -27,18 +27,18 @@
 
 #include <ur_client_library/comm/pipeline.h>
 #include <ur_client_library/comm/producer.h>
-#include <ur_client_library/comm/shell_consumer.h>
 #include <ur_client_library/primary/primary_parser.h>
+#include <ur_client_library/primary/primary_client.h>
 
 using namespace urcl;
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
 // system such as Boost.Program_options
 const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
+const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 int main(int argc, char* argv[])
 {
-  // Set the loglevel to info get print out the DH parameters
   urcl::setLogLevel(urcl::LogLevel::INFO);
 
   // Parse the ip arguments if given
@@ -48,40 +48,42 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // Parse how many seconds to run
-  int second_to_run = -1;
-  if (argc > 2)
+  // First of all, we need to create a primary client that connects to the robot
+  primary_interface::PrimaryClient primary_client(robot_ip, CALIBRATION_CHECKSUM);
+
+  // Give time to get the client to connect
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+  for (int i = 0; i < 10; ++i)
   {
-    second_to_run = std::stoi(argv[2]);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // Create script program to send through client
+    std::stringstream cmd;
+    cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
+    cmd << "sec setup():" << std::endl
+        << " textmsg(\"Command through primary interface complete " << i++ << "\")" << std::endl
+        << "end";
+    std::string script_code = cmd.str();
+    auto program_with_newline = script_code + '\n';
+    // Send script
+    primary_client.sendScript(program_with_newline);
+
+    try
+    {
+      URCL_LOG_INFO("Cartesian Information:\n%s", primary_client.getCartesianInfo()->toString().c_str());
+      URCL_LOG_INFO("Calibration Hash:\n%s", primary_client.getCalibrationChecker()->getData()->toHash().c_str());
+      URCL_LOG_INFO("Build Date:\n%s", primary_client.getVersionMessage()->build_date_.c_str());
+      std::cout << primary_client.getJointData()->toString() << std::endl;
+      std::stringstream os;
+      os << primary_client.getJointData()->q_actual_;
+      URCL_LOG_INFO("Joint Angles:\n%s", os.str().c_str());
+      // getGlobalVariablesSetupMessage() will throw an exception if a program on the robot has not been started
+      URCL_LOG_INFO("Global Variables:\n%s", primary_client.getGlobalVariablesSetupMessage()->variable_names_.c_str());
+    }
+    catch (const UrException& e)
+    {
+      URCL_LOG_WARN(e.what());
+    }
   }
-
-  // First of all, we need a stream that connects to the robot
-  comm::URStream<primary_interface::PrimaryPackage> primary_stream(robot_ip, urcl::primary_interface::UR_PRIMARY_PORT);
-
-  // This will parse the primary packages
-  primary_interface::PrimaryParser parser;
-
-  // The producer needs both, the stream and the parser to fully work
-  comm::URProducer<primary_interface::PrimaryPackage> prod(primary_stream, parser);
-  prod.setupProducer();
-
-  // The shell consumer will print the package contents to the shell
-  std::unique_ptr<comm::IConsumer<primary_interface::PrimaryPackage>> consumer;
-  consumer.reset(new comm::ShellConsumer<primary_interface::PrimaryPackage>());
-
-  // The notifer will be called at some points during connection setup / loss. This isn't fully
-  // implemented atm.
-  comm::INotifier notifier;
-
-  // Now that we have all components, we can create and start the pipeline to run it all.
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, consumer.get(), "Pipeline", notifier);
-  pipeline.run();
-
-  // Package contents will be printed while not being interrupted
-  // Note: Packages for which the parsing isn't implemented, will only get their raw bytes printed.
-  do
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(second_to_run));
-  } while (second_to_run < 0);
   return 0;
 }
