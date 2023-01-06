@@ -26,8 +26,20 @@
 #include "ur_client_library/primary/package_header.h"
 #include "ur_client_library/primary/robot_state.h"
 #include "ur_client_library/primary/robot_message.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/primary/robot_state/joint_data.h"
+#include "ur_client_library/primary/robot_state/cartesian_info.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/robot_state/force_mode_data.h"
+#include "ur_client_library/primary/robot_state/additional_info.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/program_state_message/global_variables_update_message.h"
+#include "ur_client_library/primary/program_state_message/global_variables_setup_message.h"
+#include <iomanip>
 
 namespace urcl
 {
@@ -56,6 +68,7 @@ public:
   {
     int32_t packet_size;
     RobotPackageType type;
+
     bp.parse(packet_size);
     bp.parse(type);
 
@@ -115,7 +128,7 @@ public:
       case RobotPackageType::ROBOT_MESSAGE:
       {
         uint64_t timestamp;
-        uint8_t source;
+        int8_t source;
         RobotMessagePackageType message_type;
 
         bp.parse(timestamp);
@@ -134,9 +147,31 @@ public:
         break;
       }
 
+      case RobotPackageType::PROGRAM_STATE_MESSAGE:
+      {
+        uint64_t timestamp;
+        ProgramStateMessageType state_type;
+        URCL_LOG_DEBUG("ProgramStateMessage  received");
+
+        bp.parse(timestamp);
+        bp.parse(state_type);
+
+        URCL_LOG_DEBUG("ProgramStateMessage of type %d received", static_cast<int>(state_type));
+
+        std::unique_ptr<PrimaryPackage> packet(programStateFromType(state_type, timestamp));
+        if (!packet->parseWith(bp))
+        {
+          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(state_type));
+          return false;
+        }
+
+        results.push_back(std::move(packet));
+        return true;
+      }
+
       default:
       {
-        URCL_LOG_DEBUG("Invalid robot package type recieved: %u", static_cast<uint8_t>(type));
+        URCL_LOG_DEBUG("Invalid robot package type received: %u", static_cast<uint8_t>(type));
         bp.consume();
         return true;
       }
@@ -149,14 +184,18 @@ private:
   {
     switch (type)
     {
-      /*case robot_state_type::ROBOT_MODE_DATA:
-        // SharedRobotModeData* rmd = new SharedRobotModeData();
-
-        //return new rmd;
-      case robot_state_type::MASTERBOARD_DATA:
-        return new MBD;*/
+      case RobotStateType::ROBOT_MODE_DATA:
+        return new RobotModeData(type);
+      case RobotStateType::JOINT_DATA:
+        return new JointData(type);
+      case RobotStateType::CARTESIAN_INFO:
+        return new CartesianInfo(type);
       case RobotStateType::KINEMATICS_INFO:
         return new KinematicsInfo(type);
+      case RobotStateType::FORCE_MODE_DATA:
+        return new ForceModeData(type);
+      case RobotStateType::ADDITIONAL_INFO:
+        return new AdditionalInfo(type);
       default:
         return new RobotState(type);
     }
@@ -166,16 +205,31 @@ private:
   {
     switch (type)
     {
-      /*case robot_state_type::ROBOT_MODE_DATA:
-        // SharedRobotModeData* rmd = new SharedRobotModeData();
-
-        //return new rmd;
-      case robot_state_type::MASTERBOARD_DATA:
-        return new MBD;*/
       case RobotMessagePackageType::ROBOT_MESSAGE_VERSION:
         return new VersionMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_TEXT:
+        return new TextMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
+        return new KeyMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
+        return new ErrorCodeMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_RUNTIME_EXCEPTION:
+        return new RuntimeExceptionMessage(timestamp, source);
       default:
-        return new RobotMessage(timestamp, source);
+        return new RobotMessage(timestamp, source, type);
+    }
+  }
+
+  ProgramStateMessage* programStateFromType(ProgramStateMessageType type, uint64_t timestamp)
+  {
+    switch (type)
+    {
+      case ProgramStateMessageType::GLOBAL_VARIABLES_SETUP:
+        return new GlobalVariablesSetupMessage(timestamp);
+      case ProgramStateMessageType::GLOBAL_VARIABLES_UPDATE:
+        return new GlobalVariablesUpdateMessage(timestamp);
+      default:
+        return new ProgramStateMessage(timestamp, type);
     }
   }
 };
