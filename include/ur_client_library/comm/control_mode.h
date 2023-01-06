@@ -48,7 +48,7 @@ enum class ControlMode : int32_t
   MODE_POSE = 5,            ///< Set when cartesian pose control is active.
   MODE_FREEDRIVE = 6,       ///< Set when freedrive mode is active.
   MODE_TOOL_IN_CONTACT =
-      7  ///< Used by the internally in the script, when robot is in tool contact, clear by endToolContact()
+      7  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
 };
 }  // namespace comm
 }  // namespace urcl
