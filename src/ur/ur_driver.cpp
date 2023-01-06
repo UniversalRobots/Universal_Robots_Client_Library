@@ -53,9 +53,10 @@ static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PO
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
                          std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
-                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
-                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
+                         const bool& simulated, const uint32_t reverse_port, const uint32_t script_sender_port,
+                         int servoj_gain, double servoj_lookahead_time, bool non_blocking_read,
+                         const std::string& reverse_ip, const uint32_t trajectory_port,
                          const uint32_t script_command_port)
   : servoj_time_(0.008)
   , servoj_gain_(servoj_gain)
@@ -66,12 +67,9 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
-
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
-  secondary_stream_->connect();
+  URCL_LOG_DEBUG("Initializing Primary client");
+  primary_client_.reset(new primary_interface::PrimaryClient(robot_ip, calibration_checksum));
+  primary_client_->setSimulated(simulated);
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -179,31 +177,14 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
                          std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
-                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                         double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip,
-                         const uint32_t trajectory_port, const uint32_t script_command_port)
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
+                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
+                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
+                         const uint32_t script_command_port)
   : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
-             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
-             non_blocking_read, reverse_ip, trajectory_port)
+             std::move(tool_comm_setup), "", false, reverse_port, script_sender_port, servoj_gain,
+             servoj_lookahead_time, non_blocking_read, reverse_ip, trajectory_port, script_command_port)
 {
-  URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
-                "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
-                "notice is for application developers using this library. If you are only using an application using "
-                "this library, you can ignore this message.");
-  if (checkCalibration(calibration_checksum))
-  {
-    URCL_LOG_INFO("Calibration checked successfully.");
-  }
-  else
-  {
-    URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
-                   "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
-                   "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
-                   "description. See "
-                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
-                   "for details.");
-  }
 }
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
@@ -339,27 +320,7 @@ std::string UrDriver::readScriptFile(const std::string& filename)
 
 bool UrDriver::checkCalibration(const std::string& checksum)
 {
-  if (primary_stream_ == nullptr)
-  {
-    throw std::runtime_error("checkCalibration() called without a primary interface connection being established.");
-  }
-  primary_interface::PrimaryParser parser;
-  comm::URProducer<primary_interface::PrimaryPackage> prod(*primary_stream_, parser);
-  prod.setupProducer();
-
-  CalibrationChecker consumer(checksum);
-
-  comm::INotifier notifier;
-
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, &consumer, "Pipeline", notifier);
-  pipeline.run();
-
-  while (!consumer.isChecked())
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  URCL_LOG_DEBUG("Got calibration information from robot.");
-  return consumer.checkSuccessful();
+  return primary_client_->getCalibrationChecker()->checkCalibration(checksum);
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -369,29 +330,7 @@ rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
 
 bool UrDriver::sendScript(const std::string& program)
 {
-  if (secondary_stream_ == nullptr)
-  {
-    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
-                             "This "
-                             "should not happen.");
-  }
-
-  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
-  // not execute them. To avoid problems, we always just append a newline here, even if
-  // there may already be one.
-  auto program_with_newline = program + '\n';
-
-  size_t len = program_with_newline.size();
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
-  size_t written;
-
-  if (secondary_stream_->write(data, len, written))
-  {
-    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
-    return true;
-  }
-  URCL_LOG_ERROR("Could not send program to robot");
-  return false;
+  return primary_client_->sendScript(program);
 }
 
 bool UrDriver::sendRobotProgram()
