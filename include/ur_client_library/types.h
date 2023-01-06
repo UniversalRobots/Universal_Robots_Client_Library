@@ -28,6 +28,8 @@ namespace urcl
 {
 using vector3d_t = std::array<double, 3>;
 using vector6d_t = std::array<double, 6>;
+using vector6f_t = std::array<float, 6>;
+using vector6uint8_t = std::array<uint8_t, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 

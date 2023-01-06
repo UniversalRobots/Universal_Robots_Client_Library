@@ -208,6 +208,19 @@ public:
   }
 
   /*!
+   * \brief Parses the next bytes as a vector of 6 floats.
+   *
+   * \param val Reference to write the parsed value to
+   */
+  void parse(vector6f_t& val)
+  {
+    for (size_t i = 0; i < val.size(); ++i)
+    {
+      parse(val[i]);
+    }
+  }
+
+  /*!
    * \brief Parses the next bytes as a vector of 6 32 bit integers.
    *
    * \param val Reference to write the parsed value to
