@@ -34,18 +34,24 @@ CalibrationChecker::CalibrationChecker(const std::string& expected_hash)
   : expected_hash_(expected_hash), checked_(false), matches_(false)
 {
 }
-bool CalibrationChecker::consume(std::shared_ptr<primary_interface::PrimaryPackage> product)
+
+void CalibrationChecker::handle(primary_interface::KinematicsInfo& kin_info)
 {
-  auto kin_info = std::dynamic_pointer_cast<primary_interface::KinematicsInfo>(product);
-  if (kin_info != nullptr)
-  {
-    // URCL_LOG_INFO("%s", product->toString().c_str());
-    //
-    matches_ = kin_info->toHash() == expected_hash_;
+  // URCL_LOG_INFO("%s", kin_info.toString().c_str());
+  //
+  matches_ = kin_info.toHash() == expected_hash_;
 
-    checked_ = true;
-  }
+  checked_ = true;
 
-  return true;
+  data_.reset(new primary_interface::KinematicsInfo(kin_info));
+}
+
+bool CalibrationChecker::checkCalibration(const std::string& expected_hash)
+{
+  matches_ = expected_hash == expected_hash_;
+
+  checked_ = true;
+
+  return matches_;
 }
 }  // namespace urcl

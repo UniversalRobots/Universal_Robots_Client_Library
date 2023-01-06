@@ -28,18 +28,17 @@
 #ifndef UR_CLIENT_LIBRARY_UR_CALIBRATION_CHECKER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_CALIBRATION_CHECKER_H_INCLUDED
 
-#include <ur_client_library/comm/pipeline.h>
-
+#include <ur_client_library/primary/primary_package_handler.h>
 #include <ur_client_library/primary/robot_state/kinematics_info.h>
 
 namespace urcl
 {
 /*!
- * \brief The CalibrationChecker class consumes primary packages ignoring all but KinematicsInfo
- * packages. These are then checked against the used kinematics to see if the correct calibration
- * is used.
+ * \brief The CalibrationChecker checks a received KinematicsInfo package against a registered calibration hash
+ * value. This way we know whether the robot that sent the KinematicsInfo package matches the
+ * expected calibration.
  */
-class CalibrationChecker : public comm::IConsumer<primary_interface::PrimaryPackage>
+class CalibrationChecker : public primary_interface::IPrimaryPackageHandler<primary_interface::KinematicsInfo>
 {
 public:
   /*!
@@ -52,39 +51,14 @@ public:
   virtual ~CalibrationChecker() = default;
 
   /*!
-   * \brief Empty setup function, as no setup is needed.
-   */
-  virtual void setupConsumer()
-  {
-  }
-  /*!
-   * \brief Tears down the consumer.
-   */
-  virtual void teardownConsumer()
-  {
-  }
-  /*!
-   * \brief Stops the consumer.
-   */
-  virtual void stopConsumer()
-  {
-  }
-  /*!
-   * \brief Handles timeouts.
-   */
-  virtual void onTimeout()
-  {
-  }
-
-  /*!
    * \brief Consumes a package, checking its hash if it is a KinematicsInfo package. If the hash
    * does not match the expected hash, an error is logged.
    *
-   * \param product The package to consume
+   * \param kin_info The package to consume
    *
    * \returns True, if the package was consumed correctly
    */
-  virtual bool consume(std::shared_ptr<primary_interface::PrimaryPackage> product);
+  virtual void handle(primary_interface::KinematicsInfo& kin_info) override;
 
   /*!
    * \brief Used to make sure the calibration check is not performed several times.
@@ -107,10 +81,33 @@ public:
     return matches_;
   }
 
+  /*!
+   * \brief Get latest KinematicsInfo
+   *
+   * \return latest KinematicsInfo
+   */
+  virtual std::shared_ptr<primary_interface::KinematicsInfo> getData()
+  {
+    if (data_ == nullptr)
+      throw UrException("A KinematicsInfo package has not been received yet");
+    return data_;
+  }
+
+  /*!
+   * \brief Returns whether the calibration check was successful.
+   *
+   * \param expected_hash The hash expected to match the hash on the robot
+   *
+   * \returns True if the robot's expected_hash matches the one given to the checker. False
+   * if it doesn't match or the check was not yet performed.
+   */
+  bool checkCalibration(const std::string& expected_hash);
+
 private:
   std::string expected_hash_;
   bool checked_;
   bool matches_;
+  std::shared_ptr<primary_interface::KinematicsInfo> data_;
 };
 }  // namespace urcl
 
