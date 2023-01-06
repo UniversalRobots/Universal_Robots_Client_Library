@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
     std::stringstream cmd;
     cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
     cmd << "sec setup():" << std::endl
-        << " textmsg(\"Command through primary interface complete " << i++ << "\")" << std::endl
+        << " textmsg(\"Command through primary interface complete " << i << "\")" << std::endl
         << "end";
     std::string script_code = cmd.str();
     auto program_with_newline = script_code + '\n';
@@ -73,7 +73,6 @@ int main(int argc, char* argv[])
       URCL_LOG_INFO("Cartesian Information:\n%s", primary_client.getCartesianInfo()->toString().c_str());
       URCL_LOG_INFO("Calibration Hash:\n%s", primary_client.getCalibrationChecker()->getData()->toHash().c_str());
       URCL_LOG_INFO("Build Date:\n%s", primary_client.getVersionMessage()->build_date_.c_str());
-      std::cout << primary_client.getJointData()->toString() << std::endl;
       std::stringstream os;
       os << primary_client.getJointData()->q_actual_;
       URCL_LOG_INFO("Joint Angles:\n%s", os.str().c_str());

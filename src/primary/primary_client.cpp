@@ -49,10 +49,8 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, const std::string& cal
 
   pipeline_.reset(new comm::Pipeline<PrimaryPackage>(*producer_, consumer_.get(), "primary pipeline", notifier_));
   pipeline_->run();
-  in_remote_control_ = false;
+  in_remote_control_ = true;
   running_ = true;
-
-  rc_thread_ = std::thread(&PrimaryClient::checkRemoteLocalControl, this);
 
   std::chrono::duration<double> time_done(0);
   std::chrono::duration<double> timeout = std::chrono::seconds(1);
@@ -75,6 +73,11 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, const std::string& cal
                    "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
                    "for details.");
   }
+
+  // Check robot version
+  e_series_ = getVersionMessage()->major_version_ > 3;
+  if (e_series_)
+    rc_thread_ = std::thread(&PrimaryClient::checkRemoteLocalControl, this);
 }
 
 PrimaryClient::~PrimaryClient()

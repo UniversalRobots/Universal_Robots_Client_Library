@@ -189,6 +189,7 @@ private:
   comm::INotifier notifier_;
   bool connected_;
   bool simulated_;
+  bool e_series_;
   std::atomic<bool> running_, in_remote_control_;
   std::unique_ptr<PrimaryConsumer> consumer_;
   std::unique_ptr<comm::URProducer<PrimaryPackage>> producer_;
