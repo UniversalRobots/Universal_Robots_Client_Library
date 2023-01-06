@@ -42,7 +42,7 @@ class URProducer : public IProducer<T>
 private:
   URStream<T>& stream_;
   Parser<T>& parser_;
-  std::chrono::seconds timeout_;
+  std::chrono::milliseconds timeout_;
 
   bool running_;
 
@@ -56,6 +56,8 @@ public:
   URProducer(URStream<T>& stream, Parser<T>& parser) : stream_(stream), parser_(parser), timeout_(1), running_(false)
   {
   }
+
+  virtual ~URProducer() = default;
 
   /*!
    * \brief Triggers the stream to connect to the robot.
@@ -83,6 +85,7 @@ public:
    */
   void stopProducer() override
   {
+    URCL_LOG_DEBUG("Stopping producer");
     running_ = false;
   }
 
@@ -105,24 +108,24 @@ public:
     // 4KB should be enough to hold any packet received from UR
     uint8_t buf[4096];
     size_t read = 0;
-    // expoential backoff reconnects
+    // exponential backoff reconnects
     while (true)
     {
+      if (!running_)
+        return true;
+
       if (stream_.read(buf, sizeof(buf), read))
       {
         // reset sleep amount
-        timeout_ = std::chrono::seconds(1);
+        timeout_ = std::chrono::milliseconds(100);
         BinParser bp(buf, read);
         return parser_.parse(bp, products);
       }
 
-      if (!running_)
-        return true;
-
       if (stream_.closed())
         return false;
 
-      URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
+      URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld milliseconds...", timeout_.count());
       std::this_thread::sleep_for(timeout_);
 
       if (stream_.connect())
