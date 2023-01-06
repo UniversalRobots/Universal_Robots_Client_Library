@@ -234,6 +234,11 @@ TEST_F(PrimaryClientTest, check_remote_control)
   client_.reset(new primary_interface::PrimaryClient(ROBOT_IP, ""));
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // Let connections set up
 
+  if (!client_->e_series_)
+  {
+    client_->startCheckRemoteControlThread();
+  }
+
   // Disconnect from URSim servers and connect to fake servers
   client_->pipeline_->stop();
   client_->stream_->disconnect();

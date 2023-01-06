@@ -87,6 +87,13 @@ public:
   bool isInRemoteControl();
 
   /*!
+   * \brief Starts the checkRemoteLocalControl thread.
+   *
+   * Starts the thread checking for remote or local control
+   */
+  void startCheckRemoteControlThread();
+
+  /*!
    * \brief Returns latest AdditionalInfo message
    *
    * Returns latest AdditionalInfo message

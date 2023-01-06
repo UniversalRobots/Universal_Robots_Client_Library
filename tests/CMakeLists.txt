@@ -44,16 +44,18 @@ if (INTEGRATION_TESTS)
   target_link_libraries(dashboard_client_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
   gtest_add_tests(TARGET      dashboard_client_tests
   )
+
+  add_executable(primary_client_tests test_primary_client.cpp)
+  target_compile_options(primary_client_tests PRIVATE ${CXX17_FLAG})
+  target_include_directories(primary_client_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+  target_link_libraries(primary_client_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+  gtest_add_tests(TARGET      primary_client_tests
+  )
 else()
   message(STATUS "Skipping integration tests.")
 endif()
 
-add_executable(primary_client_tests test_primary_client.cpp)
-target_compile_options(primary_client_tests PRIVATE ${CXX17_FLAG})
-target_include_directories(primary_client_tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(primary_client_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
-gtest_add_tests(TARGET      primary_client_tests
-)
+
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_compile_options(primary_parser_tests PRIVATE ${CXX17_FLAG})

@@ -74,10 +74,20 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, const std::string& cal
                    "for details.");
   }
 
-  // Check robot version
-  e_series_ = getVersionMessage()->major_version_ > 3;
-  if (e_series_)
-    rc_thread_ = std::thread(&PrimaryClient::checkRemoteLocalControl, this);
+  try
+  {
+    // Check if robot is e-series or not
+    e_series_ = getVersionMessage()->major_version_ > 3;
+    if (e_series_)
+      startCheckRemoteControlThread();
+  }
+  catch (const UrException& e)
+  {
+    URCL_LOG_WARN(e.what());
+    URCL_LOG_WARN("This message is only relevant if the robot is an e-series:\nThe thread checking if the robot is in "
+                  "remote control or not has not been started. It needs to be started manually by calling the "
+                  "startCheckRemoteControlThread() function");
+  }
 }
 
 PrimaryClient::~PrimaryClient()
@@ -169,6 +179,11 @@ void PrimaryClient::stop()
   }
   pipeline_->stop();
   stream_->disconnect();
+}
+
+void PrimaryClient::startCheckRemoteControlThread()
+{
+  rc_thread_ = std::thread(&PrimaryClient::checkRemoteLocalControl, this);
 }
 
 bool PrimaryClient::isInRemoteControl()
