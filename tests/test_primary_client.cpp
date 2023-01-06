@@ -264,6 +264,7 @@ TEST_F(PrimaryClientTest, check_remote_control)
 TEST_F(PrimaryClientTest, send_script)
 {
   client_.reset(new primary_interface::PrimaryClient(ROBOT_IP, ""));
+  client_->setSimulated(true);
   std::stringstream cmd;
   cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
   cmd << "sec setup():" << std::endl
@@ -272,13 +273,14 @@ TEST_F(PrimaryClientTest, send_script)
 
   std::string script_code = cmd.str();
   auto program_with_newline = script_code + '\n';
-  // Should always return false in pipeline as robot will never be in remote control
-  EXPECT_FALSE(client_->sendScript(program_with_newline));
+  // Should always return true in pipeline as robot is simulated
+  EXPECT_TRUE(client_->sendScript(program_with_newline));
 }
 
 TEST_F(PrimaryClientTest, get_data)
 {
   client_.reset(new primary_interface::PrimaryClient(ROBOT_IP, ""));
+  client_->setSimulated(true);
   EXPECT_EQ(client_->getVersionMessage()->build_number_, 0);
   vector6d_t zero_array = { 0 };
   EXPECT_EQ(client_->getCartesianInfo()->tcp_offset_coordinates_, zero_array);
