@@ -43,7 +43,7 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * 9];
+  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
   if (positions != nullptr)
@@ -59,6 +59,10 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   {
     b_pos += 6 * sizeof(int32_t);
   }
+
+  // Fill in velocity and acceleration, not used for this point type
+  b_pos += 6 * sizeof(int32_t);
+  b_pos += 6 * sizeof(int32_t);
 
   int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
   val = htobe32(val);
@@ -85,8 +89,8 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool TrajectoryPointInterface::writeSplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
-                                                const vector6d_t* accelerations, const float goal_time)
+bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
+                                                          const vector6d_t* accelerations, const float goal_time)
 {
   if (client_fd_ == -1)
   {
@@ -95,9 +99,8 @@ bool TrajectoryPointInterface::writeSplinePoint(const vector6d_t* positions, con
   // spline type 0 for cubic and 1 for quintic
   int32_t spline_type = 1;
 
-  // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type
-  const size_t BUFFER_SIZE_INT = 3 * 6 + 3;
-  uint8_t buffer[sizeof(int32_t) * BUFFER_SIZE_INT] = { 0 };
+  // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
+  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
   uint8_t* b_pos = buffer;
   if (positions != nullptr)
   {
@@ -151,22 +154,12 @@ bool TrajectoryPointInterface::writeSplinePoint(const vector6d_t* positions, con
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
+  val = JOINT_POINT_SPLINE;
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
   size_t written;
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
-}
-
-bool TrajectoryPointInterface::writeSplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
-                                                const float goal_time)
-{
-  return writeSplinePoint(positions, velocities, nullptr, goal_time);
-}
-
-bool TrajectoryPointInterface::writeSplinePoint(const vector6d_t* positions, const float goal_time)
-{
-  return writeSplinePoint(positions, nullptr, nullptr, goal_time);
 }
 
 void TrajectoryPointInterface::connectionCallback(const int filedescriptor)

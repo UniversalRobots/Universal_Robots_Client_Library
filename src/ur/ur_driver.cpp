@@ -227,26 +227,27 @@ bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cart
   return trajectory_interface_->writeTrajectoryPoint(&positions, goal_time, blend_radius, cartesian);
 }
 
-bool UrDriver::writeSplinePoint(const vector6d_t& positions, const vector6d_t& velocities,
-                                const vector6d_t& accelerations, const float goal_time)
+bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const vector6d_t& velocities,
+                                          const vector6d_t& accelerations, const float goal_time)
 {
-  return trajectory_interface_->writeSplinePoint(&positions, &velocities, &accelerations, goal_time);
+  return trajectory_interface_->writeTrajectorySplinePoint(&positions, &velocities, &accelerations, goal_time);
 }
 
-bool UrDriver::writeSplinePoint(const vector6d_t& positions, const vector6d_t& velocities, const float goal_time)
+bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const vector6d_t& velocities,
+                                          const float goal_time)
 {
-  return trajectory_interface_->writeSplinePoint(&positions, &velocities, goal_time);
+  return trajectory_interface_->writeTrajectorySplinePoint(&positions, &velocities, nullptr, goal_time);
 }
 
-bool UrDriver::writeSplinePoint(const vector6d_t& positions, const float goal_time)
+bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const float goal_time)
 {
-  return trajectory_interface_->writeSplinePoint(&positions, goal_time);
+  return trajectory_interface_->writeTrajectorySplinePoint(&positions, nullptr, nullptr, goal_time);
 }
 
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                             const int point_number, const bool spline_interpolation)
+                                             const int point_number)
 {
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, spline_interpolation);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
 }
 
 bool UrDriver::zeroFTSensor()
