@@ -88,13 +88,13 @@ protected:
         b_pos += sizeof(int32_t);
       }
 
-      // Read velocity 
+      // Read velocity
       for (unsigned int i = 0; i < pos.size(); ++i)
       {
         std::memcpy(&val, b_pos, sizeof(int32_t));
         b_pos += sizeof(int32_t);
       }
-      
+
       // Read acceleration
       for (unsigned int i = 0; i < pos.size(); ++i)
       {
