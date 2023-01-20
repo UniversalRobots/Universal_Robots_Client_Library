@@ -62,10 +62,10 @@ protected:
     void readMessage(vector6int32_t& pos, int32_t& goal_time, int32_t& blend_radius, int32_t& cartesian)
     {
       // Read message
-      uint8_t buf[sizeof(int32_t) * 9];
+      uint8_t buf[sizeof(int32_t) * 21];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 9;
+      size_t remainder = sizeof(int32_t) * 21;
       while (remainder > 0)
       {
         TCPSocket::setOptions(getSocketFD());
@@ -85,6 +85,20 @@ protected:
       {
         std::memcpy(&val, b_pos, sizeof(int32_t));
         pos[i] = be32toh(val);
+        b_pos += sizeof(int32_t);
+      }
+
+      // Read velocity 
+      for (unsigned int i = 0; i < pos.size(); ++i)
+      {
+        std::memcpy(&val, b_pos, sizeof(int32_t));
+        b_pos += sizeof(int32_t);
+      }
+      
+      // Read acceleration
+      for (unsigned int i = 0; i < pos.size(); ++i)
+      {
+        std::memcpy(&val, b_pos, sizeof(int32_t));
         b_pos += sizeof(int32_t);
       }
 
