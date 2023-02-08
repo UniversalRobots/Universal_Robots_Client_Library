@@ -58,7 +58,7 @@ public:
    *
    * \returns True on success, false if connection could not be established
    */
-  bool connect()
+  bool connect(size_t max_num_tries = 0)
   {
     return TCPSocket::setup(host_, port_);
   }
