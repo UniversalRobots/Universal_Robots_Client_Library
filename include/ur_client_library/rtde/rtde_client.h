@@ -125,7 +125,7 @@ public:
    *
    * \returns Success of the handshake
    */
-  bool init();
+  bool init(size_t max_num_tries = 0, std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
@@ -228,7 +228,7 @@ private:
   // the robot is booted.
   std::vector<std::string> ensureTimestampIsPresent(const std::vector<std::string>& output_recipe) const;
 
-  void setupCommunication();
+  void setupCommunication(size_t max_num_tries = 0, std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
   bool negotiateProtocolVersion(const uint16_t protocol_version);
   void queryURControlVersion();
   void setupOutputs(const uint16_t protocol_version);

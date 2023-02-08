@@ -173,7 +173,7 @@ public:
   /*!
    * \brief Set-up functionality of the producers.
    */
-  virtual void setupProducer()
+  virtual void setupProducer(size_t max_num_tries = 0, std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
   }
   /*!
@@ -287,9 +287,9 @@ public:
     stop();
   }
 
-  void init()
+  void init(size_t max_num_tries = 0, std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
-    producer_.setupProducer();
+    producer_.setupProducer(max_num_tries, reconnection_time);
     if (consumer_ != nullptr)
       consumer_->setupConsumer();
   }
