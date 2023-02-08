@@ -60,10 +60,10 @@ bool DashboardClient::connect(size_t max_num_tries, std::chrono::milliseconds re
 
   while (not ret_val)
   {
+    TCPSocket::setReconnectionTime(reconnection_time);
     // The first read after connection can take more time.
     tv.tv_sec = 10;
     tv.tv_usec = 0;
-    TCPSocket::setReconnectionTime(reconnection_time);
     TCPSocket::setReceiveTimeout(tv);
     try
     {
@@ -71,6 +71,10 @@ bool DashboardClient::connect(size_t max_num_tries, std::chrono::milliseconds re
       {
         URCL_LOG_INFO("%s", read().c_str());
         ret_val = true;
+      }
+      else
+      {
+        return false;
       }
     }
     catch (const TimeoutException&)
