@@ -32,7 +32,7 @@ jobs:
       - name: install boost
         run: sudo apt-get install -y libboost-dev
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
             CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
             CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
