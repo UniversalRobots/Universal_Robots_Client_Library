@@ -69,7 +69,7 @@ public:
   virtual std::string toString() const;
 
 protected:
-  std::unique_ptr<uint8_t> buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
   size_t buffer_length_;
   PackageType type_;
 };

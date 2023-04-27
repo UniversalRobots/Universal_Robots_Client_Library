@@ -239,7 +239,7 @@ public:
    * \param buffer The buffer to copy the remaining bytes to.
    * \param buffer_length Reference to write the number of remaining bytes to.
    */
-  void rawData(std::unique_ptr<uint8_t>& buffer, size_t& buffer_length)
+  void rawData(std::unique_ptr<uint8_t[]>& buffer, size_t& buffer_length)
   {
     buffer_length = buf_end_ - buf_pos_;
     buffer.reset(new uint8_t[buffer_length]);
