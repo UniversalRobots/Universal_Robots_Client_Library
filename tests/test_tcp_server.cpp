@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <condition_variable>
 #include <chrono>
+#include <memory>
 
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/tcp_socket.h>
@@ -225,13 +226,12 @@ TEST_F(TCPServerTest, unlimited_clients_allowed)
   server.start();
 
   // Test that a large number of clients can connect to the server
-  std::vector<Client*> clients;
-  Client* client;
+  std::vector<std::unique_ptr<Client>> clients;
+  std::unique_ptr<Client> client;
   for (unsigned int i = 0; i < 100; ++i)
   {
-    client = new Client(port_);
+    clients.push_back(std::make_unique<Client>(port_));
     ASSERT_TRUE(waitForConnectionCallback());
-    clients.push_back(client);
   }
 }
 
