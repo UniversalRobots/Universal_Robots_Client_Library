@@ -1,8 +1,7 @@
 // this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
-
+//
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
-// Copyright 2019 FZI Forschungszentrum Informatik
-// Created on behalf of Universal Robots A/S
+// Copyright 2020 FZI Forschungszentrum Informatik
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,37 +20,48 @@
 /*!\file
  *
  * \author  Felix Exner exner@fzi.de
- * \date    2019-06-14
+ * \date    2020-04-30
  *
  */
 //----------------------------------------------------------------------
 
-#include <ur_client_library/ur/calibration_checker.h>
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED
+
+#include <memory>
 
 namespace urcl
 {
-CalibrationChecker::CalibrationChecker(const std::string& expected_hash)
-  : expected_hash_(expected_hash), checked_(false), matches_(false)
+namespace primary_interface
 {
-}
-
-void CalibrationChecker::handle(primary_interface::KinematicsInfo& kin_info)
+/*!
+ * \brief Interface for a class handling a primary interface package. Classes that implement this
+ * interface with a specific package type will be able to handle packages of this type.
+ */
+template <typename PackageT>
+class IPrimaryPackageHandler
 {
-  // URCL_LOG_INFO("%s", kin_info.toString().c_str());
-  //
-  matches_ = kin_info.toHash() == expected_hash_;
+public:
+  IPrimaryPackageHandler() = default;
+  virtual ~IPrimaryPackageHandler() = default;
 
-  checked_ = true;
+  /*!
+   * \brief Actual worker function
+   *
+   * \param pkg package that should be handled
+   */
+  virtual void handle(PackageT& pkg) = 0;
 
-  data_.reset(new primary_interface::KinematicsInfo(kin_info));
-}
+  /*!
+   * \brief Get latest PackageT
+   *
+   * \return latest PackageT
+   */
+  virtual std::shared_ptr<PackageT> getData() = 0;
 
-bool CalibrationChecker::checkCalibration(const std::string& expected_hash)
-{
-  matches_ = expected_hash == expected_hash_;
-
-  checked_ = true;
-
-  return matches_;
-}
+private:
+  /* data */
+};
+}  // namespace primary_interface
 }  // namespace urcl
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_PACKAGE_HANDLER_H_INCLUDED

@@ -48,8 +48,26 @@ public:
    * \param timestamp Timestamp of the package
    * \param source The package's source
    */
-  VersionMessage(uint64_t timestamp, uint8_t source) : RobotMessage(timestamp, source)
+  VersionMessage(uint64_t timestamp, int8_t source)
+    : RobotMessage(timestamp, source, RobotMessagePackageType::ROBOT_MESSAGE_VERSION)
   {
+  }
+
+  /*!
+   * \brief Creates a copy of a VersionMessage object.
+   *
+   * \param pkg The VersionMessage object to be copied
+   */
+  VersionMessage(const VersionMessage& pkg)
+    : RobotMessage(pkg.timestamp_, pkg.source_, RobotMessagePackageType::ROBOT_MESSAGE_VERSION)
+  {
+    project_name_length_ = pkg.project_name_length_;
+    project_name_ = pkg.project_name_;
+    major_version_ = pkg.major_version_;
+    minor_version_ = pkg.minor_version_;
+    svn_version_ = pkg.svn_version_;
+    build_number_ = pkg.build_number_;
+    build_date_ = pkg.build_date_;
   }
   virtual ~VersionMessage() = default;
 

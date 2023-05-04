@@ -29,39 +29,28 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/log.h"
-#include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace urcl
 {
 namespace primary_interface
 {
-bool VersionMessage::parseWith(comm::BinParser& bp)
+bool TextMessage::parseWith(comm::BinParser& bp)
 {
-  bp.parse(project_name_length_);
-  bp.parse(project_name_, project_name_length_);
-  bp.parse(major_version_);
-  bp.parse(minor_version_);
-  bp.parse(svn_version_);
-  bp.parse(build_number_);
-  bp.parseRemainder(build_date_);
+  bp.parseRemainder(text_);
 
   return true;  // not really possible to check dynamic size packets
 }
 
-bool VersionMessage::consumeWith(AbstractPrimaryConsumer& consumer)
+bool TextMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 {
   return consumer.consume(*this);
 }
 
-std::string VersionMessage::toString() const
+std::string TextMessage::toString() const
 {
-  std::stringstream ss;
-  ss << "project name: " << project_name_ << std::endl;
-  ss << "version: " << unsigned(major_version_) << "." << unsigned(minor_version_) << "." << svn_version_ << std::endl;
-  ss << "build date: " << build_date_;
-
-  return ss.str();
+  return text_;
 }
 }  // namespace primary_interface
 }  // namespace urcl

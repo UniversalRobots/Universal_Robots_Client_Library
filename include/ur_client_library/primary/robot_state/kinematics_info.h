@@ -52,6 +52,21 @@ public:
   KinematicsInfo(const RobotStateType type) : RobotState(type)
   {
   }
+
+  /*!
+   * \brief Creates a copy of a KinematicsInfo object.
+   *
+   * \param pkg The KinematicsInfo object to be copied
+   */
+  KinematicsInfo(const KinematicsInfo& pkg) : RobotState(RobotStateType::JOINT_DATA)
+  {
+    checksum_ = pkg.checksum_;
+    dh_theta_ = pkg.dh_theta_;
+    dh_a_ = pkg.dh_a_;
+    dh_d_ = pkg.dh_d_;
+    dh_alpha_ = pkg.dh_alpha_;
+    calibration_status_ = pkg.calibration_status_;
+  }
   virtual ~KinematicsInfo() = default;
 
   /*!

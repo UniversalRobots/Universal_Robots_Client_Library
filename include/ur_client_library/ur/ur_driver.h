@@ -38,6 +38,7 @@
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 namespace urcl
@@ -112,6 +113,7 @@ public:
    * \param tool_comm_setup Configuration for using the tool communication.
    * \param calibration_checksum Expected checksum of calibration. Will be matched against the
    * calibration reported by the robot.
+   * \param simulated Set the robot as simulated or real.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller.
    * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
@@ -129,9 +131,10 @@ public:
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum = "",
-           const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
-           double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
-           const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004);
+           const bool& simulated = false, const uint32_t reverse_port = 50001,
+           const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
+           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
+           const uint32_t script_command_port = 50004);
   /*!
    * \brief Constructs a new UrDriver object.
    *
@@ -145,6 +148,7 @@ public:
    * \param headless_mode Parameter to control if the driver should be started in headless mode.
    * \param calibration_checksum Expected checksum of calibration. Will be matched against the
    * calibration reported by the robot.
+   * \param simulated Set the robot as simulated or real.
    * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
    * and the robot controller
    * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port.
@@ -161,13 +165,13 @@ public:
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
-           const std::string& calibration_checksum = "", const uint32_t reverse_port = 50001,
-           const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
-           bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
-           const uint32_t script_command_port = 50004)
+           const std::string& calibration_checksum = "", const bool& simulated = false,
+           const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
+           double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
+           const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004)
     : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
-               std::unique_ptr<ToolCommSetup>{}, calibration_checksum, reverse_port, script_sender_port, servoj_gain,
-               servoj_lookahead_time, non_blocking_read, reverse_ip)
+               std::unique_ptr<ToolCommSetup>{}, calibration_checksum, simulated, reverse_port, script_sender_port,
+               servoj_gain, servoj_lookahead_time, non_blocking_read, reverse_ip)
   {
   }
 
@@ -351,6 +355,16 @@ public:
     trajectory_interface_->setTrajectoryEndCallback(trajectory_done_cb);
   }
 
+  /*!
+   * \brief Getter for the primary client
+   *
+   * \returns The used primary client
+   */
+  std::shared_ptr<primary_interface::PrimaryClient> getPrimaryClient()
+  {
+    return primary_client_;
+  }
+
 private:
   std::string readScriptFile(const std::string& filename);
 
@@ -361,8 +375,7 @@ private:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+  std::shared_ptr<primary_interface::PrimaryClient> primary_client_;
 
   double servoj_time_;
   uint32_t servoj_gain_;

@@ -29,38 +29,35 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/log.h"
-#include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace urcl
 {
 namespace primary_interface
 {
-bool VersionMessage::parseWith(comm::BinParser& bp)
+bool KeyMessage::parseWith(comm::BinParser& bp)
 {
-  bp.parse(project_name_length_);
-  bp.parse(project_name_, project_name_length_);
-  bp.parse(major_version_);
-  bp.parse(minor_version_);
-  bp.parse(svn_version_);
-  bp.parse(build_number_);
-  bp.parseRemainder(build_date_);
+  bp.parse(message_code_);
+  bp.parse(message_argument_);
+  bp.parse(title_size_);
+  bp.parse(title_, title_size_);
+  bp.parseRemainder(text_);
 
   return true;  // not really possible to check dynamic size packets
 }
 
-bool VersionMessage::consumeWith(AbstractPrimaryConsumer& consumer)
+bool KeyMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 {
   return consumer.consume(*this);
 }
 
-std::string VersionMessage::toString() const
+std::string KeyMessage::toString() const
 {
   std::stringstream ss;
-  ss << "project name: " << project_name_ << std::endl;
-  ss << "version: " << unsigned(major_version_) << "." << unsigned(minor_version_) << "." << svn_version_ << std::endl;
-  ss << "build date: " << build_date_;
-
+  ss << "Message code: " << message_code_ << std::endl;
+  ss << "Title: " << title_ << std::endl;
+  ss << "Text: " << text_;
   return ss.str();
 }
 }  // namespace primary_interface

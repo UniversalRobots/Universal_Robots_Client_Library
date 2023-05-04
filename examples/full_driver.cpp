@@ -44,6 +44,8 @@ const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
+const bool SIMULATED_ROBOT = true;
+bool g_program_running = false;
 
 std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
@@ -54,6 +56,7 @@ void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  g_program_running = program_running;
 }
 
 int main(int argc, char* argv[])
@@ -109,11 +112,17 @@ int main(int argc, char* argv[])
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM, SIMULATED_ROBOT));
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
-  // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
+  // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
   // loop.
+
+  // Wait for the program to run on the robot
+  while (!g_program_running)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
   g_my_driver->startRTDECommunication();
 
@@ -157,7 +166,7 @@ int main(int argc, char* argv[])
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
         return 1;
       }
-      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString());
+      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
     }
     else
     {

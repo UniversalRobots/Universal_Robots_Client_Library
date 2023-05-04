@@ -303,6 +303,8 @@ public:
       return;
 
     URCL_LOG_DEBUG("Stopping pipeline! <%s>", name_.c_str());
+    URCL_LOG_DEBUG("Producer thread joinable?! <%i>", pThread_.joinable());
+    URCL_LOG_DEBUG("Consumer thread joinable?! <%i>", cThread_.joinable());
 
     running_ = false;
 
@@ -315,6 +317,7 @@ public:
     {
       cThread_.join();
     }
+    URCL_LOG_DEBUG("Joined pipeline threads");
     notifier_.stopped(name_);
   }
 
@@ -352,7 +355,7 @@ private:
 
   void runProducer()
   {
-    URCL_LOG_DEBUG("Starting up producer");
+    URCL_LOG_DEBUG("Starting up producer <%s>", name_.c_str());
     std::ifstream realtime_file("/sys/kernel/realtime", std::ios::in);
     bool has_realtime;
     realtime_file >> has_realtime;

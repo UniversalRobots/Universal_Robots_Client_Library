@@ -1,10 +1,7 @@
 // this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
 
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
-// Copyright 2019 FZI Forschungszentrum Informatik (ur_robot_driver)
-// Copyright 2017, 2018 Simon Rasmussen (refactor)
-//
-// Copyright 2015, 2016 Thomas Timm Andersen (original version)
+// Copyright 2020 FZI Forschungszentrum Informatik (ur_robot_driver)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,45 +20,54 @@
 /*!\file
  *
  * \author  Felix Exner exner@fzi.de
- * \date    2019-04-08
+ * \date    2022-02-21
  *
  */
 //----------------------------------------------------------------------
+#include <sstream>
 
-#include "ur_client_library/log.h"
-#include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/program_state_message.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 
 namespace urcl
 {
 namespace primary_interface
 {
-bool VersionMessage::parseWith(comm::BinParser& bp)
+bool ProgramStateMessage::parseWith(comm::BinParser& bp)
 {
-  bp.parse(project_name_length_);
-  bp.parse(project_name_, project_name_length_);
-  bp.parse(major_version_);
-  bp.parse(minor_version_);
-  bp.parse(svn_version_);
-  bp.parse(build_number_);
-  bp.parseRemainder(build_date_);
-
-  return true;  // not really possible to check dynamic size packets
+  return true;
 }
 
-bool VersionMessage::consumeWith(AbstractPrimaryConsumer& consumer)
+bool ProgramStateMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 {
   return consumer.consume(*this);
 }
 
-std::string VersionMessage::toString() const
+std::string ProgramStateMessage::toString() const
 {
   std::stringstream ss;
-  ss << "project name: " << project_name_ << std::endl;
-  ss << "version: " << unsigned(major_version_) << "." << unsigned(minor_version_) << "." << svn_version_ << std::endl;
-  ss << "build date: " << build_date_;
-
+  ss << "timestamp: " << timestamp_ << std::endl;
+  ss << "Type: " << static_cast<int>(state_type_) << std::endl;
+  switch (state_type_)
+  {
+    case ProgramStateMessageType::GLOBAL_VARIABLES_SETUP:
+    {
+      ss << GlobalVariablesSetupMessage(timestamp_).toString();
+      break;
+    }
+    case ProgramStateMessageType::GLOBAL_VARIABLES_UPDATE:
+    {
+      ss << GlobalVariablesUpdateMessage(timestamp_).toString();
+      break;
+    }
+    default:
+    {
+      ss << "Unknown RobotStateType: " << static_cast<int>(state_type_) << std::endl << ss.str();
+      URCL_LOG_ERROR("%s", ss.str().c_str());
+    }
+  }
   return ss.str();
 }
+
 }  // namespace primary_interface
 }  // namespace urcl
