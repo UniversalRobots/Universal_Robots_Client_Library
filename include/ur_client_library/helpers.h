@@ -17,7 +17,6 @@
 // limitations under the License.
 // -- END LICENSE BLOCK ------------------------------------------------
 
-
 //----------------------------------------------------------------------
 /*!\file
  *
@@ -32,7 +31,8 @@
 
 #include <thread>
 
-namespace urcl{
-  bool setFiFoScheduling(pthread_t& thread, const int priority);
+namespace urcl
+{
+bool setFiFoScheduling(pthread_t& thread, const int priority);
 }
-#endif // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
+#endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
