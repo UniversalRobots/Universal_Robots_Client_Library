@@ -236,14 +236,14 @@ thread trajectoryThread():
           # Cubic spline
           if raw_point[INDEX_SPLINE_TYPE] == CUBIC_SPLINES:
             qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-            cubicSplineRun(get_actual_joint_positions(), q, get_actual_joint_speeds(), qd, tmptime)
+            cubicSplineRun(get_target_joint_positions(), q, get_target_joint_speeds(), qd, tmptime)
              # reset old acceleration
             old_qdd = [0, 0, 0, 0, 0, 0]
           # Quintic spline
           elif raw_point[INDEX_SPLINE_TYPE] == QUINTIC_SPLINES:
             qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
             qdd = [ raw_point[13] / MULT_jointstate, raw_point[14] / MULT_jointstate, raw_point[15] / MULT_jointstate, raw_point[16] / MULT_jointstate, raw_point[17] / MULT_jointstate, raw_point[18] / MULT_jointstate]
-            quinticSplineRun(get_actual_joint_positions(),q, get_actual_joint_speeds(), qd, old_qdd, qdd, tmptime)
+            quinticSplineRun(get_target_joint_positions(),q, get_target_joint_speeds(), qd, old_qdd, qdd, tmptime)
             old_qdd = qdd
           end        
         end
@@ -254,7 +254,7 @@ thread trajectoryThread():
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-          cubicSplineRun(get_actual_joint_positions(), q, get_actual_joint_speeds(), [0,0,0,0,0,0], tmptime)
+          cubicSplineRun(get_target_joint_positions(), q, get_target_joint_speeds(), [0,0,0,0,0,0], tmptime)
         end
       end
     end
