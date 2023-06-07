@@ -50,6 +50,25 @@ enum class TrajectoryResult : int32_t
 };
 
 /*!
+ * Spline types
+ */
+enum class TrajectorySplineType : int32_t
+{
+  SPLINE_CUBIC = 0,
+  SPLINE_QUINTIC = 1
+};
+
+/*!
+ * Motion Types
+ */
+enum class TrajectoryMotionType : int32_t
+{
+  JOINT_POINT = 0,
+  CARTESIAN_POINT = 1,
+  JOINT_POINT_SPLINE = 2
+};
+
+/*!
  * \brief The TrajectoryPointInterface class handles trajectory forwarding to the robot. Full
  * trajectories are forwarded to the robot controller and are executed there.
  */
@@ -57,9 +76,6 @@ class TrajectoryPointInterface : public ReverseInterface
 {
 public:
   static const int32_t MULT_TIME = 1000;
-  static const int32_t JOINT_POINT = 0;
-  static const int32_t CARTESIAN_POINT = 1;
-  static const int32_t JOINT_POINT_SPLINE = 2;
 
   TrajectoryPointInterface() = delete;
   /*!

@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/trajectory_point_interface.h>
+#include <ur_client_library/exceptions.h>
 
 namespace urcl
 {
@@ -74,11 +75,11 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 
   if (cartesian)
   {
-    val = CARTESIAN_POINT;
+    val = static_cast<int32_t>(control::TrajectoryMotionType::CARTESIAN_POINT);
   }
   else
   {
-    val = JOINT_POINT;
+    val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT);
   }
 
   val = htobe32(val);
@@ -96,8 +97,8 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   {
     return false;
   }
-  // spline type 0 for cubic and 1 for quintic
-  int32_t spline_type = 1;
+
+  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
 
   // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
   uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
@@ -113,7 +114,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
   else
   {
-    b_pos += 6 * sizeof(int32_t);
+    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for positions\n");
   }
 
   if (velocities != nullptr)
@@ -127,11 +128,17 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
   else
   {
-    b_pos += 6 * sizeof(int32_t);
+    // Write zeros if not velocity are given
+    const int32_t val(0);
+    for (size_t i = 0; i < positions->size(); ++i)
+    {
+      b_pos += append(b_pos, val);
+    }
   }
 
   if (accelerations != nullptr)
   {
+    spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
     for (auto const& acc : *accelerations)
     {
       int32_t val = static_cast<int32_t>(acc * MULT_JOINTSTATE);
@@ -142,7 +149,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   else
   {
     // Use cubic splines, when acceleration is not part of the trajectory
-    spline_type = 0;
+    spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
     b_pos += 6 * sizeof(int32_t);
   }
 
@@ -150,11 +157,11 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  val = spline_type;
+  val = static_cast<int32_t>(spline_type);
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  val = JOINT_POINT_SPLINE;
+  val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE);
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
