@@ -245,7 +245,7 @@ public:
    * \param consumer The consumer to run in the pipeline
    * \param name The pipeline's name
    * \param notifier The notifier to use
-   * \param notifier Should the producer thread use FIFO scheduling?
+   * \param producer_fifo_scheduling Should the producer thread use FIFO scheduling?
    */
   Pipeline(IProducer<T>& producer, IConsumer<T>* consumer, std::string name, INotifier& notifier,
            const bool producer_fifo_scheduling = false)
@@ -265,7 +265,7 @@ public:
    * \param producer The producer to run in the pipeline
    * \param name The pipeline's name
    * \param notifier The notifier to use
-   * \param notifier Should the producer thread use FIFO scheduling?
+   * \param producer_fifo_scheduling Should the producer thread use FIFO scheduling?
    */
   Pipeline(IProducer<T>& producer, std::string name, INotifier& notifier, const bool producer_fifo_scheduling = false)
     : producer_(producer)
