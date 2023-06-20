@@ -80,6 +80,7 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
     URCL_LOG_INFO("SCHED_FIFO OK, priority %i", params.sched_priority);
     if (params.sched_priority != priority)
     {
+      URCL_LOG_ERROR("Thread priority is %i instead of the expected %i", params.sched_priority, priority);
       return false;
     }
   }

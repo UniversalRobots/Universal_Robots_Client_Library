@@ -376,7 +376,6 @@ private:
       const int max_thread_priority = sched_get_priority_max(SCHED_FIFO);
       setFiFoScheduling(this_thread, max_thread_priority);
     }
-    std::ifstream realtime_file("/sys/kernel/realtime", std::ios::in);
     std::vector<std::unique_ptr<T>> products;
     while (running_)
     {
