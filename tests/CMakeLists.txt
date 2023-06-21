@@ -194,6 +194,7 @@ target_compile_options(pipeline_tests PRIVATE ${CXX17_FLAG})
 target_include_directories(pipeline_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(pipeline_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET pipeline_tests
+)
 
 add_executable(script_command_interface_tests test_script_command_interface.cpp)
 target_compile_options(script_command_interface_tests PRIVATE ${CXX17_FLAG})
