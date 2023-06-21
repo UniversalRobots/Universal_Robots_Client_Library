@@ -134,10 +134,10 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     if (force_mode_damping < 0 || force_mode_damping > 1)
     {
       std::stringstream ss;
-      ss << "Force mode damping, should be between 0 and 1, but it is " << force_mode_damping
-         << " setting it to default 0.5";
-      URCL_LOG_ERROR(ss.str().c_str());
+      ss << "Force mode damping, should be between 0 and 1, but it is " << force_mode_damping;
       force_mode_damping = 0.025;
+      ss << " setting it to default " << force_mode_damping;
+      URCL_LOG_ERROR(ss.str().c_str());
     }
     prog.replace(prog.find(FORCE_MODE_SET_DAMPING_REPLACE), FORCE_MODE_SET_DAMPING_REPLACE.length(),
                  std::to_string(force_mode_damping));
@@ -158,10 +158,10 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
       if (force_mode_gain_scaling < 0 || force_mode_gain_scaling > 2)
       {
         std::stringstream ss;
-        ss << "Force mode gain scaling, should be between 0 and 2, but it is " << force_mode_gain_scaling
-           << " setting it to default 0.5";
-        URCL_LOG_ERROR(ss.str().c_str());
+        ss << "Force mode gain scaling, should be between 0 and 2, but it is " << force_mode_gain_scaling;
         force_mode_gain_scaling = 0.5;
+        ss << " setting it to default " << force_mode_gain_scaling;
+        URCL_LOG_ERROR(ss.str().c_str());
       }
       prog.replace(prog.find(FORCE_MODE_SET_GAIN_SCALING_REPLACE), FORCE_MODE_SET_GAIN_SCALING_REPLACE.length(),
                    std::to_string(force_mode_gain_scaling));
