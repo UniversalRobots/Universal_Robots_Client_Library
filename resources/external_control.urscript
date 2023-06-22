@@ -248,6 +248,7 @@ def tool_contact_detection():
       kill thread_trajectory
       clear_remaining_trajectory_points()
     elif control_mode == MODE_FREEDRIVE:
+      textmsg("Leaving freedrive mode")
       end_freedrive_mode()
     else:
       kill thread_move
@@ -333,6 +334,7 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         clear_remaining_trajectory_points()
       # Stop freedrive
       elif control_mode == MODE_FREEDRIVE:
+        textmsg("Leaving freedrive mode")
         end_freedrive_mode()
       end
 
@@ -383,8 +385,10 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
       set_servo_pose(pose)
     elif control_mode == MODE_FREEDRIVE:
       if params_mult[2] == FREEDRIVE_MODE_START:
+        textmsg("Entering freedrive mode")
         freedrive_mode()
       elif params_mult[2] == FREEDRIVE_MODE_STOP:
+        textmsg("Leaving freedrive mode")
         end_freedrive_mode()
       end
     end
