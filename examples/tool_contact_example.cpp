@@ -66,10 +66,10 @@ int main(int argc, char* argv[])
   }
 
   // Parse how many seconds to run
-  int second_to_run = -1;
+  auto second_to_run = std::chrono::seconds(0);
   if (argc > 2)
   {
-    second_to_run = std::stoi(argv[2]);
+    second_to_run = std::chrono::seconds(std::stoi(argv[2]));
   }
 
   // Making the robot ready for the program by:
@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
         break;
       }
 
-      if (time_done > timeout && second_to_run != -1)
+      if (time_done > timeout && second_to_run.count() != 0)
       {
         URCL_LOG_INFO("Timed out before reaching tool contact.");
         break;
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
     }
 
     stopwatch_now = std::chrono::steady_clock::now();
-    time_done += std::chrono::duration<double>((stopwatch_now - stopwatch_last).count());
+    time_done += stopwatch_now - stopwatch_last;
     stopwatch_last = stopwatch_now;
   }
 }
