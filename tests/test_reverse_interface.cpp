@@ -136,6 +136,16 @@ protected:
       return pos[1];
     }
 
+    int32_t getFreedriveControlMode()
+    {
+      // received_pos[0]=control::FreedriveControlMessage, when writing a trajectory control message
+      int32_t keep_alive_signal;
+      int32_t control_mode;
+      vector6int32_t pos;
+      readMessage(keep_alive_signal, pos, control_mode);
+      return pos[0];
+    }
+
   protected:
     virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
     {
@@ -358,6 +368,30 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
   received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
+}
+
+TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+
+  control::FreedriveControlMessage written_freedrive_message = control::FreedriveControlMessage::FREEDRIVE_STOP;
+  reverse_interface_->writeFreedriveControlMessage(written_freedrive_message);
+  int32_t received_freedrive_message = client_->getFreedriveControlMode();
+
+  EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
+
+  written_freedrive_message = control::FreedriveControlMessage::FREEDRIVE_NOOP;
+  reverse_interface_->writeFreedriveControlMessage(written_freedrive_message);
+  received_freedrive_message = client_->getFreedriveControlMode();
+
+  EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
+
+  written_freedrive_message = control::FreedriveControlMessage::FREEDRIVE_START;
+  reverse_interface_->writeFreedriveControlMessage(written_freedrive_message);
+  received_freedrive_message = client_->getFreedriveControlMode();
+
+  EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
 }
 
 int main(int argc, char* argv[])

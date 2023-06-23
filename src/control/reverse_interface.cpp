@@ -46,11 +46,12 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
 
 bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode)
 {
+  const int message_length = 7;
   if (client_fd_ == -1)
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * 8];
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
   // The first element is always the keepalive signal.
@@ -71,6 +72,13 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
     b_pos += 6 * sizeof(int32_t);
   }
 
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+
   val = htobe32(toUnderlying(control_mode));
   b_pos += append(b_pos, val);
 
@@ -82,11 +90,12 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
                                                      const int point_number)
 {
+  const int message_length = 3;
   if (client_fd_ == -1)
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * 8];
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
   // The first element is always the keepalive signal.
@@ -99,14 +108,46 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   val = htobe32(point_number);
   b_pos += append(b_pos, val);
 
-  // writing zeros to allow usage in control loop with other control messages
-  for (size_t i = 0; i < 4; i++)
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
   {
     val = htobe32(0);
     b_pos += append(b_pos, val);
   }
 
   val = htobe32(toUnderlying(comm::ControlMode::MODE_FORWARD));
+  b_pos += append(b_pos, val);
+
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action)
+{
+  const int message_length = 2;
+  if (client_fd_ == -1)
+  {
+    return false;
+  }
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  // The first element is always the keepalive signal.
+  int32_t val = htobe32(keepalive_count_);
+  b_pos += append(b_pos, val);
+
+  val = htobe32(toUnderlying(freedrive_action));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+
+  val = htobe32(toUnderlying(comm::ControlMode::MODE_FREEDRIVE));
   b_pos += append(b_pos, val);
 
   size_t written;
@@ -141,5 +182,6 @@ void ReverseInterface::messageCallback(const int filedescriptor, char* buffer, i
   URCL_LOG_WARN("Message on ReverseInterface received. The reverse interface currently does not support any message "
                 "handling. This message will be ignored.");
 }
+
 }  // namespace control
 }  // namespace urcl
