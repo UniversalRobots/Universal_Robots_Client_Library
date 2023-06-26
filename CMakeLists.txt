@@ -46,6 +46,7 @@ add_library(urcl SHARED
     src/rtde/rtde_writer.cpp
     src/default_log_handler.cpp
     src/log.cpp
+    src/helpers.cpp
 )
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
