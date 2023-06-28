@@ -40,4 +40,17 @@ spline_example.cpp)
 target_compile_options(spline_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(spline_example ur_client_library::urcl)
 
+add_executable(tool_contact_example
+tool_contact_example.cpp)
+target_compile_options(tool_contact_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(tool_contact_example ur_client_library::urcl)
 
+add_executable(freedrive_example
+freedrive_example.cpp)
+target_compile_options(freedrive_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(freedrive_example ur_client_library::urcl)
+
+add_executable(force_mode_example
+force_mode_example.cpp)
+target_compile_options(force_mode_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(force_mode_example ur_client_library::urcl)
