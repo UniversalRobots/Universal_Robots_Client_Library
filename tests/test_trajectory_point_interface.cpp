@@ -160,7 +160,7 @@ protected:
       return motion_type;
     }
 
-    struct  TrajData
+    struct TrajData
     {
       vector6int32_t pos, vel, acc;
       int32_t goal_time, blend_radius_or_spline_type, motion_type;
@@ -279,7 +279,8 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
   EXPECT_EQ(send_goal_time, ((double)received_data.goal_time / traj_point_interface_->MULT_TIME));
 
   // Spline type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_QUINTIC), received_data.blend_radius_or_spline_type);
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_QUINTIC),
+            received_data.blend_radius_or_spline_type);
 
   // Motion type
   EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
@@ -322,7 +323,8 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
   EXPECT_EQ(send_goal_time, ((double)received_data.goal_time) / traj_point_interface_->MULT_TIME);
 
   // Spline type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_CUBIC), received_data.blend_radius_or_spline_type);
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_CUBIC),
+            received_data.blend_radius_or_spline_type);
 
   // Motion type
   EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);

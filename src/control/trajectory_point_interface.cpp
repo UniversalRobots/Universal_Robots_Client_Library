@@ -114,7 +114,8 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
   else
   {
-    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for positions\n");
+    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
+                            "positions\n");
   }
 
   if (velocities != nullptr)
