@@ -76,10 +76,10 @@ thread_move = 0
 thread_trajectory = 0
 thread_script_commands = 0
 
-def set_servo_setpoint(params_mult):
+def set_servo_setpoint(q):
   cmd_servo_state = SERVO_RUNNING
   cmd_servo_q_last = cmd_servo_q
-  cmd_servo_q = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
+  cmd_servo_q = q
 end
 
 def extrapolate():
@@ -128,8 +128,8 @@ thread servoThread():
 end
 
 # Helpers for speed control
-def set_speed(params_mult):
-  cmd_servo_qd = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
+def set_speed(qd):
+  cmd_servo_qd = qd
   control_mode = MODE_SPEEDJ
 end
 
@@ -217,7 +217,7 @@ thread trajectoryThread():
   enter_critical
   while trajectory_points_left > 0:
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    global raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", get_steptime())
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", get_steptime())
     trajectory_points_left = trajectory_points_left - 1
     
     if raw_point[0] > 0:
@@ -338,8 +338,7 @@ thread servoThreadP():
   stopj(STOPJ_ACCELERATION)
 end
 
-def set_servo_pose(params_mult):
-  pose = p[params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
+def set_servo_pose(pose):
   cmd_servo_state = SERVO_RUNNING
   cmd_servo_q_last = cmd_servo_q
   cmd_servo_q = get_inverse_kin(pose, cmd_servo_q)
@@ -430,9 +429,9 @@ thread_script_commands = run script_commands()
 read_timeout = 0.0
 while (keepalive > 0 or keepalive == -2) and control_mode > MODE_STOPPED:
   enter_critical
-  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
+  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   # first data packet received, set the timeout to 20ms
-  read_timeout = 0.02
+  read_timeout = 0.02 # steptime could work as well, but does not work in simulation
   if params_mult[0] > 0:
     keepalive = params_mult[1]
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
@@ -465,7 +464,6 @@ while (keepalive > 0 or keepalive == -2) and control_mode > MODE_STOPPED:
       elif control_mode == MODE_SPEEDJ:
         thread_move = run speedThread()
       elif control_mode == MODE_FORWARD:
-        textmsg("kill thread_move")
         kill thread_move
       elif control_mode == MODE_SPEEDL:
         thread_move = run speedlThread()
@@ -476,13 +474,13 @@ while (keepalive > 0 or keepalive == -2) and control_mode > MODE_STOPPED:
 
     # Update the motion commands with new parameters
     if control_mode == MODE_SERVOJ:
-      set_servo_setpoint(params_mult)
+      q = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
+      set_servo_setpoint(q)
     elif control_mode == MODE_SPEEDJ:
-      set_speed(params_mult)
+      qd = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]]  / MULT_jointstate
+      set_speed(qd)
     elif control_mode == MODE_FORWARD:
-      # textmsg("Update thread_trajectory")
       if params_mult[2] == TRAJECTORY_MODE_RECEIVE:
-        textmsg("TRAJECTORY_MODE_RECEIVE")
         kill thread_trajectory
         clear_remaining_trajectory_points()
         trajectory_points_left = params_mult[3]
@@ -494,7 +492,8 @@ while (keepalive > 0 or keepalive == -2) and control_mode > MODE_STOPPED:
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     elif control_mode == MODE_SPEEDL:
-      set_speedl(params_mult)
+      twist = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]]  / MULT_jointstate
+      set_speedl(twist)
     elif control_mode == MODE_POSE:
       pose = p[params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
       set_servo_pose(pose)

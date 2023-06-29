@@ -69,8 +69,6 @@ class ReverseInterface
 {
 public:
   static const int32_t MULT_JOINTSTATE = 1000000;
-  static const int32_t POINT_INTERPOLATION = 0;
-  static const int32_t SPLINE_INTERPOLATION = 1;
 
   ReverseInterface() = delete;
   /*!
