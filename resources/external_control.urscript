@@ -280,14 +280,14 @@ end
 
 def clear_remaining_trajectory_points():
   while trajectory_points_left > 0:
-    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+2, "trajectory_socket", get_steptime())
+    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+2, "trajectory_socket")
     trajectory_points_left = trajectory_points_left - 1
   end
 end
 
 # Helpers for speed control
-def set_speedl(params_mult):
-  cmd_twist = [params_mult[2], params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7]] / MULT_jointstate
+def set_speedl(twist):
+  cmd_twist = twist
   control_mode = MODE_SPEEDL
 end
 
@@ -424,20 +424,18 @@ thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
 global keepalive = -2
+params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0)
 textmsg("ExternalControl: External control active")
+keepalive = params_mult[1]
 thread_script_commands = run script_commands()
-read_timeout = 0.0
-while (keepalive > 0 or keepalive == -2) and control_mode > MODE_STOPPED:
+while keepalive > 0 and control_mode > MODE_STOPPED:
   enter_critical
-  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
-  # first data packet received, set the timeout to 20ms
-  read_timeout = 0.02 # steptime could work as well, but does not work in simulation
+  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
   if params_mult[0] > 0:
     keepalive = params_mult[1]
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
-        textmsg("kill thread_trajectory")
         kill thread_trajectory
         stopj(STOPJ_ACCELERATION)
         clear_remaining_trajectory_points()
