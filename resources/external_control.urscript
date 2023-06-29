@@ -443,9 +443,6 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
       elif control_mode == MODE_FREEDRIVE:
         textmsg("Leaving freedrive mode")
         end_freedrive_mode()
-      else:
-        kill thread_move
-        stopj(STOPJ_ACCELERATION)
       end
 
       # If tool is in contact, tool contact should be ended before switching control mode
@@ -463,6 +460,7 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         thread_move = run speedThread()
       elif control_mode == MODE_FORWARD:
         kill thread_move
+        stopj(STOPJ_ACCELERATION)
       elif control_mode == MODE_SPEEDL:
         thread_move = run speedlThread()
       elif control_mode == MODE_POSE:
