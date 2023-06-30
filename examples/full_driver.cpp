@@ -54,23 +54,6 @@ void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
-
-  URCL_LOG_ERROR("g_joint_positions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]", g_joint_positions[0], g_joint_positions[1],
-                 g_joint_positions[2], g_joint_positions[3], g_joint_positions[4], g_joint_positions[5]);
-
-  uint32_t runtime_state(0), robot_mode(0), safety_mode(0);
-  if (data_pkg->getData("runtime_state", runtime_state))
-  {
-    URCL_LOG_ERROR("runtime_state: %d", runtime_state);
-  }
-  if (data_pkg->getData("robot_mode", robot_mode))
-  {
-    URCL_LOG_ERROR("robot_mode: %d", robot_mode);
-  }
-  if (data_pkg->getData("safety_mode", safety_mode))
-  {
-    URCL_LOG_ERROR("safety_mode: %d", safety_mode);
-  }
 }
 
 int main(int argc, char* argv[])
@@ -127,8 +110,8 @@ int main(int argc, char* argv[])
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
                                  std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-  g_my_driver->setKeepaliveCount(5);  // decrease realtime requirements since example is running in
-                                      // CI
+  g_my_driver->setKeepaliveCount(5); // decrease realtime requirements since example is running in
+                                     // CI
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
@@ -174,24 +157,6 @@ int main(int argc, char* argv[])
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
-        URCL_LOG_ERROR("g_joint_positions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]", g_joint_positions[0],
-                       g_joint_positions[1], g_joint_positions[2], g_joint_positions[3], g_joint_positions[4],
-                       g_joint_positions[5]);
-
-        uint32_t runtime_state(0), robot_mode(0), safety_mode(0);
-        if (data_pkg->getData("runtime_state", runtime_state))
-        {
-          URCL_LOG_ERROR("runtime_state: %d", runtime_state);
-        }
-        if (data_pkg->getData("robot_mode", robot_mode))
-        {
-          URCL_LOG_ERROR("robot_mode: %d", robot_mode);
-        }
-        if (data_pkg->getData("safety_mode", safety_mode))
-        {
-          URCL_LOG_ERROR("safety_mode: %d", safety_mode);
-        }
-
         return 1;
       }
       URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString());
