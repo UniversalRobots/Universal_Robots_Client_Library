@@ -54,7 +54,7 @@ enum class TrajectoryResult : int32_t
  */
 enum class TrajectorySplineType : int32_t
 {
-  SPLINE_QUADRATIC = 0.
+  SPLINE_QUADRATIC = 0,
   SPLINE_CUBIC = 1,
   SPLINE_QUINTIC = 2
 };

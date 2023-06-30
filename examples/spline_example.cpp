@@ -81,7 +81,6 @@ void handleRobotProgramState(bool program_running)
 }
 
 // Callback function for trajectory execution.
-// control::TrajectoryResult trajectory_state(TRAJECTORY_RESULT_CANCELED);
 bool g_trajectory_running(false);
 void handleTrajectoryState(control::TrajectoryResult state)
 {
@@ -225,8 +224,8 @@ int main(int argc, char* argv[])
   // CUBIC
   SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
 
-  trajectory_running = true;
-  while (trajectory_running)
+  g_trajectory_running = true;
+  while (g_trajectory_running)
   {
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
     if (data_pkg)
@@ -238,9 +237,7 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      // g_joint_positions[0] = s_pos[0];  // Move to initial position of the spline
       bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
-      // bool ret = g_my_driver->writeKeepalive();
 
       if (!ret)
       {
@@ -256,10 +253,9 @@ int main(int argc, char* argv[])
   SendTrajectory(p, v, a, time, true);
   ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
 
-  trajectory_running = true;
-  while (trajectory_running)
+  g_trajectory_running = true;
+  while (g_trajectory_running)
   {
-    // g_my_driver->getDataPackage();
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
     if (data_pkg)
     {
@@ -271,7 +267,6 @@ int main(int argc, char* argv[])
         throw std::runtime_error(error_msg);
       }
       bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
-      // bool ret = g_my_driver->writeKeepalive();
 
       if (!ret)
       {

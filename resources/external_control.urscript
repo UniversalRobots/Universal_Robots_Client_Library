@@ -55,8 +55,9 @@ FREEDRIVE_MODE_STOP = -1
 UNTIL_TOOL_CONTACT_RESULT_SUCCESS = 0
 UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 
-CUBIC_SPLINES = 0
-QUINTIC_SPLINES = 1
+SPLINE_QUADRATIC = 0 # Not implemented yet
+SPLINE_CUBIC = 1
+SPLINE_QUINTIC = 2
 
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
@@ -242,7 +243,7 @@ thread trajectoryThread():
         # Joint spline point
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
           # Cubic spline
-          if raw_point[INDEX_SPLINE_TYPE] == CUBIC_SPLINES:
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
             qd = [ raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
             cubicSplineRun(q, qd, tmptime)
 
@@ -250,7 +251,7 @@ thread trajectoryThread():
             last_spline_qdd = [0, 0, 0, 0, 0, 0]
 
           # Quintic spline
-          elif raw_point[INDEX_SPLINE_TYPE] == QUINTIC_SPLINES:
+          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
             qd = [ raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
             qdd = [ raw_point[13], raw_point[14], raw_point[15], raw_point[16], raw_point[17], raw_point[18]] / MULT_jointstate
             quinticSplineRun(q, qd, qdd, tmptime)
@@ -264,9 +265,9 @@ thread trajectoryThread():
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
           # Cubic spline
-          if raw_point[INDEX_SPLINE_TYPE] == CUBIC_SPLINES:
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
             cubicSplineRun(q, [0,0,0,0,0,0], tmptime)
-          elif raw_point[INDEX_SPLINE_TYPE] == QUINTIC_SPLINES:
+          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
             quinticSplineRun(q, [0,0,0,0,0,0], [0,0,0,0,0,0], tmptime)
           end
         end
