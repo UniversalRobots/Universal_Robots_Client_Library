@@ -8,6 +8,8 @@ textmsg("ExternalControl: steptime=", steptime)
 MULT_jointstate = {{JOINT_STATE_REPLACE}}
 MULT_time = {{TIME_REPLACE}}
 
+STOPJ_ACCELERATION = 4.0
+
 #Constants
 SERVO_UNINITIALIZED = -1
 SERVO_IDLE = 0
@@ -31,7 +33,8 @@ TRAJECTORY_MODE_CANCEL = -1
 
 TRAJECTORY_POINT_JOINT = 0
 TRAJECTORY_POINT_CARTESIAN = 1
-TRAJECTORY_DATA_DIMENSION = 7
+TRAJECTORY_POINT_JOINT_SPLINE = 2
+TRAJECTORY_DATA_DIMENSION = 3*6 + 1
 
 TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
@@ -52,6 +55,10 @@ FREEDRIVE_MODE_STOP = -1
 UNTIL_TOOL_CONTACT_RESULT_SUCCESS = 0
 UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 
+SPLINE_QUADRATIC = 0 # Not implemented yet
+SPLINE_CUBIC = 1
+SPLINE_QUINTIC = 2
+
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -62,6 +69,7 @@ global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
+global last_spline_qdd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 
 # Global thread variables
@@ -117,7 +125,7 @@ thread servoThread():
     exit_critical
   end
   textmsg("ExternalControl: servo thread ended")
-  stopj(4.0)
+  stopj(STOPJ_ACCELERATION)
 end
 
 # Helpers for speed control
@@ -133,41 +141,140 @@ thread speedThread():
     speedj(qd, 40.0, steptime)
   end
   textmsg("ExternalControl: speedj thread ended")
-  stopj(5.0)
+  stopj(STOPJ_ACCELERATION)
 end
 
-thread jointTrajectoryThread():
-  textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
-  while trajectory_points_left > 0:
-    enter_critical
-    #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket")
-    trajectory_points_left = trajectory_points_left - 1
-    exit_critical
-    if raw_point[0] > 0:
-      q = [ raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
-      tmptime = raw_point[7] / MULT_time
-      blend_radius = raw_point[8] / MULT_time
+def cubicSplineRun(end_q, end_qd, time):
+  textmsg("cubicSplineRun time: ", time)
+  # Zero time means zero length and therefore no motion to execute
+  if time > 0.0:
+    local start_q = get_target_joint_positions()
+    local start_qd = get_target_joint_speeds()
 
+    # Coefficients0 is not included, since we do not need to calculate the position
+    local coefficients1 = start_qd
+    local coefficients2 = (-3 * start_q + end_q * 3 - start_qd * 2 * time - end_qd * time) / pow(time, 2)
+    local coefficients3 = (2 * start_q - 2 * end_q + start_qd * time + end_qd * time) / pow(time, 3)
+    local coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    local coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time)
+  end
+end
+
+def quinticSplineRun(end_q, end_qd, end_qdd, time):
+  # Zero time means zero length and therefore no motion to execute
+  if time > 0.0:
+    local start_q = get_target_joint_positions()
+    local start_qd = get_target_joint_speeds()
+    local start_qdd = last_spline_qdd
+
+    # Pre-calculate coefficients
+    local TIME2 = pow(time, 2)
+    # Coefficients0 is not included, since we do not need to calculate the position
+    local coefficients1 = start_qd
+    local coefficients2 = 0.5 * start_qdd
+    local coefficients3 = (-20.0 * start_q + 20.0 * end_q - 3.0 * start_qdd * TIME2 + end_qdd * TIME2 - 12.0 * start_qd * time - 8.0 * end_qd * time) / (2.0 * pow(time, 3))
+    local coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0 * start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * pow(time, 4))
+    local coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * pow(time, 5))
+    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time)
+  end
+end
+
+def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime):
+  # Initialize incremental time variable
+  local splineTimerTraveled = 0.0
+
+  # Interpolate the spline in hole time steps
+  while (splineTotalTravelTime - splineTimerTraveled) > get_steptime():
+    splineTimerTraveled = splineTimerTraveled + get_steptime()
+    jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime())
+  end
+
+  # Last part of the spline which uses less than one time step
+  local timeLeftToTravel = splineTotalTravelTime - splineTimerTraveled
+
+  # To round off the float to the steptime step when it is very close to that number (1e-15)
+  if timeLeftToTravel == get_steptime():
+    timeLeftToTravel = get_steptime()
+  end
+
+  jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, timeLeftToTravel)
+end
+
+def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep):
+  local qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
+  last_spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
+  speedj(qd, 1000, timestep)
+end
+
+thread trajectoryThread():
+  textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
+  local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
+  local INDEX_BLEND = INDEX_TIME + 1
+  # same index as blend parameter, depending on point type
+  local INDEX_SPLINE_TYPE = INDEX_BLEND 
+  local INDEX_POINT_TYPE = INDEX_BLEND + 1
+  last_spline_qdd = [0, 0, 0, 0, 0, 0]
+  enter_critical
+  while trajectory_points_left > 0:
+    #reading trajectory point + blend radius + type of point (cartesian/joint based)
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", get_steptime())
+    trajectory_points_left = trajectory_points_left - 1
+    
+    if raw_point[0] > 0:
+      local q = [ raw_point[1]/ MULT_jointstate, raw_point[2]/ MULT_jointstate, raw_point[3]/ MULT_jointstate, raw_point[4]/ MULT_jointstate, raw_point[5]/ MULT_jointstate, raw_point[6]/ MULT_jointstate]
+      local tmptime = raw_point[INDEX_TIME] / MULT_time
+      local blend_radius = raw_point[INDEX_BLEND] / MULT_time
       if trajectory_points_left > 0:
-        if raw_point[9] == TRAJECTORY_POINT_JOINT:
-          # textmsg("Executing movej with blending")
+        # MoveJ point
+        if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
           movej(q, t=tmptime, r=blend_radius)
-        elif raw_point[9] == TRAJECTORY_POINT_CARTESIAN:
-          # textmsg("Executing movel with blending")
+
+          # reset old acceleration
+          last_spline_qdd = [0, 0, 0, 0, 0, 0]
+
+        # Movel point
+        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
+
+          # reset old acceleration
+          last_spline_qdd = [0, 0, 0, 0, 0, 0] 
+
+        # Joint spline point
+        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
+          # Cubic spline
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
+            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+            cubicSplineRun(q, qd, tmptime)
+
+            # reset old acceleration
+            last_spline_qdd = [0, 0, 0, 0, 0, 0]
+
+          # Quintic spline
+          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
+            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+            qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
+            quinticSplineRun(q, qd, qdd, tmptime)
+          end
         end
-      else:
-        if raw_point[9] == TRAJECTORY_POINT_JOINT:
-          # textmsg("Executing movej without blending")
+      # Last trajectory point
+      else: 
+        if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
           movej(q, t=tmptime, r=0.0)
-        elif raw_point[9] == TRAJECTORY_POINT_CARTESIAN:
-          # textmsg("Executing movel without blending")
+        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
+        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
+          # Cubic spline
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
+            cubicSplineRun(q, [0,0,0,0,0,0], tmptime)
+          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
+            quinticSplineRun(q, [0,0,0,0,0,0], [0,0,0,0,0,0], tmptime)
+          end
         end
       end
     end
   end
+  exit_critical
   socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
   textmsg("Trajectory finished")
 end
@@ -192,7 +299,7 @@ thread speedlThread():
     speedl(twist, 40.0, steptime)
   end
   textmsg("speedl thread ended")
-  stopj(5.0)
+  stopj(STOPJ_ACCELERATION)
 end
 
 thread servoThreadP():
@@ -229,7 +336,7 @@ thread servoThreadP():
     exit_critical
   end
   textmsg("pose servo thread ended")
-  stopj(4.0)
+  stopj(STOPJ_ACCELERATION)
 end
 
 def set_servo_pose(pose):
@@ -331,6 +438,7 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
         kill thread_trajectory
+        stopj(STOPJ_ACCELERATION)
         clear_remaining_trajectory_points()
       # Stop freedrive
       elif control_mode == MODE_FREEDRIVE:
@@ -353,24 +461,27 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         thread_move = run speedThread()
       elif control_mode == MODE_FORWARD:
         kill thread_move
+        stopj(STOPJ_ACCELERATION)
       elif control_mode == MODE_SPEEDL:
         thread_move = run speedlThread()
       elif control_mode == MODE_POSE:
         thread_move = run servoThreadP()
       end
     end
+
+    # Update the motion commands with new parameters
     if control_mode == MODE_SERVOJ:
-      q = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
+      q = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
       set_servo_setpoint(q)
     elif control_mode == MODE_SPEEDJ:
-      qd = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
+      qd = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
       set_speed(qd)
     elif control_mode == MODE_FORWARD:
       if params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         kill thread_trajectory
         clear_remaining_trajectory_points()
         trajectory_points_left = params_mult[3]
-        thread_trajectory = run jointTrajectoryThread()
+        thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
         textmsg("cancel received")
         kill thread_trajectory

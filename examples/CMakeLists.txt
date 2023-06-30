@@ -35,6 +35,11 @@ add_executable(dashboard_example
 target_compile_options(dashboard_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(dashboard_example ur_client_library::urcl)
 
+add_executable(spline_example
+spline_example.cpp)
+target_compile_options(spline_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(spline_example ur_client_library::urcl)
+
 add_executable(tool_contact_example
 tool_contact_example.cpp)
 target_compile_options(tool_contact_example PUBLIC ${CXX17_FLAG})

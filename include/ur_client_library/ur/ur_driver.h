@@ -211,15 +211,50 @@ public:
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
    *
-   * \param values Desired joint or cartesian positions
+   * \param positions Desired joint or cartesian positions
    * \param cartesian True, if the point sent is cartesian, false if joint-based
    * \param goal_time Time for the robot to reach this point
    * \param blend_radius  The radius to be used for blending between control points
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryPoint(const vector6d_t& values, const bool cartesian, const float goal_time = 0.0,
+  bool writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time = 0.0,
                             const float blend_radius = 0.052);
+
+  /*!
+   * \brief Writes a trajectory spline point for quintic spline interpolation onto the dedicated socket.
+   *
+   * \param positions Desired joint positions
+   * \param velocities Desired joint velocities
+   * \param accelerations Desired joint accelerations
+   * \param goal_time Time for the robot to reach this point
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectorySplinePoint(const vector6d_t& positions, const vector6d_t& velocities,
+                                  const vector6d_t& accelerations, const float goal_time = 0.0);
+
+  /*!
+   * \brief Writes a trajectory spline point for cubic spline interpolation onto the dedicated socket.
+   *
+   * \param positions Desired joint positions
+   * \param velocities Desired joint velocities
+   * \param goal_time Time for the robot to reach this point
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectorySplinePoint(const vector6d_t& positions, const vector6d_t& velocities,
+                                  const float goal_time = 0.0);
+
+  /*!
+   * \brief Writes a trajectory spline point for quadratic spline interpolation onto the dedicated socket.
+   *
+   * \param positions Desired joint positions
+   * \param goal_time Time for the robot to reach this point
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectorySplinePoint(const vector6d_t& positions, const float goal_time = 0.0);
 
   /*!
    * \brief Writes a control message in trajectory forward mode.

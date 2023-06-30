@@ -59,13 +59,14 @@ protected:
       TCPSocket::write(buffer, sizeof(buffer), written);
     }
 
-    void readMessage(vector6int32_t& pos, int32_t& goal_time, int32_t& blend_radius, int32_t& cartesian)
+    void readMessage(vector6int32_t& pos, vector6int32_t& vel, vector6int32_t& acc, int32_t& goal_time,
+                     int32_t& blend_radius_or_spline_type, int32_t& motion_type)
     {
       // Read message
-      uint8_t buf[sizeof(int32_t) * 9];
+      uint8_t buf[sizeof(int32_t) * 21];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 9;
+      size_t remainder = sizeof(int32_t) * 21;
       while (remainder > 0)
       {
         TCPSocket::setOptions(getSocketFD());
@@ -88,51 +89,88 @@ protected:
         b_pos += sizeof(int32_t);
       }
 
+      // Read velocity
+      for (unsigned int i = 0; i < pos.size(); ++i)
+      {
+        std::memcpy(&val, b_pos, sizeof(int32_t));
+        vel[i] = be32toh(val);
+        b_pos += sizeof(int32_t);
+      }
+
+      // Read acceleration
+      for (unsigned int i = 0; i < pos.size(); ++i)
+      {
+        std::memcpy(&val, b_pos, sizeof(int32_t));
+        acc[i] = be32toh(val);
+        b_pos += sizeof(int32_t);
+      }
+
       // Decode goal time
       std::memcpy(&val, b_pos, sizeof(int32_t));
       goal_time = be32toh(val);
       b_pos += sizeof(int32_t);
 
-      // Decode blend radius
+      // Decode blend radius or spline type
       std::memcpy(&val, b_pos, sizeof(int32_t));
-      blend_radius = be32toh(val);
+      blend_radius_or_spline_type = be32toh(val);
       b_pos += sizeof(int32_t);
 
-      // Decode cartesian
+      // Decode motion type
       std::memcpy(&val, b_pos, sizeof(int32_t));
-      cartesian = be32toh(val);
+      motion_type = be32toh(val);
     }
 
     vector6int32_t getPosition()
     {
-      int32_t goal_time, blend_radius, cartesian;
-      vector6int32_t pos;
-      readMessage(pos, goal_time, blend_radius, cartesian);
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
       return pos;
+    }
+
+    vector6int32_t getVelocity()
+    {
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      return vel;
     }
 
     int32_t getGoalTime()
     {
-      int32_t goal_time, blend_radius, cartesian;
-      vector6int32_t pos;
-      readMessage(pos, goal_time, blend_radius, cartesian);
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
       return goal_time;
     }
 
     int32_t getBlendRadius()
     {
-      int32_t goal_time, blend_radius, cartesian;
-      vector6int32_t pos;
-      readMessage(pos, goal_time, blend_radius, cartesian);
-      return blend_radius;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      return blend_radius_or_spline_type;
     }
 
-    int32_t getCartesian()
+    int32_t getMotionType()
     {
-      int32_t goal_time, blend_radius, cartesian;
-      vector6int32_t pos;
-      readMessage(pos, goal_time, blend_radius, cartesian);
-      return cartesian;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      return motion_type;
+    }
+
+    struct TrajData
+    {
+      vector6int32_t pos, vel, acc;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+    };
+
+    TrajData getData()
+    {
+      TrajData spl;
+      readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type);
+      return spl;
     }
 
   protected:
@@ -204,6 +242,128 @@ TEST_F(TrajectoryPointInterfaceTest, write_postions)
   EXPECT_EQ(send_positions[5], ((double)received_positions[5]) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
+TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
+{
+  urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
+  urcl::vector6d_t send_vel = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
+  float send_goal_time = 0.5;
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, send_goal_time);
+  Client::TrajData received_data = client_->getData();
+
+  // Position
+  EXPECT_EQ(send_pos[0], ((double)received_data.pos[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[1], ((double)received_data.pos[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[2], ((double)received_data.pos[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[3], ((double)received_data.pos[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[4], ((double)received_data.pos[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[5], ((double)received_data.pos[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Velocities
+  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Velocities
+  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Goal time
+  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time / traj_point_interface_->MULT_TIME));
+
+  // Spline type
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_QUINTIC),
+            received_data.blend_radius_or_spline_type);
+
+  // Motion type
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
+{
+  urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
+  urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.3 };
+  urcl::vector6d_t send_acc = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  float send_goal_time = 1.5;
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, nullptr, send_goal_time);
+  Client::TrajData received_data = client_->getData();
+
+  // Position
+  EXPECT_EQ(send_pos[0], ((double)received_data.pos[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[1], ((double)received_data.pos[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[2], ((double)received_data.pos[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[3], ((double)received_data.pos[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[4], ((double)received_data.pos[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_pos[5], ((double)received_data.pos[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Velocities
+  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Velocities
+  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
+
+  // Goal time
+  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time) / traj_point_interface_->MULT_TIME);
+
+  // Spline type
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_CUBIC),
+            received_data.blend_radius_or_spline_type);
+
+  // Motion type
+  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)
+{
+  urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
+  urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
+  urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
+  float send_goal_time = 0.5;
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, send_goal_time);
+  vector6int32_t received_velocities = client_->getVelocity();
+
+  EXPECT_EQ(send_vel[0], ((double)received_velocities[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[1], ((double)received_velocities[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[2], ((double)received_velocities[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[3], ((double)received_velocities[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[4], ((double)received_velocities[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[5], ((double)received_velocities[5]) / traj_point_interface_->MULT_JOINTSTATE);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, write_splines_accelerations)
+{
+  urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
+  urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
+  urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
+  float send_goal_time = 0.5;
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, send_goal_time);
+  vector6int32_t received_velocities = client_->getVelocity();
+
+  EXPECT_EQ(send_vel[0], ((double)received_velocities[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[1], ((double)received_velocities[1]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[2], ((double)received_velocities[2]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[3], ((double)received_velocities[3]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[4], ((double)received_velocities[4]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[5], ((double)received_velocities[5]) / traj_point_interface_->MULT_JOINTSTATE);
+}
+
 TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
@@ -230,14 +390,14 @@ TEST_F(TrajectoryPointInterfaceTest, write_cartesian)
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   bool send_cartesian = true;
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
-  bool received_cartesian = bool(client_->getCartesian());
+  bool received_cartesian = bool(client_->getMotionType());
 
   EXPECT_EQ(send_cartesian, received_cartesian);
 
   // Write joint point
   send_cartesian = false;
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, send_cartesian);
-  received_cartesian = bool(client_->getCartesian());
+  received_cartesian = bool(client_->getMotionType());
 
   EXPECT_EQ(send_cartesian, received_cartesian);
 }
