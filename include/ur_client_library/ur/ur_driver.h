@@ -222,7 +222,7 @@ public:
                             const float blend_radius = 0.052);
 
   /*!
-   * \brief Writes a trajectory spline point onto the dedicated socket.
+   * \brief Writes a trajectory spline point for quintic spline interpolation onto the dedicated socket.
    *
    * \param positions Desired joint positions
    * \param velocities Desired joint velocities
@@ -235,7 +235,7 @@ public:
                                   const vector6d_t& accelerations, const float goal_time = 0.0);
 
   /*!
-   * \brief Writes a trajectory spline point onto the dedicated socket.
+   * \brief Writes a trajectory spline point for cubic spline interpolation onto the dedicated socket.
    *
    * \param positions Desired joint positions
    * \param velocities Desired joint velocities
@@ -247,7 +247,7 @@ public:
                                   const float goal_time = 0.0);
 
   /*!
-   * \brief Writes a trajectory spline point onto the dedicated socket.
+   * \brief Writes a trajectory spline point for quadratic spline interpolation onto the dedicated socket.
    *
    * \param positions Desired joint positions
    * \param goal_time Time for the robot to reach this point
