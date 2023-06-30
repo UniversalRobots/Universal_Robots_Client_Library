@@ -466,6 +466,12 @@ bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
   return ret;
 }
 
+bool DashboardClient::commandSaveLog()
+{
+  assertVersion("5.0.0", "1.8", "save log");
+  return sendRequest("saveLog", "Log saved to disk");
+}
+
 void DashboardClient::assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,
                                     const std::string& required_call)
 {

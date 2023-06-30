@@ -118,6 +118,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  // Flush the log
+  if (!my_dashboard->commandSaveLog())
+  {
+    URCL_LOG_ERROR("Could not send the save log command");
+    return 1;
+  }
+
   // Now the robot is ready to receive a program
 
   return 0;
