@@ -42,7 +42,7 @@ jobs:
       - name: test
         run: cd build && ctest --output-on-failure
       - name: run examples
-        run: run-parts -v --exit-on-error -a "192.168.56.101" -a "1"  ./build/examples
+        run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
         run: sudo apt-get install -y gcovr
       - name: gcovr
