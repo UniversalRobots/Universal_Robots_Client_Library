@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
 
   const unsigned number_of_points = 5;
   const double s_pos[number_of_points] = { 4.15364583e-03, 4.15364583e-03, -1.74088542e-02, 1.44817708e-02,
-                                           1.44817708e-02 };
+                                           0.0 };
   const double s_vel[number_of_points] = { -2.01015625e-01, 4.82031250e-02, 1.72812500e-01, -3.49453125e-01,
                                            8.50000000e-02 };
   const double s_acc[number_of_points] = { 2.55885417e+00, -4.97395833e-01, 1.71276042e+00, -5.36458333e-02,
@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
   for (unsigned i = 0; i < number_of_points; ++i)
   {
     vector6d_t p_i = g_joint_positions;
-    p_i[joint_to_control] += s_pos[i];
+    p_i[joint_to_control] = s_pos[i];
     p.push_back(p_i);
 
     vector6d_t v_i;
@@ -219,6 +219,36 @@ int main(int argc, char* argv[])
 
     time.push_back(s_time[i]);
   }
+
+  // CUBIC
+  SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
+
+  trajectory_running = true;
+  while (trajectory_running)
+  {
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+    if (data_pkg)
+    {
+      // Read current joint positions from robot data
+      if (!data_pkg->getData("actual_q", g_joint_positions))
+      {
+        // This throwing should never happen unless misconfigured
+        std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
+        throw std::runtime_error(error_msg);
+      }
+      // g_joint_positions[0] = s_pos[0];  // Move to initial position of the spline
+      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+      // bool ret = g_my_driver->writeKeepalive();
+
+      if (!ret)
+      {
+        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+        return 1;
+      }
+    }
+  }
+
+  URCL_LOG_INFO("CUBIC Movement done");
 
   // QUINTIC
   SendTrajectory(p, v, a, time, true);
@@ -257,35 +287,5 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
     return 1;
   }
-
-  // CUBIC
-  SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
-
-  trajectory_running = true;
-  while (trajectory_running)
-  {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
-    if (data_pkg)
-    {
-      // Read current joint positions from robot data
-      if (!data_pkg->getData("actual_q", g_joint_positions))
-      {
-        // This throwing should never happen unless misconfigured
-        std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
-        throw std::runtime_error(error_msg);
-      }
-      // g_joint_positions[0] = s_pos[0];  // Move to initial position of the spline
-      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
-      // bool ret = g_my_driver->writeKeepalive();
-
-      if (!ret)
-      {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
-        return 1;
-      }
-    }
-  }
-
-  URCL_LOG_INFO("CUBIC Movement done");
   return 0;
 }
