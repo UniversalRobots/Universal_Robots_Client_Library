@@ -18,8 +18,6 @@ jobs:
             OS_VERSION: bionic
           - ROS_DISTRO: noetic
             OS_VERSION: focal
-          - ROS_DISTRO: foxy
-            OS_VERSION: focal
 
     steps:
       - uses: actions/checkout@v1
