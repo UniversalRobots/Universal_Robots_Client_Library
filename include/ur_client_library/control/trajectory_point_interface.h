@@ -54,8 +54,9 @@ enum class TrajectoryResult : int32_t
  */
 enum class TrajectorySplineType : int32_t
 {
-  SPLINE_CUBIC = 0,
-  SPLINE_QUINTIC = 1
+  SPLINE_QUADRATIC = 0.
+  SPLINE_CUBIC = 1,
+  SPLINE_QUINTIC = 2
 };
 
 /*!
@@ -105,12 +106,12 @@ public:
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program including
-   * velocity and acceleration information.
+   * velocity and acceleration information. Depending on the information given the robot will do quadratic (positions only), cubic (positions and velocities) or quintic (positions, velocities and accelerations) interpolation.
    *
-   * \param positions A vector of joint or cartesian target positions for the robot
-   * \param velocities A vector of joint or cartesian target velocities for the robot
-   * \param accelerations A vector of joint or cartesian target accelerations for the robot
-   * \param goal_time The goal time to reach the target
+   * \param positions A vector of joint or Cartesian target positions for the robot.
+   * \param velocities A vector of joint or Cartesian target velocities for the robot.
+   * \param accelerations A vector of joint or Cartesian target accelerations for the robot.
+   * \param goal_time The goal time to reach the target point.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */

@@ -82,11 +82,11 @@ void handleRobotProgramState(bool program_running)
 
 // Callback function for trajectory execution.
 // control::TrajectoryResult trajectory_state(TRAJECTORY_RESULT_CANCELED);
-bool trajectory_running(false);
+bool g_trajectory_running(false);
 void handleTrajectoryState(control::TrajectoryResult state)
 {
   // trajectory_state = state;
-  trajectory_running = false;
+  g_trajectory_running = false;
   std::string report = "?";
   switch (state)
   {
