@@ -422,6 +422,13 @@ public:
    */
   bool commandGenerateSupportFile(const std::string& dir_path);
 
+  /*!
+   * \brief Flush the polyscope log to the log_history.txt file
+   *
+   * \return True succeeded
+   */
+  bool commandSaveLog();
+
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
   {
