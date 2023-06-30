@@ -14,4 +14,4 @@ your robot.
 
 |Polyscope version | Maximum tag | Breaking changes |
 |------------------|-------------|------------------|
-| < 3.12.0 / 5.5.1 | [polyscope_compat_break_1](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/polyscope_compat_break_1) | [tcp_offset in RTDE interface](https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/110)|
+| < 3.14.3 / 5.9.4 | [polyscope_compat_break_1](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/polyscope_compat_break_1) | [tcp_offset in RTDE interface](https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/110)|
