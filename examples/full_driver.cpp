@@ -157,6 +157,24 @@ int main(int argc, char* argv[])
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+        URCL_LOG_ERROR("g_joint_positions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]", g_joint_positions[0],
+                       g_joint_positions[1], g_joint_positions[2], g_joint_positions[3], g_joint_positions[4],
+                       g_joint_positions[5]);
+
+        uint32_t runtime_state(0), robot_mode(0), safety_mode(0);
+        if (data_pkg->getData("runtime_state", runtime_state))
+        {
+          URCL_LOG_ERROR("runtime_state: %d", runtime_state);
+        }
+        if (data_pkg->getData("robot_mode", robot_mode))
+        {
+          URCL_LOG_ERROR("robot_mode: %d", robot_mode);
+        }
+        if (data_pkg->getData("safety_mode", safety_mode))
+        {
+          URCL_LOG_ERROR("safety_mode: %d", safety_mode);
+        }
+
         return 1;
       }
       URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString());

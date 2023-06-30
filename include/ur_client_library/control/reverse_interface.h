@@ -135,7 +135,7 @@ protected:
   comm::TCPServer server_;
 
   template <typename T>
-  size_t append(uint8_t* buffer, const T& val)
+  size_t append(uint8_t* buffer, T& val)
   {
     size_t s = sizeof(T);
     std::memcpy(buffer, &val, s);
