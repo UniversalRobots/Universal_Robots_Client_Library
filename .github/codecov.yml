@@ -1,0 +1,8 @@
+#To validate before committing: 'curl -X POST --data-binary @codecov.yml https://codecov.io/validate'
+
+codecov:
+  strict_yaml_branch: default  # only use the latest YAML on stated branch
+
+ignore:
+  - "examples/*"  # ignore examples
+  - "tests/*"  # ignore unit tests
