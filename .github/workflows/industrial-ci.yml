@@ -77,3 +77,21 @@ jobs:
         env: ${{matrix.env}}
       - uses: 'ros-industrial/industrial_ci@master'
         env: ${{matrix.env}}
+      - name: Generate URSim log files
+        if: always()
+        run: |
+          nc -q 1 192.168.56.101 29999 <<END
+          saveLog
+          END
+          mkdir -p ursim_logs
+          docker cp ursim:/ursim/URControl.log ursim_logs/URControl.log
+          docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
+          docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
+      - name: Upload logfiles
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ${{matrix.env.ROS_DISTRO}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
+          path: ursim_logs
+          if-no-files-found: error
+          retention-days: 10
