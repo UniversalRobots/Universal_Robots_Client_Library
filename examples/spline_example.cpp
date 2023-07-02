@@ -157,8 +157,8 @@ int main(int argc, char* argv[])
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
                                  std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-  g_my_driver->setKeepaliveCount(5);  // decrease realtime requirements since example is running in
-                                      // CI
+  g_my_driver->setKeepaliveCount(5);  // This is for example purposes only. This will make the example running more
+                                      // reliable on non-realtime systems. Do not use this in productive applications.
 
   g_my_driver->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
