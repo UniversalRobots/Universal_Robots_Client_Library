@@ -42,6 +42,8 @@ vector6d_t g_joint_positions;
 void SendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector6d_t>& p_v,
                     const std::vector<vector6d_t>& p_a, const std::vector<double>& time, bool use_spline_interpolation_)
 {
+  assert(p_p.size() == time.size());
+
   URCL_LOG_INFO("Starting joint-based trajectory forward");
   g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START, p_p.size());
 
@@ -130,18 +132,23 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Power it off
-  if (!g_my_dashboard->commandPowerOff())
+  // if the robot is not powered on and ready
+  std::string robotModeRunning("RUNNING");
+  while (!g_my_dashboard->commandRobotMode(robotModeRunning))
   {
-    URCL_LOG_ERROR("Could not send Power off command");
-    return 1;
-  }
+    // Power it off
+    if (!g_my_dashboard->commandPowerOff())
+    {
+      URCL_LOG_ERROR("Could not send Power off command");
+      return 1;
+    }
 
-  // Power it on
-  if (!g_my_dashboard->commandPowerOn())
-  {
-    URCL_LOG_ERROR("Could not send Power on command");
-    return 1;
+    // Power it on
+    if (!g_my_dashboard->commandPowerOn())
+    {
+      URCL_LOG_ERROR("Could not send Power on command");
+      return 1;
+    }
   }
 
   // Release the brakes
@@ -187,7 +194,7 @@ int main(int argc, char* argv[])
                                            8.50000000e-02 };
   const double s_acc[number_of_points] = { 2.55885417e+00, -4.97395833e-01, 1.71276042e+00, -5.36458333e-02,
                                            -2.69817708e+00 };
-  const double s_time[number_of_points] = { 1.0000000e+00, 4.00000000e+00, 8.00100000e+00, 2.50000000e+01 / 2,
+  const double s_time[number_of_points] = { 1.0000000e+00, 4.00000000e+00, 8.00100000e+00, 1.25000000e+01,
                                             4.00000000e+00 };
 
   bool ret = false;
@@ -219,6 +226,34 @@ int main(int argc, char* argv[])
 
     time.push_back(s_time[i]);
   }
+
+  // QUADRATIC
+  SendTrajectory(p, std::vector<vector6d_t>(), std::vector<vector6d_t>(), time, true);
+
+  g_trajectory_running = true;
+  while (g_trajectory_running)
+  {
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+    if (data_pkg)
+    {
+      // Read current joint positions from robot data
+      if (!data_pkg->getData("actual_q", g_joint_positions))
+      {
+        // This throwing should never happen unless misconfigured
+        std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
+        throw std::runtime_error(error_msg);
+      }
+      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+
+      if (!ret)
+      {
+        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+        return 1;
+      }
+    }
+  }
+
+  URCL_LOG_INFO("QUADRATIC Movement done");
 
   // CUBIC
   SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);

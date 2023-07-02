@@ -98,7 +98,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
     return false;
   }
 
-  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
+  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_QUADRATIC;
 
   // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
   uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
@@ -120,6 +120,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
 
   if (velocities != nullptr)
   {
+    spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
     for (auto const& vel : *velocities)
     {
       int32_t val = static_cast<int32_t>(vel * MULT_JOINTSTATE);
@@ -149,8 +150,6 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
   else
   {
-    // Use cubic splines, when acceleration is not part of the trajectory
-    spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
     b_pos += 6 * sizeof(int32_t);
   }
 
