@@ -227,34 +227,6 @@ int main(int argc, char* argv[])
     time.push_back(s_time[i]);
   }
 
-  // QUADRATIC
-  SendTrajectory(p, std::vector<vector6d_t>(), std::vector<vector6d_t>(), time, true);
-
-  g_trajectory_running = true;
-  while (g_trajectory_running)
-  {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
-    if (data_pkg)
-    {
-      // Read current joint positions from robot data
-      if (!data_pkg->getData("actual_q", g_joint_positions))
-      {
-        // This throwing should never happen unless misconfigured
-        std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
-        throw std::runtime_error(error_msg);
-      }
-      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
-
-      if (!ret)
-      {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
-        return 1;
-      }
-    }
-  }
-
-  URCL_LOG_INFO("QUADRATIC Movement done");
-
   // CUBIC
   SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
 

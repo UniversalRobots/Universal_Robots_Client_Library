@@ -55,7 +55,6 @@ FREEDRIVE_MODE_STOP = -1
 UNTIL_TOOL_CONTACT_RESULT_SUCCESS = 0
 UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 
-SPLINE_QUADRATIC = 0 # Implemented with Cubic spline
 SPLINE_CUBIC = 1
 SPLINE_QUINTIC = 2
 
@@ -241,15 +240,9 @@ thread trajectoryThread():
 
         # Joint spline point
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-          # Quadratic spline
-          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUADRATIC:
-            # Implemented with cubic slines to get a jump in velocity
-            cubicSplineRun(q, [0, 0, 0, 0, 0, 0], tmptime)
-            # reset old acceleration
-            last_spline_qdd = [0, 0, 0, 0, 0, 0]
 
           # Cubic spline
-          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
             qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
             cubicSplineRun(q, qd, tmptime)
             # reset old acceleration
@@ -260,6 +253,10 @@ thread trajectoryThread():
             qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
             qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
             quinticSplineRun(q, qd, qdd, tmptime)
+          else:
+            textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
+            clear_remaining_trajectory_points()
+            socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
           end
         end
       # Last trajectory point
@@ -269,12 +266,13 @@ thread trajectoryThread():
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
           movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
         elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUADRATIC:
-            cubicSplineRun(q, [0,0,0,0,0,0], tmptime)
-          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
+          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
             cubicSplineRun(q, [0,0,0,0,0,0], tmptime)
           elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
             quinticSplineRun(q, [0,0,0,0,0,0], [0,0,0,0,0,0], tmptime)
+          else:
+            textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
+            socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
           end
         end
       end

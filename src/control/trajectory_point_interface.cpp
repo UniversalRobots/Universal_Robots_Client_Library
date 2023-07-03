@@ -98,7 +98,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
     return false;
   }
 
-  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_QUADRATIC;
+  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
 
   // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
   uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
@@ -130,12 +130,8 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
   else
   {
-    // Write zeros if not velocity are given
-    const int32_t val(0);
-    for (size_t i = 0; i < positions->size(); ++i)
-    {
-      b_pos += append(b_pos, val);
-    }
+    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
+                            "velocities\n");
   }
 
   if (accelerations != nullptr)
