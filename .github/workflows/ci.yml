@@ -12,13 +12,13 @@ jobs:
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
             ROBOT_MODEL: 'ur5'
-            URSIM_VERSION: '3.12.1'
+            URSIM_VERSION: '3.14.3'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
           - DOCKER_RUN_OPTS: --network ursim_net
             BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
             CTEST_OUTPUT_ON_FAILURE: 1
             ROBOT_MODEL: 'ur5e'
-            URSIM_VERSION: '5.5.1'
+            URSIM_VERSION: '5.9.4'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
     steps:

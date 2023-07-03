@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/trajectory_point_interface.h>
+#include <ur_client_library/exceptions.h>
 
 namespace urcl
 {
@@ -43,7 +44,7 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * 9];
+  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
   if (positions != nullptr)
@@ -60,6 +61,10 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
     b_pos += 6 * sizeof(int32_t);
   }
 
+  // Fill in velocity and acceleration, not used for this point type
+  b_pos += 6 * sizeof(int32_t);
+  b_pos += 6 * sizeof(int32_t);
+
   int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
   val = htobe32(val);
   b_pos += append(b_pos, val);
@@ -70,11 +75,11 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 
   if (cartesian)
   {
-    val = CARTESIAN_POINT;
+    val = static_cast<int32_t>(control::TrajectoryMotionType::CARTESIAN_POINT);
   }
   else
   {
-    val = JOINT_POINT;
+    val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT);
   }
 
   val = htobe32(val);
@@ -82,6 +87,81 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 
   size_t written;
 
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
+                                                          const vector6d_t* accelerations, const float goal_time)
+{
+  if (client_fd_ == -1)
+  {
+    return false;
+  }
+
+  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
+
+  // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
+  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
+  uint8_t* b_pos = buffer;
+  if (positions != nullptr)
+  {
+    for (auto const& pos : *positions)
+    {
+      int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+      val = htobe32(val);
+      b_pos += append(b_pos, val);
+    }
+  }
+  else
+  {
+    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
+                            "positions\n");
+  }
+
+  if (velocities != nullptr)
+  {
+    spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
+    for (auto const& vel : *velocities)
+    {
+      int32_t val = static_cast<int32_t>(vel * MULT_JOINTSTATE);
+      val = htobe32(val);
+      b_pos += append(b_pos, val);
+    }
+  }
+  else
+  {
+    throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
+                            "velocities\n");
+  }
+
+  if (accelerations != nullptr)
+  {
+    spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
+    for (auto const& acc : *accelerations)
+    {
+      int32_t val = static_cast<int32_t>(acc * MULT_JOINTSTATE);
+      val = htobe32(val);
+      b_pos += append(b_pos, val);
+    }
+  }
+  else
+  {
+    b_pos += 6 * sizeof(int32_t);
+  }
+
+  int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
+  val = htobe32(val);
+  b_pos += append(b_pos, val);
+
+  val = static_cast<int32_t>(spline_type);
+  val = htobe32(val);
+  b_pos += append(b_pos, val);
+
+  val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE);
+  val = htobe32(val);
+  b_pos += append(b_pos, val);
+
+  size_t written;
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
