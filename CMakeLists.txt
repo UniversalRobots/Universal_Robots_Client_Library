@@ -89,7 +89,7 @@ install(EXPORT urcl_targets
   FILE urclTargets.cmake
   NAMESPACE ur_client_library::)
 
-install(FILES scripts/start_ursim.sh
+install(PROGRAMS scripts/start_ursim.sh
   DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
