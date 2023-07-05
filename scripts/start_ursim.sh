@@ -29,6 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 PERSISTENT_BASE="${HOME}/.ursim"
+URCAP_VERSION="1.0.5"
 
 help()
 {
@@ -137,6 +138,12 @@ mkdir -p "${URCAP_STORAGE}"
 mkdir -p "${PROGRAM_STORAGE}"
 URCAP_STORAGE=$(realpath "$URCAP_STORAGE")
 PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
+
+# Download external_control URCap
+if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
+  curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" \
+    "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v${URCAP_VERSION}/externalcontrol-${URCAP_VERSION}.jar"
+fi
 
 
 # Check whether network already exists
