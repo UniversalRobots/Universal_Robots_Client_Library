@@ -89,6 +89,10 @@ install(EXPORT urcl_targets
   FILE urclTargets.cmake
   NAMESPACE ur_client_library::)
 
+install(FILES scripts/start_ursim.sh
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ur_client_libraryConfigVersion.cmake VERSION 0.0.3
   COMPATIBILITY SameMajorVersion)
