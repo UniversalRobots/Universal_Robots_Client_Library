@@ -89,8 +89,8 @@ install(EXPORT urcl_targets
   FILE urclTargets.cmake
   NAMESPACE ur_client_library::)
 
-if(COMMAND catkin_install_python)
-  catkin_install_python(PROGRAMS scripts/start_ursim.sh
+if(CATKIN_PACKAGE_BIN_DESTINATION)
+  install(PROGRAMS scripts/start_ursim.sh
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
 else()
