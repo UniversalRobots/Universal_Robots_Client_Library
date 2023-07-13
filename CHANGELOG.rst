@@ -2,6 +2,25 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add a cmake option to activate address sanitizers (`#146 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/146>`_)
+* Install start ursim (`#155 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/155>`_)
+* Add spline interpolation on robot (`#151 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/151>`_)
+* Add codecov.yml to exclude test and examples folders (`#152 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/152>`_)
+* Make URSim log files available as artifacts also for the CI-industrial (`#153 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/153>`_)
+* Remove Foxy from CI
+* Add a script to run the examples instead of run-parts
+* Add SaveLog command to the Dashboard client
+* Make URSim log files available as artifacts
+* Specifically set RTDE pipeline producer to FIFO scheduling (`#139 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/139>`_)
+* Added support for force_mode, freedrive and tool contact (`#138 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/138>`_)
+* Docs: Update link to ros_industrial_cmake_boilerplate
+* Added tests for the comm classes (`#129 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/129>`_)
+* Changed num_retries from static to an unsigned int (`#136 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/136>`_)
+* Build downstream humble version from humble branch (`#132 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/132>`_)
+* Contributors: Felix Exner, Mads Holm Peters, Rune Søe-Knudsen, Robert Wilbrandt
+
 1.3.1 (2022-11-30)
 ------------------
 * CI: Add a prerelease check that calls `bloom-generate` (`#134 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/134>`_)
