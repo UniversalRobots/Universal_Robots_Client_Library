@@ -230,7 +230,7 @@ TEST(bin_parser, raw_data_parser)
                        0x62, 0x65, 0x20, 0x70, 0x61, 0x72, 0x73, 0x65, 0x64 };
   comm::BinParser bp(buffer, sizeof(buffer));
 
-  std::unique_ptr<uint8_t> raw_data;
+  std::unique_ptr<uint8_t[]> raw_data;
   size_t size;
   bp.rawData(raw_data, size);
 

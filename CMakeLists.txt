@@ -8,6 +8,7 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+option(WITH_ASAN "Compile with address sanitizer support" OFF)
 
 ##
 ## Check C++11 support / enable global pedantic and Wall
@@ -51,6 +52,10 @@ add_library(urcl SHARED
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
 target_compile_options(urcl PUBLIC ${CXX17_FLAG})
+if(WITH_ASAN)
+  target_compile_options(urcl PUBLIC -fsanitize=address)
+  target_link_options(urcl PUBLIC -fsanitize=address)
+endif()
 target_include_directories( urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
