@@ -61,6 +61,11 @@ jobs:
           docker cp ursim:/ursim/URControl.log ursim_logs/URControl.log
           docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
           docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
+      - name: Copy flight reports
+        if: failure()
+        run: |
+          mkdir -p ursim_logs/flightreports
+          docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
         uses: actions/upload-artifact@v3
         if: always()
