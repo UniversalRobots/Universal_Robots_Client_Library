@@ -86,8 +86,8 @@ verlte()
 validate_ursim_version()
 {
   [ $URSIM_VERSION == "latest" ] && return 0
-  local MIN_CB3="3.12.1"
-  local MIN_E_SERIES="5.5.1"
+  local MIN_CB3="3.14.3"
+  local MIN_E_SERIES="5.9.4"
 
   case $ROBOT_SERIES in
     cb3)
