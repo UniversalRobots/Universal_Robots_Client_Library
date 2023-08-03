@@ -14,8 +14,6 @@ jobs:
         ROS_DISTRO: [humble, rolling]
         OS_VERSION: [jammy]
         include:
-          - ROS_DISTRO: melodic
-            OS_VERSION: bionic
           - ROS_DISTRO: noetic
             OS_VERSION: focal
 
