@@ -28,6 +28,7 @@
 
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
+#include <math.h>
 
 namespace urcl
 {
@@ -51,7 +52,7 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   {
     for (auto const& pos : *positions)
     {
-      int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
@@ -65,11 +66,11 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
   b_pos += 6 * sizeof(int32_t);
   b_pos += 6 * sizeof(int32_t);
 
-  int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
+  int32_t val = static_cast<int32_t>(round(goal_time * MULT_TIME));
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  val = static_cast<int32_t>(blend_radius * MULT_TIME);
+  val = static_cast<int32_t>(round(blend_radius * MULT_TIME));
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
@@ -107,7 +108,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   {
     for (auto const& pos : *positions)
     {
-      int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
@@ -123,7 +124,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
     spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
     for (auto const& vel : *velocities)
     {
-      int32_t val = static_cast<int32_t>(vel * MULT_JOINTSTATE);
+      int32_t val = static_cast<int32_t>(round(vel * MULT_JOINTSTATE));
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
@@ -139,7 +140,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
     spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
     for (auto const& acc : *accelerations)
     {
-      int32_t val = static_cast<int32_t>(acc * MULT_JOINTSTATE);
+      int32_t val = static_cast<int32_t>(round(acc * MULT_JOINTSTATE));
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
@@ -149,7 +150,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
     b_pos += 6 * sizeof(int32_t);
   }
 
-  int32_t val = static_cast<int32_t>(goal_time * MULT_TIME);
+  int32_t val = static_cast<int32_t>(round(goal_time * MULT_TIME));
   val = htobe32(val);
   b_pos += append(b_pos, val);
 

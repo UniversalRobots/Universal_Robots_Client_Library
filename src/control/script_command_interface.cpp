@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/script_command_interface.h>
+#include <math.h>
 
 namespace urcl
 {
@@ -64,12 +65,12 @@ bool ScriptCommandInterface::setPayload(const double mass, const vector3d_t* cog
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_PAYLOAD));
   b_pos += append(b_pos, val);
 
-  val = htobe32(static_cast<int32_t>(mass * MULT_JOINTSTATE));
+  val = htobe32(static_cast<int32_t>(round(mass * MULT_JOINTSTATE)));
   b_pos += append(b_pos, val);
 
   for (auto const& center_of_mass : *cog)
   {
-    val = htobe32(static_cast<int32_t>(center_of_mass * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(center_of_mass * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
@@ -92,7 +93,7 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TOOL_VOLTAGE));
   b_pos += append(b_pos, val);
 
-  val = htobe32(toUnderlying(voltage) * MULT_JOINTSTATE);
+  val = htobe32(round(toUnderlying(voltage) * MULT_JOINTSTATE));
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
@@ -118,28 +119,28 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const 
 
   for (auto const& frame : *task_frame)
   {
-    val = htobe32(static_cast<int32_t>(frame * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(frame * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
   for (auto const& selection : *selection_vector)
   {
-    val = htobe32(static_cast<int32_t>(selection * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(selection * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
   for (auto const& force_torque : *wrench)
   {
-    val = htobe32(static_cast<int32_t>(force_torque * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(force_torque * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
-  val = htobe32(static_cast<int32_t>(type * MULT_JOINTSTATE));
+  val = htobe32(static_cast<int32_t>(round(type * MULT_JOINTSTATE)));
   b_pos += append(b_pos, val);
 
   for (auto const& lim : *limits)
   {
-    val = htobe32(static_cast<int32_t>(lim * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(lim * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
