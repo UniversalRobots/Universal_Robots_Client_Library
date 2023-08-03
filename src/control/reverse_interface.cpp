@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/reverse_interface.h>
+#include <math.h>
 
 namespace urcl
 {
@@ -62,7 +63,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   {
     for (auto const& pos : *positions)
     {
-      int32_t val = static_cast<int32_t>(pos * MULT_JOINTSTATE);
+      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
       val = htobe32(val);
       b_pos += append(b_pos, val);
     }
