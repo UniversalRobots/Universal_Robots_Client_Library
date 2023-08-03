@@ -144,6 +144,9 @@ thread speedThread():
 end
 
 def cubicSplineRun(end_q, end_qd, time):
+  local str = str_cat(end_q, str_cat(end_qd, time))
+  textmsg("Cubic spline arg: ", str)
+
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()
@@ -160,6 +163,9 @@ def cubicSplineRun(end_q, end_qd, time):
 end
 
 def quinticSplineRun(end_q, end_qd, end_qdd, time):
+  local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
+  textmsg("Quintic spline arg: ", str)
+
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()

@@ -202,7 +202,10 @@ int main(int argc, char* argv[])
   ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
   if (!ret)
   {
-    URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+    std::stringstream lastq;
+    lastq << g_joint_positions;
+    URCL_LOG_ERROR("Could not send joint command. Last q received is %s\n Is the robot in remote control?",
+                   lastq.str().c_str());
     return 1;
   }
 
@@ -247,7 +250,10 @@ int main(int argc, char* argv[])
 
       if (!ret)
       {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+        std::stringstream lastq;
+        lastq << g_joint_positions;
+        URCL_LOG_ERROR("Could not send joint command. Last q received is %s\n Is the robot in remote control?",
+                       lastq.str().c_str());
         return 1;
       }
     }
@@ -276,7 +282,10 @@ int main(int argc, char* argv[])
 
       if (!ret)
       {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+        std::stringstream lastq;
+        lastq << g_joint_positions;
+        URCL_LOG_ERROR("Could not send joint command. Last q received is %s\n Is the robot in remote control?",
+                       lastq.str().c_str());
         return 1;
       }
     }
@@ -287,7 +296,10 @@ int main(int argc, char* argv[])
   ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
   if (!ret)
   {
-    URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+    std::stringstream lastq;
+    lastq << g_joint_positions;
+    URCL_LOG_ERROR("Could not send joint command. Last q received is %s\n Is the robot in remote control?",
+                   lastq.str().c_str());
     return 1;
   }
   return 0;
