@@ -58,6 +58,16 @@ jobs:
             ROBOT_MODEL: 'ur5e'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
             NOT_TEST_DOWNSTREAM: true
+          - ROS_DISTRO: iron
+            ROS_REPO: main
+            IMMEDIATE_TEST_OUTPUT: true
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#iron https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/iron/Universal_Robots_ROS2_Driver-not-released.iron.repos"
+            DOCKER_RUN_OPTS: --network ursim_net
+            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
+            URSIM_VERSION: '5.9.4'
+            ROBOT_MODEL: 'ur5e'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+            NOT_TEST_DOWNSTREAM: true
           - ROS_DISTRO: rolling
             ROS_REPO: main
             IMMEDIATE_TEST_OUTPUT: true

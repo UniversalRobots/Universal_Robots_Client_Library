@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ROS_DISTRO: [humble, rolling]
+        ROS_DISTRO: [humble, iron, rolling]
         OS_VERSION: [jammy]
         include:
           - ROS_DISTRO: melodic
