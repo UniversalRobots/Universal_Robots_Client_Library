@@ -56,7 +56,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , input_recipe_(input_recipe)
   , parser_(output_recipe_)
   , prod_(stream_, parser_)
-  , pipeline_(prod_, PIPELINE_NAME, notifier)
+  , pipeline_(prod_, PIPELINE_NAME, notifier, true)
   , writer_(&stream_, input_recipe_)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
