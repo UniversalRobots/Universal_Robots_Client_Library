@@ -208,7 +208,7 @@ private:
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
 
-  std::vector<std::string> readRecipe(const std::string& recipe_file);
+  std::vector<std::string> readRecipe(const std::string& recipe_file, bool output_recipe = false);
 
   void setupCommunication();
   bool negotiateProtocolVersion(const uint16_t protocol_version);

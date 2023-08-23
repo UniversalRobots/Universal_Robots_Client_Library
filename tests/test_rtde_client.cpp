@@ -77,14 +77,12 @@ TEST_F(RTDEClientTest, empty_recipe)
 {
   std::string output_recipe = "resources/empty.txt";
   std::string input_recipe = "resources/empty.txt";
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe));
-
-  EXPECT_THROW(client_->init(), UrException);
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe)),
+               UrException);
 
   // Only input recipe is empty
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe));
-
-  EXPECT_THROW(client_->init(), UrException);
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe)),
+               UrException);
 }
 
 TEST_F(RTDEClientTest, invalid_target_frequency)
@@ -294,6 +292,17 @@ TEST_F(RTDEClientTest, write_rtde_data)
   EXPECT_EQ(send_digital_output, actual_dig_out_bits[0]);
 
   client_->pause();
+}
+
+TEST_F(RTDEClientTest, output_recipe_without_timestamp)
+{
+  std::string output_recipe = "resources/rtde_output_recipe_without_timestamp.txt";
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe_));
+
+  std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
+  const std::string timestamp = "timestamp";
+  auto it = std::find(actual_output_recipe.begin(), actual_output_recipe.end(), timestamp);
+  EXPECT_FALSE(it == actual_output_recipe.end());
 }
 
 int main(int argc, char* argv[])

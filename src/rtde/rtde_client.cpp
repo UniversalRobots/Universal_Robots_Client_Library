@@ -37,8 +37,8 @@ namespace rtde_interface
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
                        const std::string& input_recipe_file, double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
-  , output_recipe_(readRecipe(output_recipe_file))
-  , input_recipe_(readRecipe(input_recipe_file))
+  , output_recipe_(readRecipe(output_recipe_file, true))
+  , input_recipe_(readRecipe(input_recipe_file, false))
   , parser_(output_recipe_)
   , prod_(stream_, parser_)
   , pipeline_(prod_, PIPELINE_NAME, notifier, true)
@@ -241,13 +241,6 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   size_t written;
   uint8_t buffer[4096];
   URCL_LOG_INFO("Setting up RTDE communication with frequency %f", target_frequency_);
-  // Add timestamp to rtde output recipe, used to check if robot is booted
-  const std::string timestamp = "timestamp";
-  auto it = std::find(output_recipe_.begin(), output_recipe_.end(), timestamp);
-  if (it == output_recipe_.end())
-  {
-    output_recipe_.push_back(timestamp);
-  }
   if (protocol_version == 2)
   {
     size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, target_frequency_, output_recipe_);
@@ -384,9 +377,12 @@ void RTDEClient::setupInputs()
 void RTDEClient::disconnect()
 {
   // If communication is started it should be paused before disconnecting
-  sendPause();
-  pipeline_.stop();
-  stream_.disconnect();
+  if (client_state_ > ClientState::UNINITIALIZED)
+  {
+    sendPause();
+    pipeline_.stop();
+    stream_.disconnect();
+  }
   client_state_ = ClientState::UNINITIALIZED;
 }
 
@@ -548,7 +544,7 @@ bool RTDEClient::sendPause()
   throw UrException(ss.str());
 }
 
-std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file)
+std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file, bool output_recipe)
 {
   std::vector<std::string> recipe;
   std::ifstream file(recipe_file);
@@ -559,11 +555,29 @@ std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file)
     URCL_LOG_ERROR("%s", msg.str().c_str());
     throw UrException(msg.str());
   }
+
+  if (file.peek() == std::ifstream::traits_type::eof())
+  {
+    std::stringstream msg;
+    msg << "The recipe '" << recipe_file << "' file is empty exiting ";
+    URCL_LOG_ERROR("%s", msg.str().c_str());
+    throw UrException(msg.str());
+  }
+
   std::string line;
   while (std::getline(file, line))
   {
     recipe.push_back(line);
   }
+
+  // Add timestamp to rtde output recipe, used to check if robot is booted
+  const std::string timestamp = "timestamp";
+  auto it = std::find(recipe.begin(), recipe.end(), timestamp);
+  if (it == recipe.end() && output_recipe == true)
+  {
+    recipe.push_back(timestamp);
+  }
+
   return recipe;
 }
 
