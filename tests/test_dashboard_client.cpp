@@ -207,5 +207,14 @@ int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
 
+  for (int i = 0; i < argc; i++)
+  {
+    if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
+    {
+      ROBOT_IP = argv[i + 1];
+      break;
+    }
+  }
+
   return RUN_ALL_TESTS();
 }

@@ -39,6 +39,8 @@ jobs:
             LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
         run: cmake --build build --config Debug
+      - name: Create folder for test artifacts
+        run: mkdir -p test_artifacts
       - name: test
         run: cd build && ctest --output-on-failure
       - name: run examples
@@ -72,6 +74,14 @@ jobs:
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: ursim_logs
+          if-no-files-found: error
+          retention-days: 10
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
+          path: test_artifacts
           if-no-files-found: error
           retention-days: 10
 

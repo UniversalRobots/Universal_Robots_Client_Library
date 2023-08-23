@@ -44,6 +44,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(dashboard_client_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
   gtest_add_tests(TARGET      dashboard_client_tests
   )
+
+  add_executable(spline_tests test_spline_interpolation.cpp)
+  target_compile_options(spline_tests PRIVATE ${CXX17_FLAG})
+  target_include_directories(spline_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+  target_link_libraries(spline_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+  gtest_add_tests(TARGET      spline_tests
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 else()
   message(STATUS "Skipping integration tests.")
 endif()
