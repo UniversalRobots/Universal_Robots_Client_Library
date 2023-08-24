@@ -228,6 +228,10 @@ TEST_F(RTDEClientTest, output_recipe)
                                                       "tcp_offset" };
 
   std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
+  // Verify that the size is the same
+  ASSERT_EQ(expected_output_recipe.size(), actual_output_recipe.size());
+  
+  // Verify that the order and contect is equal
   for (unsigned int i = 0; i < expected_output_recipe.size(); ++i)
   {
     EXPECT_EQ(expected_output_recipe[i], actual_output_recipe[i]);
