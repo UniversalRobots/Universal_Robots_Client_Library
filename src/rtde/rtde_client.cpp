@@ -37,8 +37,8 @@ namespace rtde_interface
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
                        const std::string& input_recipe_file, double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
-  , output_recipe_(readRecipe(output_recipe_file, true))
-  , input_recipe_(readRecipe(input_recipe_file, false))
+  , output_recipe_(readRecipe(output_recipe_file, RecipeType::OUTPUT_RECIPE))
+  , input_recipe_(readRecipe(input_recipe_file, RecipeType::INPUT_RECIPE))
   , parser_(output_recipe_)
   , prod_(stream_, parser_)
   , pipeline_(prod_, PIPELINE_NAME, notifier, true)
@@ -544,7 +544,7 @@ bool RTDEClient::sendPause()
   throw UrException(ss.str());
 }
 
-std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file, bool output_recipe)
+std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file, const RecipeType& recipe_type) const
 {
   std::vector<std::string> recipe;
   std::ifstream file(recipe_file);
@@ -570,14 +570,24 @@ std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file, 
     recipe.push_back(line);
   }
 
-  // Add timestamp to rtde output recipe, used to check if robot is booted
+  if (recipe_type == RecipeType::OUTPUT_RECIPE)
+  {
+    return ensureTimestampIsPresent(recipe);
+  }
+  return recipe;
+}
+
+std::vector<std::string> RTDEClient::ensureTimestampIsPresent(const std::vector<std::string>& output_recipe) const
+{
+  // Add timestamp to rtde output recipe, if not already existing.
+  // The timestamp is used to check if robot is booted or not.
+  std::vector<std::string> recipe = output_recipe;
   const std::string timestamp = "timestamp";
   auto it = std::find(recipe.begin(), recipe.end(), timestamp);
-  if (it == recipe.end() && output_recipe == true)
+  if (it == recipe.end())
   {
     recipe.push_back(timestamp);
   }
-
   return recipe;
 }
 
