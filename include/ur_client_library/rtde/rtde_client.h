@@ -190,11 +190,6 @@ public:
   }
 
 private:
-  enum class RecipeType
-  {
-    INPUT_RECIPE = 0,
-    OUTPUT_RECIPE = 1
-  };
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
   std::vector<std::string> input_recipe_;
@@ -214,7 +209,7 @@ private:
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
 
   // Reads output or input recipe from a file
-  std::vector<std::string> readRecipe(const std::string& recipe_file, const RecipeType& recipe_type) const;
+  std::vector<std::string> readRecipe(const std::string& recipe_file) const;
 
   // Helper function to ensure that timestamp is present in the output recipe. The timestamp is needed to ensure that
   // the robot is booted.
