@@ -56,9 +56,12 @@ public:
   /*!
    * \brief Connects to the configured socket.
    *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   *
    * \returns True on success, false if connection could not be established
    */
-  bool connect(size_t max_num_tries = 0)
+  bool connect(const size_t max_num_tries = 0)
   {
     return TCPSocket::setup(host_, port_, max_num_tries);
   }

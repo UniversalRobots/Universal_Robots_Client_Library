@@ -59,7 +59,7 @@ protected:
   }
   virtual void setOptions(int socket_fd);
 
-  bool setup(std::string& host, int port, size_t max_num_tries = 0);
+  bool setup(const std::string& host, const int port, const size_t max_num_tries = 0);
 
   std::unique_ptr<timeval> recv_timeout_;
 
@@ -146,7 +146,7 @@ public:
    *
    * \param reconnection_time time in between connection attempts to the server
    */
-  void setReconnectionTime(std::chrono::milliseconds reconnection_time)
+  void setReconnectionTime(const std::chrono::milliseconds reconnection_time)
   {
     reconnection_time_ = reconnection_time;
   }

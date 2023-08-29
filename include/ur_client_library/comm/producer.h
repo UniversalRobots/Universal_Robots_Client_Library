@@ -59,8 +59,13 @@ public:
 
   /*!
    * \brief Triggers the stream to connect to the robot.
+   *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
    */
-  void setupProducer(size_t max_num_tries = 0, std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
+  void setupProducer(const size_t max_num_tries = 0,
+                     const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
     stream_.setReconnectionTime(reconnection_time);
     timeval tv;

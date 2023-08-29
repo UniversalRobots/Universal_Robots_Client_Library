@@ -47,7 +47,7 @@ void DashboardClient::rtrim(std::string& str, const std::string& chars)
   str.erase(str.find_last_not_of(chars) + 1);
 }
 
-bool DashboardClient::connect(size_t max_num_tries, std::chrono::milliseconds reconnection_time)
+bool DashboardClient::connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   if (getState() == comm::SocketState::Connected)
   {
