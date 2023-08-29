@@ -56,6 +56,7 @@ bool DashboardClient::connect()
   }
   bool ret_val = false;
 
+  timeval configured_tv = getConfiguredReceiveTimeout();
   timeval tv;
 
   while (not ret_val)
@@ -79,10 +80,8 @@ bool DashboardClient::connect()
     }
   }
 
-  // Reset read timeout to "normal" socket timeout
-  tv.tv_sec = 1;
-  tv.tv_usec = 0;
-  TCPSocket::setReceiveTimeout(tv);
+  // Reset read timeout to configured socket timeout
+  TCPSocket::setReceiveTimeout(configured_tv);
 
   std::string pv;
   commandPolyscopeVersion(pv);
@@ -443,26 +442,26 @@ bool DashboardClient::commandGetUserRole(std::string& user_role)
 bool DashboardClient::commandGenerateFlightReport(const std::string& report_type)
 {
   assertVersion("5.8.0", "3.13", "generate flight report");
+  timeval configured_tv = getConfiguredReceiveTimeout();
   timeval tv;
   tv.tv_sec = 180;
   tv.tv_usec = 0;
   TCPSocket::setReceiveTimeout(tv);  // Set timeout to 3 minutes as this command can take a long time to complete
   bool ret = sendRequest("generate flight report " + report_type, "(?:Flight Report generated with id:).*");
-  tv.tv_sec = 1;  // Reset timeout to standard timeout
-  TCPSocket::setReceiveTimeout(tv);
+  TCPSocket::setReceiveTimeout(configured_tv); // Reset to configured receive timeout
   return ret;
 }
 
 bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
 {
   assertVersion("5.8.0", "3.13", "generate support file");
+  timeval configured_tv = getConfiguredReceiveTimeout();
   timeval tv;
   tv.tv_sec = 600;
   tv.tv_usec = 0;
   TCPSocket::setReceiveTimeout(tv);  // Set timeout to 10 minutes as this command can take a long time to complete
   bool ret = sendRequest("generate support file " + dir_path, "(?:Completed successfully:).*");
-  tv.tv_sec = 1;  // Reset timeout to standard timeout
-  TCPSocket::setReceiveTimeout(tv);
+  TCPSocket::setReceiveTimeout(configured_tv); // Reset to configured receive timeout
   return ret;
 }
 
@@ -501,6 +500,21 @@ void DashboardClient::assertVersion(const std::string& e_series_min_ver, const s
        << "'";
     throw UrException(ss.str());
   }
+}
+
+timeval DashboardClient::getConfiguredReceiveTimeout() const
+{
+  timeval tv;
+  if (recv_timeout_ != nullptr)
+  {
+    tv = *recv_timeout_.get();
+  }
+  else
+  {
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+  }
+  return tv;
 }
 
 }  // namespace urcl

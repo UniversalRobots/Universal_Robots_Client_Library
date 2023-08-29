@@ -165,6 +165,44 @@ TEST_F(DashboardClientTest, cb3_version)
   EXPECT_THROW(dashboard_client_->commandIsInRemoteControl(), UrException);
 }
 
+TEST_F(DashboardClientTest, set_receive_timeout)
+{
+  timeval expected_tv;
+  expected_tv.tv_sec = 30;
+  expected_tv.tv_usec = 0.0;
+  dashboard_client_->setReceiveTimeout(expected_tv);
+  EXPECT_TRUE(dashboard_client_->connect());
+  
+  // Ensure that the receive timeout hasn't been overwritten
+  timeval actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
+  EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
+  EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+
+  bool correct_polyscope_version = true;
+  try
+  {
+    dashboard_client_->assertVersion("5.6.0", "3.13", "test_function");
+  }
+  catch (const UrException& e)
+  {
+    correct_polyscope_version = false;
+  }
+  if (correct_polyscope_version)
+  {
+    EXPECT_TRUE(dashboard_client_->commandGenerateFlightReport(""));
+    // Ensure that the receive timeout hasn't been overwritten
+    actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
+    EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
+    EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+
+    EXPECT_TRUE(dashboard_client_->commandGenerateSupportFile("."));
+    // Ensure that the receive timeout hasn't been overwritten
+    actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
+    EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
+    EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
