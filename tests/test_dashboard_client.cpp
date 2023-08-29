@@ -172,7 +172,7 @@ TEST_F(DashboardClientTest, set_receive_timeout)
   expected_tv.tv_usec = 0.0;
   dashboard_client_->setReceiveTimeout(expected_tv);
   EXPECT_TRUE(dashboard_client_->connect());
-  
+
   // Ensure that the receive timeout hasn't been overwritten
   timeval actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
   EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);

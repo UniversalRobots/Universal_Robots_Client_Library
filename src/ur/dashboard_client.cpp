@@ -448,7 +448,7 @@ bool DashboardClient::commandGenerateFlightReport(const std::string& report_type
   tv.tv_usec = 0;
   TCPSocket::setReceiveTimeout(tv);  // Set timeout to 3 minutes as this command can take a long time to complete
   bool ret = sendRequest("generate flight report " + report_type, "(?:Flight Report generated with id:).*");
-  TCPSocket::setReceiveTimeout(configured_tv); // Reset to configured receive timeout
+  TCPSocket::setReceiveTimeout(configured_tv);  // Reset to configured receive timeout
   return ret;
 }
 
@@ -461,7 +461,7 @@ bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
   tv.tv_usec = 0;
   TCPSocket::setReceiveTimeout(tv);  // Set timeout to 10 minutes as this command can take a long time to complete
   bool ret = sendRequest("generate support file " + dir_path, "(?:Completed successfully:).*");
-  TCPSocket::setReceiveTimeout(configured_tv); // Reset to configured receive timeout
+  TCPSocket::setReceiveTimeout(configured_tv);  // Reset to configured receive timeout
   return ret;
 }
 
