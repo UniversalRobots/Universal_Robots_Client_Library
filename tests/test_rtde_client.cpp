@@ -40,7 +40,7 @@ class RTDEClientTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe_));
+    client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_));
   }
 
   void TearDown()
@@ -50,10 +50,52 @@ protected:
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
-  std::string output_recipe_ = "resources/rtde_output_recipe.txt";
-  std::string input_recipe_ = "resources/rtde_input_recipe.txt";
+  std::string output_recipe_file_ = "resources/rtde_output_recipe.txt";
+  std::string input_recipe_file_ = "resources/rtde_input_recipe.txt";
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> client_;
+
+  std::vector<std::string> resources_output_recipe_ = { "timestamp",
+                                                        "actual_q",
+                                                        "actual_qd",
+                                                        "speed_scaling",
+                                                        "target_speed_fraction",
+                                                        "runtime_state",
+                                                        "actual_TCP_force",
+                                                        "actual_TCP_pose",
+                                                        "actual_digital_input_bits",
+                                                        "actual_digital_output_bits",
+                                                        "standard_analog_input0",
+                                                        "standard_analog_input1",
+                                                        "standard_analog_output0",
+                                                        "standard_analog_output1",
+                                                        "analog_io_types",
+                                                        "tool_mode",
+                                                        "tool_analog_input_types",
+                                                        "tool_analog_input0",
+                                                        "tool_analog_input1",
+                                                        "tool_output_voltage",
+                                                        "tool_output_current",
+                                                        "tool_temperature",
+                                                        "robot_mode",
+                                                        "safety_mode",
+                                                        "robot_status_bits",
+                                                        "safety_status_bits",
+                                                        "actual_current",
+                                                        "tcp_offset" };
+
+  std::vector<std::string> resources_input_recipe_ = { "speed_slider_mask",
+                                                       "speed_slider_fraction",
+                                                       "standard_digital_output_mask",
+                                                       "standard_digital_output",
+                                                       "configurable_digital_output_mask",
+                                                       "configurable_digital_output",
+                                                       "tool_digital_output_mask",
+                                                       "tool_digital_output",
+                                                       "standard_analog_output_mask",
+                                                       "standard_analog_output_type",
+                                                       "standard_analog_output_0",
+                                                       "standard_analog_output_1" };
 };
 
 TEST_F(RTDEClientTest, rtde_handshake)
@@ -63,36 +105,40 @@ TEST_F(RTDEClientTest, rtde_handshake)
 
 TEST_F(RTDEClientTest, no_recipe)
 {
-  std::string output_recipe = "";
-  std::string input_recipe = "";
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe)),
-               UrException);
+  std::string output_recipe_file = "";
+  std::string input_recipe_file = "";
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      UrException);
 
   // Only input recipe is unconfigured
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe)),
-               UrException);
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
+      UrException);
 }
 
-TEST_F(RTDEClientTest, empty_recipe)
+TEST_F(RTDEClientTest, empty_recipe_file)
 {
-  std::string output_recipe = "resources/empty.txt";
-  std::string input_recipe = "resources/empty.txt";
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe)),
-               UrException);
+  std::string output_recipe_file = "resources/empty.txt";
+  std::string input_recipe_file = "resources/empty.txt";
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      UrException);
 
   // Only input recipe is empty
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe)),
-               UrException);
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
+      UrException);
 }
 
 TEST_F(RTDEClientTest, invalid_target_frequency)
 {
   // Setting target frequency below 0 or above 500, should throw an exception
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe_, -1.0));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0));
 
   EXPECT_THROW(client_->init(), UrException);
 
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe_, 1000));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000));
 
   EXPECT_THROW(client_->init(), UrException);
 }
@@ -111,7 +157,7 @@ TEST_F(RTDEClientTest, unconfigured_target_frequency)
 
 TEST_F(RTDEClientTest, set_target_frequency)
 {
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_, input_recipe_, 1));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1));
   client_->init();
 
   // Maximum frequency should still be equal to the robot's maximum frequency
@@ -196,45 +242,29 @@ TEST_F(RTDEClientTest, pause_client)
   EXPECT_TRUE(client_->pause());
 }
 
-TEST_F(RTDEClientTest, output_recipe)
+TEST_F(RTDEClientTest, output_recipe_file)
 {
-  std::vector<std::string> expected_output_recipe = { "timestamp",
-                                                      "actual_q",
-                                                      "actual_qd",
-                                                      "speed_scaling",
-                                                      "target_speed_fraction",
-                                                      "runtime_state",
-                                                      "actual_TCP_force",
-                                                      "actual_TCP_pose",
-                                                      "actual_digital_input_bits",
-                                                      "actual_digital_output_bits",
-                                                      "standard_analog_input0",
-                                                      "standard_analog_input1",
-                                                      "standard_analog_output0",
-                                                      "standard_analog_output1",
-                                                      "analog_io_types",
-                                                      "tool_mode",
-                                                      "tool_analog_input_types",
-                                                      "tool_analog_input0",
-                                                      "tool_analog_input1",
-                                                      "tool_output_voltage",
-                                                      "tool_output_current",
-                                                      "tool_temperature",
-                                                      "robot_mode",
-                                                      "safety_mode",
-                                                      "robot_status_bits",
-                                                      "safety_status_bits",
-                                                      "actual_current",
-                                                      "tcp_offset" };
-
   std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
   // Verify that the size is the same
-  ASSERT_EQ(expected_output_recipe.size(), actual_output_recipe.size());
+  ASSERT_EQ(resources_output_recipe_.size(), actual_output_recipe.size());
 
   // Verify that the order and contect is equal
-  for (unsigned int i = 0; i < expected_output_recipe.size(); ++i)
+  for (unsigned int i = 0; i < resources_output_recipe_.size(); ++i)
   {
-    EXPECT_EQ(expected_output_recipe[i], actual_output_recipe[i]);
+    EXPECT_EQ(resources_output_recipe_[i], actual_output_recipe[i]);
+  }
+}
+
+TEST_F(RTDEClientTest, recipe_compairson)
+{
+  // Check that vectorized constructor provides same recipes as from file
+  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
+
+  std::vector<std::string> output_recipe_from_file = client_->getOutputRecipe();
+  std::vector<std::string> output_recipe_from_vector = client.getOutputRecipe();
+  for (unsigned int i = 0; i < output_recipe_from_file.size(); ++i)
+  {
+    EXPECT_EQ(output_recipe_from_file[i], output_recipe_from_vector[i]);
   }
 }
 
@@ -300,13 +330,20 @@ TEST_F(RTDEClientTest, write_rtde_data)
 
 TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 {
-  std::string output_recipe = "resources/rtde_output_recipe_without_timestamp.txt";
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe_));
+  std::string output_recipe_file = "resources/rtde_output_recipe_without_timestamp.txt";
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
 
-  std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
+  std::vector<std::string> actual_output_recipe_from_file = client_->getOutputRecipe();
   const std::string timestamp = "timestamp";
-  auto it = std::find(actual_output_recipe.begin(), actual_output_recipe.end(), timestamp);
-  EXPECT_FALSE(it == actual_output_recipe.end());
+  auto it = std::find(actual_output_recipe_from_file.begin(), actual_output_recipe_from_file.end(), timestamp);
+  EXPECT_FALSE(it == actual_output_recipe_from_file.end());
+
+  // Verify that timestamp is added to the recipe when using the vectorized constructor
+  std::vector<std::string> output_recipe = { "actual_q", "actual_qd" };
+  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, resources_input_recipe_);
+  std::vector<std::string> actual_output_recipe_from_vector = client.getOutputRecipe();
+  it = std::find(actual_output_recipe_from_vector.begin(), actual_output_recipe_from_vector.end(), timestamp);
+  EXPECT_FALSE(it == actual_output_recipe_from_vector.end());
 }
 
 int main(int argc, char* argv[])
