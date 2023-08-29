@@ -54,49 +54,49 @@ protected:
   std::string input_recipe_file_ = "resources/rtde_input_recipe.txt";
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> client_;
+
+  std::vector<std::string> resources_output_recipe_ = { "timestamp",
+                                                        "actual_q",
+                                                        "actual_qd",
+                                                        "speed_scaling",
+                                                        "target_speed_fraction",
+                                                        "runtime_state",
+                                                        "actual_TCP_force",
+                                                        "actual_TCP_pose",
+                                                        "actual_digital_input_bits",
+                                                        "actual_digital_output_bits",
+                                                        "standard_analog_input0",
+                                                        "standard_analog_input1",
+                                                        "standard_analog_output0",
+                                                        "standard_analog_output1",
+                                                        "analog_io_types",
+                                                        "tool_mode",
+                                                        "tool_analog_input_types",
+                                                        "tool_analog_input0",
+                                                        "tool_analog_input1",
+                                                        "tool_output_voltage",
+                                                        "tool_output_current",
+                                                        "tool_temperature",
+                                                        "robot_mode",
+                                                        "safety_mode",
+                                                        "robot_status_bits",
+                                                        "safety_status_bits",
+                                                        "actual_current",
+                                                        "tcp_offset" };
+
+  std::vector<std::string> resources_input_recipe_ = { "speed_slider_mask",
+                                                       "speed_slider_fraction",
+                                                       "standard_digital_output_mask",
+                                                       "standard_digital_output",
+                                                       "configurable_digital_output_mask",
+                                                       "configurable_digital_output",
+                                                       "tool_digital_output_mask",
+                                                       "tool_digital_output",
+                                                       "standard_analog_output_mask",
+                                                       "standard_analog_output_type",
+                                                       "standard_analog_output_0",
+                                                       "standard_analog_output_1" };
 };
-
-std::vector<std::string> resources_output_recipe = { "timestamp",
-                                                     "actual_q",
-                                                     "actual_qd",
-                                                     "speed_scaling",
-                                                     "target_speed_fraction",
-                                                     "runtime_state",
-                                                     "actual_TCP_force",
-                                                     "actual_TCP_pose",
-                                                     "actual_digital_input_bits",
-                                                     "actual_digital_output_bits",
-                                                     "standard_analog_input0",
-                                                     "standard_analog_input1",
-                                                     "standard_analog_output0",
-                                                     "standard_analog_output1",
-                                                     "analog_io_types",
-                                                     "tool_mode",
-                                                     "tool_analog_input_types",
-                                                     "tool_analog_input0",
-                                                     "tool_analog_input1",
-                                                     "tool_output_voltage",
-                                                     "tool_output_current",
-                                                     "tool_temperature",
-                                                     "robot_mode",
-                                                     "safety_mode",
-                                                     "robot_status_bits",
-                                                     "safety_status_bits",
-                                                     "actual_current",
-                                                     "tcp_offset" };
-
-std::vector<std::string> resources_input_recipe = { "speed_slider_mask",
-                                                    "speed_slider_fraction",
-                                                    "standard_digital_output_mask",
-                                                    "standard_digital_output",
-                                                    "configurable_digital_output_mask",
-                                                    "configurable_digital_output",
-                                                    "tool_digital_output_mask",
-                                                    "tool_digital_output",
-                                                    "standard_analog_output_mask",
-                                                    "standard_analog_output_type",
-                                                    "standard_analog_output_0",
-                                                    "standard_analog_output_1" };
 
 TEST_F(RTDEClientTest, rtde_handshake)
 {
@@ -246,19 +246,19 @@ TEST_F(RTDEClientTest, output_recipe_file)
 {
   std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
   // Verify that the size is the same
-  ASSERT_EQ(resources_output_recipe.size(), actual_output_recipe.size());
+  ASSERT_EQ(resources_output_recipe_.size(), actual_output_recipe.size());
 
   // Verify that the order and contect is equal
-  for (unsigned int i = 0; i < resources_output_recipe.size(); ++i)
+  for (unsigned int i = 0; i < resources_output_recipe_.size(); ++i)
   {
-    EXPECT_EQ(resources_output_recipe[i], actual_output_recipe[i]);
+    EXPECT_EQ(resources_output_recipe_[i], actual_output_recipe[i]);
   }
 }
 
 TEST_F(RTDEClientTest, recipe_compairson)
 {
   // Check that vectorized constructor provides same recipes as from file
-  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, resources_output_recipe, resources_input_recipe);
+  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
 
   std::vector<std::string> output_recipe_from_file = client_->getOutputRecipe();
   std::vector<std::string> output_recipe_from_vector = client.getOutputRecipe();
@@ -330,13 +330,20 @@ TEST_F(RTDEClientTest, write_rtde_data)
 
 TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 {
-  std::string output_recipe = "resources/rtde_output_recipe_without_timestamp.txt";
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, input_recipe_file_));
+  std::string output_recipe_file = "resources/rtde_output_recipe_without_timestamp.txt";
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
 
-  std::vector<std::string> actual_output_recipe = client_->getOutputRecipe();
+  std::vector<std::string> actual_output_recipe_from_file = client_->getOutputRecipe();
   const std::string timestamp = "timestamp";
-  auto it = std::find(actual_output_recipe.begin(), actual_output_recipe.end(), timestamp);
-  EXPECT_FALSE(it == actual_output_recipe.end());
+  auto it = std::find(actual_output_recipe_from_file.begin(), actual_output_recipe_from_file.end(), timestamp);
+  EXPECT_FALSE(it == actual_output_recipe_from_file.end());
+
+  // Verify that timestamp is added to the recipe when using the vectorized constructor
+  std::vector<std::string> output_recipe = { "actual_q", "actual_qd" };
+  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, resources_input_recipe_);
+  std::vector<std::string> actual_output_recipe_from_vector = client.getOutputRecipe();
+  it = std::find(actual_output_recipe_from_vector.begin(), actual_output_recipe_from_vector.end(), timestamp);
+  EXPECT_FALSE(it == actual_output_recipe_from_vector.end());
 }
 
 int main(int argc, char* argv[])

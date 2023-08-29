@@ -52,7 +52,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
                        const std::vector<std::string>& input_recipe, double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
-  , output_recipe_(output_recipe)
+  , output_recipe_(ensureTimestampIsPresent(output_recipe))
   , input_recipe_(input_recipe)
   , parser_(output_recipe_)
   , prod_(stream_, parser_)
