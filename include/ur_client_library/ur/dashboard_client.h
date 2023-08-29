@@ -451,6 +451,14 @@ private:
   std::string read();
   void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
 
+  /*!
+   * \brief Gets the configured receive timeout. If receive timeout is unconfigured "normal" socket timeout of 1 second
+   * will be returned
+   *
+   * \returns configured receive timeout
+   */
+  timeval getConfiguredReceiveTimeout() const;
+
   VersionInformation polyscope_version_;
   std::string host_;
   int port_;
