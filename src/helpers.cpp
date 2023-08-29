@@ -46,10 +46,10 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
     {
       case EPERM:
       {
-        URCL_LOG_ERROR("Your system/user seems not to be setup for FIFO scheduling. We recommend using a lowlatency "
-                       "kernel with FIFO scheduling. See "
-                       "https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/"
-                       "doc/real_time.md for details.");
+        URCL_LOG_WARN("Your system/user seems not to be setup for FIFO scheduling. We recommend using a lowlatency "
+                      "kernel with FIFO scheduling. See "
+                      "https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/"
+                      "doc/real_time.md for details.");
         break;
       }
       default:
@@ -59,7 +59,10 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
                        strerror(ret));
       }
     }
+
+    return false;
   }
+
   // Now verify the change in thread priority
   int policy = 0;
   ret = pthread_getschedparam(thread, &policy, &params);
