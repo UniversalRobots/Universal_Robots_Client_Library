@@ -1,5 +1,5 @@
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
-// Copyright 2022 Universal Robots A/S
+// Copyright 2023 Universal Robots A/S
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -35,13 +35,26 @@
 
 using namespace urcl;
 
-TEST(ur_driver, read_script_file)
+TEST(ur_driver, read_non_existing_script_file)
 {
-  std::string unknown_script_file = "../resources/external_control1.urscript";
-  EXPECT_THROW(UrDriver::readScriptFile(unknown_script_file), UrException);
+  const std::string non_existing_script_file = "";
+  EXPECT_THROW(UrDriver::readScriptFile(non_existing_script_file), UrException);
+}
 
-  std::string known_script_file = "../resources/external_control.urscript";
-  EXPECT_NO_THROW(UrDriver::readScriptFile(known_script_file));
+TEST(ur_driver, read_existing_script_file)
+{
+  char existing_script_file[] = "urscript.XXXXXX";
+  int fd = mkstemp(existing_script_file);
+  if (fd == -1)
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  EXPECT_NO_THROW(UrDriver::readScriptFile(existing_script_file));
+
+  // clean up
+  close(fd);
+  unlink(existing_script_file);
 }
 
 // TODO we should add more tests for the UrDriver class.
