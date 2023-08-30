@@ -202,3 +202,10 @@ target_include_directories(script_command_interface_tests PRIVATE ${GTEST_INCLUD
 target_link_libraries(script_command_interface_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET script_command_interface_tests
 )
+
+add_executable(ur_driver_tests test_ur_driver.cpp)
+target_compile_options(ur_driver_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(ur_driver_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(ur_driver_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET      ur_driver_tests
+)
