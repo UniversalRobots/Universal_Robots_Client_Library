@@ -493,7 +493,14 @@ bool UrDriver::stopControl()
 
 std::string UrDriver::readScriptFile(const std::string& filename)
 {
-  std::ifstream ifs(filename);
+  std::ifstream ifs;
+  ifs.open(filename);
+  if (!ifs)
+  {
+    std::stringstream ss;
+    ss << "URScript file '" << filename << "' doesn't exists.";
+    throw UrException(ss.str().c_str());
+  }
   std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 
   return content;
