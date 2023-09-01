@@ -320,6 +320,13 @@ TEST_F(StreamTest, write_data_package)
   EXPECT_EQ(send_message, received_message_);
 }
 
+TEST_F(StreamTest, connect_non_connected_robot)
+{
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
+  stream.setReconnectionTime(std::chrono::milliseconds(500));
+  EXPECT_FALSE(stream.connect(2));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

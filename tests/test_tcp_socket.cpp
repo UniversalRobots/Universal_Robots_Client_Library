@@ -29,7 +29,9 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <chrono>
 #include <condition_variable>
+#include <cstddef>
 
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/comm/tcp_server.h>
@@ -101,15 +103,16 @@ protected:
   class Client : public comm::TCPSocket
   {
   public:
-    Client(int port)
+    Client(int port, const std::string& ip = "127.0.0.1", const size_t max_num_tries = 0)
     {
       port_ = port;
+      ip_ = ip;
+      max_num_tries_ = max_num_tries;
     }
 
     bool setup()
     {
-      std::string ip = "127.0.0.1";
-      return TCPSocket::setup(ip, port_);
+      return TCPSocket::setup(ip_, port_, max_num_tries_);
     }
 
     void setupClientBeforeServer()
@@ -145,6 +148,8 @@ protected:
   private:
     std::thread client_setup_thread_;
     int port_;
+    std::string ip_;
+    size_t max_num_tries_;
     bool done_setting_up_client_;
 
     void setupClient(int port)
@@ -339,6 +344,13 @@ TEST_F(TCPSocketTest, setup_while_client_is_connected)
   client_->setup();
 
   EXPECT_FALSE(client_->setup());
+}
+
+TEST_F(TCPSocketTest, connect_non_running_robot)
+{
+  Client client(12321, "127.0.0.1", 2);
+  client.setReconnectionTime(std::chrono::milliseconds(500));
+  EXPECT_FALSE(client.setup());
 }
 
 int main(int argc, char* argv[])

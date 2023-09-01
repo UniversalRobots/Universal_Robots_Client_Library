@@ -203,6 +203,14 @@ TEST_F(DashboardClientTest, set_receive_timeout)
   }
 }
 
+TEST_F(DashboardClientTest, connect_non_running_robot)
+{
+  std::unique_ptr<DashboardClient> dashboard_client;
+  // We use an IP address on the integration_test's subnet
+  dashboard_client.reset(new DashboardClient("192.168.56.123"));
+  EXPECT_FALSE(dashboard_client->connect(2, std::chrono::milliseconds(500)));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

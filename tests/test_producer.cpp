@@ -119,6 +119,17 @@ TEST_F(ProducerTest, get_data_package)
   producer.stopProducer();
 }
 
+TEST_F(ProducerTest, connect_non_connected_robot)
+{
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
+  std::vector<std::string> recipe = { "timestamp" };
+  rtde_interface::RTDEParser parser(recipe);
+  parser.setProtocolVersion(2);
+  comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
+
+  EXPECT_THROW(producer.setupProducer(2, std::chrono::milliseconds(500)), UrException);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
