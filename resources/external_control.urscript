@@ -187,24 +187,32 @@ end
 def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, last_point):
   # Initialize variables
   local splineTimerTraveled = 0.0
-  local step_time = get_steptime()
+  local scaled_step_time = get_steptime()
   local scaling_factor = 1.0
   local slowing_down = False
   local slowing_down_time = 0.0
 
-  # Interpolate the spline in hole time steps
+  # Interpolate the spline in whole time steps
   while (splineTotalTravelTime - splineTimerTraveled) > get_steptime():
     local time_left = splineTotalTravelTime - splineTimerTraveled
-    local deceleration_time = 0.4189
+
+    # Maximum deceleration in rad/s^2
+    local max_deceleration = 15
+    # Maximum allowable joint speed in rad/s
+    local max_speed = 6.283185
+    # The time needed to decelerate with 15 rad/s^2 to reach zero velocity when we move at maximum velocity.
+    local deceleration_time = max_speed / max_deceleration
 
     # If the velocity is too large close to the end of the trajectory we scale the
     # trajectory, such that we follow the positional part of the trajectory, but end with zero velocity.
-    if time_left <= deceleration_time and last_point == True:
+    if (time_left <= deceleration_time) and (last_point == True):
       if slowing_down == False:
-        local deceleration = 15
+
+        # Peek what the joint velocities will be if we take a full time step
         local qd = jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled + get_steptime())
-        local x = deceleration_time - (time_left - get_steptime()) # we look one time step ahead
-        slowing_down = slowDownTrajectory(x, qd, deceleration_time, deceleration)
+        # Compute the time left to decelerate if we take a full time step
+        local x = deceleration_time - (time_left - get_steptime())
+        slowing_down = checkSlowDownRequired(x, qd, max_speed, max_deceleration)
 
         if slowing_down == True:
           # This will ensure that we scale the trajectory right away
@@ -214,12 +222,13 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
       end
 
       if slowing_down == True:
-        scaling_factor = getScalingFactor(slowing_down_time, time_left)
-        step_time = get_steptime() * scaling_factor
+        # Compute scaling factor based on time left and total slowing down time
+        scaling_factor = time_left / slowing_down_time
+        scaled_step_time = get_steptime() * scaling_factor
       end
     end
 
-    splineTimerTraveled = splineTimerTraveled + step_time
+    splineTimerTraveled = splineTimerTraveled + scaled_step_time
     # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
     jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor)
   end
@@ -230,10 +239,11 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
     while norm(qd) > 0.00001:
       local time_left = splineTotalTravelTime - splineTimerTraveled
 
-      scaling_factor = getScalingFactor(slowing_down_time, time_left)
-      step_time = get_steptime() * scaling_factor
+      # Compute scaling factor based on time left and total slowing down time
+      scaling_factor = time_left / slowing_down_time
+      scaled_step_time = get_steptime() * scaling_factor
 
-      splineTimerTraveled = splineTimerTraveled + step_time
+      splineTimerTraveled = splineTimerTraveled + scaled_step_time
       # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
       jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor)
 
@@ -266,9 +276,17 @@ def jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, 
   return qd
 end
 
-# Helper function to figure out if we need to slown down velocity at the last part of the last spline segment
-def slowDownTrajectory(x, qd, deceleration_time, max_deceleration):
-  local max_speed = deceleration_time * max_deceleration
+# \brief Helper function to figure out if we need to slown down velocity at the last part of the last spline segment.
+#
+# The max_speed and max_deceleration is used to compute a linear velocity profile as function of the time left to decelerate,
+# then we can use the time left to decelerate to find the maximum allowed speed given the time we have left. If we are above
+# the maximum allowed speed, we start slowing down.
+#
+# \param 'x' is the time left to decelerate.
+# \param 'qd' is the velocity if we take a full step ahead in the spline.
+# \param 'max_speed' maximum allowed joint speed 6.283185 rad/s
+# \param 'max_deceleration' is the maximum allowed deceleration 15 rad/s^2.
+def checkSlowDownRequired(x, qd, max_speed, max_deceleration):
   local max_allowable_speed = max_speed - x * max_deceleration
   local idx = 0
   while idx < 6:
@@ -278,13 +296,6 @@ def slowDownTrajectory(x, qd, deceleration_time, max_deceleration):
     idx = idx + 1
   end
   return False
-end
-
-# Helper function to get scaling factor, that the the time step should be scaled with
-def getScalingFactor(slowing_down_time, time_left):
-  local x = (slowing_down_time - time_left) * (1/slowing_down_time) # Get a number between 0 and 1
-  local scaling_factor = 1 - x
-  return scaling_factor
 end
 
 thread trajectoryThread():
