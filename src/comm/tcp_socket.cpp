@@ -43,15 +43,15 @@ TCPSocket::~TCPSocket()
   close();
 }
 
-void TCPSocket::setOptions(int socket_fd)
+void TCPSocket::setupOptions()
 {
   int flag = 1;
-  setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
-  setsockopt(socket_fd, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
+  setsockopt(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+  setsockopt(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
 
   if (recv_timeout_ != nullptr)
   {
-    setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+    setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
   }
 }
 
@@ -107,7 +107,7 @@ bool TCPSocket::setup(std::string& host, int port)
       std::this_thread::sleep_for(reconnection_time_);
     }
   }
-  setOptions(socket_fd_);
+  setupOptions();
   state_ = SocketState::Connected;
   URCL_LOG_DEBUG("Connection established for %s:%d", host.c_str(), port);
   return connected;
@@ -206,7 +206,7 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
 
   if (state_ == SocketState::Connected)
   {
-    setOptions(socket_fd_);
+    setupOptions();
   }
 }
 

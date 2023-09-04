@@ -69,7 +69,6 @@ protected:
       size_t remainder = sizeof(int32_t) * 21;
       while (remainder > 0)
       {
-        TCPSocket::setOptions(getSocketFD());
         if (!TCPSocket::read(b_pos, remainder, read))
         {
           std::cout << "Failed to read from socket, this should not happen during a test!" << std::endl;
@@ -171,12 +170,6 @@ protected:
       TrajData spl;
       readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type);
       return spl;
-    }
-
-  protected:
-    virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
-    {
-      return ::connect(socket_fd, address, address_len) == 0;
     }
   };
 

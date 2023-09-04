@@ -145,12 +145,6 @@ protected:
       readMessage(keep_alive_signal, pos, control_mode);
       return pos[0];
     }
-
-  protected:
-    virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
-    {
-      return ::connect(socket_fd, address, address_len) == 0;
-    }
   };
 
   void SetUp()

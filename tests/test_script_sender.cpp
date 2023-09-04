@@ -77,12 +77,6 @@ protected:
       }
       return result.str();
     }
-
-  protected:
-    virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
-    {
-      return ::connect(socket_fd, address, address_len) == 0;
-    }
   };
 
   void SetUp()

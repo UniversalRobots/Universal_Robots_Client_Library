@@ -114,12 +114,6 @@ public:
     return host_;
   }
 
-protected:
-  virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
-  {
-    return ::connect(socket_fd, address, address_len) == 0;
-  }
-
 private:
   std::string host_;
   int port_;
@@ -145,7 +139,6 @@ bool URStream<T>::read(uint8_t* buf, const size_t buf_len, size_t& total)
 
   while (remainder > 0 && TCPSocket::read(buf_pos, remainder, read))
   {
-    TCPSocket::setOptions(getSocketFD());
     if (initial)
     {
       remainder = T::HeaderType::getPackageLength(buf);
