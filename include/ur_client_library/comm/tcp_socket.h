@@ -55,7 +55,7 @@ private:
 protected:
   virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
   {
-    return false;
+    return ::connect(socket_fd, address, address_len) == 0;
   }
   virtual void setOptions(int socket_fd);
 

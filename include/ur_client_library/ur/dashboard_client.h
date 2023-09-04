@@ -429,12 +429,6 @@ public:
    */
   bool commandSaveLog();
 
-protected:
-  virtual bool open(int socket_fd, struct sockaddr* address, size_t address_len)
-  {
-    return ::connect(socket_fd, address, address_len) == 0;
-  }
-
 private:
   /*!
    * \brief Makes sure that the dashboard_server's version is above the required version
