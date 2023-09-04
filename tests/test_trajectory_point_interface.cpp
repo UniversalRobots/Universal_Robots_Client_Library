@@ -171,7 +171,6 @@ protected:
       readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type);
       return spl;
     }
-
   };
 
   void SetUp()

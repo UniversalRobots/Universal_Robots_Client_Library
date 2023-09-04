@@ -145,7 +145,6 @@ protected:
       readMessage(keep_alive_signal, pos, control_mode);
       return pos[0];
     }
-
   };
 
   void SetUp()
