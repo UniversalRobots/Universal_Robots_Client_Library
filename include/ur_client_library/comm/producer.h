@@ -67,12 +67,11 @@ public:
   void setupProducer(const size_t max_num_tries = 0,
                      const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
-    stream_.setReconnectionTime(reconnection_time);
     timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     stream_.setReceiveTimeout(tv);
-    if (!stream_.connect(max_num_tries))
+    if (!stream_.connect(max_num_tries, reconnection_time))
     {
       throw UrException("Failed to connect to robot. Please check if the robot is booted and connected.");
     }

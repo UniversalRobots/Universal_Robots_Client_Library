@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <chrono>
 #include <condition_variable>
 
 #include <ur_client_library/comm/stream.h>
@@ -323,8 +324,7 @@ TEST_F(StreamTest, write_data_package)
 TEST_F(StreamTest, connect_non_connected_robot)
 {
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
-  stream.setReconnectionTime(std::chrono::milliseconds(500));
-  EXPECT_FALSE(stream.connect(2));
+  EXPECT_FALSE(stream.connect(2, std::chrono::milliseconds(500)));
 }
 
 int main(int argc, char* argv[])

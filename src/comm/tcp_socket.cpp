@@ -24,6 +24,7 @@
 #include <endian.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+#include <chrono>
 #include <cstring>
 #include <sstream>
 #include <thread>
@@ -55,8 +56,19 @@ void TCPSocket::setOptions(int socket_fd)
   }
 }
 
-bool TCPSocket::setup(std::string& host, int port, size_t max_num_tries)
+bool TCPSocket::setup(const std::string& host, const int port, const size_t max_num_tries,
+                      const std::chrono::milliseconds reconnection_time)
 {
+  // This can be removed once we remove the setReconnectionTime() method
+  auto reconnection_time_resolved = reconnection_time;
+  if (reconnection_time_modified_deprecated_)
+  {
+    URCL_LOG_WARN("TCPSocket::setup(): Reconnection time was modified using `setReconnectionTime()` which is "
+                  "deprecated. Please change your code to set reconnection_time through the `setup()` method "
+                  "directly. The value passed to this function will be ignored.");
+    reconnection_time_resolved = reconnection_time_;
+  }
+
   if (state_ == SocketState::Connected)
     return false;
 
@@ -113,9 +125,9 @@ bool TCPSocket::setup(std::string& host, int port, size_t max_num_tries)
       std::stringstream ss;
       ss << "Failed to connect to robot on IP " << host_name
          << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
-         << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_).count() << " seconds";
+         << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count() << " seconds";
       URCL_LOG_ERROR("%s", ss.str().c_str());
-      std::this_thread::sleep_for(reconnection_time_);
+      std::this_thread::sleep_for(reconnection_time_resolved);
     }
   }
   setOptions(socket_fd_);
@@ -219,6 +231,14 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
   {
     setOptions(socket_fd_);
   }
+}
+
+void TCPSocket::setReconnectionTime(const std::chrono::milliseconds reconnection_time)
+{
+  URCL_LOG_ERROR("Calling setReconnectionTime is deprecated. Reconnection timeout is passed to the setup method "
+                 "directly.");
+  reconnection_time_ = reconnection_time;
+  reconnection_time_modified_deprecated_ = true;
 }
 
 }  // namespace comm

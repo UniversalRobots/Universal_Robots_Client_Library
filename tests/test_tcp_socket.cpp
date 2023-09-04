@@ -103,22 +103,23 @@ protected:
   class Client : public comm::TCPSocket
   {
   public:
-    Client(int port, const std::string& ip = "127.0.0.1", const size_t max_num_tries = 0)
+    Client(int port, const std::string& ip = "127.0.0.1")
     {
       port_ = port;
       ip_ = ip;
-      max_num_tries_ = max_num_tries;
     }
 
-    bool setup()
+    bool setup(const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
-      return TCPSocket::setup(ip_, port_, max_num_tries_);
+      return TCPSocket::setup(ip_, port_, max_num_tries, reconnection_time);
     }
 
-    void setupClientBeforeServer()
+    void setupClientBeforeServer(const size_t max_num_tries = 0,
+                                 const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       done_setting_up_client_ = false;
-      client_setup_thread_ = std::thread(&Client::setupClient, this, port_);
+      client_setup_thread_ = std::thread(&Client::setupClient, this, port_, max_num_tries, reconnection_time);
     }
 
     bool waitForClientSetupThread()
@@ -149,10 +150,10 @@ protected:
     std::thread client_setup_thread_;
     int port_;
     std::string ip_;
-    size_t max_num_tries_;
     bool done_setting_up_client_;
 
-    void setupClient(int port)
+    void setupClient(int port, const size_t max_num_tries = 0,
+                     std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       std::string ip = "127.0.0.1";
       TCPSocket::setup(ip, port);
@@ -205,8 +206,7 @@ TEST_F(TCPSocketTest, setup_client_before_server)
   // Make server unavailable
   server_.reset();
 
-  client_->setReconnectionTime(std::chrono::seconds(1));
-  client_->setupClientBeforeServer();
+  client_->setupClientBeforeServer(0, std::chrono::seconds(1));
 
   // Make sure that the client has tried to connect to the server, before creating the server
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -348,9 +348,8 @@ TEST_F(TCPSocketTest, setup_while_client_is_connected)
 
 TEST_F(TCPSocketTest, connect_non_running_robot)
 {
-  Client client(12321, "127.0.0.1", 2);
-  client.setReconnectionTime(std::chrono::milliseconds(500));
-  EXPECT_FALSE(client.setup());
+  Client client(12321, "127.0.0.1");
+  EXPECT_FALSE(client.setup(2, std::chrono::milliseconds(500)));
 }
 
 int main(int argc, char* argv[])

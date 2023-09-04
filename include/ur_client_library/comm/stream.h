@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include "ur_client_library/log.h"
@@ -58,12 +59,14 @@ public:
    *
    * \param max_num_tries Maximum number of connection attempts before counting the connection as
    * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
    *
    * \returns True on success, false if connection could not be established
    */
-  bool connect(const size_t max_num_tries = 0)
+  bool connect(const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
-    return TCPSocket::setup(host_, port_, max_num_tries);
+    return TCPSocket::setup(host_, port_, max_num_tries, reconnection_time);
   }
 
   /*!
