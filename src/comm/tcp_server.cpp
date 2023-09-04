@@ -31,6 +31,7 @@
 
 #include <iostream>
 
+#include <ratio>
 #include <sstream>
 #include <strings.h>
 #include <cstring>
@@ -42,10 +43,11 @@ namespace urcl
 {
 namespace comm
 {
-TCPServer::TCPServer(const int port) : port_(port), maxfd_(0), max_clients_allowed_(0)
+TCPServer::TCPServer(const int port, const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
+  : port_(port), maxfd_(0), max_clients_allowed_(0)
 {
   init();
-  bind();
+  bind(max_num_tries, reconnection_time);
   startListen();
 }
 
@@ -124,7 +126,7 @@ void TCPServer::shutdown()
   }
 }
 
-void TCPServer::bind()
+void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   struct sockaddr_in server_addr;
   server_addr.sin_family = AF_INET;
@@ -132,13 +134,36 @@ void TCPServer::bind()
   // INADDR_ANY is a special constant that signalizes "ANY IFACE",
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
   server_addr.sin_port = htons(port_);
-  int err = ::bind(listen_fd_, (struct sockaddr*)&server_addr, sizeof(server_addr));
-  if (err == -1)
+  int err = -1;
+  size_t connection_counter = 0;
+  do
   {
-    std::ostringstream ss;
-    ss << "Failed to bind socket for port " << port_ << " to address. Reason: " << strerror(errno);
-    throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
-  }
+    std::cout << "Trying to bind socket" << std::endl;
+    err = ::bind(listen_fd_, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if (err == -1)
+    {
+      std::ostringstream ss;
+      ss << "Failed to bind socket for port " << port_ << " to address. Reason: " << strerror(errno);
+
+      if (connection_counter++ < max_num_tries || max_num_tries == 0)
+      {
+        std::this_thread::sleep_for(reconnection_time);
+        ss << "Retrying in " << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time).count()
+           << " seconds";
+        URCL_LOG_WARN("%s", ss.str().c_str());
+      }
+      else
+      {
+        throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
+      }
+    }
+    else
+    {
+      std::cout << "done: " << err << std::endl;
+    }
+  } while (err == -1 && (connection_counter <= max_num_tries || max_num_tries == 0));
+  std::cout << "hello" << std::endl;
+
   URCL_LOG_DEBUG("Bound %d:%d to FD %d", server_addr.sin_addr.s_addr, port_, (int)listen_fd_);
 
   FD_SET(listen_fd_, &masterfds_);

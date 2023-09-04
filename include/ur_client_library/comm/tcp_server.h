@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <thread>
 
@@ -60,7 +61,8 @@ class TCPServer
 {
 public:
   TCPServer() = delete;
-  TCPServer(const int port);
+  TCPServer(const int port, const size_t max_num_tries = 0,
+            const std::chrono::milliseconds reconnection_time = std::chrono::seconds(1));
   virtual ~TCPServer();
 
   /*!
@@ -147,7 +149,7 @@ public:
 
 private:
   void init();
-  void bind();
+  void bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time);
   void startListen();
 
   //! Handles connection events
