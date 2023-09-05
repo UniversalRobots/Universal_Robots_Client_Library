@@ -2,6 +2,27 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add support for setting socket max num tries and reconnect timeout (`#172 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/172>`_)
+* Unify socket open (`#174 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/174>`_)
+* Added handling of spline interpolation with end point velocities (`#169 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/169>`_)
+* Throws exception if the URScript file doesn't exists (`#173 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/173>`_)
+* Added check to ensure receive timeout isn't overwritten (`#171 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/171>`_)
+* Added RTDEClient constructor with vector recipes (`#143 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/143>`_)
+* Only warn if system is not setup for FIFO scheduling (`#170 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/170>`_)
+* Ensuring that the Timestamp is always in the output recipe (`#168 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/168>`_)
+* CI: Add Iron to CI tests (`#167 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/167>`_)
+* Add issue templates for bugs and features (`#166 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/166>`_)
+* Updated license (`#164 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/164>`_)
+* Bugfixes for spline interpolation (`#162 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/162>`_)
+   * Add separate rounding in the conversion from float to int32
+   * Add more debug printout for splines
+   * Add Copying flight reports if CI fails
+   * Update ursim mininum version in start_ursim.sh
+* Fix the prerelease ci for Melodic (`#163 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/163>`_)
+* Contributors: Dag-Are Trydal, Felix Exner, Felix Exner (fexner), Mads Holm Peters, Michael Eriksen, RobertWilbrandt, Rune Søe-Knudsen, urmahp, urrsk
+
 1.3.2 (2023-07-13)
 ------------------
 * Add a cmake option to activate address sanitizers (`#146 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/146>`_)
