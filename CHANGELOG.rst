@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.3 (2023-09-05)
+------------------
 * Add support for setting socket max num tries and reconnect timeout (`#172 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/172>`_)
 * Unify socket open (`#174 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/174>`_)
 * Added handling of spline interpolation with end point velocities (`#169 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/169>`_)

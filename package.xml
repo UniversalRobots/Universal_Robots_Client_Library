@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ur_client_library</name>
-  <version>1.3.2</version>
+  <version>1.3.3</version>
   <description>Standalone C++ library for accessing Universal Robots interfaces. This has been forked off the ur_robot_driver.</description>
   <author>Thomas Timm Andersen</author>
   <author>Simon Rasmussen</author>
