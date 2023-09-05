@@ -138,7 +138,6 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
   size_t connection_counter = 0;
   do
   {
-    std::cout << "Trying to bind socket" << std::endl;
     err = ::bind(listen_fd_, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if (err == -1)
     {
@@ -157,12 +156,7 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
         throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
       }
     }
-    else
-    {
-      std::cout << "done: " << err << std::endl;
-    }
   } while (err == -1 && (connection_counter <= max_num_tries || max_num_tries == 0));
-  std::cout << "hello" << std::endl;
 
   URCL_LOG_DEBUG("Bound %d:%d to FD %d", server_addr.sin_addr.s_addr, port_, (int)listen_fd_);
 
