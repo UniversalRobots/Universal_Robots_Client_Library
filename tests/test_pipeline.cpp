@@ -242,7 +242,12 @@ TEST_F(PipelineTest, connect_non_connected_robot)
   pipeline_.reset(
       new comm::Pipeline<rtde_interface::RTDEPackage>(*producer_.get(), &consumer, "RTDE_PIPELINE", notifier_));
 
+  auto start = std::chrono::system_clock::now();
   EXPECT_THROW(pipeline_->init(2, std::chrono::milliseconds(500)), UrException);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously
+  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
 }
 
 int main(int argc, char* argv[])

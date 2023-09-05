@@ -33,6 +33,9 @@
 #include <condition_variable>
 #include <cstddef>
 
+// This file adds a test for a deprecated function. To avoid a compiler warning in CI (where we want
+// to treat warnings as errors) we suppress the warning inside this file.
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include "ur_client_library/types.h"
@@ -156,7 +159,7 @@ protected:
                      std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       std::string ip = "127.0.0.1";
-      TCPSocket::setup(ip, port);
+      TCPSocket::setup(ip, port, max_num_tries, reconnection_time);
       done_setting_up_client_ = true;
     }
   };
@@ -349,7 +352,18 @@ TEST_F(TCPSocketTest, setup_while_client_is_connected)
 TEST_F(TCPSocketTest, connect_non_running_robot)
 {
   Client client(12321, "127.0.0.1");
+  auto start = std::chrono::system_clock::now();
   EXPECT_FALSE(client.setup(2, std::chrono::milliseconds(500)));
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously
+  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+}
+
+TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
+{
+  client_->setReconnectionTime(std::chrono::milliseconds(100));
+  EXPECT_TRUE(client_->setup(2));
 }
 
 int main(int argc, char* argv[])

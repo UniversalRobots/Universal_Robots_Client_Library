@@ -352,7 +352,14 @@ TEST_F(RTDEClientTest, connect_non_running_robot)
   // We use an IP address on the integration_test's subnet
   client_.reset(
       new rtde_interface::RTDEClient("192.168.56.123", notifier_, resources_output_recipe_, resources_input_recipe_));
+  auto start = std::chrono::system_clock::now();
   EXPECT_THROW(client_->init(2, std::chrono::milliseconds(500)), UrException);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously.
+  // Since this isn't done on the loopback device, trying to open a socket on a non-existing address
+  // takes considerably longer.
+  EXPECT_LT(elapsed, 2 * comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
 }
 
 int main(int argc, char* argv[])

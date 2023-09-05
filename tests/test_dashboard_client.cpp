@@ -32,6 +32,7 @@
 #include <ur_client_library/exceptions.h>
 #include <chrono>
 #include <thread>
+#include "ur_client_library/comm/tcp_socket.h"
 #include "ur_client_library/ur/version_information.h"
 #define private public
 #include <ur_client_library/ur/dashboard_client.h>
@@ -208,7 +209,14 @@ TEST_F(DashboardClientTest, connect_non_running_robot)
   std::unique_ptr<DashboardClient> dashboard_client;
   // We use an IP address on the integration_test's subnet
   dashboard_client.reset(new DashboardClient("192.168.56.123"));
+  auto start = std::chrono::system_clock::now();
   EXPECT_FALSE(dashboard_client->connect(2, std::chrono::milliseconds(500)));
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously.
+  // Since this isn't done on the loopback device, trying to open a socket on a non-existing address
+  // takes considerably longer.
+  EXPECT_LT(elapsed, 2 * comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
 }
 
 int main(int argc, char* argv[])
