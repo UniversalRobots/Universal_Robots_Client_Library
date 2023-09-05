@@ -172,8 +172,13 @@ class IProducer
 public:
   /*!
    * \brief Set-up functionality of the producers.
+   *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
    */
-  virtual void setupProducer()
+  virtual void setupProducer(const size_t max_num_tries = 0,
+                             const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
   }
   /*!
@@ -287,9 +292,17 @@ public:
     stop();
   }
 
-  void init()
+  /*!
+   * \brief Initialize the pipeline. Internally calls setup of producer and consumer.
+   *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
+   */
+  void init(const size_t max_num_tries = 0,
+            const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
-    producer_.setupProducer();
+    producer_.setupProducer(max_num_tries, reconnection_time);
     if (consumer_ != nullptr)
       consumer_->setupConsumer();
   }

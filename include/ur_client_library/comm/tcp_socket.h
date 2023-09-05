@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <memory>
@@ -50,7 +51,8 @@ class TCPSocket
 private:
   std::atomic<int> socket_fd_;
   std::atomic<SocketState> state_;
-  std::chrono::seconds reconnection_time_;
+  std::chrono::milliseconds reconnection_time_;
+  bool reconnection_time_modified_deprecated_ = false;
 
   void setupOptions();
 
@@ -60,11 +62,13 @@ protected:
     return ::connect(socket_fd, address, address_len) == 0;
   }
 
-  bool setup(std::string& host, int port);
+  bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
+             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
 
   std::unique_ptr<timeval> recv_timeout_;
 
 public:
+  static constexpr std::chrono::milliseconds DEFAULT_RECONNECTION_TIME{ 10000 };
   /*!
    * \brief Creates a TCPSocket object
    */
@@ -147,10 +151,8 @@ public:
    *
    * \param reconnection_time time in between connection attempts to the server
    */
-  void setReconnectionTime(std::chrono::seconds reconnection_time)
-  {
-    reconnection_time_ = reconnection_time;
-  }
+  [[deprecated("Reconnection time is passed to setup directly now.")]] void
+  setReconnectionTime(const std::chrono::milliseconds reconnection_time);
 };
 }  // namespace comm
 }  // namespace urcl

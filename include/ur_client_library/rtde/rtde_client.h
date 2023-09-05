@@ -123,9 +123,14 @@ public:
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
    * used protocol version and setting of input and output recipes.
    *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
+   *
    * \returns Success of the handshake
    */
-  bool init();
+  bool init(const size_t max_num_tries = 0,
+            const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
@@ -228,7 +233,8 @@ private:
   // the robot is booted.
   std::vector<std::string> ensureTimestampIsPresent(const std::vector<std::string>& output_recipe) const;
 
-  void setupCommunication();
+  void setupCommunication(const size_t max_num_tries = 0,
+                          const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
   bool negotiateProtocolVersion(const uint16_t protocol_version);
   void queryURControlVersion();
   void setupOutputs(const uint16_t protocol_version);

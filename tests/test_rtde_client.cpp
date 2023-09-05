@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 #include <cmath>
+#include "ur_client_library/exceptions.h"
 
 #include <ur_client_library/rtde/rtde_client.h>
 
@@ -344,6 +345,21 @@ TEST_F(RTDEClientTest, output_recipe_without_timestamp)
   std::vector<std::string> actual_output_recipe_from_vector = client.getOutputRecipe();
   it = std::find(actual_output_recipe_from_vector.begin(), actual_output_recipe_from_vector.end(), timestamp);
   EXPECT_FALSE(it == actual_output_recipe_from_vector.end());
+}
+
+TEST_F(RTDEClientTest, connect_non_running_robot)
+{
+  // We use an IP address on the integration_test's subnet
+  client_.reset(
+      new rtde_interface::RTDEClient("192.168.56.123", notifier_, resources_output_recipe_, resources_input_recipe_));
+  auto start = std::chrono::system_clock::now();
+  EXPECT_THROW(client_->init(2, std::chrono::milliseconds(500)), UrException);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously.
+  // Since this isn't done on the loopback device, trying to open a socket on a non-existing address
+  // takes considerably longer.
+  EXPECT_LT(elapsed, 2 * comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
 }
 
 int main(int argc, char* argv[])

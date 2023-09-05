@@ -55,14 +55,19 @@ public:
   DashboardClient() = delete;
   virtual ~DashboardClient() = default;
 
-  const int DASHBOARD_SERVER_PORT = 29999;
+  static constexpr int DASHBOARD_SERVER_PORT = 29999;
 
   /*!
    * \brief Opens a connection to the dashboard server on the host as specified in the constructor.
    *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
+   *
    * \returns True on successful connection, false otherwise.
    */
-  bool connect();
+  bool connect(const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
 
   /*!
    * \brief Makes sure no connection to the dashboard server is held inside the object.

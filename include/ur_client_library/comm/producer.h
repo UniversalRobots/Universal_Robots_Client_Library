@@ -59,14 +59,19 @@ public:
 
   /*!
    * \brief Triggers the stream to connect to the robot.
+   *
+   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * failed. Unlimited number of attempts when set to 0.
+   * \param reconnection_time time in between connection attempts to the server
    */
-  void setupProducer() override
+  void setupProducer(const size_t max_num_tries = 0,
+                     const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
     timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     stream_.setReceiveTimeout(tv);
-    if (!stream_.connect())
+    if (!stream_.connect(max_num_tries, reconnection_time))
     {
       throw UrException("Failed to connect to robot. Please check if the robot is booted and connected.");
     }

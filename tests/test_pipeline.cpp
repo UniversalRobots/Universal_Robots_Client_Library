@@ -234,6 +234,22 @@ TEST_F(PipelineTest, consumer_pipeline)
   pipeline_->stop();
 }
 
+TEST_F(PipelineTest, connect_non_connected_robot)
+{
+  stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 12321));
+  producer_.reset(new comm::URProducer<rtde_interface::RTDEPackage>(*stream_.get(), *parser_.get()));
+  TestConsumer consumer;
+  pipeline_.reset(
+      new comm::Pipeline<rtde_interface::RTDEPackage>(*producer_.get(), &consumer, "RTDE_PIPELINE", notifier_));
+
+  auto start = std::chrono::system_clock::now();
+  EXPECT_THROW(pipeline_->init(2, std::chrono::milliseconds(500)), UrException);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  // This is only a rough estimate, obviously
+  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

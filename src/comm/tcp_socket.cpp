@@ -24,6 +24,7 @@
 #include <endian.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+#include <chrono>
 #include <cstring>
 #include <sstream>
 #include <thread>
@@ -55,8 +56,19 @@ void TCPSocket::setupOptions()
   }
 }
 
-bool TCPSocket::setup(std::string& host, int port)
+bool TCPSocket::setup(const std::string& host, const int port, const size_t max_num_tries,
+                      const std::chrono::milliseconds reconnection_time)
 {
+  // This can be removed once we remove the setReconnectionTime() method
+  auto reconnection_time_resolved = reconnection_time;
+  if (reconnection_time_modified_deprecated_)
+  {
+    URCL_LOG_WARN("TCPSocket::setup(): Reconnection time was modified using `setReconnectionTime()` which is "
+                  "deprecated. Please change your code to set reconnection_time through the `setup()` method "
+                  "directly. The value passed to this function will be ignored.");
+    reconnection_time_resolved = reconnection_time_;
+  }
+
   if (state_ == SocketState::Connected)
     return false;
 
@@ -74,6 +86,7 @@ bool TCPSocket::setup(std::string& host, int port)
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
+  size_t connect_counter = 0;
   bool connected = false;
   while (!connected)
   {
@@ -96,15 +109,25 @@ bool TCPSocket::setup(std::string& host, int port)
 
     freeaddrinfo(result);
 
+    if (max_num_tries > 0)
+    {
+      if (connect_counter++ >= max_num_tries)
+      {
+        URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
+        state_ = SocketState::Invalid;
+        return false;
+      }
+    }
+
     if (!connected)
     {
       state_ = SocketState::Invalid;
       std::stringstream ss;
       ss << "Failed to connect to robot on IP " << host_name
          << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
-         << reconnection_time_.count() << " seconds";
+         << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count() << " seconds";
       URCL_LOG_ERROR("%s", ss.str().c_str());
-      std::this_thread::sleep_for(reconnection_time_);
+      std::this_thread::sleep_for(reconnection_time_resolved);
     }
   }
   setupOptions();
@@ -208,6 +231,14 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
   {
     setupOptions();
   }
+}
+
+void TCPSocket::setReconnectionTime(const std::chrono::milliseconds reconnection_time)
+{
+  URCL_LOG_ERROR("Calling setReconnectionTime is deprecated. Reconnection timeout is passed to the setup method "
+                 "directly.");
+  reconnection_time_ = reconnection_time;
+  reconnection_time_modified_deprecated_ = true;
 }
 
 }  // namespace comm
