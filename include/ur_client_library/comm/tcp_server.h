@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <thread>
 
@@ -60,7 +61,17 @@ class TCPServer
 {
 public:
   TCPServer() = delete;
-  TCPServer(const int port);
+  /*!
+   * \brief Create a TCPServer object
+   *
+   * \param port Port on which to operate. The port will be bound to the process creating the
+   * object.
+   * \param max_num_tries If binding the socket fails, it will be retried this many times. If 0 is
+   * specified, binding the socket will be tried indefinitely.
+   * \param reconnection_time Wait time in between binding attempts.
+   */
+  explicit TCPServer(const int port, const size_t max_num_tries = 0,
+                     const std::chrono::milliseconds reconnection_time = std::chrono::seconds(1));
   virtual ~TCPServer();
 
   /*!
@@ -147,7 +158,7 @@ public:
 
 private:
   void init();
-  void bind();
+  void bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time);
   void startListen();
 
   //! Handles connection events
