@@ -31,7 +31,6 @@
 
 #include <iostream>
 
-#include <ratio>
 #include <sstream>
 #include <strings.h>
 #include <cstring>
