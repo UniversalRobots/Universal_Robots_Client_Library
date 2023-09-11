@@ -90,39 +90,49 @@ public:
    * \param positions A vector of joint targets for the robot
    * \param control_mode Control mode assigned to this command. See documentation of comm::ControlMode
    * for details on possible values.
+   * \param read_timeout Read timeout for the reverse socket on the robot. It is The number of seconds until the read
+   * action times out (float). A timeout of 0 or negative number indicates that the function should not return until a
+   * read is completed
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE);
+  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
+                     const float& read_timeout = 0.02);
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
    * \param point_number The number of points of the trajectory to be executed
+   * \param read_timeout Read timeout for the reverse socket on the robot. It is The number of seconds until the read
+   * action times out (float). A timeout of 0 or negative number indicates that the function should not return until a
+   * read is completed.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0);
+  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                     const float& read_timeout = 0.2);
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param freedrive_action 1 if freedrive mode is to be started, -1 if it should be stopped and 0 to keep it running
+   * \param read_timeout Read timeout for the reverse socket on the robot. It is The number of seconds until the read
+   * action times out (float). A timeout of 0 or negative number indicates that the function should not return until a
+   * read is completed.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action);
+  bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action, const float& read_timeout = 0.2);
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  virtual void setKeepaliveCount(const uint32_t& count)
-  {
-    keepalive_count_ = count;
-  }
+  [[deprecated("Set keepaliveCount is deprecated, instead use the read timeout directly in the write "
+               "commands.")]] virtual void
+  setKeepaliveCount(const uint32_t& count);
 
 protected:
   virtual void connectionCallback(const int filedescriptor);
@@ -146,6 +156,7 @@ protected:
 
   std::function<void(bool)> handle_program_state_;
   uint32_t keepalive_count_;
+  bool keep_alive_count_modified_deprecated_;
 };
 
 }  // namespace control

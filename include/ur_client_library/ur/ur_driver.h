@@ -37,6 +37,7 @@
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
+#include "ur_client_library/ur/watchdog.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
@@ -203,10 +204,15 @@ public:
    *
    * \param values Desired joint positions
    * \param control_mode Control mode this command is assigned to.
+   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. Use with caution when dealing with realtime commands as the robot
+   * expects to get a new control signal each control cycle. Note the timeout cannot be higher than 1 second for
+   * realtime commands.
    *
    * \returns True on successful write.
    */
-  bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode);
+  bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
+                         const Watchdog& watchdog = Watchdog::sec(0.02));
 
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
@@ -261,20 +267,27 @@ public:
    *
    * \param trajectory_action The action to be taken, such as starting a new trajectory
    * \param point_number The number of points of a new trajectory to be sent
+   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
+   * Watchdog::off() function to create the watchdog object
    *
    * \returns True on successful write.
    */
   bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                     const int point_number = 0);
+                                     const int point_number = 0, const Watchdog& watchdog = Watchdog::sec(0.2));
 
   /*!
    * \brief Writes a control message in freedrive mode.
    *
    * \param freedrive_action The action to be taken, such as starting or stopping freedrive
+   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
+   * Watchdog::off() function to create the watchdog object
    *
    * \returns True on successful write.
    */
-  bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action);
+  bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
+                                    const Watchdog& watchdog = Watchdog::sec(0.2));
 
   /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
@@ -360,9 +373,13 @@ public:
    * This signals the robot that the connection is still
    * active in times when no commands are to be sent (e.g. no controller is active.)
    *
+   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
+   * Watchdog::off() function to create the watchdog object
+   *
    * \returns True on successful write.
    */
-  bool writeKeepalive();
+  bool writeKeepalive(const Watchdog& watchdog = Watchdog::sec(1.0));
 
   /*!
    * \brief Starts the RTDE communication.
@@ -437,7 +454,9 @@ public:
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  void setKeepaliveCount(const uint32_t& count);
+  [[deprecated("Set keepaliveCount is deprecated, instead set the watchdog timeout directly in the write "
+               "commands.")]] void
+  setKeepaliveCount(const uint32_t& count);
 
   /*!
    * \brief Register a callback for the robot-based trajectory execution completion.
@@ -469,6 +488,19 @@ public:
 private:
   static std::string readScriptFile(const std::string& filename);
 
+  /*!
+   * \brief Helper function to verify that the watchdog timeout is configured appropriately given the current control
+   * mode
+   *
+   * \param watchdog watchdog object
+   * \param control_mode current control mode
+   * \param step_time The robots step time
+   *
+   * \returns watchdog timeout
+   */
+  static float verifyWatchdogTimeout(const Watchdog& watchdog, const comm::ControlMode& control_mode,
+                                     const float& step_time);
+
   int rtde_frequency_;
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
@@ -479,9 +511,9 @@ private:
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
 
-  double servoj_time_;
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
+  float step_time_;
 
   std::function<void(bool)> handle_program_state_;
 

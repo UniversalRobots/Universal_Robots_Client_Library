@@ -29,6 +29,8 @@
 #ifndef UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 
+#include <algorithm>
+
 namespace urcl
 {
 namespace comm
@@ -50,6 +52,52 @@ enum class ControlMode : int32_t
   MODE_TOOL_IN_CONTACT =
       7  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
 };
+
+/*!
+ * \brief Class used to separate the control modes into realtime and non realtime.
+ */
+class ControlModeTypes
+{
+public:
+  // Control modes that require realtime communication
+  static constexpr ControlMode REALTIME_CONTROL_MODES[] = { ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ,
+                                                            ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE };
+
+  // Control modes that doesn't require realtime communication
+  static constexpr ControlMode NON_REALTIME_CONTROL_MODES[] = { ControlMode::MODE_IDLE, ControlMode::MODE_FORWARD,
+                                                                ControlMode::MODE_FREEDRIVE };
+
+  /*!
+   * \brief Check if the control mode is realtime
+   *
+   * \param control_mode Current control mode
+   *
+   * \returns true if the control mode is realtime, false otherwise
+   */
+  static bool is_control_mode_realtime(ControlMode control_mode)
+  {
+    int size = sizeof(ControlModeTypes::REALTIME_CONTROL_MODES) / sizeof(*ControlModeTypes::REALTIME_CONTROL_MODES);
+
+    return (std::find(ControlModeTypes::REALTIME_CONTROL_MODES, ControlModeTypes::REALTIME_CONTROL_MODES + size,
+                      control_mode) != ControlModeTypes::REALTIME_CONTROL_MODES + size);
+  }
+
+  /*!
+   * \brief Check if the control mode is non realtime
+   *
+   * \param control_mode Current control mode
+   *
+   * \returns true if the control mode is non realtime, false otherwise
+   */
+  static bool is_control_mode_non_realtime(ControlMode control_mode)
+  {
+    int size =
+        sizeof(ControlModeTypes::NON_REALTIME_CONTROL_MODES) / sizeof(*ControlModeTypes::NON_REALTIME_CONTROL_MODES);
+    return (std::find(ControlModeTypes::NON_REALTIME_CONTROL_MODES, ControlModeTypes::NON_REALTIME_CONTROL_MODES + size,
+                      control_mode) != ControlModeTypes::NON_REALTIME_CONTROL_MODES + size);
+  }
+};
+
 }  // namespace comm
 }  // namespace urcl
 

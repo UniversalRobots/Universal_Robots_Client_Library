@@ -217,3 +217,17 @@ target_include_directories(ur_driver_tests PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(ur_driver_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
 gtest_add_tests(TARGET      ur_driver_tests
 )
+
+add_executable(watchdog_tests test_watchdog.cpp)
+target_compile_options(watchdog_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(watchdog_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(watchdog_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET watchdog_tests
+)
+
+add_executable(control_mode_tests test_control_mode.cpp)
+target_compile_options(control_mode_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(control_mode_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(control_mode_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET control_mode_tests
+)

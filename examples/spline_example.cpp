@@ -177,8 +177,6 @@ int main(int argc, char* argv[])
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
                                  std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-  g_my_driver->setKeepaliveCount(5);  // This is for example purposes only. This will make the example running more
-                                      // reliable on non-realtime systems. Do not use this in productive applications.
 
   g_my_driver->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
@@ -212,7 +210,7 @@ int main(int argc, char* argv[])
 
   bool ret = false;
   URCL_LOG_INFO("Switch to Forward mode");
-  ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+  ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -232,11 +230,11 @@ int main(int argc, char* argv[])
     p_i[joint_to_control] = s_pos[i];
     p.push_back(p_i);
 
-    vector6d_t v_i;
+    vector6d_t v_i = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
     v_i[joint_to_control] = s_vel[i];
     v.push_back(v_i);
 
-    vector6d_t a_i;
+    vector6d_t a_i = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
     a_i[joint_to_control] = s_acc[i];
     a.push_back(a_i);
 
@@ -259,7 +257,7 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+      ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -276,7 +274,6 @@ int main(int argc, char* argv[])
 
   // QUINTIC
   SendTrajectory(p, v, a, time, true);
-  ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
 
   g_trajectory_running = true;
   while (g_trajectory_running)
@@ -291,7 +288,7 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      bool ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+      ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -306,7 +303,7 @@ int main(int argc, char* argv[])
 
   URCL_LOG_INFO("QUINTIC Movement done");
 
-  ret = g_my_driver->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD);
+  ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -315,5 +312,6 @@ int main(int argc, char* argv[])
                    lastq.str().c_str());
     return 1;
   }
+  g_my_driver->stopControl();
   return 0;
 }

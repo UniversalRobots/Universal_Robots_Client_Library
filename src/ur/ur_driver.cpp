@@ -59,9 +59,9 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
                          const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
-  : servoj_time_(0.008)
-  , servoj_gain_(servoj_gain)
+  : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
+  , step_time_(0.008)
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -84,7 +84,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
 
   rtde_frequency_ = rtde_client_->getMaxFrequency();
-  servoj_time_ = 1.0 / rtde_frequency_;
+  step_time_ = 1.0 / rtde_frequency_;
 
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
@@ -259,9 +259,11 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
-bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
+bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
+                                 const Watchdog& watchdog)
 {
-  return reverse_interface_->write(&values, control_mode);
+  const float read_timeout = verifyWatchdogTimeout(watchdog, control_mode, step_time_);
+  return reverse_interface_->write(&values, control_mode, read_timeout);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
@@ -288,14 +290,17 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 }
 
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                             const int point_number)
+                                             const int point_number, const Watchdog& watchdog)
 {
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
+  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_FORWARD, step_time_);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, read_timeout);
 }
 
-bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action)
+bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
+                                            const Watchdog& watchdog)
 {
-  return reverse_interface_->writeFreedriveControlMessage(freedrive_action);
+  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, read_timeout);
 }
 
 bool UrDriver::zeroFTSensor()
@@ -474,10 +479,11 @@ bool UrDriver::endToolContact()
   }
 }
 
-bool UrDriver::writeKeepalive()
+bool UrDriver::writeKeepalive(const Watchdog& watchdog)
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
+  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_IDLE, step_time_);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, read_timeout);
 }
 
 void UrDriver::startRTDECommunication()
@@ -583,6 +589,61 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
 
 void UrDriver::setKeepaliveCount(const uint32_t& count)
 {
+  URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
+                 "watchdog, to set the timeout directly in the write commands. Please change your code to set the "
+                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
+                 "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
 }
+
+float UrDriver::verifyWatchdogTimeout(const Watchdog& watchdog, const comm::ControlMode& control_mode,
+                                      const float& step_time)
+{
+  if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
+  {
+    if (watchdog.timeout_ < step_time && watchdog.timeout_ > 0.0)
+    {
+      std::stringstream ss;
+      ss << "Watchdog timeout " << watchdog.timeout_ << " is below the step time " << step_time
+         << ". It will be reset to the step time.";
+      URCL_LOG_ERROR(ss.str().c_str());
+      return step_time;
+    }
+    else
+    {
+      return watchdog.timeout_;
+    }
+  }
+  else if (comm::ControlModeTypes::is_control_mode_realtime(control_mode))
+  {
+    float max_realtime_timeout = 1.0;
+    if (watchdog.timeout_ < step_time)
+    {
+      std::stringstream ss;
+      ss << "Realtime read timeout " << watchdog.timeout_ << " is below the step time " << step_time
+         << ". It will be reset to the step time.";
+      URCL_LOG_ERROR(ss.str().c_str());
+      return step_time;
+    }
+    else if (watchdog.timeout_ > max_realtime_timeout)
+    {
+      std::stringstream ss;
+      ss << "Watchdog timeout " << watchdog.timeout_ << " is above the maximum allowed timeout for realtime commands "
+         << max_realtime_timeout << ". It will be reset to the maximum allowed timeout.";
+      URCL_LOG_ERROR(ss.str().c_str());
+      return max_realtime_timeout;
+    }
+    else
+    {
+      return watchdog.timeout_;
+    }
+  }
+  else
+  {
+    std::stringstream ss;
+    ss << "Unknown control mode " << toUnderlying(control_mode) << " for verifying the watchdog";
+    throw UrException(ss.str().c_str());
+  }
+}
+
 }  // namespace urcl

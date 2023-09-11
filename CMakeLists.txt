@@ -43,6 +43,7 @@ add_library(urcl SHARED
     src/ur/calibration_checker.cpp
     src/ur/dashboard_client.cpp
     src/ur/tool_communication.cpp
+    src/ur/watchdog.cpp
     src/ur/version_information.cpp
     src/rtde/rtde_writer.cpp
     src/default_log_handler.cpp
