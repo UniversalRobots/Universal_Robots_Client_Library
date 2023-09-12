@@ -509,7 +509,7 @@ thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
 textmsg("ExternalControl: External control active")
-global read_timeout = 1.0 # Standard idle timeout
+global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
 while control_mode > MODE_STOPPED:
   enter_critical
