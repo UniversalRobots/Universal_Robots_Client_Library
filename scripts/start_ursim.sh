@@ -38,7 +38,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -71,6 +71,10 @@ validate_model()
       ROBOT_MODEL=$(echo ${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))})
       ROBOT_SERIES=e-series
       ;;
+    ur20)
+      ROBOT_MODEL=${ROBOT_MODEL^^}
+      ROBOT_SERIES=e-series
+      ;;
     *)
       echo "Not a valid robot model: $ROBOT_MODEL"
       exit
@@ -88,18 +92,29 @@ validate_ursim_version()
   [ $URSIM_VERSION == "latest" ] && return 0
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
+  local MIN_UR20="5.14.0"
+
+  local MIN_VERSION="0.0"
+
 
   case $ROBOT_SERIES in
     cb3)
       verlte "4.0.0" $URSIM_VERSION && echo "$URSIM_VERSION is no valid CB3 version!" && exit
       verlte $MIN_CB3 $URSIM_VERSION && return 0
+      MIN_VERSION=$MIN_CB3
       ;;
     e-series)
-      verlte $MIN_E_SERIES $URSIM_VERSION && return 0
+      if [[ $ROBOT_MODEL == "UR20" ]]; then
+          verlte $MIN_UR20 $URSIM_VERSION && return 0
+          MIN_VERSION=$MIN_UR20
+      else
+          verlte $MIN_E_SERIES $URSIM_VERSION && return 0
+          MIN_VERSION=$MIN_E_SERIES
+      fi
       ;;
   esac
 
-  echo "Illegal version given. Version must be greater or equal to $MIN_CB3 / $MIN_E_SERIES. Given version: $URSIM_VERSION."
+  echo "Illegal version given. Version must be greater or equal to $MIN_VERSION. Given version: $URSIM_VERSION."
   exit
 }
 
