@@ -38,7 +38,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -69,6 +69,10 @@ validate_model()
     ur3e|ur5e|ur10e|ur16e)
       ROBOT_MODEL=${ROBOT_MODEL^^}
       ROBOT_MODEL=$(echo ${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))})
+      ROBOT_SERIES=e-series
+      ;;
+    ur20)
+      ROBOT_MODEL=${ROBOT_MODEL^^}
       ROBOT_SERIES=e-series
       ;;
     *)
