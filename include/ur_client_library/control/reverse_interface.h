@@ -77,6 +77,7 @@ public:
    *
    * \param port Port the Server is started on
    * \param handle_program_state Function handle to a callback on program state changes.
+   * \param step_time The robots step time
    */
   ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state,
                    std::chrono::milliseconds step_time = std::chrono::milliseconds(8));
