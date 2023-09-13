@@ -516,7 +516,7 @@ while control_mode > MODE_STOPPED:
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
     # Convert to read timeout from milliseconds to seconds
-    read_timeout = params_mult[1] / 1000 
+    read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
