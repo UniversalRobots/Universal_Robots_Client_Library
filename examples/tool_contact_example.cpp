@@ -155,7 +155,8 @@ int main(int argc, char* argv[])
     {
       // Setting the Watchdog time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret = g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, Watchdog::sec(0.1));
+      bool ret = g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL,
+                                                Watchdog::millisec(std::chrono::milliseconds(100)));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");

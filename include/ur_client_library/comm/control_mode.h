@@ -30,6 +30,7 @@
 #define UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 
 #include <algorithm>
+#include <vector>
 
 namespace urcl
 {
@@ -60,12 +61,14 @@ class ControlModeTypes
 {
 public:
   // Control modes that require realtime communication
-  static constexpr ControlMode REALTIME_CONTROL_MODES[] = { ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ,
-                                                            ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE };
+  static const inline std::vector<ControlMode> REALTIME_CONTROL_MODES = {
+    ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ, ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE
+  };
 
   // Control modes that doesn't require realtime communication
-  static constexpr ControlMode NON_REALTIME_CONTROL_MODES[] = { ControlMode::MODE_IDLE, ControlMode::MODE_FORWARD,
-                                                                ControlMode::MODE_FREEDRIVE };
+  static const inline std::vector<ControlMode> NON_REALTIME_CONTROL_MODES = { ControlMode::MODE_IDLE,
+                                                                              ControlMode::MODE_FORWARD,
+                                                                              ControlMode::MODE_FREEDRIVE };
 
   /*!
    * \brief Check if the control mode is realtime
@@ -76,10 +79,8 @@ public:
    */
   static bool is_control_mode_realtime(ControlMode control_mode)
   {
-    int size = sizeof(ControlModeTypes::REALTIME_CONTROL_MODES) / sizeof(*ControlModeTypes::REALTIME_CONTROL_MODES);
-
-    return (std::find(ControlModeTypes::REALTIME_CONTROL_MODES, ControlModeTypes::REALTIME_CONTROL_MODES + size,
-                      control_mode) != ControlModeTypes::REALTIME_CONTROL_MODES + size);
+    return (std::find(ControlModeTypes::REALTIME_CONTROL_MODES.begin(), ControlModeTypes::REALTIME_CONTROL_MODES.end(),
+                      control_mode) != ControlModeTypes::REALTIME_CONTROL_MODES.end());
   }
 
   /*!
@@ -91,10 +92,9 @@ public:
    */
   static bool is_control_mode_non_realtime(ControlMode control_mode)
   {
-    int size =
-        sizeof(ControlModeTypes::NON_REALTIME_CONTROL_MODES) / sizeof(*ControlModeTypes::NON_REALTIME_CONTROL_MODES);
-    return (std::find(ControlModeTypes::NON_REALTIME_CONTROL_MODES, ControlModeTypes::NON_REALTIME_CONTROL_MODES + size,
-                      control_mode) != ControlModeTypes::NON_REALTIME_CONTROL_MODES + size);
+    return (std::find(ControlModeTypes::NON_REALTIME_CONTROL_MODES.begin(),
+                      ControlModeTypes::NON_REALTIME_CONTROL_MODES.end(),
+                      control_mode) != ControlModeTypes::NON_REALTIME_CONTROL_MODES.end());
   }
 };
 

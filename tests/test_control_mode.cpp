@@ -36,9 +36,7 @@ using namespace urcl;
 
 TEST(control_mode, is_control_mode_realtime_with_realtime_control_modes)
 {
-  unsigned int length =
-      sizeof(comm::ControlModeTypes::REALTIME_CONTROL_MODES) / sizeof(*comm::ControlModeTypes::REALTIME_CONTROL_MODES);
-  for (unsigned int i = 0; i < length; ++i)
+  for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     EXPECT_TRUE(comm::ControlModeTypes::is_control_mode_realtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));
   }
@@ -46,10 +44,7 @@ TEST(control_mode, is_control_mode_realtime_with_realtime_control_modes)
 
 TEST(control_mode, is_control_mode_realtime_with_non_realtime_control_modes)
 {
-  // Non realtime control modes
-  unsigned int length = sizeof(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES) /
-                        sizeof(*comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES);
-  for (unsigned int i = 0; i < length; ++i)
+  for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     EXPECT_FALSE(
         comm::ControlModeTypes::is_control_mode_realtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
@@ -63,10 +58,7 @@ TEST(control_mode, is_control_mode_realtime_with_non_realtime_control_modes)
 
 TEST(control_mode, is_control_mode_non_realtime_with_non_realtime_control_modes)
 {
-  // Non realtime control modes
-  unsigned int length = sizeof(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES) /
-                        sizeof(*comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES);
-  for (unsigned int i = 0; i < length; ++i)
+  for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     EXPECT_TRUE(
         comm::ControlModeTypes::is_control_mode_non_realtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
@@ -75,10 +67,7 @@ TEST(control_mode, is_control_mode_non_realtime_with_non_realtime_control_modes)
 
 TEST(control_mode, is_control_mode_non_realtime_with_realtime_control_modes)
 {
-  // Realtime control modes
-  unsigned int length =
-      sizeof(comm::ControlModeTypes::REALTIME_CONTROL_MODES) / sizeof(*comm::ControlModeTypes::REALTIME_CONTROL_MODES);
-  for (unsigned int i = 0; i < length; ++i)
+  for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     EXPECT_FALSE(
         comm::ControlModeTypes::is_control_mode_non_realtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));

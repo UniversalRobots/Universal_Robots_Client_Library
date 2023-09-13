@@ -61,7 +61,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
   : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
-  , step_time_(0.008)
+  , step_time_(std::chrono::milliseconds(8))
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -84,7 +84,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
 
   rtde_frequency_ = rtde_client_->getMaxFrequency();
-  step_time_ = 1.0 / rtde_frequency_;
+  step_time_ = std::chrono::milliseconds(1000 / rtde_frequency_);
 
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
@@ -210,7 +210,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
+  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state, step_time_));
   trajectory_interface_.reset(new control::TrajectoryPointInterface(trajectory_port));
   script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
 
@@ -262,8 +262,7 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
                                  const Watchdog& watchdog)
 {
-  const float read_timeout = verifyWatchdogTimeout(watchdog, control_mode, step_time_);
-  return reverse_interface_->write(&values, control_mode, read_timeout);
+  return reverse_interface_->write(&values, control_mode, watchdog);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
@@ -292,15 +291,13 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
                                              const int point_number, const Watchdog& watchdog)
 {
-  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_FORWARD, step_time_);
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, read_timeout);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, watchdog);
 }
 
 bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
                                             const Watchdog& watchdog)
 {
-  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_FREEDRIVE, step_time_);
-  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, read_timeout);
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, watchdog);
 }
 
 bool UrDriver::zeroFTSensor()
@@ -482,8 +479,7 @@ bool UrDriver::endToolContact()
 bool UrDriver::writeKeepalive(const Watchdog& watchdog)
 {
   vector6d_t* fake = nullptr;
-  const float read_timeout = verifyWatchdogTimeout(watchdog, comm::ControlMode::MODE_IDLE, step_time_);
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, read_timeout);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, watchdog);
 }
 
 void UrDriver::startRTDECommunication()
@@ -594,56 +590,6 @@ void UrDriver::setKeepaliveCount(const uint32_t& count)
                  "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                  "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
-}
-
-float UrDriver::verifyWatchdogTimeout(const Watchdog& watchdog, const comm::ControlMode& control_mode,
-                                      const float& step_time)
-{
-  if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
-  {
-    if (watchdog.timeout_ < step_time && watchdog.timeout_ > 0.0)
-    {
-      std::stringstream ss;
-      ss << "Watchdog timeout " << watchdog.timeout_ << " is below the step time " << step_time
-         << ". It will be reset to the step time.";
-      URCL_LOG_ERROR(ss.str().c_str());
-      return step_time;
-    }
-    else
-    {
-      return watchdog.timeout_;
-    }
-  }
-  else if (comm::ControlModeTypes::is_control_mode_realtime(control_mode))
-  {
-    float max_realtime_timeout = 1.0;
-    if (watchdog.timeout_ < step_time)
-    {
-      std::stringstream ss;
-      ss << "Realtime read timeout " << watchdog.timeout_ << " is below the step time " << step_time
-         << ". It will be reset to the step time.";
-      URCL_LOG_ERROR(ss.str().c_str());
-      return step_time;
-    }
-    else if (watchdog.timeout_ > max_realtime_timeout)
-    {
-      std::stringstream ss;
-      ss << "Watchdog timeout " << watchdog.timeout_ << " is above the maximum allowed timeout for realtime commands "
-         << max_realtime_timeout << ". It will be reset to the maximum allowed timeout.";
-      URCL_LOG_ERROR(ss.str().c_str());
-      return max_realtime_timeout;
-    }
-    else
-    {
-      return watchdog.timeout_;
-    }
-  }
-  else
-  {
-    std::stringstream ss;
-    ss << "Unknown control mode " << toUnderlying(control_mode) << " for verifying the watchdog";
-    throw UrException(ss.str().c_str());
-  }
 }
 
 }  // namespace urcl

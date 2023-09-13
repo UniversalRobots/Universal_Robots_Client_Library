@@ -30,13 +30,16 @@
 
 #pragma once
 
+#include "ur_client_library/comm/control_mode.h"
+#include <chrono>
+
 namespace urcl
 {
 /*!
  * \brief Watchdog class containing a timeout configuration
  *
  * This watchdog is used to configure the read timeout for the reverse socket running in the external control script.
- * The read timeout is the number of seconds until the read action times out (float). A timeout of 0 or negative number
+ * The read timeout is the number of milliseconds until the read action times out. A timeout of 0 or negative number
  * indicates that the function should not return until a read is completed, this will make the read function blocking on
  * the robot. This can be set using the function off().
  *
@@ -50,11 +53,11 @@ public:
   /*!
    * \brief Create a watchdog object with a specific timeout
    *
-   * \param seconds watchdog timeout
+   * \param milliseconds watchdog timeout
    *
    * \returns Watchdog object
    */
-  static Watchdog sec(const float& seconds = 0.02);
+  static Watchdog millisec(const std::chrono::milliseconds& milliseconds = std::chrono::milliseconds(20));
 
   /*!
    * \brief Creates a watchdog object with no timeout
@@ -63,7 +66,19 @@ public:
    */
   static Watchdog off();
 
-  float timeout_;
+  /*!
+   * \brief Helper function to verify that the watchdog timeout is configured appropriately given the current control
+   * mode
+   *
+   * \param control_mode current control mode
+   * \param step_time The robots step time
+   *
+   * \returns watchdog timeout
+   */
+  std::chrono::milliseconds verifyWatchdogTimeout(const comm::ControlMode& control_mode,
+                                                  const std::chrono::milliseconds& step_time) const;
+
+  std::chrono::milliseconds timeout_;
 };
 
 }  // namespace urcl

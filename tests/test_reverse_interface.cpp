@@ -292,27 +292,30 @@ TEST_F(ReverseIntefaceTest, read_timeout)
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
-  float expected_read_timeout = 0.5;
+  int32_t expected_read_timeout = 500;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
-  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD, expected_read_timeout);
+  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD,
+                            Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
   int32_t received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with trajectory control message as well
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1,
-                                                    expected_read_timeout);
+  reverse_interface_->writeTrajectoryControlMessage(
+      control::TrajectoryControlMessage::TRAJECTORY_START, 1,
+      Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
   received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with free drive message as well
-  reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP,
-                                                   expected_read_timeout);
+  reverse_interface_->writeFreedriveControlMessage(
+      control::FreedriveControlMessage::FREEDRIVE_STOP,
+      Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
   received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
 TEST_F(ReverseIntefaceTest, default_read_timeout)
@@ -320,26 +323,26 @@ TEST_F(ReverseIntefaceTest, default_read_timeout)
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
-  float expected_read_timeout = 0.02;
+  int32_t expected_read_timeout = 20;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
   reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD);
   int32_t received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with trajectory control message as well
-  expected_read_timeout = 0.2;
+  expected_read_timeout = 200;
   reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
   received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with free drive message as well
   reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP);
   received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
 TEST_F(ReverseIntefaceTest, write_control_mode)
@@ -430,20 +433,20 @@ TEST_F(ReverseIntefaceTest, deprecated_set_keep_alive_count)
   // Test that it works to set the keepalive count using the deprecated function
   int keep_alive_count = 10;
   reverse_interface_->setKeepaliveCount(keep_alive_count);
-  float expected_read_timeout = 0.02 * keep_alive_count;
+  int32_t expected_read_timeout = 20 * keep_alive_count;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
   reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD);
   int32_t received_read_timeout = client_->getReadTimeout();
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
   received_read_timeout = client_->getReadTimeout();
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP);
   received_read_timeout = client_->getReadTimeout();
-  EXPECT_EQ(expected_read_timeout, ((float)received_read_timeout) / reverse_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
 int main(int argc, char* argv[])

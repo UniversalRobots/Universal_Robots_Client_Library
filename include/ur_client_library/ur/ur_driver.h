@@ -212,7 +212,7 @@ public:
    * \returns True on successful write.
    */
   bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
-                         const Watchdog& watchdog = Watchdog::sec(0.02));
+                         const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(20)));
 
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
@@ -274,7 +274,8 @@ public:
    * \returns True on successful write.
    */
   bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                     const int point_number = 0, const Watchdog& watchdog = Watchdog::sec(0.2));
+                                     const int point_number = 0,
+                                     const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
 
   /*!
    * \brief Writes a control message in freedrive mode.
@@ -287,7 +288,7 @@ public:
    * \returns True on successful write.
    */
   bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
-                                    const Watchdog& watchdog = Watchdog::sec(0.2));
+                                    const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
 
   /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
@@ -379,7 +380,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeKeepalive(const Watchdog& watchdog = Watchdog::sec(1.0));
+  bool writeKeepalive(const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(1000)));
 
   /*!
    * \brief Starts the RTDE communication.
@@ -488,19 +489,6 @@ public:
 private:
   static std::string readScriptFile(const std::string& filename);
 
-  /*!
-   * \brief Helper function to verify that the watchdog timeout is configured appropriately given the current control
-   * mode
-   *
-   * \param watchdog watchdog object
-   * \param control_mode current control mode
-   * \param step_time The robots step time
-   *
-   * \returns watchdog timeout
-   */
-  static float verifyWatchdogTimeout(const Watchdog& watchdog, const comm::ControlMode& control_mode,
-                                     const float& step_time);
-
   int rtde_frequency_;
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
@@ -513,7 +501,7 @@ private:
 
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
-  float step_time_;
+  std::chrono::milliseconds step_time_;
 
   std::function<void(bool)> handle_program_state_;
 
