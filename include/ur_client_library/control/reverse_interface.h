@@ -101,7 +101,7 @@ public:
    * \returns True, if the write was performed successfully, false otherwise.
    */
   virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
-                     const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(20)));
+                     const Watchdog& watchdog = Watchdog::millisec(20));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
@@ -115,7 +115,7 @@ public:
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
-                                     const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
+                                     const Watchdog& watchdog = Watchdog::millisec(200));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
@@ -128,7 +128,7 @@ public:
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
-                                    const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
+                                    const Watchdog& watchdog = Watchdog::millisec(200));
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.

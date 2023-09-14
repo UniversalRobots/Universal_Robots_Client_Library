@@ -295,24 +295,21 @@ TEST_F(ReverseIntefaceTest, read_timeout)
   int32_t expected_read_timeout = 500;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
-  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD,
-                            Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
+  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD, Watchdog::millisec(expected_read_timeout));
   int32_t received_read_timeout = client_->getReadTimeout();
 
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with trajectory control message as well
-  reverse_interface_->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 1,
-      Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1,
+                                                    Watchdog::millisec(expected_read_timeout));
   received_read_timeout = client_->getReadTimeout();
 
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with free drive message as well
-  reverse_interface_->writeFreedriveControlMessage(
-      control::FreedriveControlMessage::FREEDRIVE_STOP,
-      Watchdog::millisec(std::chrono::milliseconds(expected_read_timeout)));
+  reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP,
+                                                   Watchdog::millisec(expected_read_timeout));
   received_read_timeout = client_->getReadTimeout();
 
   EXPECT_EQ(expected_read_timeout, received_read_timeout);

@@ -212,7 +212,7 @@ public:
    * \returns True on successful write.
    */
   bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
-                         const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(20)));
+                         const Watchdog& watchdog = Watchdog::millisec(20));
 
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
@@ -274,8 +274,7 @@ public:
    * \returns True on successful write.
    */
   bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                     const int point_number = 0,
-                                     const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
+                                     const int point_number = 0, const Watchdog& watchdog = Watchdog::millisec(200));
 
   /*!
    * \brief Writes a control message in freedrive mode.
@@ -288,7 +287,7 @@ public:
    * \returns True on successful write.
    */
   bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
-                                    const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(200)));
+                                    const Watchdog& watchdog = Watchdog::millisec(200));
 
   /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
@@ -380,7 +379,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeKeepalive(const Watchdog& watchdog = Watchdog::millisec(std::chrono::milliseconds(1000)));
+  bool writeKeepalive(const Watchdog& watchdog = Watchdog::millisec(1000));
 
   /*!
    * \brief Starts the RTDE communication.

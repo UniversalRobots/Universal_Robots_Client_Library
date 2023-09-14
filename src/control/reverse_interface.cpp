@@ -61,19 +61,18 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  std::chrono::milliseconds read_timeout =
-      watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
   if (keep_alive_count_modified_deprecated_)
   {
     // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
-    read_timeout_resolved = std::chrono::milliseconds(20 * keepalive_count_);
+    read_timeout_resolved = 20 * keepalive_count_;
   }
 
   // The first element is always the read timeout.
-  int32_t val = read_timeout_resolved.count();
+  int32_t val = read_timeout_resolved;
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
@@ -117,19 +116,18 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  std::chrono::milliseconds read_timeout =
-      watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
   if (keep_alive_count_modified_deprecated_)
   {
     // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
-    read_timeout_resolved = std::chrono::milliseconds(20 * keepalive_count_);
+    read_timeout_resolved = 20 * keepalive_count_;
   }
 
   // The first element is always the read timeout.
-  int32_t val = read_timeout_resolved.count();
+  int32_t val = read_timeout_resolved;
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
@@ -165,19 +163,18 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  std::chrono::milliseconds read_timeout =
-      watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
   if (keep_alive_count_modified_deprecated_)
   {
     // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
-    read_timeout_resolved = std::chrono::milliseconds(20 * keepalive_count_);
+    read_timeout_resolved = 20 * keepalive_count_;
   }
 
   // The first element is always the read timeout.
-  int32_t val = read_timeout_resolved.count();
+  int32_t val = read_timeout_resolved;
   val = htobe32(val);
   b_pos += append(b_pos, val);
 

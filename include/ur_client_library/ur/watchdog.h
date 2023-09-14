@@ -51,13 +51,22 @@ public:
   ~Watchdog() = default;
 
   /*!
-   * \brief Create a watchdog object with a specific timeout
+   * \brief Create a watchdog object with a specific timeout given in milliseconds
    *
    * \param milliseconds watchdog timeout
    *
    * \returns Watchdog object
    */
-  static Watchdog millisec(const std::chrono::milliseconds& milliseconds = std::chrono::milliseconds(20));
+  static Watchdog millisec(const unsigned int& milliseconds = 20);
+
+  /*!
+   * \brief Create a watchdog object with a specific timeout given in seconds
+   *
+   * \param seconds watchdog timeout
+   *
+   * \returns Watchdog object
+   */
+  static Watchdog sec(const float& seconds = 0.02);
 
   /*!
    * \brief Creates a watchdog object with no timeout
@@ -73,10 +82,9 @@ public:
    * \param control_mode current control mode
    * \param step_time The robots step time
    *
-   * \returns watchdog timeout
+   * \returns watchdog timeout in milliseconds
    */
-  std::chrono::milliseconds verifyWatchdogTimeout(const comm::ControlMode& control_mode,
-                                                  const std::chrono::milliseconds& step_time) const;
+  int verifyWatchdogTimeout(const comm::ControlMode& control_mode, const std::chrono::milliseconds& step_time) const;
 
   std::chrono::milliseconds timeout_;
 };

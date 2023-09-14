@@ -209,7 +209,6 @@ int main(int argc, char* argv[])
                                             4.00000000e+00 };
 
   bool ret = false;
-  URCL_LOG_INFO("Switch to Forward mode");
   ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {

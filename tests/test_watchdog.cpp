@@ -35,138 +35,147 @@
 
 using namespace urcl;
 
+const std::chrono::milliseconds g_step_time(2);
+
 TEST(watchdog, watchdog_initialization)
 {
   Watchdog watchdog;
-  const std::chrono::milliseconds expected_timeout(20);
-  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout.count());
+  const int expected_timeout = 20;
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
+}
+
+TEST(watchdog, watchdog_milliseconds_configuration)
+{
+  const int expected_timeout = 100;
+  Watchdog watchdog = Watchdog::millisec(expected_timeout);
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
+}
+
+TEST(watchdog, watchdog_empty_milliseconds_configuration)
+{
+  const int expected_timeout = 20;
+  Watchdog watchdog = Watchdog::millisec();
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
 }
 
 TEST(watchdog, watchdog_seconds_configuration)
 {
-  const std::chrono::milliseconds expected_timeout(100);
-  Watchdog watchdog = Watchdog::millisec(expected_timeout);
-  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout.count());
+  float timeout = 0.1;
+  Watchdog watchdog = Watchdog::sec(timeout);
+  const int expected_timeout = timeout * 1000;  // Convert to milliseconds
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
 }
 
 TEST(watchdog, watchdog_empty_seconds_configuration)
 {
-  const std::chrono::milliseconds expected_timeout(20);
-  Watchdog watchdog = Watchdog::millisec();
-  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout.count());
+  const int expected_timeout = 20;
+  Watchdog watchdog = Watchdog::sec();
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
 }
 
 TEST(watchdog, watchdog_off_configuration)
 {
-  const std::chrono::milliseconds expected_timeout(0);
+  const int expected_timeout = 0;
   Watchdog watchdog = Watchdog::off();
-  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout.count());
+  EXPECT_EQ(watchdog.timeout_.count(), expected_timeout);
 }
 
 TEST(watchdog, watchdog_off_realtime_control_modes)
 {
   Watchdog watchdog = Watchdog::off();
-  const std::chrono::milliseconds step_time(2);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), step_time.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, g_step_time.count());
   }
 }
 
 TEST(watchdog, watchdog_off_non_realtime_control_modes)
 {
   Watchdog watchdog = Watchdog::off();
-  const std::chrono::milliseconds step_time(2);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
-    std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], step_time);
-    const std::chrono::milliseconds expected_timeout(0);
-    EXPECT_EQ(actual_timeout.count(), expected_timeout.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], g_step_time);
+    const int expected_timeout = 0;
+    EXPECT_EQ(actual_timeout, expected_timeout);
   }
 }
 
 TEST(watchdog, watchdog_timeout_below_step_time_realtime_control_modes)
 {
-  Watchdog watchdog = Watchdog::millisec(std::chrono::milliseconds(1));
-  const std::chrono::milliseconds step_time(2);
+  Watchdog watchdog = Watchdog::millisec(1);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), step_time.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, g_step_time.count());
   }
 }
 
 TEST(watchdog, watchdog_timeout_below_step_time_non_realtime_control_modes)
 {
-  Watchdog watchdog = Watchdog::millisec(std::chrono::milliseconds(1));
-  const std::chrono::milliseconds step_time(2);
+  Watchdog watchdog = Watchdog::millisec(1);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
-    std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), step_time.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, g_step_time.count());
   }
 }
 
 TEST(watchdog, watchdog_timeout_above_max_allowed_timeout_realtime_control_modes)
 {
-  std::chrono::milliseconds max_allowed_timeout(1000);
-  Watchdog watchdog = Watchdog::millisec(std::chrono::milliseconds(1200));
-  const std::chrono::milliseconds step_time(2);
+  const int max_allowed_timeout = 1000;
+  Watchdog watchdog = Watchdog::millisec(1200);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), max_allowed_timeout.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, max_allowed_timeout);
   }
 }
 
 TEST(watchdog, watchdog_timeout_within_limit_realtime_control_modes)
 {
-  const std::chrono::milliseconds expected_timeout(100);
+  const int expected_timeout = 100;
   Watchdog watchdog = Watchdog::millisec(expected_timeout);
-  const std::chrono::milliseconds step_time(2);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    const std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), expected_timeout.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, expected_timeout);
   }
 }
 
 TEST(watchdog, watchdog_timeout_within_limit_non_realtime_control_modes)
 {
   // When watchdog timeout is set below step_time, the timeout should be set to step time
-  const std::chrono::milliseconds expected_timeout(500);
+  const int expected_timeout = 500;
   Watchdog watchdog = Watchdog::millisec(expected_timeout);
-  const std::chrono::milliseconds step_time(2);
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    const std::chrono::milliseconds actual_timeout =
-        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], step_time);
-    EXPECT_EQ(actual_timeout.count(), expected_timeout.count());
+    const int actual_timeout =
+        watchdog.verifyWatchdogTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+    EXPECT_EQ(actual_timeout, expected_timeout);
   }
 }
 
 TEST(watchdog, watchdog_timeout_unknown_control_mode)
 {
   // If the control mode is neither realtime or non realtime, the function should throw an exception
-  Watchdog watchdog = Watchdog::millisec(std::chrono::milliseconds(200));
-  const std::chrono::milliseconds step_time(2);
-  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_STOPPED, step_time), UrException);
-  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_UNINITIALIZED, step_time), UrException);
-  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_TOOL_IN_CONTACT, step_time), UrException);
+  Watchdog watchdog = Watchdog::millisec(200);
+  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_STOPPED, g_step_time), UrException);
+  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_UNINITIALIZED, g_step_time), UrException);
+  EXPECT_THROW(watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_TOOL_IN_CONTACT, g_step_time), UrException);
 }
 
 int main(int argc, char* argv[])

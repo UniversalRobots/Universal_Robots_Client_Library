@@ -41,10 +41,19 @@ Watchdog::Watchdog()
   timeout_ = std::chrono::milliseconds(20);
 }
 
-Watchdog Watchdog::millisec(const std::chrono::milliseconds& milliseconds)
+Watchdog Watchdog::millisec(const unsigned int& milliseconds)
 {
   Watchdog watch_dog;
-  watch_dog.timeout_ = milliseconds;
+  watch_dog.timeout_ = std::chrono::milliseconds(milliseconds);
+
+  return watch_dog;
+}
+
+Watchdog Watchdog::sec(const float& seconds)
+{
+  Watchdog watch_dog;
+  int milliseconds = static_cast<int>(seconds * 1000);
+  watch_dog.timeout_ = std::chrono::milliseconds(milliseconds);
 
   return watch_dog;
 }
@@ -56,8 +65,8 @@ Watchdog Watchdog::off()
   return watch_dog;
 }
 
-std::chrono::milliseconds Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
-                                                          const std::chrono::milliseconds& step_time) const
+int Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
+                                    const std::chrono::milliseconds& step_time) const
 {
   // Convert timeout to float
   if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
@@ -68,11 +77,11 @@ std::chrono::milliseconds Watchdog::verifyWatchdogTimeout(const comm::ControlMod
       ss << "Watchdog timeout " << timeout_.count() << " is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return step_time;
+      return step_time.count();
     }
     else
     {
-      return timeout_;
+      return timeout_.count();
     }
   }
   else if (comm::ControlModeTypes::is_control_mode_realtime(control_mode))
@@ -84,7 +93,7 @@ std::chrono::milliseconds Watchdog::verifyWatchdogTimeout(const comm::ControlMod
       ss << "Realtime read timeout " << timeout_.count() << " is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return step_time;
+      return step_time.count();
     }
     else if (timeout_ > max_realtime_timeout)
     {
@@ -92,11 +101,11 @@ std::chrono::milliseconds Watchdog::verifyWatchdogTimeout(const comm::ControlMod
       ss << "Watchdog timeout " << timeout_.count() << " is above the maximum allowed timeout for realtime commands "
          << max_realtime_timeout.count() << ". It will be reset to the maximum allowed timeout.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return max_realtime_timeout;
+      return max_realtime_timeout.count();
     }
     else
     {
-      return timeout_;
+      return timeout_.count();
     }
   }
   else
