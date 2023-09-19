@@ -218,11 +218,11 @@ target_link_libraries(ur_driver_tests PRIVATE ur_client_library::urcl ${GTEST_LI
 gtest_add_tests(TARGET      ur_driver_tests
 )
 
-add_executable(watchdog_tests test_watchdog.cpp)
-target_compile_options(watchdog_tests PRIVATE ${CXX17_FLAG})
-target_include_directories(watchdog_tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(watchdog_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
-gtest_add_tests(TARGET watchdog_tests
+add_executable(robot_receive_timeout_tests test_robot_receive_timeout.cpp)
+target_compile_options(robot_receive_timeout_tests PRIVATE ${CXX17_FLAG})
+target_include_directories(robot_receive_timeout_tests PRIVATE ${GTEST_INCLUDE_DIRS})
+target_link_libraries(robot_receive_timeout_tests PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+gtest_add_tests(TARGET robot_receive_timeout_tests
 )
 
 add_executable(control_mode_tests test_control_mode.cpp)

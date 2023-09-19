@@ -51,7 +51,7 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
 }
 
 bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode,
-                             const Watchdog& watchdog)
+                             const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 7;
   if (client_fd_ == -1)
@@ -61,7 +61,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
@@ -106,7 +106,8 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int point_number, const Watchdog& watchdog)
+                                                     const int point_number,
+                                                     const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 3;
   if (client_fd_ == -1)
@@ -116,7 +117,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
@@ -153,7 +154,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
 }
 
 bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
-                                                    const Watchdog& watchdog)
+                                                    const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 2;
   if (client_fd_ == -1)
@@ -163,7 +164,7 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  int read_timeout = watchdog.verifyWatchdogTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
@@ -196,7 +197,7 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-void ReverseInterface::setKeepaliveCount(const uint32_t& count)
+void ReverseInterface::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead you should set the "
                  "timeout directly in the write commands. Please change your code to set the read timeout in the write "

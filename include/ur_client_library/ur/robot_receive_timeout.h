@@ -36,57 +36,60 @@
 namespace urcl
 {
 /*!
- * \brief Watchdog class containing a timeout configuration
+ * \brief RobotReceiveTimeout class containing a timeout configuration
  *
- * This watchdog is used to configure the read timeout for the reverse socket running in the external control script.
- * The read timeout is the number of milliseconds until the read action times out. A timeout of 0 or negative number
- * indicates that the function should not return until a read is completed, this will make the read function blocking on
- * the robot. This can be set using the function off().
+ * This robot receive timeout is used to configure the read timeout for the reverse socket running in the external
+ * control script. The read timeout is the number of milliseconds until the read action times out. A timeout of 0 or
+ * negative number indicates that the function should not return until a read is completed, this will make the read
+ * function on the robot blocking. This can be set using the function off().
  *
  */
-class Watchdog
+class RobotReceiveTimeout
 {
 public:
-  Watchdog();
-  ~Watchdog() = default;
+  RobotReceiveTimeout() = delete;
+  ~RobotReceiveTimeout() = default;
 
   /*!
-   * \brief Create a watchdog object with a specific timeout given in milliseconds
+   * \brief Create a RobotReceiveTimeout object with a specific timeout given in milliseconds
    *
-   * \param milliseconds watchdog timeout
+   * \param milliseconds robot receive timeout
    *
-   * \returns Watchdog object
+   * \returns RobotReceiveTimeout object
    */
-  static Watchdog millisec(const unsigned int& milliseconds = 20);
+  static RobotReceiveTimeout millisec(const unsigned int milliseconds = 20);
 
   /*!
-   * \brief Create a watchdog object with a specific timeout given in seconds
+   * \brief Create a RobotReceiveTimeout object with a specific timeout given in seconds
    *
-   * \param seconds watchdog timeout
+   * \param seconds robot receive timeout
    *
-   * \returns Watchdog object
+   * \returns RobotReceiveTimeout object
    */
-  static Watchdog sec(const float& seconds = 0.02);
+  static RobotReceiveTimeout sec(const float seconds = 0.02);
 
   /*!
-   * \brief Creates a watchdog object with no timeout
+   * \brief Creates a RobotReceiveTimeout object with no timeout, this will make the read function on the robot blocking
    *
-   * \returns watchdog object
+   * \returns RobotReceiveTimeout object
    */
-  static Watchdog off();
+  static RobotReceiveTimeout off();
 
   /*!
-   * \brief Helper function to verify that the watchdog timeout is configured appropriately given the current control
-   * mode
+   * \brief Helper function to verify that the robot receive timeout is configured appropriately given the current
+   * control mode
    *
    * \param control_mode current control mode
    * \param step_time The robots step time
    *
-   * \returns watchdog timeout in milliseconds
+   * \returns receive timeout in milliseconds
    */
-  int verifyWatchdogTimeout(const comm::ControlMode& control_mode, const std::chrono::milliseconds& step_time) const;
+  int verifyRobotReceiveTimeout(const comm::ControlMode control_mode, const std::chrono::milliseconds step_time) const;
 
   std::chrono::milliseconds timeout_;
+
+private:
+  RobotReceiveTimeout(std::chrono::milliseconds timeout);
 };
 
 }  // namespace urcl

@@ -28,45 +28,41 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
-#include "ur_client_library/ur/watchdog.h"
+#include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/log.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/types.h"
+
 #include <sstream>
 
 namespace urcl
 {
-Watchdog::Watchdog()
+RobotReceiveTimeout::RobotReceiveTimeout(std::chrono::milliseconds timeout) : timeout_(timeout)
 {
-  timeout_ = std::chrono::milliseconds(20);
 }
 
-Watchdog Watchdog::millisec(const unsigned int& milliseconds)
+RobotReceiveTimeout RobotReceiveTimeout::millisec(const unsigned int milliseconds)
 {
-  Watchdog watch_dog;
-  watch_dog.timeout_ = std::chrono::milliseconds(milliseconds);
-
-  return watch_dog;
+  std::chrono::milliseconds timeout = std::chrono::milliseconds(milliseconds);
+  RobotReceiveTimeout robot_receive_timeout(timeout);
+  return robot_receive_timeout;
 }
 
-Watchdog Watchdog::sec(const float& seconds)
+RobotReceiveTimeout RobotReceiveTimeout::sec(const float seconds)
 {
-  Watchdog watch_dog;
-  int milliseconds = static_cast<int>(seconds * 1000);
-  watch_dog.timeout_ = std::chrono::milliseconds(milliseconds);
-
-  return watch_dog;
+  std::chrono::milliseconds timeout = std::chrono::milliseconds(static_cast<int>(seconds * 1000));
+  RobotReceiveTimeout robot_receive_timeout(timeout);
+  return robot_receive_timeout;
 }
 
-Watchdog Watchdog::off()
+RobotReceiveTimeout RobotReceiveTimeout::off()
 {
-  Watchdog watch_dog;
-  watch_dog.timeout_ = std::chrono::milliseconds(0);
-  return watch_dog;
+  RobotReceiveTimeout robot_receive_timeout(std::chrono::milliseconds(0));
+  return robot_receive_timeout;
 }
 
-int Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
-                                    const std::chrono::milliseconds& step_time) const
+int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode control_mode,
+                                                   const std::chrono::milliseconds step_time) const
 {
   // Convert timeout to float
   if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
@@ -74,7 +70,7 @@ int Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
     if (timeout_ < step_time && timeout_ > std::chrono::milliseconds(0))
     {
       std::stringstream ss;
-      ss << "Watchdog timeout " << timeout_.count() << " is below the step time " << step_time.count()
+      ss << "Robot receive timeout " << timeout_.count() << " is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
       return step_time.count();
@@ -98,8 +94,9 @@ int Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
     else if (timeout_ > max_realtime_timeout)
     {
       std::stringstream ss;
-      ss << "Watchdog timeout " << timeout_.count() << " is above the maximum allowed timeout for realtime commands "
-         << max_realtime_timeout.count() << ". It will be reset to the maximum allowed timeout.";
+      ss << "Robot receive timeout " << timeout_.count()
+         << " is above the maximum allowed timeout for realtime commands " << max_realtime_timeout.count()
+         << ". It will be reset to the maximum allowed timeout.";
       URCL_LOG_ERROR(ss.str().c_str());
       return max_realtime_timeout.count();
     }
@@ -111,7 +108,7 @@ int Watchdog::verifyWatchdogTimeout(const comm::ControlMode& control_mode,
   else
   {
     std::stringstream ss;
-    ss << "Unknown control mode " << toUnderlying(control_mode) << " for verifying the watchdog";
+    ss << "Unknown control mode " << toUnderlying(control_mode) << " for verifying the robot receive timeout";
     throw UrException(ss.str().c_str());
   }
 }

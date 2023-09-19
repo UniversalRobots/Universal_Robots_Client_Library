@@ -151,10 +151,10 @@ int main(int argc, char* argv[])
         increment = 0.02;
       }
       g_joint_positions[5] += increment;
-      // Setting the Watchdog time is for example purposes only. This will make the example running more
+      // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret =
-          g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ, Watchdog::millisec(100));
+      bool ret = g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ,
+                                                RobotReceiveTimeout::millisec(100));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");

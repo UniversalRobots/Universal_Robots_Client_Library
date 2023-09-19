@@ -33,7 +33,7 @@
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/log.h"
-#include "ur_client_library/ur/watchdog.h"
+#include "ur_client_library/ur/robot_receive_timeout.h"
 #include <cstring>
 #include <endian.h>
 #include <condition_variable>
@@ -93,7 +93,7 @@ public:
    * \param positions A vector of joint targets for the robot
    * \param control_mode Control mode assigned to this command. See documentation of comm::ControlMode
    * for details on possible values.
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
    * control script on the robot. Use with caution when dealing with realtime commands as the robot
    * expects to get a new control signal each control cycle. Note the timeout cannot be higher than 1 second for
    * realtime commands.
@@ -101,43 +101,45 @@ public:
    * \returns True, if the write was performed successfully, false otherwise.
    */
   virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
-                     const Watchdog& watchdog = Watchdog::millisec(20));
+                     const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
    * \param point_number The number of points of the trajectory to be executed
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
-   * Watchdog::off() function to create the watchdog object
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
-                                     const Watchdog& watchdog = Watchdog::millisec(200));
+  bool
+  writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param freedrive_action 1 if freedrive mode is to be started, -1 if it should be stopped and 0 to keep it running
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
-   * Watchdog::off() function to create the watchdog object
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
-                                    const Watchdog& watchdog = Watchdog::millisec(200));
+  bool
+  writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
+                               const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  [[deprecated("Set keepaliveCount is deprecated, instead use the read timeout directly in the write "
+  [[deprecated("Set keepaliveCount is deprecated, instead use the robot receive timeout directly in the write "
                "commands.")]] virtual void
-  setKeepaliveCount(const uint32_t& count);
+  setKeepaliveCount(const uint32_t count);
 
 protected:
   virtual void connectionCallback(const int filedescriptor);

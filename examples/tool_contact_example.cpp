@@ -153,9 +153,10 @@ int main(int argc, char* argv[])
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
     if (data_pkg)
     {
-      // Setting the Watchdog time is for example purposes only. This will make the example running more
+      // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret = g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, Watchdog::millisec(100));
+      bool ret =
+          g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, RobotReceiveTimeout::millisec(100));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");

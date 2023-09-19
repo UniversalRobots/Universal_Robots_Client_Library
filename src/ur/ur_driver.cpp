@@ -260,9 +260,9 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 }
 
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
-                                 const Watchdog& watchdog)
+                                 const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->write(&values, control_mode, watchdog);
+  return reverse_interface_->write(&values, control_mode, robot_receive_timeout);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
@@ -289,15 +289,15 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 }
 
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                             const int point_number, const Watchdog& watchdog)
+                                             const int point_number, const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, watchdog);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
 }
 
 bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
-                                            const Watchdog& watchdog)
+                                            const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, watchdog);
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, robot_receive_timeout);
 }
 
 bool UrDriver::zeroFTSensor()
@@ -476,10 +476,10 @@ bool UrDriver::endToolContact()
   }
 }
 
-bool UrDriver::writeKeepalive(const Watchdog& watchdog)
+bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, watchdog);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
 }
 
 void UrDriver::startRTDECommunication()
@@ -583,10 +583,11 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
   return rtde_client_->getOutputRecipe();
 }
 
-void UrDriver::setKeepaliveCount(const uint32_t& count)
+void UrDriver::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
-                 "watchdog, to set the timeout directly in the write commands. Please change your code to set the "
+                 "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
+                 "set the "
                  "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                  "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);

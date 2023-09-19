@@ -37,7 +37,7 @@
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
-#include "ur_client_library/ur/watchdog.h"
+#include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
@@ -204,7 +204,7 @@ public:
    *
    * \param values Desired joint positions
    * \param control_mode Control mode this command is assigned to.
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
    * control script on the robot. Use with caution when dealing with realtime commands as the robot
    * expects to get a new control signal each control cycle. Note the timeout cannot be higher than 1 second for
    * realtime commands.
@@ -212,7 +212,7 @@ public:
    * \returns True on successful write.
    */
   bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
-                         const Watchdog& watchdog = Watchdog::millisec(20));
+                         const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
    * \brief Writes a trajectory point onto the dedicated socket.
@@ -267,27 +267,29 @@ public:
    *
    * \param trajectory_action The action to be taken, such as starting a new trajectory
    * \param point_number The number of points of a new trajectory to be sent
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
-   * Watchdog::off() function to create the watchdog object
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True on successful write.
    */
-  bool writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                     const int point_number = 0, const Watchdog& watchdog = Watchdog::millisec(200));
+  bool
+  writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Writes a control message in freedrive mode.
    *
    * \param freedrive_action The action to be taken, such as starting or stopping freedrive
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
-   * Watchdog::off() function to create the watchdog object
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True on successful write.
    */
-  bool writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
-                                    const Watchdog& watchdog = Watchdog::millisec(200));
+  bool
+  writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
+                               const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
@@ -373,13 +375,13 @@ public:
    * This signals the robot that the connection is still
    * active in times when no commands are to be sent (e.g. no controller is active.)
    *
-   * \param watchdog The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then disable the watchdog using the
-   * Watchdog::off() function to create the watchdog object
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True on successful write.
    */
-  bool writeKeepalive(const Watchdog& watchdog = Watchdog::millisec(1000));
+  bool writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(1000));
 
   /*!
    * \brief Starts the RTDE communication.
@@ -454,9 +456,9 @@ public:
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  [[deprecated("Set keepaliveCount is deprecated, instead set the watchdog timeout directly in the write "
+  [[deprecated("Set keepaliveCount is deprecated, instead set the robot receive timeout directly in the write "
                "commands.")]] void
-  setKeepaliveCount(const uint32_t& count);
+  setKeepaliveCount(const uint32_t count);
 
   /*!
    * \brief Register a callback for the robot-based trajectory execution completion.
