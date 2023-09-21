@@ -64,14 +64,13 @@ RobotReceiveTimeout RobotReceiveTimeout::off()
 int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode control_mode,
                                                    const std::chrono::milliseconds step_time) const
 {
-  // Convert timeout to float
   if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
   {
     if (timeout_ < step_time && timeout_ > std::chrono::milliseconds(0))
     {
       std::stringstream ss;
-      ss << "Robot receive timeout " << timeout_.count() << " is below the step time " << step_time.count()
-         << ". It will be reset to the step time.";
+      ss << "Robot receive timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
+         << "ms. It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
       return step_time.count();
     }
