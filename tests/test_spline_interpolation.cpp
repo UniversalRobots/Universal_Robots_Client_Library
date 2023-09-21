@@ -119,8 +119,21 @@ protected:
     // Setup driver
     std::unique_ptr<ToolCommSetup> tool_comm_setup;
     const bool HEADLESS = true;
-    g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                    HEADLESS, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+    try
+    {
+      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                      &handleRobotProgramState, HEADLESS, std::move(tool_comm_setup),
+                                      CALIBRATION_CHECKSUM));
+    }
+    catch (UrException& exp)
+    {
+      std::cout << "caught exception " << exp.what() << " while launch driver, retrying once in 10 seconds"
+                << std::endl;
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                      &handleRobotProgramState, HEADLESS, std::move(tool_comm_setup),
+                                      CALIBRATION_CHECKSUM));
+    }
 
     g_ur_driver_->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
