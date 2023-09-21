@@ -47,6 +47,7 @@ namespace urcl
 class RobotReceiveTimeout
 {
 public:
+  static constexpr std::chrono::milliseconds MAX_RT_RECEIVE_TIMEOUT_MS = std::chrono::milliseconds(200);
   RobotReceiveTimeout() = delete;
   ~RobotReceiveTimeout() = default;
 

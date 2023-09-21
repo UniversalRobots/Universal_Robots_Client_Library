@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/exceptions.h>
 
 using namespace urcl;
 
@@ -393,10 +394,7 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_UNINITIALIZED;
-  reverse_interface_->write(&pos, expected_control_mode);
-  received_control_mode = client_->getControlMode();
-
-  EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
+  EXPECT_THROW(reverse_interface_->write(&pos, expected_control_mode), UrException);
 }
 
 TEST_F(ReverseIntefaceTest, write_freedrive_control_message)

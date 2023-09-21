@@ -51,7 +51,8 @@ enum class ControlMode : int32_t
   MODE_POSE = 5,            ///< Set when cartesian pose control is active.
   MODE_FREEDRIVE = 6,       ///< Set when freedrive mode is active.
   MODE_TOOL_IN_CONTACT =
-      7  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
+      7,  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
+  END     ///< This is not an actual control mode, but used internally to get the number of control modes
 };
 
 /*!
@@ -69,6 +70,11 @@ public:
   static const inline std::vector<ControlMode> NON_REALTIME_CONTROL_MODES = { ControlMode::MODE_IDLE,
                                                                               ControlMode::MODE_FORWARD,
                                                                               ControlMode::MODE_FREEDRIVE };
+
+  // Control modes which doesn't move the robot, meaning they are neither realtime or non realtime
+  static const inline std::vector<ControlMode> STATIONARY_CONTROL_MODES = { ControlMode::MODE_STOPPED,
+                                                                            ControlMode::MODE_UNINITIALIZED,
+                                                                            ControlMode::MODE_TOOL_IN_CONTACT };
 
   /*!
    * \brief Check if the control mode is realtime

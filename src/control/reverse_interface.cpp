@@ -61,7 +61,12 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = 100;
+  // If control mode is stopped, we shouldn't verify robot receive timeout
+  if (control_mode != comm::ControlMode::MODE_STOPPED)
+  {
+    read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(control_mode, step_time_);
+  }
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;
@@ -117,7 +122,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FORWARD, step_time_);
 
   // This can be removed once we remove the setkeepAliveCount() method
   auto read_timeout_resolved = read_timeout;

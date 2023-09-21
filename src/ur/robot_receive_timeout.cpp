@@ -81,23 +81,22 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
   }
   else if (comm::ControlModeTypes::is_control_mode_realtime(control_mode))
   {
-    const std::chrono::milliseconds max_realtime_timeout = std::chrono::milliseconds(1000);
     if (timeout_ < step_time)
     {
       std::stringstream ss;
-      ss << "Realtime read timeout " << timeout_.count() << " is below the step time " << step_time.count()
+      ss << "Realtime read timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
       return step_time.count();
     }
-    else if (timeout_ > max_realtime_timeout)
+    else if (timeout_ > MAX_RT_RECEIVE_TIMEOUT_MS)
     {
       std::stringstream ss;
       ss << "Robot receive timeout " << timeout_.count()
-         << " is above the maximum allowed timeout for realtime commands " << max_realtime_timeout.count()
+         << "ms is above the maximum allowed timeout for realtime commands " << MAX_RT_RECEIVE_TIMEOUT_MS.count()
          << ". It will be reset to the maximum allowed timeout.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return max_realtime_timeout.count();
+      return MAX_RT_RECEIVE_TIMEOUT_MS.count();
     }
     else
     {
