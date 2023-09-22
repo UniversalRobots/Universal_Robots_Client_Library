@@ -585,11 +585,11 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
 
 void UrDriver::setKeepaliveCount(const uint32_t count)
 {
-  URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
-                 "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
-                 "set the "
-                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
-                 "to the write functions.");
+  URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
+                "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
+                "set the "
+                "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
+                "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
 }
 
