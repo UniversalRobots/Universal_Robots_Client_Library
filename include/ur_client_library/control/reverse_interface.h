@@ -33,6 +33,7 @@
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/log.h"
+#include "ur_client_library/ur/robot_receive_timeout.h"
 #include <cstring>
 #include <endian.h>
 #include <condition_variable>
@@ -76,8 +77,10 @@ public:
    *
    * \param port Port the Server is started on
    * \param handle_program_state Function handle to a callback on program state changes.
+   * \param step_time The robots step time
    */
-  ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state);
+  ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state,
+                   std::chrono::milliseconds step_time = std::chrono::milliseconds(8));
 
   /*!
    * \brief Disconnects possible clients so the reverse interface object can be safely destroyed.
@@ -90,39 +93,53 @@ public:
    * \param positions A vector of joint targets for the robot
    * \param control_mode Control mode assigned to this command. See documentation of comm::ControlMode
    * for details on possible values.
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. Use with caution when dealing with realtime commands as the robot
+   * expects to get a new control signal each control cycle. Note the timeout cannot be higher than 1 second for
+   * realtime commands.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE);
+  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
+                     const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
    * \param point_number The number of points of the trajectory to be executed
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0);
+  bool
+  writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
    *
    * \param freedrive_action 1 if freedrive mode is to be started, -1 if it should be stopped and 0 to keep it running
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action);
+  bool
+  writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
+                               const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
    */
-  virtual void setKeepaliveCount(const uint32_t& count)
-  {
-    keepalive_count_ = count;
-  }
+  [[deprecated("Set keepaliveCount is deprecated, instead use the robot receive timeout directly in the write "
+               "commands.")]] virtual void
+  setKeepaliveCount(const uint32_t count);
 
 protected:
   virtual void connectionCallback(const int filedescriptor);
@@ -145,7 +162,10 @@ protected:
   static const int MAX_MESSAGE_LENGTH = 8;
 
   std::function<void(bool)> handle_program_state_;
+  std::chrono::milliseconds step_time_;
+
   uint32_t keepalive_count_;
+  bool keep_alive_count_modified_deprecated_;
 };
 
 }  // namespace control

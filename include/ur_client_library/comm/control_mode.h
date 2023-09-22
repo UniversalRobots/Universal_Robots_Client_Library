@@ -29,6 +29,9 @@
 #ifndef UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 
+#include <algorithm>
+#include <vector>
+
 namespace urcl
 {
 namespace comm
@@ -48,8 +51,59 @@ enum class ControlMode : int32_t
   MODE_POSE = 5,            ///< Set when cartesian pose control is active.
   MODE_FREEDRIVE = 6,       ///< Set when freedrive mode is active.
   MODE_TOOL_IN_CONTACT =
-      7  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
+      7,  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
+  END     ///< This is not an actual control mode, but used internally to get the number of control modes
 };
+
+/*!
+ * \brief Class used to separate the control modes into realtime and non realtime.
+ */
+class ControlModeTypes
+{
+public:
+  // Control modes that require realtime communication
+  static const inline std::vector<ControlMode> REALTIME_CONTROL_MODES = {
+    ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ, ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE
+  };
+
+  // Control modes that doesn't require realtime communication
+  static const inline std::vector<ControlMode> NON_REALTIME_CONTROL_MODES = { ControlMode::MODE_IDLE,
+                                                                              ControlMode::MODE_FORWARD,
+                                                                              ControlMode::MODE_FREEDRIVE };
+
+  // Control modes which doesn't move the robot, meaning they are neither realtime or non realtime
+  static const inline std::vector<ControlMode> STATIONARY_CONTROL_MODES = { ControlMode::MODE_STOPPED,
+                                                                            ControlMode::MODE_UNINITIALIZED,
+                                                                            ControlMode::MODE_TOOL_IN_CONTACT };
+
+  /*!
+   * \brief Check if the control mode is realtime
+   *
+   * \param control_mode Current control mode
+   *
+   * \returns true if the control mode is realtime, false otherwise
+   */
+  static bool is_control_mode_realtime(ControlMode control_mode)
+  {
+    return (std::find(ControlModeTypes::REALTIME_CONTROL_MODES.begin(), ControlModeTypes::REALTIME_CONTROL_MODES.end(),
+                      control_mode) != ControlModeTypes::REALTIME_CONTROL_MODES.end());
+  }
+
+  /*!
+   * \brief Check if the control mode is non realtime
+   *
+   * \param control_mode Current control mode
+   *
+   * \returns true if the control mode is non realtime, false otherwise
+   */
+  static bool is_control_mode_non_realtime(ControlMode control_mode)
+  {
+    return (std::find(ControlModeTypes::NON_REALTIME_CONTROL_MODES.begin(),
+                      ControlModeTypes::NON_REALTIME_CONTROL_MODES.end(),
+                      control_mode) != ControlModeTypes::NON_REALTIME_CONTROL_MODES.end());
+  }
+};
+
 }  // namespace comm
 }  // namespace urcl
 

@@ -59,9 +59,9 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
                          const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
-  : servoj_time_(0.008)
-  , servoj_gain_(servoj_gain)
+  : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
+  , step_time_(std::chrono::milliseconds(8))
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -84,7 +84,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
 
   rtde_frequency_ = rtde_client_->getMaxFrequency();
-  servoj_time_ = 1.0 / rtde_frequency_;
+  step_time_ = std::chrono::milliseconds(1000 / rtde_frequency_);
 
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
@@ -210,7 +210,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state));
+  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state, step_time_));
   trajectory_interface_.reset(new control::TrajectoryPointInterface(trajectory_port));
   script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
 
@@ -259,9 +259,10 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
-bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode)
+bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
+                                 const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->write(&values, control_mode);
+  return reverse_interface_->write(&values, control_mode, robot_receive_timeout);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
@@ -288,14 +289,15 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 }
 
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
-                                             const int point_number)
+                                             const int point_number, const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
 }
 
-bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action)
+bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
+                                            const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->writeFreedriveControlMessage(freedrive_action);
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, robot_receive_timeout);
 }
 
 bool UrDriver::zeroFTSensor()
@@ -474,10 +476,10 @@ bool UrDriver::endToolContact()
   }
 }
 
-bool UrDriver::writeKeepalive()
+bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE);
+  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
 }
 
 void UrDriver::startRTDECommunication()
@@ -581,8 +583,14 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
   return rtde_client_->getOutputRecipe();
 }
 
-void UrDriver::setKeepaliveCount(const uint32_t& count)
+void UrDriver::setKeepaliveCount(const uint32_t count)
 {
+  URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
+                 "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
+                 "set the "
+                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
+                 "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
 }
+
 }  // namespace urcl

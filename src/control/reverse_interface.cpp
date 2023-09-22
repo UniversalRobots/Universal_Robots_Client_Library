@@ -33,8 +33,13 @@ namespace urcl
 {
 namespace control
 {
-ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state)
-  : client_fd_(-1), server_(port), handle_program_state_(handle_program_state), keepalive_count_(1)
+ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state,
+                                   std::chrono::milliseconds step_time)
+  : client_fd_(-1)
+  , server_(port)
+  , handle_program_state_(handle_program_state)
+  , step_time_(step_time)
+  , keep_alive_count_modified_deprecated_(false)
 {
   handle_program_state_(false);
   server_.setMessageCallback(std::bind(&ReverseInterface::messageCallback, this, std::placeholders::_1,
@@ -45,7 +50,8 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
   server_.start();
 }
 
-bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode)
+bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode,
+                             const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 7;
   if (client_fd_ == -1)
@@ -55,8 +61,24 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  // The first element is always the keepalive signal.
-  int32_t val = htobe32(keepalive_count_);
+  int read_timeout = 100;
+  // If control mode is stopped, we shouldn't verify robot receive timeout
+  if (control_mode != comm::ControlMode::MODE_STOPPED)
+  {
+    read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(control_mode, step_time_);
+  }
+
+  // This can be removed once we remove the setkeepAliveCount() method
+  auto read_timeout_resolved = read_timeout;
+  if (keep_alive_count_modified_deprecated_)
+  {
+    // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
+    read_timeout_resolved = 20 * keepalive_count_;
+  }
+
+  // The first element is always the read timeout.
+  int32_t val = read_timeout_resolved;
+  val = htobe32(val);
   b_pos += append(b_pos, val);
 
   if (positions != nullptr)
@@ -89,7 +111,8 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int point_number)
+                                                     const int point_number,
+                                                     const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 3;
   if (client_fd_ == -1)
@@ -99,8 +122,19 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  // The first element is always the keepalive signal.
-  int32_t val = htobe32(keepalive_count_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FORWARD, step_time_);
+
+  // This can be removed once we remove the setkeepAliveCount() method
+  auto read_timeout_resolved = read_timeout;
+  if (keep_alive_count_modified_deprecated_)
+  {
+    // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
+    read_timeout_resolved = 20 * keepalive_count_;
+  }
+
+  // The first element is always the read timeout.
+  int32_t val = read_timeout_resolved;
+  val = htobe32(val);
   b_pos += append(b_pos, val);
 
   val = htobe32(toUnderlying(trajectory_action));
@@ -124,7 +158,8 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action)
+bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
+                                                    const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 2;
   if (client_fd_ == -1)
@@ -134,8 +169,19 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
-  // The first element is always the keepalive signal.
-  int32_t val = htobe32(keepalive_count_);
+  int read_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlMode::MODE_FREEDRIVE, step_time_);
+
+  // This can be removed once we remove the setkeepAliveCount() method
+  auto read_timeout_resolved = read_timeout;
+  if (keep_alive_count_modified_deprecated_)
+  {
+    // Translate keep alive count into read timeout. 20 milliseconds was the "old read timeout"
+    read_timeout_resolved = 20 * keepalive_count_;
+  }
+
+  // The first element is always the read timeout.
+  int32_t val = read_timeout_resolved;
+  val = htobe32(val);
   b_pos += append(b_pos, val);
 
   val = htobe32(toUnderlying(freedrive_action));
@@ -154,6 +200,16 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   size_t written;
 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+void ReverseInterface::setKeepaliveCount(const uint32_t count)
+{
+  URCL_LOG_ERROR("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead you should set the "
+                 "timeout directly in the write commands. Please change your code to set the read timeout in the write "
+                 "commands "
+                 "directly. This keepalive count will overwrite the timeout passed to the write functions.");
+  keepalive_count_ = count;
+  keep_alive_count_modified_deprecated_ = true;
 }
 
 void ReverseInterface::connectionCallback(const int filedescriptor)

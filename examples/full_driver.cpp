@@ -110,8 +110,6 @@ int main(int argc, char* argv[])
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
                                  std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-  g_my_driver->setKeepaliveCount(5);  // This is for example purposes only. This will make the example running more
-                                      // reliable on non-realtime systems. Do not use this in productive applications.
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
@@ -153,7 +151,10 @@ int main(int argc, char* argv[])
         increment = 0.02;
       }
       g_joint_positions[5] += increment;
-      bool ret = g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ);
+      // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
+      // reliable on non-realtime systems. Use with caution in productive applications.
+      bool ret = g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ,
+                                                RobotReceiveTimeout::millisec(100));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
@@ -166,6 +167,7 @@ int main(int argc, char* argv[])
       URCL_LOG_WARN("Could not get fresh data package from robot");
     }
   }
+  g_my_driver->stopControl();
   URCL_LOG_INFO("Movement done");
   return 0;
 }

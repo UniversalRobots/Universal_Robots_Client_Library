@@ -119,11 +119,23 @@ protected:
     // Setup driver
     std::unique_ptr<ToolCommSetup> tool_comm_setup;
     const bool HEADLESS = true;
-    g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                    HEADLESS, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+    try
+    {
+      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                      &handleRobotProgramState, HEADLESS, std::move(tool_comm_setup),
+                                      CALIBRATION_CHECKSUM));
+    }
+    catch (UrException& exp)
+    {
+      std::cout << "caught exception " << exp.what() << " while launch driver, retrying once in 10 seconds"
+                << std::endl;
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SPLINE_SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                      &handleRobotProgramState, HEADLESS, std::move(tool_comm_setup),
+                                      CALIBRATION_CHECKSUM));
+    }
 
     g_ur_driver_->registerTrajectoryDoneCallback(&handleTrajectoryState);
-    g_ur_driver_->setKeepaliveCount(10);
 
     g_ur_driver_->startRTDECommunication();
   }
@@ -147,7 +159,7 @@ protected:
   void sendTrajectory(const std::vector<urcl::vector6d_t>& s_pos, const std::vector<urcl::vector6d_t>& s_vel,
                       const std::vector<urcl::vector6d_t>& s_acc, const std::vector<double>& s_time)
   {
-    ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     // Send trajectory to robot for execution
     ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
@@ -248,7 +260,8 @@ protected:
       data_pkg->getData("output_double_register_1", spline_travel_time);
 
       // Keep connection alive
-      ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+      ASSERT_TRUE(
+          g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
       if (std::abs(spline_travel_time - 0.0) < 0.01)
       {
         return;
@@ -327,7 +340,7 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
 
     // Keep connection alive
-    ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     // Read spline travel time from the robot
     double spline_travel_time = 0.0;
@@ -443,7 +456,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     double time_left = s_time[0] - spline_travel_time;
 
     // Keep connection alive
-    ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     // Ensure that we follow the joint trajectory
     urcl::vector6d_t expected_joint_positions;
@@ -555,7 +568,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     spline_travel_time = (spline_travel_time == 0 ? spline_travel_time : spline_travel_time - step_time_);
 
     // Keep connection alive
-    ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     if (old_spline_travel_time > spline_travel_time)
     {
@@ -658,7 +671,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
     spline_travel_time = (spline_travel_time == 0 ? spline_travel_time : spline_travel_time - step_time_);
 
     // Keep connection alive
-    ASSERT_TRUE(g_ur_driver_->writeJointCommand(vector6d_t(), comm::ControlMode::MODE_FORWARD));
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     if (old_spline_travel_time > spline_travel_time)
     {

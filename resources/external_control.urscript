@@ -316,60 +316,44 @@ thread trajectoryThread():
       local q = [ raw_point[1]/ MULT_jointstate, raw_point[2]/ MULT_jointstate, raw_point[3]/ MULT_jointstate, raw_point[4]/ MULT_jointstate, raw_point[5]/ MULT_jointstate, raw_point[6]/ MULT_jointstate]
       local tmptime = raw_point[INDEX_TIME] / MULT_time
       local blend_radius = raw_point[INDEX_BLEND] / MULT_time
-      if trajectory_points_left > 0:
-        # MoveJ point
-        if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-          movej(q, t=tmptime, r=blend_radius)
+      local last_point = False
+      if trajectory_points_left == 0:
+        blend_radius = 0.0
+        last_point = True
+      end
+      # MoveJ point
+      if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
+        movej(q, t=tmptime, r=blend_radius)
 
+        # reset old acceleration
+        last_spline_qdd = [0, 0, 0, 0, 0, 0]
+
+      # Movel point
+      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
+        movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
+
+        # reset old acceleration
+        last_spline_qdd = [0, 0, 0, 0, 0, 0]
+
+      # Joint spline point
+      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
+
+        # Cubic spline
+        if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
+          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+          cubicSplineRun(q, qd, tmptime, last_point)
           # reset old acceleration
           last_spline_qdd = [0, 0, 0, 0, 0, 0]
 
-        # Movel point
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-          movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
-
-          # reset old acceleration
-          last_spline_qdd = [0, 0, 0, 0, 0, 0]
-
-        # Joint spline point
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-
-          # Cubic spline
-          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
-            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-            cubicSplineRun(q, qd, tmptime)
-            # reset old acceleration
-            last_spline_qdd = [0, 0, 0, 0, 0, 0]
-
-          # Quintic spline
-          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
-            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-            qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-            quinticSplineRun(q, qd, qdd, tmptime)
-          else:
-            textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
-            clear_remaining_trajectory_points()
-            socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
-          end
-        end
-      # Last trajectory point
-      else:
-        if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-          movej(q, t=tmptime, r=0.0)
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-          movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=0.0)
-        elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
-          if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
-            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-            cubicSplineRun(q, qd, tmptime, True)
-          elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
-            qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-            qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-            quinticSplineRun(q, qd, qdd, tmptime, True)
-          else:
-            textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
-            socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
-          end
+        # Quintic spline
+        elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
+          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+          qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
+          quinticSplineRun(q, qd, qdd, tmptime, last_point)
+        else:
+          textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
+          clear_remaining_trajectory_points()
+          socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
         end
       end
     end
@@ -524,22 +508,22 @@ control_mode = MODE_UNINITIALIZED
 thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
-global keepalive = -2
-params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0)
 textmsg("ExternalControl: External control active")
-keepalive = params_mult[1]
+global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
-while keepalive > 0 and control_mode > MODE_STOPPED:
+while control_mode > MODE_STOPPED:
   enter_critical
-  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", 0.02) # steptime could work as well, but does not work in simulation
+  params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
-    keepalive = params_mult[1]
+    # Convert to read timeout from milliseconds to seconds
+    read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
         kill thread_trajectory
-        stopj(STOPJ_ACCELERATION)
         clear_remaining_trajectory_points()
+        stopj(STOPJ_ACCELERATION)
+        socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       # Stop freedrive
       elif control_mode == MODE_FREEDRIVE:
         textmsg("Leaving freedrive mode")
@@ -586,6 +570,7 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
         textmsg("cancel received")
         kill thread_trajectory
         clear_remaining_trajectory_points()
+        stopj(STOPJ_ACCELERATION)
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     elif control_mode == MODE_SPEEDL:
@@ -608,17 +593,17 @@ while keepalive > 0 and control_mode > MODE_STOPPED:
       tool_contact_detection()
     end
   else:
-    keepalive = keepalive - 1
+    textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
+    control_mode = MODE_STOPPED
   end
   exit_critical
 end
 
 textmsg("ExternalControl: Stopping communication and control")
-control_mode = MODE_STOPPED
-join thread_move
-join thread_trajectory
+kill thread_move
+kill thread_trajectory
 kill thread_script_commands
-join thread_script_commands
+stopj(STOPJ_ACCELERATION)
 textmsg("ExternalControl: All threads ended")
 socket_close("reverse_socket")
 socket_close("trajectory_socket")

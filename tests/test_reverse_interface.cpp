@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/exceptions.h>
 
 using namespace urcl;
 
@@ -50,7 +51,7 @@ protected:
       TCPSocket::setReceiveTimeout(tv);
     }
 
-    void readMessage(int32_t& keep_alive_signal, vector6int32_t& pos, int32_t& control_mode)
+    void readMessage(int32_t& read_timeout, vector6int32_t& pos, int32_t& control_mode)
     {
       // Read message
       uint8_t buf[sizeof(int32_t) * 8];
@@ -72,7 +73,7 @@ protected:
       int32_t val;
       b_pos = buf;
       std::memcpy(&val, b_pos, sizeof(int32_t));
-      keep_alive_signal = be32toh(val);
+      read_timeout = be32toh(val);
       b_pos += sizeof(int32_t);
 
       // Decode positions
@@ -98,13 +99,13 @@ protected:
       return pos;
     }
 
-    int32_t getKeepAliveCount()
+    int32_t getReadTimeout()
     {
-      int32_t keep_alive_signal;
+      int32_t read_timeout;
       int32_t control_mode;
       vector6int32_t pos;
-      readMessage(keep_alive_signal, pos, control_mode);
-      return keep_alive_signal;
+      readMessage(read_timeout, pos, control_mode);
+      return read_timeout;
     }
 
     int32_t getControlMode()
@@ -287,25 +288,60 @@ TEST_F(ReverseIntefaceTest, remaining_message_points_are_zeros)
   EXPECT_EQ(0, received_pos[5]);
 }
 
-TEST_F(ReverseIntefaceTest, keep_alive_count)
+TEST_F(ReverseIntefaceTest, read_timeout)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
 
-  int expected_keep_alive_count = 5;
-  reverse_interface_->setKeepaliveCount(expected_keep_alive_count);
+  int32_t expected_read_timeout = 500;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
-  reverse_interface_->write(&pos);
-  int32_t received_keep_alive_count = client_->getKeepAliveCount();
+  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD,
+                            RobotReceiveTimeout::millisec(expected_read_timeout));
+  int32_t received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_keep_alive_count, received_keep_alive_count);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
-  // Test that keep alive signal works with trajectory controll message as well
+  // Test that read timeout works with trajectory control message as well
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1,
+                                                    RobotReceiveTimeout::millisec(expected_read_timeout));
+  received_read_timeout = client_->getReadTimeout();
+
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+
+  // Test that read timeout works with free drive message as well
+  reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP,
+                                                   RobotReceiveTimeout::millisec(expected_read_timeout));
+  received_read_timeout = client_->getReadTimeout();
+
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+}
+
+TEST_F(ReverseIntefaceTest, default_read_timeout)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+
+  int32_t expected_read_timeout = 20;
+
+  urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
+  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD);
+  int32_t received_read_timeout = client_->getReadTimeout();
+
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+
+  // Test that read timeout works with trajectory control message as well
+  expected_read_timeout = 200;
   reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
-  received_keep_alive_count = client_->getKeepAliveCount();
+  received_read_timeout = client_->getReadTimeout();
 
-  EXPECT_EQ(expected_keep_alive_count, received_keep_alive_count);
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+
+  // Test that read timeout works with free drive message as well
+  reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP);
+  received_read_timeout = client_->getReadTimeout();
+
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
 TEST_F(ReverseIntefaceTest, write_control_mode)
@@ -358,10 +394,7 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 
   expected_control_mode = comm::ControlMode::MODE_UNINITIALIZED;
-  reverse_interface_->write(&pos, expected_control_mode);
-  received_control_mode = client_->getControlMode();
-
-  EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
+  EXPECT_THROW(reverse_interface_->write(&pos, expected_control_mode), UrException);
 }
 
 TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
@@ -386,6 +419,30 @@ TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
   received_freedrive_message = client_->getFreedriveControlMode();
 
   EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
+}
+
+TEST_F(ReverseIntefaceTest, deprecated_set_keep_alive_count)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+
+  // Test that it works to set the keepalive count using the deprecated function
+  int keep_alive_count = 10;
+  reverse_interface_->setKeepaliveCount(keep_alive_count);
+  int32_t expected_read_timeout = 20 * keep_alive_count;
+
+  urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
+  reverse_interface_->write(&pos, comm::ControlMode::MODE_FORWARD);
+  int32_t received_read_timeout = client_->getReadTimeout();
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  received_read_timeout = client_->getReadTimeout();
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
+
+  reverse_interface_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP);
+  received_read_timeout = client_->getReadTimeout();
+  EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
 int main(int argc, char* argv[])
