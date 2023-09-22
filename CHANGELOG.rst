@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.4 (2023-09-22)
+------------------
 * Make depreaction warning for keepalive_counter a warning instead of error (`#182 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/182>`_)
 * Added watchdog configuration for the reverse socket (`#178 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/178>`_)
 * Add support for ur20 in start_ursim script (`#179 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/179>`_)
