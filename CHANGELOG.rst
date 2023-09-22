@@ -2,6 +2,15 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make depreaction warning for keepalive_counter a warning instead of error (`#182 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/182>`_)
+* Added watchdog configuration for the reverse socket (`#178 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/178>`_)
+* Add support for ur20 in start_ursim script (`#179 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/179>`_)
+* Use pre-commit for clang-format (`#175 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/175>`_)
+* Make tcp_server retry binding the socket (`#176 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/176>`_)
+* Contributors: Felix Exner, Mads Holm Peters
+
 1.3.3 (2023-09-05)
 ------------------
 * Add support for setting socket max num tries and reconnect timeout (`#172 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/172>`_)
