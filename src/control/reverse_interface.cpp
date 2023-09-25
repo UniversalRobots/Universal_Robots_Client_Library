@@ -205,9 +205,9 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
 void ReverseInterface::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead you should set the "
-                 "timeout directly in the write commands. Please change your code to set the read timeout in the write "
-                 "commands "
-                 "directly. This keepalive count will overwrite the timeout passed to the write functions.");
+                "timeout directly in the write commands. Please change your code to set the read timeout in the write "
+                "commands "
+                "directly. This keepalive count will overwrite the timeout passed to the write functions.");
   keepalive_count_ = count;
   keep_alive_count_modified_deprecated_ = true;
 }
