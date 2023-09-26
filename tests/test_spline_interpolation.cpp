@@ -51,31 +51,60 @@ std::string ROBOT_IP = "192.168.56.101";
 
 std::unique_ptr<UrDriver> g_ur_driver_;
 std::unique_ptr<DashboardClient> g_dashboard_client_;
-bool g_trajectory_running_;
+
+bool g_program_running;
+std::condition_variable g_program_not_running_cv_;
+std::mutex g_program_not_running_mutex_;
+std::condition_variable g_program_running_cv_;
+std::mutex g_program_running_mutex_;
 
 // Helper functions for the driver
 void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  if (program_running)
+  {
+    std::lock_guard<std::mutex> lk(g_program_running_mutex_);
+    g_program_running = program_running;
+    g_program_running_cv_.notify_one();
+  }
+  else
+  {
+    std::lock_guard<std::mutex> lk(g_program_not_running_mutex_);
+    g_program_running = program_running;
+    g_program_not_running_cv_.notify_one();
+  }
 }
 
+bool g_trajectory_running_;
+control::TrajectoryResult g_trajectory_result_;
 void handleTrajectoryState(control::TrajectoryResult state)
 {
+  g_trajectory_result_ = state;
   g_trajectory_running_ = false;
-  std::string report = "?";
-  switch (state)
+}
+
+bool g_rtde_read_thread_running_ = false;
+bool g_consume_rtde_packages_ = false;
+std::mutex g_read_package_mutex_;
+std::thread g_rtde_read_thread;
+
+void rtdeConsumeThread()
+{
+  while (g_rtde_read_thread_running_)
   {
-    case control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS:
-      report = "success";
-      break;
-    case control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED:
-      report = "canceled";
-      break;
-    case control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE:
-    default:
-      report = "failure";
-      break;
+    // Consume package to prevent pipeline overflow
+    if (g_consume_rtde_packages_ == true)
+    {
+      std::lock_guard<std::mutex> lk(g_read_package_mutex_);
+      std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+      data_pkg = g_ur_driver_->getDataPackage();
+    }
+    else
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
   }
 }
 
@@ -149,6 +178,9 @@ protected:
     g_ur_driver_->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
     g_ur_driver_->startRTDECommunication();
+    // Setup rtde read thread
+    g_rtde_read_thread_running_ = true;
+    g_rtde_read_thread = std::thread(rtdeConsumeThread);
   }
 
   static void TearDownTestSuite()
@@ -156,6 +188,8 @@ protected:
     // Set target speed scaling to 100% as one test change this value
     g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
 
+    g_rtde_read_thread_running_ = false;
+    g_rtde_read_thread.join();
     g_dashboard_client_->disconnect();
     // Remove temporary file again
     std::remove(SPLINE_SCRIPT_FILE.c_str());
@@ -168,6 +202,14 @@ protected:
     {
       step_time_ = 0.008;
     }
+    // Make sure script is running on the robot
+    if (g_program_running == false)
+    {
+      g_consume_rtde_packages_ = true;
+      g_ur_driver_->sendRobotProgram();
+      ASSERT_TRUE(waitForProgramRunning(1000));
+    }
+    g_consume_rtde_packages_ = false;
   }
 
   void sendIdle()
@@ -296,12 +338,40 @@ protected:
     }
   }
 
+  bool waitForProgramRunning(int milliseconds = 100)
+  {
+    std::unique_lock<std::mutex> lk(g_program_running_mutex_);
+    if (g_program_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+        g_program_running == true)
+    {
+      return true;
+    }
+    return false;
+  }
+
+  bool waitForProgramNotRunning(int milliseconds = 100)
+  {
+    std::unique_lock<std::mutex> lk(g_program_not_running_mutex_);
+    if (g_program_not_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+        g_program_running == false)
+    {
+      return true;
+    }
+    return false;
+  }
+
   void readDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_pkg)
   {
+    if (g_consume_rtde_packages_ == true)
+    {
+      URCL_LOG_ERROR("Unable to read packages while consuming, this should not happen!");
+      GTEST_FAIL();
+    }
+    std::lock_guard<std::mutex> lk(g_read_package_mutex_);
     data_pkg = g_ur_driver_->getDataPackage();
     if (data_pkg == nullptr)
     {
-      std::cout << "Failed to get data package from robot" << std::endl;
+      URCL_LOG_ERROR("Timed out waiting for a new package from the robot");
       GTEST_FAIL();
     }
   }
@@ -464,6 +534,8 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
+
   // Make sure the velocity is zero when the trajectory has finished
   readDataPackage(data_pkg);
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
@@ -626,6 +698,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
     plot_time += step_time_;
     loop_count += 1;
   }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
 
   // Make sure the velocity is zero when the trajectory has finished
   readDataPackage(data_pkg);
@@ -647,13 +720,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
 
 TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
 {
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_ur_driver_->getDataPackage();
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
-
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
   urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
@@ -742,6 +810,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
 
   // Verify that the full trajectory have been executed
   double spline_travel_time;
@@ -851,6 +920,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
     spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
 
   // Verify that the full trajectory have been executed
   double spline_travel_time;
@@ -859,6 +929,192 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
 
   writeTrajectoryToFile("../test_artifacts/spline_interpolation_quintic.csv", time_vec, expected_positions,
                         actual_positions, actual_velocities, actual_acc, speed_scaling_vec, spline_time);
+}
+
+TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
+
+  urcl::vector6d_t joint_positions_before;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
+
+  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  g_consume_rtde_packages_ = true;
+
+  // Create illegal trajectory
+  std::vector<urcl::vector6d_t> s_pos, s_vel;
+  urcl::vector6d_t first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+                                   joint_positions_before[3], joint_positions_before[4], 4.15364583e-03 };
+  s_pos.push_back(first_point);
+
+  urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  s_vel.push_back(zeros);
+
+  std::vector<double> s_time = { 0.0 };
+
+  // Send illegal trajectory to the robot
+  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
+  g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                              RobotReceiveTimeout::off());
+
+  // When an illegal trajectory is send to the robot, the control script should stop running and the trajectory result
+  // should be canceled
+  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
+
+  // Stop consuming rtde packages
+  g_consume_rtde_packages_ = false;
+
+  // Ensure that the robot hasn't moved
+  readDataPackage(data_pkg);
+  urcl::vector6d_t joint_positions_after;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
+  }
+}
+
+TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
+
+  urcl::vector6d_t joint_positions_before;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
+
+  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  g_consume_rtde_packages_ = true;
+
+  // Create illegal trajectory
+  std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
+  urcl::vector6d_t first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+                                   joint_positions_before[3], joint_positions_before[4], 4.15364583e-03 };
+  s_pos.push_back(first_point);
+
+  urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  s_vel.push_back(zeros);
+  s_acc.push_back(zeros);
+
+  std::vector<double> s_time = { 0.0 };
+
+  // Send illegal trajectory to the robot
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                              RobotReceiveTimeout::off());
+
+  // When an illegal trajectory is send to the robot, the control script should stop running and the trajectory result
+  // should be canceled
+  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
+
+  // Stop consuming rtde packages
+  g_consume_rtde_packages_ = false;
+
+  // Ensure that the robot hasn't moved
+  readDataPackage(data_pkg);
+  urcl::vector6d_t joint_positions_after;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
+  }
+}
+
+TEST_F(SplineInterpolationTest, physically_unfeasible_trajectory_cubic_spline)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
+
+  urcl::vector6d_t joint_positions_before;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
+
+  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  g_consume_rtde_packages_ = true;
+
+  // Create a trajectory that cannot be executed within the robots limits
+  std::vector<urcl::vector6d_t> s_pos, s_vel;
+  urcl::vector6d_t first_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.5
+  };
+  s_pos.push_back(first_point);
+
+  urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  s_vel.push_back(zeros);
+
+  std::vector<double> s_time = { 0.02 };
+
+  // Send unfeasible trajectory to the robot
+  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
+  g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                              RobotReceiveTimeout::off());
+
+  // When an unfeasible trajectory is send to the robot, the control script should stop running and the trajectory
+  // result should be canceled
+  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
+
+  // Stop consuming rtde packages
+  g_consume_rtde_packages_ = false;
+
+  // Ensure that the robot hasn't moved
+  readDataPackage(data_pkg);
+  urcl::vector6d_t joint_positions_after;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
+  }
+}
+
+TEST_F(SplineInterpolationTest, physically_unfeasible_trajectory_quintic_spline)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
+
+  urcl::vector6d_t joint_positions_before;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
+
+  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  g_consume_rtde_packages_ = true;
+
+  // Create a trajectory that cannot be executed within the robots limits
+  std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
+  urcl::vector6d_t first_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.5
+  };
+  s_pos.push_back(first_point);
+
+  urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  s_vel.push_back(zeros);
+  s_acc.push_back(zeros);
+
+  std::vector<double> s_time = { 0.02 };
+
+  // Send unfeasible trajectory to the robot
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                              RobotReceiveTimeout::off());
+
+  // When an unfeasible trajectory is send to the robot, the control script should stop running and the trajectory
+  // result should be canceled
+  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
+
+  // Stop consuming rtde packages
+  g_consume_rtde_packages_ = false;
+
+  // Ensure that the robot hasn't moved
+  readDataPackage(data_pkg);
+  urcl::vector6d_t joint_positions_after;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
+  }
 }
 
 int main(int argc, char* argv[])

@@ -58,6 +58,9 @@ UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 SPLINE_CUBIC = 1
 SPLINE_QUINTIC = 2
 
+# Maximum allowable joint speed in rad/s
+MAX_JOINT_SPEED = 6.283185
+
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -76,6 +79,36 @@ global tool_contact_running = False
 thread_move = 0
 thread_trajectory = 0
 thread_script_commands = 0
+
+###
+# @brief Function to verify whether the specified target can be reached within the defined time frame while staying within
+# the robot's speed limits
+#
+# @param target array is the joint target to reach
+# @param time float is the time to reach the target
+#
+# @returns bool true if the target is reachable within the robot's speed limits, false otherwise
+###
+def targetWithinLimits(target, time):
+  local idx = 0
+  local actual_q = get_actual_joint_positions()
+  while idx < 6:
+    local velocity = norm(target[idx] - actual_q[idx]) / time
+    if velocity > MAX_JOINT_SPEED:
+      local str = str_cat(str_cat("Velocity required to reach the received target ", target), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Aborting script."))
+      textmsg(str)
+      return False
+    end
+    idx = idx + 1
+  end
+  return True
+end
+
+def terminateProgram():
+  textmsg("Terminating robot program due to targets send to the robot is violating robot constraints.")
+  stopj(STOPJ_ACCELERATION)
+  halt
+end
 
 def set_servo_setpoint(q):
   cmd_servo_state = SERVO_RUNNING
@@ -113,11 +146,21 @@ thread servoThread():
       end
 
       q = extrapolate()
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+        q_act = get_actual_joint_positions()
+      else:
+        terminateProgram()
+      end
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+        q_act = get_actual_joint_positions()
+      else:
+        terminateProgram()
+      end
     else:
       extrapolate_count = 0
       sync()
@@ -148,8 +191,12 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
   local str = str_cat(end_q, str_cat(end_qd, time))
   textmsg("Cubic spline arg: ", str)
 
-  # Zero time means zero length and therefore no motion to execute
-  if time > 0.0:
+  # Zero time means infinite velocity to reach the target and is therefore impossible
+  if time <= 0.0:
+    textmsg("Spline time shouldn't be zero as it would require infinite velocity to reach the target. Aborting script.")
+    socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+    terminateProgram()
+  elif targetWithinLimits(end_q, time):
     local start_q = get_target_joint_positions()
     local start_qd = spline_qd
 
@@ -160,6 +207,9 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
     local coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     local coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+  else:
+    socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+    terminateProgram()
   end
 end
 
@@ -167,8 +217,12 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
   local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
   textmsg("Quintic spline arg: ", str)
 
-  # Zero time means zero length and therefore no motion to execute
-  if time > 0.0:
+  # Zero time means infinite velocity to reach the target and is therefore impossible
+  if time <= 0.0:
+    textmsg("Spline time shouldn't be zero as it would require infinite velocity to reach the target. Aborting script.")
+    socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+    terminateProgram()
+  elif targetWithinLimits(end_q, time):
     local start_q = get_target_joint_positions()
     local start_qd = spline_qd
     local start_qdd = spline_qdd
@@ -182,6 +236,9 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
     local coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0 * start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * pow(time, 4))
     local coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * pow(time, 5))
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+  else:
+    socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+    terminateProgram()
   end
 end
 
@@ -199,10 +256,8 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
 
     # Maximum deceleration in rad/s^2
     local max_deceleration = 15
-    # Maximum allowable joint speed in rad/s
-    local max_speed = 6.283185
     # The time needed to decelerate with 15 rad/s^2 to reach zero velocity when we move at maximum velocity.
-    local deceleration_time = max_speed / max_deceleration
+    local deceleration_time = MAX_JOINT_SPEED / max_deceleration
 
     # If the velocity is too large close to the end of the trajectory we scale the
     # trajectory, such that we follow the positional part of the trajectory, but end with zero velocity.
@@ -213,7 +268,7 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
         local qd = jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled + get_steptime())
         # Compute the time left to decelerate if we take a full time step
         local x = deceleration_time - (time_left - get_steptime())
-        is_slowing_down = checkSlowDownRequired(x, qd, max_speed, max_deceleration)
+        is_slowing_down = checkSlowDownRequired(x, qd, max_deceleration)
 
         if is_slowing_down == True:
           # This will ensure that we scale the trajectory right away
@@ -280,18 +335,22 @@ def jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, 
   return qd
 end
 
-# \brief Helper function to figure out if we need to slown down velocity at the last part of the last spline segment.
+
+###
+# @brief Helper function to figure out if we need to slown down velocity at the last part of the last spline segment.
 #
 # The max_speed and max_deceleration is used to compute a linear velocity profile as function of the time left to decelerate,
 # then we can use the time left to decelerate to find the maximum allowed speed given the time we have left. If we are above
 # the maximum allowed speed, we start slowing down.
 #
-# \param 'x' is the time left to decelerate.
-# \param 'qd' is the velocity if we take a full step ahead in the spline.
-# \param 'max_speed' maximum allowed joint speed 6.283185 rad/s
-# \param 'max_deceleration' is the maximum allowed deceleration 15 rad/s^2.
-def checkSlowDownRequired(x, qd, max_speed, max_deceleration):
-  local max_allowable_speed = max_speed - x * max_deceleration
+# @param x float is the time left to decelerate
+# @param qd array is the velocity if we take a full step ahead in the spline
+# @param max_deceleration float is the maximum allowed deceleration 15 rad/s^2
+#
+# @returns bool True if slow don is required, false otherwise
+###
+def checkSlowDownRequired(x, qd, max_deceleration):
+  local max_allowable_speed = MAX_JOINT_SPEED - x * max_deceleration
   local idx = 0
   while idx < 6:
     if norm(qd[idx]) > max_allowable_speed:
@@ -443,11 +502,19 @@ thread servoThreadP():
       end
 
       q = extrapolate()
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q, get_steptime()):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      else:
+        terminateProgram()
+      end
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q, get_steptime()):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      else:
+        terminateProgram()
+      end
     else:
       extrapolate_count = 0
       sync()
@@ -532,12 +599,13 @@ end
 # HEADER_END
 
 # NODE_CONTROL_LOOP_BEGINS
-socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
-socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
-socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
-
 force_mode_set_damping({{FORCE_MODE_SET_DAMPING_REPLACE}})
 force_mode_set_gain_scaling({{FORCE_MODE_SET_GAIN_SCALING_REPLACE}})
+
+socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
+socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
+# This socket should be opened last as it tells the driver when it has control over the robot
+socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
@@ -550,7 +618,7 @@ while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
-    # Convert to read timeout from milliseconds to seconds
+    # Convert read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
