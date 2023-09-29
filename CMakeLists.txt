@@ -35,6 +35,7 @@ add_library(urcl SHARED
     src/primary/robot_message/text_message.cpp
     src/primary/robot_state/kinematics_info.cpp
     src/primary/robot_state/robot_mode_data.cpp
+    src/primary/primary_client.cpp
     src/rtde/control_package_pause.cpp
     src/rtde/control_package_setup_inputs.cpp
     src/rtde/control_package_setup_outputs.cpp
