@@ -16,14 +16,12 @@
 // limitations under the License.
 // -- END LICENSE BLOCK ------------------------------------------------
 
-#include <ur_client_library/comm/pipeline.h>
-#include <ur_client_library/comm/producer.h>
-#include <ur_client_library/comm/shell_consumer.h>
-#include <ur_client_library/primary/primary_parser.h>
+#include <ur_client_library/primary/primary_client.h>
 
 using namespace urcl;
 
-class CalibrationConsumer : public urcl::comm::IConsumer<urcl::primary_interface::PrimaryPackage>
+// Create a primary consumer for logging calibration data
+class CalibrationConsumer : public primary_interface::AbstractPrimaryConsumer
 {
 public:
   CalibrationConsumer() : calibrated_(0), have_received_data(false)
@@ -31,15 +29,49 @@ public:
   }
   virtual ~CalibrationConsumer() = default;
 
-  virtual bool consume(std::shared_ptr<urcl::primary_interface::PrimaryPackage> product)
+  // We should consume all primary packages supported, in this example we just ignore the messages
+  virtual bool consume(primary_interface::RobotMessage& pkg) override
   {
-    auto kin_info = std::dynamic_pointer_cast<urcl::primary_interface::KinematicsInfo>(product);
-    if (kin_info != nullptr)
-    {
-      URCL_LOG_INFO("%s", product->toString().c_str());
-      calibrated_ = kin_info->calibration_status_;
-      have_received_data = true;
-    }
+    return true;
+  }
+  virtual bool consume(primary_interface::RobotState& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::ProgramStateMessage& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::VersionMessage& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::ErrorCodeMessage& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::RuntimeExceptionMessage& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::KeyMessage& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::RobotModeData& pkg) override
+  {
+    return true;
+  }
+  virtual bool consume(primary_interface::TextMessage& pkg) override
+  {
+    return true;
+  }
+
+  // The kinematics info stores the calibration data
+  virtual bool consume(primary_interface::KinematicsInfo& pkg) override
+  {
+    calibrated_ = pkg.calibration_status_;
+    have_received_data = true;
     return true;
   }
 
@@ -63,9 +95,11 @@ private:
 // system such as Boost.Program_options
 const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 
+// The purpose of this example is to show how to add a primary consumer to the primary client. This consumer is used to
+// check that the robot is calibrated.
 int main(int argc, char* argv[])
 {
-  // Set the loglevel to info get print out the DH parameters
+  // Set the loglevel to info to print out the DH parameters
   urcl::setLogLevel(urcl::LogLevel::INFO);
 
   // Parse the ip arguments if given
@@ -75,35 +109,24 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // First of all, we need a stream that connects to the robot
-  comm::URStream<primary_interface::PrimaryPackage> primary_stream(robot_ip, urcl::primary_interface::UR_PRIMARY_PORT);
+  // Create a primary client
+  primary_interface::PrimaryClient primary_client(robot_ip);
 
-  // This will parse the primary packages
-  primary_interface::PrimaryParser parser;
+  std::shared_ptr<CalibrationConsumer> calibration_consumer;
+  calibration_consumer.reset(new CalibrationConsumer());
 
-  // The producer needs both, the stream and the parser to fully work
-  comm::URProducer<primary_interface::PrimaryPackage> prod(primary_stream, parser);
-  prod.setupProducer();
+  // Add the calibration consumer to the primary consumers
+  primary_client.addPrimaryConsumer(calibration_consumer);
 
-  // The calibration consumer will print the package contents to the shell
-  CalibrationConsumer calib_consumer;
+  // Kinematics info is only send when you connect to the primary interface, so triggering a reconnect
+  primary_client.reconnect();
 
-  // The notifer will be called at some points during connection setup / loss. This isn't fully
-  // implemented atm.
-  comm::INotifier notifier;
-
-  // Now that we have all components, we can create and start the pipeline to run it all.
-  comm::Pipeline<primary_interface::PrimaryPackage> calib_pipeline(prod, &calib_consumer, "Pipeline", notifier);
-  calib_pipeline.run();
-
-  // Package contents will be printed while not being interrupted
-  // Note: Packages for which the parsing isn't implemented, will only get their raw bytes printed.
-  while (!calib_consumer.calibrationStatusReceived())
+  while (!calibration_consumer->calibrationStatusReceived())
   {
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
-  if (calib_consumer.isCalibrated())
+  if (calibration_consumer->isCalibrated())
   {
     printf("The robot on IP: %s is calibrated\n", robot_ip.c_str());
   }
@@ -112,6 +135,9 @@ int main(int argc, char* argv[])
     printf("The robot controller on IP: %s do not have a valid calibration\n", robot_ip.c_str());
     printf("Remeber to turn on the robot to get calibration stored on the robot!\n");
   }
+
+  // We can remove the consumer again once we are done using it
+  primary_client.removePrimaryConsumer(calibration_consumer);
 
   return 0;
 }

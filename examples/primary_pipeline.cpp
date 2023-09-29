@@ -25,10 +25,8 @@
  */
 //----------------------------------------------------------------------
 
-#include <ur_client_library/comm/pipeline.h>
-#include <ur_client_library/comm/producer.h>
-#include <ur_client_library/comm/shell_consumer.h>
-#include <ur_client_library/primary/primary_parser.h>
+#include <ur_client_library/primary/primary_client.h>
+#include <ur_client_library/ur/dashboard_client.h>
 
 using namespace urcl;
 
@@ -55,30 +53,67 @@ int main(int argc, char* argv[])
     second_to_run = std::stoi(argv[2]);
   }
 
-  // First of all, we need a stream that connects to the robot
-  comm::URStream<primary_interface::PrimaryPackage> primary_stream(robot_ip, urcl::primary_interface::UR_PRIMARY_PORT);
+  // The robot should be running in order to send script code to it
+  // Connect the the robot Dashboard
+  std::unique_ptr<DashboardClient> dashboard_client;
+  dashboard_client.reset(new DashboardClient(robot_ip));
+  if (!dashboard_client->connect())
+  {
+    URCL_LOG_ERROR("Could not connect to dashboard");
+    return 1;
+  }
 
-  // This will parse the primary packages
-  primary_interface::PrimaryParser parser;
+  // Stop program, if there is one running
+  if (!dashboard_client->commandStop())
+  {
+    URCL_LOG_ERROR("Could not send stop program command");
+    return 1;
+  }
 
-  // The producer needs both, the stream and the parser to fully work
-  comm::URProducer<primary_interface::PrimaryPackage> prod(primary_stream, parser);
-  prod.setupProducer();
+  // Release the brakes
+  if (!dashboard_client->commandBrakeRelease())
+  {
+    URCL_LOG_ERROR("Could not send BrakeRelease command");
+    return 1;
+  }
 
-  // The shell consumer will print the package contents to the shell
-  std::unique_ptr<comm::IConsumer<primary_interface::PrimaryPackage>> consumer;
-  consumer.reset(new comm::ShellConsumer<primary_interface::PrimaryPackage>());
+  primary_interface::PrimaryClient primary_client(robot_ip);
 
-  // The notifer will be called at some points during connection setup / loss. This isn't fully
-  // implemented atm.
-  comm::INotifier notifier;
+  // Check that the calibration checksum matches the one provided from the robot
+  const std::string calibration_check_sum = "";
+  bool check_calibration_result = primary_client.checkCalibration(calibration_check_sum);
+  std::string calibration_check_sum_matches = check_calibration_result ? "true" : "false";
+  URCL_LOG_INFO("calibration check sum matches: %s", calibration_check_sum_matches.c_str());
 
-  // Now that we have all components, we can create and start the pipeline to run it all.
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, consumer.get(), "Pipeline", notifier);
-  pipeline.run();
+  // Send a script program to the robot
+  std::stringstream cmd;
+  cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
+  cmd << "def test():" << std::endl << "textmsg(\"Hello from script program\")" << std::endl << "end";
+
+  if (primary_client.sendScript(cmd.str()))
+  {
+    URCL_LOG_INFO("Script program was successfully sent to the robot");
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script program wasn't send successfully to the robot");
+    return 1;
+  }
+
+  // Send a secondary script program to the robot
+  cmd.str("");
+  cmd << "sec setup():" << std::endl << "textmsg(\"Hello from secondary program\")" << std::endl << "end";
+  if (primary_client.sendSecondaryScript(cmd.str()))
+  {
+    URCL_LOG_INFO("Secondary script program was successfully sent to the robot");
+  }
+  else
+  {
+    URCL_LOG_ERROR("Secondary script program wasn't send successfully to the robot");
+    return 1;
+  }
 
   // Package contents will be printed while not being interrupted
-  // Note: Packages for which the parsing isn't implemented, will only get their raw bytes printed.
   do
   {
     std::this_thread::sleep_for(std::chrono::seconds(second_to_run));
