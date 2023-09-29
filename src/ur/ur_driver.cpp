@@ -37,8 +37,6 @@
 #include <memory>
 #include <sstream>
 
-#include <ur_client_library/ur/calibration_checker.h>
-
 namespace urcl
 {
 static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
@@ -69,11 +67,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   URCL_LOG_DEBUG("Initializing RTDE client");
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
 
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
-  secondary_stream_->connect();
+  primary_client_.reset(new primary_interface::PrimaryClient(robot_ip_));
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -323,7 +317,7 @@ bool UrDriver::zeroFTSensor()
                     "only work, if the robot is in remote_control mode.");
       std::stringstream cmd;
       cmd << "sec tareSetup():" << std::endl << " zero_ftsensor()" << std::endl << "end";
-      return sendScript(cmd.str());
+      return sendSecondaryScript(cmd.str());
     }
   }
 }
@@ -343,7 +337,7 @@ bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
     cmd << "sec setup():" << std::endl
         << " set_payload(" << mass << ", [" << cog[0] << ", " << cog[1] << ", " << cog[2] << "])" << std::endl
         << "end";
-    return sendScript(cmd.str());
+    return sendSecondaryScript(cmd.str());
   }
 }
 
@@ -375,7 +369,7 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
                   "robots this will only work, if the robot is in remote_control mode.");
     std::stringstream cmd;
     cmd << "sec setup():" << std::endl << " set_tool_voltage(" << toUnderlying(voltage) << ")" << std::endl << "end";
-    return sendScript(cmd.str());
+    return sendSecondaryScript(cmd.str());
   }
 }
 
@@ -510,27 +504,11 @@ std::string UrDriver::readScriptFile(const std::string& filename)
 
 bool UrDriver::checkCalibration(const std::string& checksum)
 {
-  if (primary_stream_ == nullptr)
+  if (primary_client_ == nullptr)
   {
     throw std::runtime_error("checkCalibration() called without a primary interface connection being established.");
   }
-  primary_interface::PrimaryParser parser;
-  comm::URProducer<primary_interface::PrimaryPackage> prod(*primary_stream_, parser);
-  prod.setupProducer();
-
-  CalibrationChecker consumer(checksum);
-
-  comm::INotifier notifier;
-
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, &consumer, "Pipeline", notifier);
-  pipeline.run();
-
-  while (!consumer.isChecked())
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  URCL_LOG_DEBUG("Got calibration information from robot.");
-  return consumer.checkSuccessful();
+  return primary_client_->checkCalibration(checksum);
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -538,31 +516,28 @@ rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
   return rtde_client_->getWriter();
 }
 
-bool UrDriver::sendScript(const std::string& program)
+bool UrDriver::sendScript(const std::string& program, const std::chrono::milliseconds timeout) const
 {
-  if (secondary_stream_ == nullptr)
+  if (primary_client_ == nullptr)
   {
     throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
                              "This "
                              "should not happen.");
   }
 
-  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
-  // not execute them. To avoid problems, we always just append a newline here, even if
-  // there may already be one.
-  auto program_with_newline = program + '\n';
+  return primary_client_->sendScript(program, timeout);
+}
 
-  size_t len = program_with_newline.size();
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
-  size_t written;
-
-  if (secondary_stream_->write(data, len, written))
+bool UrDriver::sendSecondaryScript(const std::string& program, const std::chrono::milliseconds timeout) const
+{
+  if (primary_client_ == nullptr)
   {
-    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
-    return true;
+    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
+                             "This "
+                             "should not happen.");
   }
-  URCL_LOG_ERROR("Could not send program to robot");
-  return false;
+
+  return primary_client_->sendSecondaryScript(program, timeout);
 }
 
 bool UrDriver::sendRobotProgram()

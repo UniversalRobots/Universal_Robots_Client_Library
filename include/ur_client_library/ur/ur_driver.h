@@ -39,6 +39,7 @@
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 namespace urcl
@@ -419,13 +420,35 @@ public:
   /*!
    * \brief Sends a custom script program to the robot.
    *
+   * This function will wait until feedback is received from the robot. This could be either error feedback or that the
+   * script has started running.
+   *
    * The given code must be valid according the UR Scripting Manual.
    *
-   * \param program URScript code that shall be executed by the robot.
+   * \param script_code URScript code that shall be executed by the robot.
+   * \param timeout Time to wait for feedback from the robot
    *
-   * \returns true on successful upload, false otherwise.
+   * \returns true if the scripts starts running successfully, false otherwise.
    */
-  bool sendScript(const std::string& program);
+  bool sendScript(const std::string& program,
+                  const std::chrono::milliseconds timeout = std::chrono::milliseconds(1000)) const;
+
+  /*!
+   * \brief Sends a secondary custom script program to the robot.
+   *
+   * The UR robot supports executing secondary script programs alongside a running program. This function is
+   * for executing secondary script programs alongside a running program and it will wait for error feedback
+   * if any is received, but it will not wait for the script to start running.
+   *
+   * The given code must be valid according the UR Scripting Manual.
+   *
+   * \param script_code URScript code that shall be executed by the robot.
+   * \param timeout Time to wait for feedback from the robot
+   *
+   * \returns true if no error feedback is received within the timeout, false otherwise.
+   */
+  bool sendSecondaryScript(const std::string& script_code,
+                           const std::chrono::milliseconds timeout = std::chrono::milliseconds(100)) const;
 
   /*!
    * \brief Sends the external control program to the robot.
@@ -499,6 +522,7 @@ private:
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+  std::unique_ptr<primary_interface::PrimaryClient> primary_client_;
 
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
