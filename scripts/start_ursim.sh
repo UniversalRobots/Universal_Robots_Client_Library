@@ -180,7 +180,15 @@ docker run --rm -d --net ursim_net --ip 192.168.56.101\
   --name ursim \
   universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION || exit
 
-trap "echo killing; docker container kill ursim; exit" SIGINT SIGTERM
+# Stop container when interrupted
+TRAP_CMD="
+echo \"killing ursim\";
+docker container kill ursim >> /dev/null;
+docker container wait ursim >> /dev/null;
+echo \"done\";
+exit
+"
+trap "$TRAP_CMD" SIGINT SIGTERM
 
 echo "Docker URSim is running"
 printf "\nTo access Polyscope, open the following URL in a web browser.\n\thttp://192.168.56.101:6080/vnc.html\n\n"
