@@ -38,7 +38,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20, ur30]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -71,7 +71,7 @@ validate_model()
       ROBOT_MODEL=$(echo ${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))})
       ROBOT_SERIES=e-series
       ;;
-    ur20)
+    ur20|ur30)
       ROBOT_MODEL=${ROBOT_MODEL^^}
       ROBOT_SERIES=e-series
       ;;
@@ -93,6 +93,7 @@ validate_ursim_version()
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
   local MIN_UR20="5.14.0"
+  local MIN_UR30="5.15.0"
 
   local MIN_VERSION="0.0"
 
@@ -107,6 +108,9 @@ validate_ursim_version()
       if [[ $ROBOT_MODEL == "UR20" ]]; then
           verlte $MIN_UR20 $URSIM_VERSION && return 0
           MIN_VERSION=$MIN_UR20
+      elif [[ $ROBOT_MODEL == "UR30" ]]; then
+          verlte $MIN_UR30 $URSIM_VERSION && return 0
+          MIN_VERSION=$MIN_UR30
       else
           verlte $MIN_E_SERIES $URSIM_VERSION && return 0
           MIN_VERSION=$MIN_E_SERIES
