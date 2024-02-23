@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.5 (2024-02-23)
+------------------
 * Add support for UR30 in start_ursim.sh (`#193 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/193>`_)
 * Add header guard to datatypes.h (`#189 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/189>`_)
 * Remove duplicated entry in clang-format file (`#188 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/188>`_)
