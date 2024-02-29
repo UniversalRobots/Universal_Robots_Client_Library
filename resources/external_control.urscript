@@ -68,8 +68,8 @@ global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
-global last_spline_qdd = [0, 0, 0, 0, 0, 0]
-global last_spline_qd = [0, 0, 0, 0, 0, 0]
+global spline_qdd = [0, 0, 0, 0, 0, 0]
+global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 
 # Global thread variables
@@ -151,7 +151,7 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()
-    local start_qd = last_spline_qd
+    local start_qd = spline_qd
 
     # Coefficients0 is not included, since we do not need to calculate the position
     local coefficients1 = start_qd
@@ -170,8 +170,8 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()
-    local start_qd = last_spline_qd
-    local start_qdd = last_spline_qdd
+    local start_qd = spline_qd
+    local start_qdd = spline_qdd
 
     # Pre-calculate coefficients
     local TIME2 = pow(time, 2)
@@ -265,16 +265,15 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
 end
 
 def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep, scaling_factor, is_slowing_down=False):
-  last_spline_qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
-  last_spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
+  local last_spline_qd = spline_qd
+  spline_qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
+  spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
 
-  if is_slowing_down:
-    last_spline_qd = last_spline_qd * scaling_factor
-    speedj(last_spline_qd, 15.0, timestep)
-  else:
-    max_qdd = list_max_norm(last_spline_qdd)
-    speedj(last_spline_qd, max_qdd, timestep)
-  end
+  spline_qd = spline_qd * scaling_factor
+
+  # Calculate the max needed qdd arg for speedj to distribute the velocity change over the whole timestep no matter the speed slider value
+  qdd_max = list_max_norm((spline_qd - last_spline_qd) / timestep)
+  speedj(spline_qd, qdd_max, timestep)
 end
 
 # Helper function to see what the velocity will be if we take a full step
@@ -312,13 +311,14 @@ end
 def list_max_norm(list):
   # ensure we have something to iterate over
   local length = get_list_length(list)
-  if  length == 0:
+  if  length < 1:
       popup("Getting the maximum of an empty list is impossible in list_max().", error = True, blocking = True)
+      textmsg("Getting the maximum of an empty list is impossible in list_max()")
       halt
   end
 
   # search for maximum
-  local i = 0
+  local i = 1
   local max = norm(list[0])
   while i < length:
       if norm(list[i]) > max:
@@ -337,8 +337,8 @@ thread trajectoryThread():
   # same index as blend parameter, depending on point type
   local INDEX_SPLINE_TYPE = INDEX_BLEND
   local INDEX_POINT_TYPE = INDEX_BLEND + 1
-  last_spline_qdd = [0, 0, 0, 0, 0, 0]
-  last_spline_qd = [0, 0, 0, 0, 0, 0]
+  spline_qdd = [0, 0, 0, 0, 0, 0]
+  spline_qd = [0, 0, 0, 0, 0, 0]
   enter_critical
   while trajectory_points_left > 0:
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
@@ -359,16 +359,16 @@ thread trajectoryThread():
         movej(q, t=tmptime, r=blend_radius)
 
         # reset old acceleration
-        last_spline_qdd = [0, 0, 0, 0, 0, 0]
-        last_spline_qd = [0, 0, 0, 0, 0, 0]
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
 
       # Movel point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
 
         # reset old acceleration
-        last_spline_qdd = [0, 0, 0, 0, 0, 0]
-        last_spline_qd = [0, 0, 0, 0, 0, 0]
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
 
       # Joint spline point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
@@ -378,7 +378,7 @@ thread trajectoryThread():
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           cubicSplineRun(q, qd, tmptime, is_last_point)
           # reset old acceleration
-          last_spline_qdd = [0, 0, 0, 0, 0, 0]
+          spline_qdd = [0, 0, 0, 0, 0, 0]
 
         # Quintic spline
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
