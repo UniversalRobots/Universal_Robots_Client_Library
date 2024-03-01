@@ -100,6 +100,7 @@ jobs:
             --exclude=tcp_socket.cpp \
             --exclude-dir=debian \
             --exclude=real_time.md \
+            --exclude=dataflow.graphml \
             --exclude=start_ursim.sh
 
   rosdoc_lite_check:
