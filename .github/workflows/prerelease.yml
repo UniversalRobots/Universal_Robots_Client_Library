@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: sudo apt-get install -y python3-pip
+      - run: sudo pip3 install empy==3.3.4  # Added as bloom not yet support empy v4
       - run: sudo pip3 install bloom rosdep
       - run: sudo rosdep init
       - run: rosdep update --rosdistro=${{ matrix.ROS_DISTRO }}
