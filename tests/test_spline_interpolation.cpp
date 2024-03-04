@@ -287,6 +287,74 @@ protected:
     }
   }
 
+  void writeTrajectoryToFile(const char* filename, std::vector<double> time_vec,
+                             std::vector<urcl::vector6d_t> expected_positions,
+                             std::vector<urcl::vector6d_t> actual_positions,
+                             std::vector<urcl::vector6d_t> actual_velocities, std::vector<urcl::vector6d_t> actual_acc,
+                             std::vector<double> speed_scaling)
+  {
+    std::ofstream outfile(filename);
+    // Header
+    outfile << "time, "
+            << "actual_positions0, "
+            << "actual_positions1, "
+            << "actual_positions2, "
+            << "actual_positions3, "
+            << "actual_positions4, "
+            << "actual_positions5, "
+            << "actual_velocities0, "
+            << "actual_velocities1, "
+            << "actual_velocities2, "
+            << "actual_velocities3, "
+            << "actual_velocities4, "
+            << "actual_velocities5, "
+            << "actual_acceleration0, "
+            << "actual_acceleration1, "
+            << "actual_acceleration2, "
+            << "actual_acceleration3, "
+            << "actual_acceleration4, "
+            << "actual_acceleration5, "
+            << "expected_positions0, "
+            << "expected_positions1, "
+            << "expected_positions2, "
+            << "expected_positions3, "
+            << "expected_positions4, "
+            << "expected_positions5, "
+            << "speed_scaling"
+            << "\n";
+
+    // Data
+    for (unsigned int i = 0; i < actual_positions.size(); ++i)
+    {
+      outfile << time_vec[i] << ", "
+              << actual_positions[i][0]<< ", "
+              << actual_positions[i][1] << ", "
+              << actual_positions[i][2] << ", "
+              << actual_positions[i][3] << ", "
+              << actual_positions[i][4] << ", "
+              << actual_positions[i][5] << ", "
+              << actual_velocities[i][0] << ", "
+              << actual_velocities[i][1] << ", "
+              << actual_velocities[i][2] << ", "
+              << actual_velocities[i][3] << ", "
+              << actual_velocities[i][4] << ", "
+              << actual_velocities[i][5] << ", "
+              << actual_acc[i][0] << ", "
+              << actual_acc[i][1] << ", "
+              << actual_acc[i][2] << ", "
+              << actual_acc[i][3] << ", "
+              << actual_acc[i][4] << ", "
+              << actual_acc[i][5] << ", "
+              << expected_positions[i][0] << ", "
+              << expected_positions[i][1] << ", "
+              << expected_positions[i][2] << ", "
+              << expected_positions[i][3] << ", "
+              << expected_positions[i][4] << ", "
+              << expected_positions[i][5] << ", "
+              << speed_scaling[i] << "\n";
+    }
+  }
+
   // Allowed difference between expected trajectory and actual robot trajectory
   double eps_ = 0.02;
 
@@ -303,9 +371,14 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
   readDataPackage(data_pkg);
 
-  urcl::vector6d_t joint_positions, joint_velocities;
+  urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+  ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+
+  double speed_scaling;
+  ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+  std::vector<double> speed_scaling_vec;
 
   std::vector<urcl::vector6d_t> s_pos, s_vel;
   s_pos.push_back(joint_positions);
@@ -320,7 +393,7 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
       createSegment(s_time[0], joint_positions, s_pos[0], joint_velocities, s_vel[0]);
 
   // Data for logging
-  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, expected_positions;
+  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
   std::vector<double> time_vec;
 
   // Send the trajectory to the robot
@@ -335,9 +408,10 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
   while (g_trajectory_running_)
   {
     readDataPackage(data_pkg);
-
     ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+    ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+    ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
 
     // Keep connection alive
     ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
@@ -377,6 +451,8 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     expected_positions.push_back(expected_joint_positions);
     actual_positions.push_back(joint_positions);
     actual_velocities.push_back(joint_velocities);
+    actual_acc.push_back(joint_acc);
+    speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
     plot_time += step_time_;
   }
@@ -388,17 +464,8 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     EXPECT_FLOAT_EQ(joint_velocities[i], 0.0);
   }
 
-  std::ofstream outfile("../test_artifacts/cubic_spline_with_end_point_velocity.txt");
-  for (unsigned int i = 0; i < actual_positions.size(); ++i)
-  {
-    outfile << time_vec[i] << "," << actual_positions[i][0] << "," << actual_positions[i][1] << ","
-            << actual_positions[i][2] << "," << actual_positions[i][3] << "," << actual_positions[i][4] << ","
-            << actual_positions[i][5] << "," << actual_velocities[i][0] << "," << actual_velocities[i][1] << ","
-            << actual_velocities[i][2] << "," << actual_velocities[i][3] << "," << actual_velocities[i][4] << ","
-            << actual_velocities[i][5] << "," << expected_positions[i][0] << "," << expected_positions[i][1] << ","
-            << expected_positions[i][2] << "," << expected_positions[i][3] << "," << expected_positions[i][4] << ","
-            << expected_positions[i][5] << "\n";
-  }
+  writeTrajectoryToFile("../test_artifacts/cubic_spline_with_end_point_velocity.csv", time_vec, expected_positions,
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
 TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
@@ -406,9 +473,14 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
   readDataPackage(data_pkg);
 
-  urcl::vector6d_t joint_positions, joint_velocities;
+  urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+  ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+
+  double speed_scaling;
+  ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+  std::vector<double> speed_scaling_vec;
 
   std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
   s_pos.push_back(joint_positions);
@@ -426,7 +498,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
       createSegment(s_time[0], joint_positions, s_pos[0], joint_velocities, s_vel[0], zeros, s_acc[0]);
 
   // Data for logging
-  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, expected_positions;
+  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
   std::vector<double> time_vec;
 
   // Send trajectory to the robot
@@ -443,6 +515,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     readDataPackage(data_pkg);
     ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+    ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+    ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
 
     // Read spline travel time from the robot
     double spline_travel_time = 0.0;
@@ -482,6 +556,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     expected_positions.push_back(expected_joint_positions);
     actual_positions.push_back(joint_positions);
     actual_velocities.push_back(joint_velocities);
+    actual_acc.push_back(joint_acc);
+    speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
     plot_time += step_time_;
   }
@@ -494,17 +570,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     EXPECT_FLOAT_EQ(joint_velocities[i], 0.0);
   }
 
-  std::ofstream outfile("../test_artifacts/quintic_spline_with_end_point_velocity.txt");
-  for (unsigned int i = 0; i < actual_positions.size(); ++i)
-  {
-    outfile << time_vec[i] << "," << actual_positions[i][0] << "," << actual_positions[i][1] << ","
-            << actual_positions[i][2] << "," << actual_positions[i][3] << "," << actual_positions[i][4] << ","
-            << actual_positions[i][5] << "," << actual_velocities[i][0] << "," << actual_velocities[i][1] << ","
-            << actual_velocities[i][2] << "," << actual_velocities[i][3] << "," << actual_velocities[i][4] << ","
-            << actual_velocities[i][5] << "," << expected_positions[i][0] << "," << expected_positions[i][1] << ","
-            << expected_positions[i][2] << "," << expected_positions[i][3] << "," << expected_positions[i][4] << ","
-            << expected_positions[i][5] << "\n";
-  }
+  writeTrajectoryToFile("../test_artifacts/quintic_spline_with_end_point_velocity.csv", time_vec, expected_positions,
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
 TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
@@ -515,10 +582,15 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     std::cout << "Failed to get data package from robot" << std::endl;
     GTEST_FAIL();
   }
-  urcl::vector6d_t joint_positions;
+
+  urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
-  urcl::vector6d_t joint_velocities;
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+  ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+
+  double speed_scaling;
+  ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+  std::vector<double> speed_scaling_vec;
 
   std::vector<urcl::vector6d_t> s_pos, s_vel;
   urcl::vector6d_t first_point = { joint_positions[0], joint_positions[1], joint_positions[2],
@@ -543,7 +615,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
       createSegment(s_time[0], joint_positions, s_pos[0], joint_velocities, s_vel[0]);
 
   // Data for logging
-  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, expected_positions;
+  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
   std::vector<double> time_vec;
 
   // Send the trajectory to the robot
@@ -561,6 +633,9 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     readDataPackage(data_pkg);
     ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+    ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+    ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+
     double spline_travel_time = 0.0;
     data_pkg->getData("output_double_register_1", spline_travel_time);
 
@@ -590,21 +665,13 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     expected_positions.push_back(expected_joint_positions);
     actual_positions.push_back(joint_positions);
     actual_velocities.push_back(joint_velocities);
+    actual_acc.push_back(joint_acc);
+    speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
     plot_time += step_time_;
   }
-
-  std::ofstream outfile("../test_artifacts/spline_interpolation_cubic.txt");
-  for (unsigned int i = 0; i < actual_positions.size(); ++i)
-  {
-    outfile << time_vec[i] << "," << actual_positions[i][0] << "," << actual_positions[i][1] << ","
-            << actual_positions[i][2] << "," << actual_positions[i][3] << "," << actual_positions[i][4] << ","
-            << actual_positions[i][5] << "," << actual_velocities[i][0] << "," << actual_velocities[i][1] << ","
-            << actual_velocities[i][2] << "," << actual_velocities[i][3] << "," << actual_velocities[i][4] << ","
-            << actual_velocities[i][5] << "," << expected_positions[i][0] << "," << expected_positions[i][1] << ","
-            << expected_positions[i][2] << "," << expected_positions[i][3] << "," << expected_positions[i][4] << ","
-            << expected_positions[i][5] << "\n";
-  }
+  writeTrajectoryToFile("../test_artifacts/spline_interpolation_cubic.csv", time_vec, expected_positions,
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
 TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
@@ -612,9 +679,14 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
   readDataPackage(data_pkg);
 
-  urcl::vector6d_t joint_positions, joint_velocities;
+  urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
   ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+  ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+
+  double speed_scaling;
+  ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+  std::vector<double> speed_scaling_vec;
 
   std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
   urcl::vector6d_t first_point = { joint_positions[0], joint_positions[1], joint_positions[2],
@@ -645,7 +717,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
       createSegment(s_time[0], joint_positions, s_pos[0], joint_velocities, s_vel[0], zeros, s_acc[0]);
 
   // Data for logging
-  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, expected_positions;
+  std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
   std::vector<double> time_vec;
 
   // Send the trajectory to the robot
@@ -664,6 +736,9 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
     readDataPackage(data_pkg);
     ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
+    ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
+    ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+
     double spline_travel_time = 0.0;
     data_pkg->getData("output_double_register_1", spline_travel_time);
 
@@ -692,21 +767,14 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
     expected_positions.push_back(expected_joint_positions);
     actual_positions.push_back(joint_positions);
     actual_velocities.push_back(joint_velocities);
+    actual_acc.push_back(joint_acc);
+    speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
     plot_time += step_time_;
   }
 
-  std::ofstream outfile("../test_artifacts/spline_interpolation_quintic.txt");
-  for (unsigned int i = 0; i < actual_positions.size(); ++i)
-  {
-    outfile << time_vec[i] << "," << actual_positions[i][0] << "," << actual_positions[i][1] << ","
-            << actual_positions[i][2] << "," << actual_positions[i][3] << "," << actual_positions[i][4] << ","
-            << actual_positions[i][5] << "," << actual_velocities[i][0] << "," << actual_velocities[i][1] << ","
-            << actual_velocities[i][2] << "," << actual_velocities[i][3] << "," << actual_velocities[i][4] << ","
-            << actual_velocities[i][5] << "," << expected_positions[i][0] << "," << expected_positions[i][1] << ","
-            << expected_positions[i][2] << "," << expected_positions[i][3] << "," << expected_positions[i][4] << ","
-            << expected_positions[i][5] << "\n";
-  }
+  writeTrajectoryToFile("../test_artifacts/spline_interpolation_quintic.csv", time_vec, expected_positions,
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
 int main(int argc, char* argv[])
