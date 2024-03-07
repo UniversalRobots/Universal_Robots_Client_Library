@@ -79,6 +79,17 @@ void handleTrajectoryState(control::TrajectoryResult state)
   }
 }
 
+int sign(double val)
+{
+  return (0.0 < val) - (val < 0.0);
+}
+
+bool nearly_equal(double a, double b, double eps = 1e-15)
+{
+  const double c(a - b);
+  return c < eps || -c < eps;
+}
+
 class SplineInterpolationTest : public ::testing::Test
 {
 protected:
@@ -142,6 +153,9 @@ protected:
 
   static void TearDownTestSuite()
   {
+    // Set target speed scaling to 100% as one test change this value
+    g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
+
     g_dashboard_client_->disconnect();
     // Remove temporary file again
     std::remove(SPLINE_SCRIPT_FILE.c_str());
@@ -154,6 +168,11 @@ protected:
     {
       step_time_ = 0.008;
     }
+  }
+
+  void sendIdle()
+  {
+    ASSERT_TRUE(g_ur_driver_->writeKeepalive(RobotReceiveTimeout::sec()));
   }
 
   void sendTrajectory(const std::vector<urcl::vector6d_t>& s_pos, const std::vector<urcl::vector6d_t>& s_vel,
@@ -314,49 +333,35 @@ protected:
             << "actual_acceleration3, "
             << "actual_acceleration4, "
             << "actual_acceleration5, "
-            << "expected_positions0, "
-            << "expected_positions1, "
-            << "expected_positions2, "
-            << "expected_positions3, "
-            << "expected_positions4, "
-            << "expected_positions5, "
+            << "error_positions0, "
+            << "error_positions1, "
+            << "error_positions2, "
+            << "error_positions3, "
+            << "error_positions4, "
+            << "error_positions5, "
             << "speed_scaling"
             << "\n";
 
     // Data
     for (unsigned int i = 0; i < actual_positions.size(); ++i)
     {
-      outfile << time_vec[i] << ", "
-              << actual_positions[i][0]<< ", "
-              << actual_positions[i][1] << ", "
-              << actual_positions[i][2] << ", "
-              << actual_positions[i][3] << ", "
-              << actual_positions[i][4] << ", "
-              << actual_positions[i][5] << ", "
-              << actual_velocities[i][0] << ", "
-              << actual_velocities[i][1] << ", "
-              << actual_velocities[i][2] << ", "
-              << actual_velocities[i][3] << ", "
-              << actual_velocities[i][4] << ", "
-              << actual_velocities[i][5] << ", "
-              << actual_acc[i][0] << ", "
-              << actual_acc[i][1] << ", "
-              << actual_acc[i][2] << ", "
-              << actual_acc[i][3] << ", "
-              << actual_acc[i][4] << ", "
-              << actual_acc[i][5] << ", "
-              << expected_positions[i][0] << ", "
-              << expected_positions[i][1] << ", "
-              << expected_positions[i][2] << ", "
-              << expected_positions[i][3] << ", "
-              << expected_positions[i][4] << ", "
-              << expected_positions[i][5] << ", "
-              << speed_scaling[i] << "\n";
+      outfile << time_vec[i] << ", " << actual_positions[i][0] << ", " << actual_positions[i][1] << ", "
+              << actual_positions[i][2] << ", " << actual_positions[i][3] << ", " << actual_positions[i][4] << ", "
+              << actual_positions[i][5] << ", " << actual_velocities[i][0] << ", " << actual_velocities[i][1] << ", "
+              << actual_velocities[i][2] << ", " << actual_velocities[i][3] << ", " << actual_velocities[i][4] << ", "
+              << actual_velocities[i][5] << ", " << actual_acc[i][0] << ", " << actual_acc[i][1] << ", "
+              << actual_acc[i][2] << ", " << actual_acc[i][3] << ", " << actual_acc[i][4] << ", " << actual_acc[i][5]
+              << ", " << actual_positions[i][0] - expected_positions[i][0] << ", "
+              << actual_positions[i][1] - expected_positions[i][1] << ", "
+              << actual_positions[i][2] - expected_positions[i][2] << ", "
+              << actual_positions[i][3] - expected_positions[i][3] << ", "
+              << actual_positions[i][4] - expected_positions[i][4] << ", "
+              << actual_positions[i][5] - expected_positions[i][5] << ", " << speed_scaling[i] << "\n";
     }
   }
 
   // Allowed difference between expected trajectory and actual robot trajectory
-  double eps_ = 0.02;
+  const double eps_ = 0.02;
 
   // Robot step time
   double step_time_;
@@ -468,9 +473,17 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
                         actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
-TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
+TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_speedscaling)
 {
+  // Set target speed scaling to 100% as one test change this value
+  const unsigned int REDUSE_FACTOR(4);
+  g_ur_driver_->getRTDEWriter().sendSpeedSlider(1.0 / REDUSE_FACTOR);
+
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  readDataPackage(data_pkg);
+
+  // Align timestep
+  sendIdle();
   readDataPackage(data_pkg);
 
   urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
@@ -479,7 +492,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
   ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
 
   double speed_scaling;
-  ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+  ASSERT_TRUE(data_pkg->getData("target_speed_fraction", speed_scaling));
   std::vector<double> speed_scaling_vec;
 
   std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
@@ -510,13 +523,17 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
 
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
+  unsigned int loop_count = 0;
+  bool init_acc_test = true;
+  urcl::vector6d_t last_joint_acc = joint_acc, last_change_acc;
+  const double EPS_ACC_CHANGE(1e-15);
   while (g_trajectory_running_)
   {
     readDataPackage(data_pkg);
     ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
     ASSERT_TRUE(data_pkg->getData("target_qd", joint_velocities));
     ASSERT_TRUE(data_pkg->getData("target_qdd", joint_acc));
-    ASSERT_TRUE(data_pkg->getData("speed_scaling", speed_scaling));
+    ASSERT_TRUE(data_pkg->getData("target_speed_fraction", speed_scaling));
 
     // Read spline travel time from the robot
     double spline_travel_time = 0.0;
@@ -533,8 +550,46 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
 
     // Ensure that we follow the joint trajectory
-    urcl::vector6d_t expected_joint_positions;
+    urcl::vector6d_t expected_joint_positions, change_acc;
     interpolate(spline_travel_time, expected_joint_positions, coefficients);
+
+    if (init_acc_test && loop_count == 0)
+    {
+      last_joint_acc = joint_acc;
+    }
+    else if (init_acc_test && last_joint_acc != joint_acc)
+    {
+      init_acc_test = false;
+      loop_count = 1;
+      last_joint_acc = joint_acc;
+      last_change_acc.fill(0.0);
+    }
+
+    if (loop_count % REDUSE_FACTOR == 0)
+    {
+      last_joint_acc = joint_acc;
+      last_change_acc.fill(0.0);
+    }
+    else
+    {
+      for (unsigned int i = 0; i < last_joint_acc.size(); ++i)
+      {
+        change_acc[i] = joint_acc[i] - last_joint_acc[i];
+
+        if (!nearly_equal(change_acc[i], 0.0, EPS_ACC_CHANGE) && !nearly_equal(last_change_acc[i], 0.0, EPS_ACC_CHANGE))
+        {
+          // Acceleration should only increase or be constant within one scaled timescale.
+          // It should not fluctuate to zero or overshoot
+          EXPECT_EQ(sign(last_change_acc[i]), sign(change_acc[i]))
+              << " acceleration change direction doing "
+                 "one scaled step"
+              << loop_count << " Numbers:\n"
+              << last_change_acc[i] << " | " << change_acc[i] << "\n";
+        }
+      }
+      last_change_acc = change_acc;
+    }
+
     for (unsigned int i = 0; i < 6; ++i)
     {
       EXPECT_NEAR(expected_joint_positions[i], joint_positions[i], eps_);
@@ -560,6 +615,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
     plot_time += step_time_;
+    loop_count += 1;
   }
 
   // Make sure the velocity is zero when the trajectory has finished
@@ -570,8 +626,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity)
     EXPECT_FLOAT_EQ(joint_velocities[i], 0.0);
   }
 
-  writeTrajectoryToFile("../test_artifacts/quintic_spline_with_end_point_velocity.csv", time_vec, expected_positions,
-                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
+  writeTrajectoryToFile("../test_artifacts/quintic_spline_with_end_point_velocity_speedscaling.csv", time_vec,
+                        expected_positions, actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
 }
 
 TEST_F(SplineInterpolationTest, spline_interpolation_cubic)

@@ -230,7 +230,6 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
     end
 
     splineTimerTraveled = splineTimerTraveled + scaled_step_time
-    # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
     jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
   end
 
@@ -245,7 +244,6 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
       scaled_step_time = get_steptime() * scaling_factor
 
       splineTimerTraveled = splineTimerTraveled + scaled_step_time
-      # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
       jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
 
       qd = get_actual_joint_speeds()
@@ -273,6 +271,7 @@ def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, 
 
   # Calculate the max needed qdd arg for speedj to distribute the velocity change over the whole timestep no matter the speed slider value
   qdd_max = list_max_norm((spline_qd - last_spline_qd) / timestep)
+  # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
   speedj(spline_qd, qdd_max, timestep)
 end
 
@@ -312,19 +311,20 @@ def list_max_norm(list):
   # ensure we have something to iterate over
   local length = get_list_length(list)
   if  length < 1:
-      popup("Getting the maximum of an empty list is impossible in list_max().", error = True, blocking = True)
-      textmsg("Getting the maximum of an empty list is impossible in list_max()")
-      halt
+    popup("Getting the maximum of an empty list is impossible in list_max().", error = True, blocking = True)
+    textmsg("Getting the maximum of an empty list is impossible in list_max()")
+    halt
   end
 
   # search for maximum
   local i = 1
   local max = norm(list[0])
   while i < length:
-      if norm(list[i]) > max:
-          max = norm(list[i])
-      end
-      i = i + 1
+    local tmp = norm(list[i])
+    if tmp > max:
+      max = tmp
+    end
+    i = i + 1
   end
 
   return max
