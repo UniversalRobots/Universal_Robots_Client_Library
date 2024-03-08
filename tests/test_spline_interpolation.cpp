@@ -310,7 +310,7 @@ protected:
                              std::vector<urcl::vector6d_t> expected_positions,
                              std::vector<urcl::vector6d_t> actual_positions,
                              std::vector<urcl::vector6d_t> actual_velocities, std::vector<urcl::vector6d_t> actual_acc,
-                             std::vector<double> speed_scaling)
+                             std::vector<double> speed_scaling, std::vector<double> spline_time)
   {
     std::ofstream outfile(filename);
     // Header
@@ -339,7 +339,8 @@ protected:
             << "error_positions3, "
             << "error_positions4, "
             << "error_positions5, "
-            << "speed_scaling"
+            << "speed_scaling, "
+            << "spline_time"
             << "\n";
 
     // Data
@@ -356,7 +357,8 @@ protected:
               << actual_positions[i][2] - expected_positions[i][2] << ", "
               << actual_positions[i][3] - expected_positions[i][3] << ", "
               << actual_positions[i][4] - expected_positions[i][4] << ", "
-              << actual_positions[i][5] - expected_positions[i][5] << ", " << speed_scaling[i] << "\n";
+              << actual_positions[i][5] - expected_positions[i][5] << ", " << speed_scaling[i] << ", " << spline_time[i]
+              << "\n";
     }
   }
 
@@ -399,7 +401,7 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
 
   // Data for logging
   std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
-  std::vector<double> time_vec;
+  std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
   sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
@@ -459,6 +461,7 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     actual_acc.push_back(joint_acc);
     speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
+    spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
   // Make sure the velocity is zero when the trajectory has finished
@@ -469,8 +472,13 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
     EXPECT_FLOAT_EQ(joint_velocities[i], 0.0);
   }
 
+  // Verify that the full trajectory have been executed
+  double spline_travel_time;
+  data_pkg->getData("output_double_register_1", spline_travel_time);
+  ASSERT_NEAR(spline_travel_time, s_time.back(), 1e-5);
+
   writeTrajectoryToFile("../test_artifacts/cubic_spline_with_end_point_velocity.csv", time_vec, expected_positions,
-                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec, spline_time);
 }
 
 TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_speedscaling)
@@ -512,7 +520,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
 
   // Data for logging
   std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
-  std::vector<double> time_vec;
+  std::vector<double> time_vec, spline_time;
 
   // Send trajectory to the robot
   sendTrajectory(s_pos, s_vel, s_acc, s_time);
@@ -614,6 +622,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
     actual_acc.push_back(joint_acc);
     speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
+    spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
     loop_count += 1;
   }
@@ -626,8 +635,14 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
     EXPECT_FLOAT_EQ(joint_velocities[i], 0.0);
   }
 
+  // Verify that the full trajectory have been executed
+  double spline_travel_time;
+  data_pkg->getData("output_double_register_1", spline_travel_time);
+  ASSERT_NEAR(spline_travel_time, s_time.back(), 1e-5);
+
   writeTrajectoryToFile("../test_artifacts/quintic_spline_with_end_point_velocity_speedscaling.csv", time_vec,
-                        expected_positions, actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
+                        expected_positions, actual_positions, actual_velocities, actual_acc, speed_scaling_vec,
+                        spline_time);
 }
 
 TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
@@ -672,7 +687,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
 
   // Data for logging
   std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
-  std::vector<double> time_vec;
+  std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
   sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
@@ -724,10 +739,17 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
     actual_acc.push_back(joint_acc);
     speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
+    spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
+
+  // Verify that the full trajectory have been executed
+  double spline_travel_time;
+  data_pkg->getData("output_double_register_1", spline_travel_time);
+  ASSERT_NEAR(spline_travel_time, s_time.back(), 1e-5);
+
   writeTrajectoryToFile("../test_artifacts/spline_interpolation_cubic.csv", time_vec, expected_positions,
-                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec, spline_time);
 }
 
 TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
@@ -774,7 +796,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
 
   // Data for logging
   std::vector<urcl::vector6d_t> actual_positions, actual_velocities, actual_acc, expected_positions;
-  std::vector<double> time_vec;
+  std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
   sendTrajectory(s_pos, s_vel, s_acc, s_time);
@@ -826,11 +848,17 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
     actual_acc.push_back(joint_acc);
     speed_scaling_vec.push_back(speed_scaling);
     time_vec.push_back(plot_time);
+    spline_time.push_back(spline_travel_time);
     plot_time += step_time_;
   }
 
+  // Verify that the full trajectory have been executed
+  double spline_travel_time;
+  data_pkg->getData("output_double_register_1", spline_travel_time);
+  ASSERT_NEAR(spline_travel_time, s_time.back(), 1e-5);
+
   writeTrajectoryToFile("../test_artifacts/spline_interpolation_quintic.csv", time_vec, expected_positions,
-                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec);
+                        actual_positions, actual_velocities, actual_acc, speed_scaling_vec, spline_time);
 }
 
 int main(int argc, char* argv[])

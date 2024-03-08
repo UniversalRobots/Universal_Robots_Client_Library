@@ -235,18 +235,17 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
 
   # Make sure that we approach zero velocity slowly, when slowing down
   if is_slowing_down == True:
-    local qd = get_actual_joint_speeds()
-    while norm(qd) > 0.00001:
-      local time_left = splineTotalTravelTime - splineTimerTraveled
+    local time_left = splineTotalTravelTime - splineTimerTraveled
 
+    while time_left >= 1e-5:
+      time_left = splineTotalTravelTime - splineTimerTraveled
       # Compute scaling factor based on time left and total slowing down time
       scaling_factor = time_left / slowing_down_time
       scaled_step_time = get_steptime() * scaling_factor
 
       splineTimerTraveled = splineTimerTraveled + scaled_step_time
+    
       jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
-
-      qd = get_actual_joint_speeds()
     end
     scaling_factor = 0.0
   end
