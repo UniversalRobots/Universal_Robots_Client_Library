@@ -30,6 +30,7 @@
 
 #include <functional>
 
+#include "ur_client_library/comm/persistent_stream.h"
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
@@ -497,8 +498,8 @@ private:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+  std::unique_ptr<comm::URPersistentStream<primary_interface::PrimaryPackage>> primary_stream_;
+  std::unique_ptr<comm::URPersistentStream<primary_interface::PrimaryPackage>> secondary_stream_;
 
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
