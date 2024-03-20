@@ -483,7 +483,7 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
 
 TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_speedscaling)
 {
-  // Set target speed scaling to 100% as one test change this value
+  // Set speed scaling to 25% to test interpolation with speed scaling active
   const unsigned int REDUSE_FACTOR(4);
   g_ur_driver_->getRTDEWriter().sendSpeedSlider(1.0 / REDUSE_FACTOR);
 
