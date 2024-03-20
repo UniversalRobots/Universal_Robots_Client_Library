@@ -29,3 +29,4 @@ tcp_offset
 output_double_register_1
 target_q
 target_qd
+target_qdd
