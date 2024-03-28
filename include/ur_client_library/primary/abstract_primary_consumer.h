@@ -31,8 +31,14 @@
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/pipeline.h"
+#include "ur_client_library/primary/program_state_message.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
 
 namespace urcl
 {
@@ -51,7 +57,7 @@ public:
   virtual ~AbstractPrimaryConsumer() = default;
 
   /*!
-   * \brief This consume method is usally being called by the Pipeline structure. We don't
+   * \brief This consume method is usually being called by the Pipeline structure. We don't
    * necessarily need to know the specific package type here, as the packages themselves will take
    * care to be consumed with the correct function (visitor pattern).
    *
@@ -71,8 +77,14 @@ public:
   // To be implemented in specific consumers
   virtual bool consume(RobotMessage& pkg) = 0;
   virtual bool consume(RobotState& pkg) = 0;
+  virtual bool consume(ProgramStateMessage& pkg) = 0;
   virtual bool consume(VersionMessage& pkg) = 0;
   virtual bool consume(KinematicsInfo& pkg) = 0;
+  virtual bool consume(ErrorCodeMessage& pkg) = 0;
+  virtual bool consume(RuntimeExceptionMessage& pkg) = 0;
+  virtual bool consume(KeyMessage& pkg) = 0;
+  virtual bool consume(RobotModeData& pkg) = 0;
+  virtual bool consume(TextMessage& pkg) = 0;
 
 private:
   /* data */
