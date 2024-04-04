@@ -2,6 +2,11 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Changed spline interpolation to use the last commanded joint velocity… (`#195 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/195>`_)
+* Contributors: Mads Holm Peters, Rune Søe-Knudsen
+
 1.3.5 (2024-02-23)
 ------------------
 * Add support for UR30 in start_ursim.sh (`#193 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/193>`_)
