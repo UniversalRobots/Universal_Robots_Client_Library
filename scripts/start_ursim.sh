@@ -89,7 +89,15 @@ verlte()
 
 validate_ursim_version()
 {
-  [ $URSIM_VERSION == "latest" ] && return 0
+  local IMAGE_URSIM_VERSION
+  # Inspect the image's URSim version if the image is locally available. This is especially
+  # important when we use the "latest" tag, as we don't know the version hiding behind this and it
+  # could be potentially older.
+  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
+  if [ -z "$IMAGE_URSIM_VERSION" ]; then
+    IMAGE_URSIM_VERSION="$URSIM_VERSION"
+  fi
+  [ "$IMAGE_URSIM_VERSION" == "latest" ] && return 0
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
   local MIN_UR20="5.14.0"
@@ -100,25 +108,25 @@ validate_ursim_version()
 
   case $ROBOT_SERIES in
     cb3)
-      verlte "4.0.0" $URSIM_VERSION && echo "$URSIM_VERSION is no valid CB3 version!" && exit
-      verlte $MIN_CB3 $URSIM_VERSION && return 0
+      verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit
+      verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
       MIN_VERSION=$MIN_CB3
       ;;
     e-series)
       if [[ $ROBOT_MODEL == "UR20" ]]; then
-          verlte $MIN_UR20 $URSIM_VERSION && return 0
+          verlte "$MIN_UR20" "$IMAGE_URSIM_VERSION" && return 0
           MIN_VERSION=$MIN_UR20
       elif [[ $ROBOT_MODEL == "UR30" ]]; then
-          verlte $MIN_UR30 $URSIM_VERSION && return 0
+          verlte "$MIN_UR30" "$IMAGE_URSIM_VERSION" && return 0
           MIN_VERSION=$MIN_UR30
       else
-          verlte $MIN_E_SERIES $URSIM_VERSION && return 0
+          verlte "$MIN_E_SERIES" "$URSIM_VERSION" && return 0
           MIN_VERSION=$MIN_E_SERIES
       fi
       ;;
   esac
 
-  echo "Illegal version given. Version must be greater or equal to $MIN_VERSION. Given version: $URSIM_VERSION."
+  echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $IMAGE_URSIM_VERSION."
   exit
 }
 
@@ -134,7 +142,6 @@ while getopts ":hm:v:p:u:d" option; do
       ;;
     v) # ursim_version
       URSIM_VERSION=${OPTARG}
-      validate_ursim_version
       ;;
     p) # program_folder
       PROGRAM_STORAGE=${OPTARG}
@@ -151,6 +158,7 @@ while getopts ":hm:v:p:u:d" option; do
       exit;;
   esac
 done
+validate_ursim_version
 
 # Create local storage for programs and URCaps
 mkdir -p "${URCAP_STORAGE}"
