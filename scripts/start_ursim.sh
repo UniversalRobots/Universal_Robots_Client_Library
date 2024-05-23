@@ -54,8 +54,6 @@ help()
 ROBOT_MODEL=UR5
 ROBOT_SERIES=e-series
 URSIM_VERSION=latest
-URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
-PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/programs"
 DETACHED=false
 
 
@@ -80,6 +78,8 @@ validate_model()
       exit
       ;;
   esac
+  URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
+  PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
 }
 
 verlte()
