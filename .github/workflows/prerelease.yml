@@ -11,13 +11,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ROS_DISTRO: [humble, iron, rolling]
-        OS_VERSION: [jammy]
         include:
           - ROS_DISTRO: melodic
             OS_VERSION: bionic
           - ROS_DISTRO: noetic
             OS_VERSION: focal
+          - ROS_DISTRO: humble
+            OS_VERSION: jammy
+          - ROS_DISTRO: iron
+            OS_VERSION: jammy
+          - ROS_DISTRO: jazzy
+            OS_VERSION: noble
+          - ROS_DISTRO: rolling
+            OS_VERSION: noble
 
     steps:
       - uses: actions/checkout@v1
