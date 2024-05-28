@@ -64,7 +64,7 @@ public:
    * \brief Creates a new ProgramStateMessage object to be filled from a package.
    *
    * \param timestamp Timestamp of the package
-   * \param message_type The package's message type
+   * \param state_type The package's state type
    */
   ProgramStateMessage(const uint64_t timestamp, const ProgramStateMessageType state_type)
     : timestamp_(timestamp), state_type_(state_type)

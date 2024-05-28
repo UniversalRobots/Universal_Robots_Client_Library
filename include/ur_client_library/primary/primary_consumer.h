@@ -55,7 +55,7 @@ public:
   /*!
    * \brief Consume a RobotMessage
    *
-   * \param pkg Robot message
+   * \param msg Robot message
    *
    * \returns True
    */
@@ -67,7 +67,7 @@ public:
   /*!
    * \brief Consume a RobotState
    *
-   * \param pkg Robot state
+   * \param msg Robot state
    *
    * \returns True
    */
@@ -79,7 +79,7 @@ public:
   /*!
    * \brief Consume a ProgramStateMessage
    *
-   * \param pkg Program state message
+   * \param msg Program state message
    *
    * \returns True
    */

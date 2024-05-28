@@ -516,7 +516,7 @@ rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
   return rtde_client_->getWriter();
 }
 
-bool UrDriver::sendScript(const std::string& program, const std::chrono::milliseconds timeout) const
+bool UrDriver::sendScript(const std::string& script_code, const std::chrono::milliseconds timeout) const
 {
   if (primary_client_ == nullptr)
   {
@@ -525,10 +525,10 @@ bool UrDriver::sendScript(const std::string& program, const std::chrono::millise
                              "should not happen.");
   }
 
-  return primary_client_->sendScript(program, timeout);
+  return primary_client_->sendScript(script_code, timeout);
 }
 
-bool UrDriver::sendSecondaryScript(const std::string& program, const std::chrono::milliseconds timeout) const
+bool UrDriver::sendSecondaryScript(const std::string& script_code, const std::chrono::milliseconds timeout) const
 {
   if (primary_client_ == nullptr)
   {
@@ -537,7 +537,7 @@ bool UrDriver::sendSecondaryScript(const std::string& program, const std::chrono
                              "should not happen.");
   }
 
-  return primary_client_->sendSecondaryScript(program, timeout);
+  return primary_client_->sendSecondaryScript(script_code, timeout);
 }
 
 bool UrDriver::sendRobotProgram()

@@ -430,7 +430,7 @@ public:
    *
    * \returns true if the scripts starts running successfully, false otherwise.
    */
-  bool sendScript(const std::string& program,
+  bool sendScript(const std::string& script_code,
                   const std::chrono::milliseconds timeout = std::chrono::milliseconds(1000)) const;
 
   /*!
