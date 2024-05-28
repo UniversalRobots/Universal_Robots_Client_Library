@@ -2,6 +2,19 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.6 (2024-04-04)
+------------------
+* Changed spline interpolation to use the last commanded joint velocity… (`#195 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/195>`_)
+* Contributors: Mads Holm Peters, Rune Søe-Knudsen
+
+1.3.5 (2024-02-23)
+------------------
+* Add support for UR30 in start_ursim.sh (`#193 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/193>`_)
+* Add header guard to datatypes.h (`#189 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/189>`_)
+* Remove duplicated entry in clang-format file (`#188 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/188>`_)
+* Wait after docker kill to prevent name conflicts (`#187 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/187>`_)
+* Contributors: Felix Exner, Robert Wilbrandt
+
 1.3.4 (2023-09-22)
 ------------------
 * Make depreaction warning for keepalive_counter a warning instead of error (`#182 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/182>`_)

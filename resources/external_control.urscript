@@ -68,7 +68,8 @@ global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
-global last_spline_qdd = [0, 0, 0, 0, 0, 0]
+global spline_qdd = [0, 0, 0, 0, 0, 0]
+global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 
 # Global thread variables
@@ -143,14 +144,14 @@ thread speedThread():
   stopj(STOPJ_ACCELERATION)
 end
 
-def cubicSplineRun(end_q, end_qd, time, last_point=False):
+def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
   local str = str_cat(end_q, str_cat(end_qd, time))
   textmsg("Cubic spline arg: ", str)
 
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()
-    local start_qd = get_target_joint_speeds()
+    local start_qd = spline_qd
 
     # Coefficients0 is not included, since we do not need to calculate the position
     local coefficients1 = start_qd
@@ -158,19 +159,19 @@ def cubicSplineRun(end_q, end_qd, time, last_point=False):
     local coefficients3 = (2 * start_q - 2 * end_q + start_qd * time + end_qd * time) / pow(time, 3)
     local coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     local coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, last_point)
+    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
   end
 end
 
-def quinticSplineRun(end_q, end_qd, end_qdd, time, last_point=False):
+def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
   local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
   textmsg("Quintic spline arg: ", str)
 
   # Zero time means zero length and therefore no motion to execute
   if time > 0.0:
     local start_q = get_target_joint_positions()
-    local start_qd = get_target_joint_speeds()
-    local start_qdd = last_spline_qdd
+    local start_qd = spline_qd
+    local start_qdd = spline_qdd
 
     # Pre-calculate coefficients
     local TIME2 = pow(time, 2)
@@ -180,16 +181,16 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, last_point=False):
     local coefficients3 = (-20.0 * start_q + 20.0 * end_q - 3.0 * start_qdd * TIME2 + end_qdd * TIME2 - 12.0 * start_qd * time - 8.0 * end_qd * time) / (2.0 * pow(time, 3))
     local coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0 * start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * pow(time, 4))
     local coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * pow(time, 5))
-    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, last_point)
+    jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
   end
 end
 
-def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, last_point):
+def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, is_last_point):
   # Initialize variables
   local splineTimerTraveled = 0.0
   local scaled_step_time = get_steptime()
   local scaling_factor = 1.0
-  local slowing_down = False
+  local is_slowing_down = False
   local slowing_down_time = 0.0
 
   # Interpolate the spline in whole time steps
@@ -205,23 +206,23 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
 
     # If the velocity is too large close to the end of the trajectory we scale the
     # trajectory, such that we follow the positional part of the trajectory, but end with zero velocity.
-    if (time_left <= deceleration_time) and (last_point == True):
-      if slowing_down == False:
+    if (time_left <= deceleration_time) and (is_last_point == True):
+      if is_slowing_down == False:
 
         # Peek what the joint velocities will be if we take a full time step
         local qd = jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled + get_steptime())
         # Compute the time left to decelerate if we take a full time step
         local x = deceleration_time - (time_left - get_steptime())
-        slowing_down = checkSlowDownRequired(x, qd, max_speed, max_deceleration)
+        is_slowing_down = checkSlowDownRequired(x, qd, max_speed, max_deceleration)
 
-        if slowing_down == True:
+        if is_slowing_down == True:
           # This will ensure that we scale the trajectory right away
           slowing_down_time = time_left + get_steptime()
           textmsg("Velocity is too fast towards the end of the trajectory. The robot will be slowing down, while following the positional part of the trajectory.")
         end
       end
 
-      if slowing_down == True:
+      if is_slowing_down == True:
         # Compute scaling factor based on time left and total slowing down time
         scaling_factor = time_left / slowing_down_time
         scaled_step_time = get_steptime() * scaling_factor
@@ -229,25 +230,22 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
     end
 
     splineTimerTraveled = splineTimerTraveled + scaled_step_time
-    # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
-    jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor)
+    jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
   end
 
   # Make sure that we approach zero velocity slowly, when slowing down
-  if slowing_down == True:
-    local qd = get_actual_joint_speeds()
-    while norm(qd) > 0.00001:
-      local time_left = splineTotalTravelTime - splineTimerTraveled
+  if is_slowing_down == True:
+    local time_left = splineTotalTravelTime - splineTimerTraveled
 
+    while time_left >= 1e-5:
+      time_left = splineTotalTravelTime - splineTimerTraveled
       # Compute scaling factor based on time left and total slowing down time
       scaling_factor = time_left / slowing_down_time
       scaled_step_time = get_steptime() * scaling_factor
 
       splineTimerTraveled = splineTimerTraveled + scaled_step_time
-      # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
-      jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor)
-
-      qd = get_actual_joint_speeds()
+    
+      jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
     end
     scaling_factor = 0.0
   end
@@ -260,14 +258,20 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
     timeLeftToTravel = get_steptime()
   end
 
-  jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, timeLeftToTravel, scaling_factor)
+  jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, timeLeftToTravel, scaling_factor, is_slowing_down)
 end
 
-def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep, scaling_factor):
-  local qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
-  last_spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
-  qd = qd * scaling_factor
-  speedj(qd, 1000, timestep)
+def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep, scaling_factor, is_slowing_down=False):
+  local last_spline_qd = spline_qd
+  spline_qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
+  spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
+
+  spline_qd = spline_qd * scaling_factor
+
+  # Calculate the max needed qdd arg for speedj to distribute the velocity change over the whole timestep no matter the speed slider value
+  qdd_max = list_max_norm((spline_qd - last_spline_qd) / timestep)
+  # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
+  speedj(spline_qd, qdd_max, timestep)
 end
 
 # Helper function to see what the velocity will be if we take a full step
@@ -298,6 +302,33 @@ def checkSlowDownRequired(x, qd, max_speed, max_deceleration):
   return False
 end
 
+###
+# @brief Find the maximum value in a list the list must be of non-zero length and contain numbers
+# @param list array list
+###
+def list_max_norm(list):
+  # ensure we have something to iterate over
+  local length = get_list_length(list)
+  if  length < 1:
+    popup("Getting the maximum of an empty list is impossible in list_max().", error = True, blocking = True)
+    textmsg("Getting the maximum of an empty list is impossible in list_max()")
+    halt
+  end
+
+  # search for maximum
+  local i = 1
+  local max = norm(list[0])
+  while i < length:
+    local tmp = norm(list[i])
+    if tmp > max:
+      max = tmp
+    end
+    i = i + 1
+  end
+
+  return max
+end
+
 thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
@@ -305,7 +336,8 @@ thread trajectoryThread():
   # same index as blend parameter, depending on point type
   local INDEX_SPLINE_TYPE = INDEX_BLEND
   local INDEX_POINT_TYPE = INDEX_BLEND + 1
-  last_spline_qdd = [0, 0, 0, 0, 0, 0]
+  spline_qdd = [0, 0, 0, 0, 0, 0]
+  spline_qd = [0, 0, 0, 0, 0, 0]
   enter_critical
   while trajectory_points_left > 0:
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
@@ -316,24 +348,26 @@ thread trajectoryThread():
       local q = [ raw_point[1]/ MULT_jointstate, raw_point[2]/ MULT_jointstate, raw_point[3]/ MULT_jointstate, raw_point[4]/ MULT_jointstate, raw_point[5]/ MULT_jointstate, raw_point[6]/ MULT_jointstate]
       local tmptime = raw_point[INDEX_TIME] / MULT_time
       local blend_radius = raw_point[INDEX_BLEND] / MULT_time
-      local last_point = False
+      local is_last_point = False
       if trajectory_points_left == 0:
         blend_radius = 0.0
-        last_point = True
+        is_last_point = True
       end
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
         movej(q, t=tmptime, r=blend_radius)
 
         # reset old acceleration
-        last_spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
 
       # Movel point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
 
         # reset old acceleration
-        last_spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
 
       # Joint spline point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
@@ -341,15 +375,15 @@ thread trajectoryThread():
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          cubicSplineRun(q, qd, tmptime, last_point)
+          cubicSplineRun(q, qd, tmptime, is_last_point)
           # reset old acceleration
-          last_spline_qdd = [0, 0, 0, 0, 0, 0]
+          spline_qdd = [0, 0, 0, 0, 0, 0]
 
         # Quintic spline
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-          quinticSplineRun(q, qd, qdd, tmptime, last_point)
+          quinticSplineRun(q, qd, qdd, tmptime, is_last_point)
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           clear_remaining_trajectory_points()
@@ -359,6 +393,7 @@ thread trajectoryThread():
     end
   end
   exit_critical
+  stopj(STOPJ_ACCELERATION)
   socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
   textmsg("Trajectory finished")
 end
