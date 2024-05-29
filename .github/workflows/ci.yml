@@ -5,6 +5,7 @@ jobs:
   build:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:
       matrix:
         env:
@@ -34,9 +35,9 @@ jobs:
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
-            CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
-            CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
-            LDFLAGS: -fprofile-arcs -ftest-coverage
+          CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
+          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
         run: cmake --build build --config Debug
       - name: Create folder for test artifacts
