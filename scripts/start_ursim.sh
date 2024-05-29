@@ -43,7 +43,7 @@ help()
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
   echo "    -p <folder>    Location from which programs are read / to which programs are written.
-                   If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/programs"
+                   If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
   echo "    -u <folder>    Location from which URCaps are read / to which URCaps are written.
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   echo "    -d     Detached mode - start in backgound"
@@ -51,7 +51,7 @@ help()
   echo
 }
 
-ROBOT_MODEL=UR5
+ROBOT_MODEL=ur5e
 ROBOT_SERIES=e-series
 URSIM_VERSION=latest
 DETACHED=false
@@ -138,16 +138,15 @@ while getopts ":hm:v:p:u:d" option; do
       exit;;
     m) # robot model
       ROBOT_MODEL=${OPTARG}
-      validate_model
       ;;
     v) # ursim_version
       URSIM_VERSION=${OPTARG}
       ;;
     p) # program_folder
-      PROGRAM_STORAGE=${OPTARG}
+      PROGRAM_STORAGE_ARG=${OPTARG}
       ;;
     u) # urcaps_folder
-      URCAP_STORAGE=${OPTARG}
+      URCAP_STORAGE_ARG=${OPTARG}
       ;;
     d) # detached mode
       DETACHED=true
@@ -158,7 +157,15 @@ while getopts ":hm:v:p:u:d" option; do
       exit;;
   esac
 done
+validate_model
 validate_ursim_version
+
+if [ -n "$PROGRAM_STORAGE_ARG" ]; then
+  PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
+fi
+if [ -n "$URCAP_STORAGE_ARG" ]; then
+  URCAP_STORAGE="$URCAP_STORAGE_ARG"
+fi
 
 # Create local storage for programs and URCaps
 mkdir -p "${URCAP_STORAGE}"
