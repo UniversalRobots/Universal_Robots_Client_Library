@@ -2,100 +2,31 @@ name: ROS industrial ci
 on: [push, pull_request]
 
 jobs:
-  build:
+  industrial_ci:
+    name: ${{matrix.ROS_DISTRO.NAME}}, ${{matrix.ROS_REPO}}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        env:
-          - ROS_DISTRO: melodic
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.melodic.rosinstall"
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          - ROS_DISTRO: noetic
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.noetic.rosinstall"
-            BUILDER: catkin_tools
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          - ROS_DISTRO: galactic
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#galactic"
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-            NOT_TEST_DOWNSTREAM: true
-          - ROS_DISTRO: humble
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/humble/Universal_Robots_ROS2_Driver-not-released.humble.repos"
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-            NOT_TEST_DOWNSTREAM: true
-          - ROS_DISTRO: iron
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#iron https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/iron/Universal_Robots_ROS2_Driver-not-released.iron.repos"
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-            NOT_TEST_DOWNSTREAM: true
-          - ROS_DISTRO: rolling
-            ROS_REPO: main
-            IMMEDIATE_TEST_OUTPUT: true
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS2_Driver/main/Universal_Robots_ROS2_Driver-not-released.rolling.repos"
-            DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            URSIM_VERSION: '5.9.4'
-            ROBOT_MODEL: 'ur5e'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-            NOT_TEST_DOWNSTREAM: true
-
+        ROS_DISTRO:
+          - {NAME: noetic, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.noetic.rosinstall"}
+          - {NAME: humble, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble"}
+          - {NAME: iron, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#iron"}
+          - {NAME: jazzy, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"}
+          - {NAME: rolling, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"}
+        ROS_REPO:
+          - main
+          - testing
+    env:
+      DOCKER_RUN_OPTS: '-v /var/run/docker.sock:/var/run/docker.sock --network ursim_net'
     steps:
-      - uses: actions/checkout@v1
-      - name: start ursim
-        run: |
-          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
-        env: ${{matrix.env}}
+      - uses: actions/checkout@v4
+      - run: docker network create --subnet=192.168.56.0/24 ursim_net
       - uses: 'ros-industrial/industrial_ci@master'
-        env: ${{matrix.env}}
-      - name: Generate URSim log files
-        if: always()
-        run: |
-          nc -q 1 192.168.56.101 29999 <<END
-          saveLog
-          END
-          mkdir -p ursim_logs
-          docker cp ursim:/ursim/URControl.log ursim_logs/URControl.log
-          docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
-          docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
-      - name: Copy flight reports
-        if: failure()
-        run: |
-          mkdir -p ursim_logs/flightreports
-          docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
-      - name: Upload logfiles
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: ${{matrix.env.ROS_DISTRO}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
-          path: ursim_logs
-          if-no-files-found: error
-          retention-days: 10
+        env:
+          IMMEDIATE_TEST_OUTPUT: true
+          DOWNSTREAM_CMAKE_ARGS: -DUR_ROBOT_DRIVER_BUILD_INTEGRATION_TESTS=ON
+          ADDITIONAL_DEBS: docker.io netcat-openbsd  # Needed for integration tests
+          DOWNSTREAM_WORKSPACE: ${{matrix.ROS_DISTRO.DOWNSTREAM_WORKSPACE}}
+          ROS_DISTRO: ${{matrix.ROS_DISTRO.NAME}}
+          ROS_REPO: ${{matrix.ROS_REPO}}
