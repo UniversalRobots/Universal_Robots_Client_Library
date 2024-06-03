@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* [ci] Update CI
+  * Run downstream tests for ICI
+  * Correctly name jobs
+  * Test Jazzy driver
+* [start_ursim] Add program directory at correct location also when no model is provided
+* [start_ursim] Always check ursim version for compatibility
+* [start_ursim] Use a program folder per model
+* [ci] Update distros for prerelease test
+* Contributors: Felix Exner, Vincenzo Di Pentima
+
 1.3.6 (2024-04-04)
 ------------------
 * Changed spline interpolation to use the last commanded joint velocity… (`#195 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/195>`_)
