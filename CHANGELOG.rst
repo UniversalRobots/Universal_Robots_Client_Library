@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.7 (2024-06-03)
+------------------
 * [ci] Update CI
   * Run downstream tests for ICI
   * Correctly name jobs
