@@ -1,108 +1,101 @@
 # Universal Robots Client Library
-   * [Universal Robots Client Library](#universal-robots-client-library)
-      * [Build instructions](#build-instructions)
-      * [Use this library in other projects](#use-this-library-in-other-projects)
-      * [License](#license)
-      * [Library contents](#library-contents)
-      * [Example driver](#example-driver)
-      * [Architecture](#architecture)
-      * [A word on the primary / secondary interface](#a-word-on-the-primary--secondary-interface)
-      * [A word on Real-Time scheduling](#a-word-on-real-time-scheduling)
-      * [Producer / Consumer architecture](#producer--consumer-architecture)
-      * [Logging configuration](#logging-configuration)
-         * [Change logging level](#change-logging-level)
-         * [Create new log handler](#create-new-log-handler)
-         * [Console_bridge](#console_bridge)
-      * [Acknowledgement](#acknowledgement)
-
 
 A C++ library for accessing Universal Robots interfaces. With this library C++-based drivers can be
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
 
 ## Requirements
- * **Polyscope** (The software running on the robot controller) version **3.14.3** (for CB3-Series),
-   or **5.9.4** (for e-Series) or higher. If you use an older Polyscope version it is suggested to
-   update your robot. If for some reason (please tell us in the issues why) you cannot upgrade your
-   robot, please see the [version compatibility table](doc/polyscope_compatibility.md) for a
-   compatible tag.
- * The library requires an implementation of **POSIX threads** such as the `pthread` library
- * Socket communication is currently based on Linux sockets. Thus, this library will require Linux
-   for building and using.
- * The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
-   branch of this repository requires a C++17-compatible compiler. For building this library without
-   a C++17-requirement, please use the
-   [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
-   instead that requires the boost library.
-   For the C++17 features, please use those minimum compiler versions:
 
-   | Compiler  | min. version |
-   |-----------|--------------|
-   | **GCC**   | 7            |
-   | **Clang** | 7            |
-
+* **Polyscope** (The software running on the robot controller) version **3.14.3** (for CB3-Series),
+  or **5.9.4** (for e-Series) or higher. If you use an older Polyscope version it is suggested to
+  update your robot. If for some reason (please tell us in the issues why) you cannot upgrade your
+  robot, please see the [version compatibility table](doc/polyscope_compatibility.rst) for a
+  compatible tag.
+* The library requires an implementation of **POSIX threads** such as the `pthread` library
+* Socket communication is currently based on Linux sockets. Thus, this library will require Linux
+  for building and using.
+* The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
+  branch of this repository requires a C++17-compatible compiler. For building this library without
+  a C++17-requirement, please use the
+  [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
+  instead that requires the boost library.
 
 ## Build instructions
-See [Build / installation](docs/installation.rst)
+
+See [Build / installation](doc/installation.rst)
 
 ## License
+
 The majority of this library is licensed under the Apache-2.0 licensed. However, certain parts are
 licensed under different licenses:
- - The queue used inside the communication structures is originally written by Cameron Desrochers
-   and is released under the BSD-2-Clause license.
- - The semaphore implementation used inside the queue implementation is written by Jeff Preshing and
-   licensed under the zlib license
- - The Dockerfile used for the integration tests of this repository is originally written by Arran
-   Hobson Sayers and released under the MIT license
+
+* The queue used inside the communication structures is originally written by Cameron Desrochers
+  and is released under the BSD-2-Clause license.
+* The semaphore implementation used inside the queue implementation is written by Jeff Preshing and
+  licensed under the zlib license
+* The Dockerfile used for the integration tests of this repository is originally written by Arran
+  Hobson Sayers and released under the MIT license
 
 While the main `LICENSE` file in this repository contains the Apache-2.0 license used for the
 majority of the work, the respective libraries of third-party components reside together with the
 code imported from those third parties.
 
 ## Library contents
+
 Currently, this library contains the following components:
- * **Basic primary interface:** The primary interface isn't fully implemented at the current state
-   and provides only basic functionality. See [A word on the primary / secondary
-   interface](#a-word-on-the-primary--secondary-interface) for further information about the primary
-   interface.
- * **RTDE interface:** The [RTDE interface](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
-   is fully supported by this library. See [RTDEClient](#rtdeclient) for further information on how
-   to use this library as an RTDE client.
- * **Dashboard interface:** The [Dashboard server](https://www.universal-robots.com/articles/ur-articles/dashboard-server-e-series-port-29999/) can be accessed directly from C++ through helper functions using this library.
- * **Custom motion streaming:** This library was initially developed as part of the [Universal
-   Robots ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver). Therefore, it
-   also contains a mechanism to do data streaming through a custom socket, e.g. to perform motion
-   command streaming.
+
+* **Basic primary interface:** The primary interface isn't fully implemented at the current state
+  and provides only basic functionality. See [A word on the primary / secondary
+  interface](#a-word-on-the-primary--secondary-interface) for further information about the primary
+  interface.
+* **RTDE interface:** The [RTDE interface](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
+  is fully supported by this library. See
+  [RTDEClient](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_client_library/doc/architecture.html#rtdeclient)
+  for further information on how
+  to use this library as an RTDE client.
+* **Dashboard interface:** The [Dashboard
+  server](https://www.universal-robots.com/articles/ur-articles/dashboard-server-e-series-port-29999/)
+  can be accessed directly from C++ through helper functions using this library.
+* **Custom motion streaming:** This library was initially developed as part of the [Universal
+  Robots ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver). Therefore, it
+  also contains a mechanism to do data streaming through a custom socket, e.g. to perform motion
+  command streaming.
 
 ## Example driver
+
 In the `examples` subfolder you will find a minimal example of a running driver. It starts an
 instance of the `UrDriver` class and prints the RTDE values read from the controller. To run it make
 sure to
- * have an instance of a robot controller / URSim running at the configured IP address (or adapt the
-   address to your needs)
- * run it from the package's main folder (the one where this README.md file is stored), as for
-   simplicity reasons it doesn't use any sophisticated method to locate the required files.
+
+* have an instance of a robot controller / URSim running at the configured IP address (or adapt the
+  address to your needs)
+* run it from the package's main folder (the one where this README.md file is stored), as for
+  simplicity reasons it doesn't use any sophisticated method to locate the required files.
 
 ## Architecture
-See [Architecture documentation](docs/architecture.rst)
+
+See [Architecture documentation](doc/architecture.rst)
 
 ## A word on the primary / secondary interface
+
 Currently, this library doesn't support the primary interface very well, as the [Universal Robots
 ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) was built mainly upon
 the RTDE interface. Therefore, there is also no `PrimaryClient` for directly accessing the primary
 interface. This may change in future, though.
 
-The `comm::URStream` class can be used to open a connection to the primary / secondary interface and
-send data to it. The [producer/consumer](#producer--consumer-architecture) pipeline structure can also be used
-together with the primary / secondary interface. However, package parsing isn't implemented for most
-packages currently. See the [`primary_pipeline` example](examples/primary_pipeline.cpp) on details
-how to set this up. Note that when running this example, most packages will just be printed as their
-raw byte streams in a hex notation, as they aren't implemented in the library, yet.
+The `comm::URStream` class can be used to open a connection to the primary / secondary interface
+and send data to it. The [producer/consumer](#producer--consumer-architecture) pipeline structure
+can also be used together with the primary / secondary interface. However, package parsing isn't
+implemented for most packages currently. See the [`primary_pipeline`
+example](examples/primary_pipeline.cpp) on details how to set this up. Note that when running this
+example, most packages will just be printed as their raw byte streams in a hex notation, as they
+aren't implemented in the library, yet.
 
 ## A word on Real-Time scheduling
+
 As mentioned above, for a clean operation it is quite critical that arriving RTDE messages are read
 before the next message arrives. Due to this, both, the RTDE receive thread and the thread calling
-`getDataPackage()` should be scheduled with real-time priority. See [this guide](doc/real_time.md)
+`getDataPackage()` should be scheduled with real-time priority. See [this guide](doc/real_time.rst)
 for details on how to set this up.
 
 The RTDE receive thread will be scheduled to real-time priority automatically, if applicable. If
@@ -112,6 +105,7 @@ scheduled to real-time priority by the application. See the
 as an example.
 
 ## Producer / Consumer architecture
+
 Communication with the primary / secondary and RTDE interfaces is designed to use a
 consumer/producer pattern. The Producer reads data from the socket whenever it comes in, parses the
 contents and stores the parsed packages into a pipeline queue.
@@ -119,17 +113,20 @@ You can write your own consumers that use the packages coming from the producer.
 [`comm::ShellConsumer`](include/ur_client_library/comm/shell_consumer.h) as an example.
 
 ## Logging configuration
+
 As this library was originally designed to be included into a ROS driver but also to be used as a
 standalone library, it uses custom logging macros instead of direct `printf` or `std::cout`
 statements.
 
 The macro based interface is by default using the [`DefaultLogHandler`](include/ur_client_library/default_log_handler.h)
 to print the logging messages as `printf` statements. It is possible to define your own log handler
-to change the behavior, [see create new log handler](#Create-new-log-handler) on how to.
+to change the behavior, [see create new log handler](#create-new-log-handler) on how to.
 
 ### Change logging level
+
 Make sure to set the logging level in your application, as by default only messages of level
 WARNING or higher will be printed. See below for an example:
+
 ```c++
 #include "ur_client_library/log.h"
 
@@ -143,6 +140,7 @@ int main(int argc, char* argv[])
 ```
 
 ### Create new log handler
+
 The logger comes with an interface [`LogHandler`](include/ur_client_library/log.h), which can be
 used to implement your own log handler for messages logged with this library. This can be done by
 inheriting from the `LogHandler class`.
@@ -197,12 +195,15 @@ int main(int argc, char* argv[])
 ```
 
 ## Contributor Guidelines
+
 * This repo supports [pre-commit](https://pre-commit.com/) e.g. for automatic code formatting. TLDR:
   This will prevent you from committing falsely formatted code:
-  ```
+
+  ``` bash
   pipx install pre-commit
   pre-commit install
   ```
+
 * Succeeding pipelines are a must on Pull Requests (unless there is a reason, e.g. when there have
 been upstream changes).
 * We try to increase and keep our code coverage high, so PRs with new
@@ -210,11 +211,13 @@ features should also have tests covering them.
 * Parameters of public methods must all be documented.
 
 ## Acknowledgment
+
 Many parts of this library are forked from the [ur_modern_driver](https://github.com/ros-industrial/ur_modern_driver).
 
 Developed in collaboration between:
 
-[<img height="60" alt="Universal Robots A/S" src="doc/resources/ur_logo.jpg">](https://www.universal-robots.com/) &nbsp; and &nbsp;
+[<img height="60" alt="Universal Robots A/S" src="doc/resources/ur_logo.jpg">](https://www.universal-robots.com/)
+&nbsp; and &nbsp;
 [<img height="60" alt="FZI Research Center for Information Technology" src="doc/resources/fzi-logo_transparenz.png">](https://www.fzi.de).
 
 <!--
