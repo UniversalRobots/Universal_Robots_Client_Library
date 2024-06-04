@@ -25,7 +25,7 @@ The ``ur_client_library`` is available in all maintained ROS distribution and ca
 using
 
 .. code-block:: console
-   
+
    $ sudo apt install ros-<distro>-ur-client-library
 
 Unless you explicitly want to contribute to this library we recommend using the binary installation

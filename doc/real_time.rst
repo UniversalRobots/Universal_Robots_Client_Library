@@ -299,7 +299,7 @@ Make sure that the kernel does indeed support real-time scheduling:
 
 .. code-block:: console
 
-   $ uname -v | cut -d" " -f1-4 
+   $ uname -v | cut -d" " -f1-4
    #1 SMP PREEMPT_RT Tue
 
 Optional: Disable CPU speed scaling
