@@ -105,7 +105,7 @@ def targetWithinLimits(target, time):
 end
 
 def terminateProgram():
-  textmsg("Terminating robot program due to targets send to the robot is violating robot constraints.")
+  textmsg("Terminating robot program due to targets sent to the robot is violating robot constraints.")
   stopj(STOPJ_ACCELERATION)
   halt
 end
