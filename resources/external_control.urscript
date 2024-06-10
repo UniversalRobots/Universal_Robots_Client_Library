@@ -148,7 +148,6 @@ thread servoThread():
       q = extrapolate()
       if targetWithinLimits(q, steptime):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-        q_act = get_actual_joint_positions()
       else:
         terminateProgram()
       end
@@ -157,7 +156,6 @@ thread servoThread():
       extrapolate_count = 0
       if targetWithinLimits(q, steptime):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-        q_act = get_actual_joint_positions()
       else:
         terminateProgram()
       end
