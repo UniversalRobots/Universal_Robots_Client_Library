@@ -50,7 +50,7 @@ Currently, this library contains the following components:
   interface.
 * **RTDE interface:** The [RTDE interface](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
   is fully supported by this library. See
-  [RTDEClient](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_client_library/doc/architecture.html#rtdeclient)
+  [RTDEClient](https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_client_library/doc/architecture.html#rtdeclient)
   for further information on how
   to use this library as an RTDE client.
 * **Dashboard interface:** The [Dashboard
