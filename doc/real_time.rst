@@ -235,7 +235,7 @@ file:
 
 Then, make sure ``/etc/security/limits.conf`` contains
 
-.. code-block::
+.. code-block:: linuxconfig
 
    @realtime soft rtprio 99
    @realtime soft priority 99
@@ -273,7 +273,7 @@ all available kernels using
 
 From the output above, we'll need to generate a string with the pattern ``"submenu_name>entry_name"``. In our case this would be
 
-.. code-block::
+.. code-block:: text
 
    "Advanced options for Ubuntu>Ubuntu, with Linux 5.15.158-rt76"
 
