@@ -8,4 +8,5 @@ ur_client_library
    installation
    polyscope_compatibility
    architecture
+   example
    real_time
