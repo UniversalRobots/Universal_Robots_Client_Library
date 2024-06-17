@@ -10,8 +10,8 @@ modules present in this library. Note that this is an incomplete view on the cla
 
 
 The core of this library is the ``UrDriver`` class which creates a
-fully functioning robot interface. For details on how to use it, please see the [Example
-driver](#example-driver) section.
+fully functioning robot interface. For details on how to use it, please see the
+:ref:`example-driver` section.
 
 The ``UrDriver``'s modules will be explained in the following.
 
