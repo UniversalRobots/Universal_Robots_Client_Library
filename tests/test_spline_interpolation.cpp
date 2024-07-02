@@ -153,9 +153,6 @@ protected:
 
   static void TearDownTestSuite()
   {
-    // Set target speed scaling to 100% as one test change this value
-    g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
-
     g_dashboard_client_->disconnect();
     // Remove temporary file again
     std::remove(SPLINE_SCRIPT_FILE.c_str());
@@ -168,6 +165,12 @@ protected:
     {
       step_time_ = 0.008;
     }
+  }
+
+  void TearDown()
+  {
+    // Set target speed scaling to 100% as one test change this value
+    g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
   }
 
   void sendIdle()
@@ -314,34 +317,14 @@ protected:
   {
     std::ofstream outfile(filename);
     // Header
-    outfile << "time, "
-            << "actual_positions0, "
-            << "actual_positions1, "
-            << "actual_positions2, "
-            << "actual_positions3, "
-            << "actual_positions4, "
-            << "actual_positions5, "
-            << "actual_velocities0, "
-            << "actual_velocities1, "
-            << "actual_velocities2, "
-            << "actual_velocities3, "
-            << "actual_velocities4, "
-            << "actual_velocities5, "
-            << "actual_acceleration0, "
-            << "actual_acceleration1, "
-            << "actual_acceleration2, "
-            << "actual_acceleration3, "
-            << "actual_acceleration4, "
-            << "actual_acceleration5, "
-            << "error_positions0, "
-            << "error_positions1, "
-            << "error_positions2, "
-            << "error_positions3, "
-            << "error_positions4, "
-            << "error_positions5, "
-            << "speed_scaling, "
-            << "spline_time"
-            << "\n";
+    outfile << "time, " << "actual_positions0, " << "actual_positions1, " << "actual_positions2, "
+            << "actual_positions3, " << "actual_positions4, " << "actual_positions5, " << "actual_velocities0, "
+            << "actual_velocities1, " << "actual_velocities2, " << "actual_velocities3, " << "actual_velocities4, "
+            << "actual_velocities5, " << "actual_acceleration0, " << "actual_acceleration1, "
+            << "actual_acceleration2, " << "actual_acceleration3, " << "actual_acceleration4, "
+            << "actual_acceleration5, " << "error_positions0, " << "error_positions1, " << "error_positions2, "
+            << "error_positions3, " << "error_positions4, " << "error_positions5, " << "speed_scaling, "
+            << "spline_time" << "\n";
 
     // Data
     for (unsigned int i = 0; i < actual_positions.size(); ++i)
