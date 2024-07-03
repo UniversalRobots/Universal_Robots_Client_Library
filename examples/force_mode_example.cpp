@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+                                 std::move(tool_comm_setup)));
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
@@ -141,15 +141,27 @@ int main(int argc, char* argv[])
   std::chrono::duration<double> timeout(second_to_run);
   auto stopwatch_last = std::chrono::steady_clock::now();
   auto stopwatch_now = stopwatch_last;
-  g_my_driver->writeKeepalive();
+  // Make sure that external control script is running
+  for (int i = 0; i < 100; i++)
+  {
+    g_my_driver->writeKeepalive();
+    g_my_driver->getDataPackage();
+  }
   // Task frame at the robot's base with limits being large enough to cover the whole workspace
   // Compliance in z axis and rotation around z axis
-  g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },                 // Task frame at the robot's base
-                              { 0, 0, 1, 0, 0, 1 },                 // Compliance in z axis and rotation around z axis
-                              { 0, 0, 0, 0, 0, 0 },                 // do not apply any active wrench
-                              2,                                    // do not transform the force frame at all
-                              { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 });  // limits. See ScriptManual for
-                                                                    // details.
+
+  bool success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
+                                             { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
+                                             { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
+                                             2,                     // do not transform the force frame at all
+                                             { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 }  // limits. See ScriptManual
+                                             ,
+                                             0.8, 0.8);  // for details.
+  if (!success)
+  {
+    URCL_LOG_ERROR("Failed to start force mode.");
+    return 1;
+  }
 
   while (true)
   {
