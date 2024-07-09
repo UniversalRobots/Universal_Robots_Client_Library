@@ -128,15 +128,25 @@ public:
    * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
    * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
-  [[deprecated("Specifying the force mode damping factor and the force mode gain scaling factor at driver creation has "
-               "been deprecated. Force mode parameters should be specified with each activiation of force mode, and "
-               "can be set in the function call to start force mode.")]]
-  UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
-           const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
-           std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
-           const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time, bool non_blocking_read,
-           const std::string& reverse_ip, const uint32_t trajectory_port, const uint32_t script_command_port,
-           double force_mode_damping, double force_mode_gain_scaling = 0.5);
+  [[deprecated(
+      "Specifying the force mode damping factor and the force mode gain scaling factor at driver creation has "
+      "been deprecated. Force mode parameters should be specified with each activiation of force mode, and "
+      "can be set in the function call to start force mode.")]] UrDriver(const std::string& robot_ip,
+                                                                         const std::string& script_file,
+                                                                         const std::string& output_recipe_file,
+                                                                         const std::string& input_recipe_file,
+                                                                         std::function<void(bool)> handle_program_state,
+                                                                         bool headless_mode,
+                                                                         std::unique_ptr<ToolCommSetup> tool_comm_setup,
+                                                                         const uint32_t reverse_port,
+                                                                         const uint32_t script_sender_port,
+                                                                         int servoj_gain, double servoj_lookahead_time,
+                                                                         bool non_blocking_read,
+                                                                         const std::string& reverse_ip,
+                                                                         const uint32_t trajectory_port,
+                                                                         const uint32_t script_command_port,
+                                                                         double force_mode_damping,
+                                                                         double force_mode_gain_scaling = 0.5);
 
   /*!
    * \brief Constructs a new UrDriver object.
@@ -439,9 +449,9 @@ public:
    * \returns True, if the write was performed successfully, false otherwise.
    */
   [[deprecated("Starting force mode without specifying the force mode damping factor and gain scale factor has been "
-               "deprecated. These values should be given with each function call.")]]
-  bool startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
-                      const unsigned int type, const vector6d_t& limits);
+               "deprecated. These values should be given with each function call.")]] bool
+  startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
+                 const unsigned int type, const vector6d_t& limits);
 
   /*!
    * \brief Stop force mode and put the robot into normal operation mode.
