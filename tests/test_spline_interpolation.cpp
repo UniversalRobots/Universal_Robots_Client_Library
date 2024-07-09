@@ -153,12 +153,15 @@ protected:
 
   static void TearDownTestSuite()
   {
-    // Set target speed scaling to 100% as one test change this value
-    g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
-
     g_dashboard_client_->disconnect();
     // Remove temporary file again
     std::remove(SPLINE_SCRIPT_FILE.c_str());
+  }
+
+  void TearDown()
+  {
+    // Set target speed scaling to 100% as one test change this value
+    g_ur_driver_->getRTDEWriter().sendSpeedSlider(1);
   }
 
   void SetUp()
