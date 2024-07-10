@@ -61,6 +61,10 @@ SPLINE_QUINTIC = 2
 # Maximum allowable joint speed in rad/s
 MAX_JOINT_SPEED = 6.283185
 
+# Any motion commands resulting in a velocity higher than that will be ignored.
+JOINT_IGNORE_SPEED = 20.0
+last_violation_popup_counter = 0
+
 #Global variables are also showed in the Teach pendants variable list
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -93,12 +97,25 @@ def targetWithinLimits(step_start, step_end, time):
   local idx = 0
   while idx < 6:
     local velocity = norm(step_end[idx] - step_start[idx]) / time
-    if velocity > MAX_JOINT_SPEED:
-      local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Aborting script.")))
-      textmsg(str)
+    if velocity > JOINT_IGNORE_SPEED:
+      local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
+      if last_violation_popup_counter == 0:
+        textmsg(str)
+        popup(str, blocking=False)
+      elif last_violation_popup_counter * get_steptime() > 5.0:
+        # We want to have a log printed regularly. We are receiving motion commands that are not
+        # feasible. The user should have a chance to know about this.
+        textmsg(str)
+        last_violation_popup_counter = 0
+      end
+      last_violation_popup_counter = last_violation_popup_counter + 1
       return False
     end
     idx = idx + 1
+  end
+  if last_violation_popup_counter > 0:
+    textmsg("Received valid command. Resuming execution.")
+    last_violation_popup_counter = 0
   end
   return True
 end
@@ -149,8 +166,6 @@ thread servoThread():
       if targetWithinLimits(q_last, q, steptime):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
         q_last = q
-      else:
-        terminateProgram()
       end
 
     elif state == SERVO_RUNNING:
@@ -158,8 +173,6 @@ thread servoThread():
       if targetWithinLimits(q_last, q, steptime):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
         q_last = q
-      else:
-        terminateProgram()
       end
     else:
       extrapolate_count = 0
@@ -209,7 +222,6 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
   else:
     socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-    terminateProgram()
   end
 end
 
@@ -238,7 +250,6 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
   else:
     socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-    terminateProgram()
   end
 end
 
@@ -504,16 +515,12 @@ thread servoThreadP():
       q = extrapolate()
       if targetWithinLimits(q, get_steptime()):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-      else:
-        terminateProgram()
       end
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
       if targetWithinLimits(q, get_steptime()):
         servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-      else:
-        terminateProgram()
       end
     else:
       extrapolate_count = 0
