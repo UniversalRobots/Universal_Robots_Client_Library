@@ -63,9 +63,9 @@ MAX_JOINT_SPEED = 6.283185
 
 # Any motion commands resulting in a velocity higher than that will be ignored.
 JOINT_IGNORE_SPEED = 20.0
-last_violation_popup_counter = 0
 
 #Global variables are also showed in the Teach pendants variable list
+global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_servo_q = get_actual_joint_positions()
@@ -99,23 +99,24 @@ def targetWithinLimits(step_start, step_end, time):
     local velocity = norm(step_end[idx] - step_start[idx]) / time
     if velocity > JOINT_IGNORE_SPEED:
       local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
-      if last_violation_popup_counter == 0:
-        textmsg(str)
-        popup(str, title="External Control error", blocking=False)
-      elif last_violation_popup_counter * get_steptime() > 5.0:
+      if violation_popup_counter == 0:
+        # We want a popup when an invalid commant is sent. As long as we keep sending invalid
+        # commands, we do not want to repeat the popup.
+        popup(str, title="External Control error", blocking=False, error=True)
+      end
+      if violation_popup_counter * get_steptime() % 5.0 == 0:
         # We want to have a log printed regularly. We are receiving motion commands that are not
         # feasible. The user should have a chance to know about this.
         textmsg(str)
-        last_violation_popup_counter = 0
       end
-      last_violation_popup_counter = last_violation_popup_counter + 1
+      violation_popup_counter = violation_popup_counter + 1
       return False
     end
     idx = idx + 1
   end
-  if last_violation_popup_counter > 0:
+  if violation_popup_counter > 0:
     textmsg("Received valid command. Resuming execution.")
-    last_violation_popup_counter = 0
+    violation_popup_counter = 0
   end
   return True
 end
