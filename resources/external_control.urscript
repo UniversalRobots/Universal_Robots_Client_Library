@@ -101,7 +101,7 @@ def targetWithinLimits(step_start, step_end, time):
       local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
       if last_violation_popup_counter == 0:
         textmsg(str)
-        popup(str, blocking=False)
+        popup(str, title="External Control error", blocking=False)
       elif last_violation_popup_counter * get_steptime() > 5.0:
         # We want to have a log printed regularly. We are receiving motion commands that are not
         # feasible. The user should have a chance to know about this.
@@ -207,9 +207,10 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
   local start_q = get_target_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
-    textmsg("Spline time shouldn't be zero as it would require infinite velocity to reach the target. Aborting script.")
+    error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
+    textmsg(error_str)
     socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-    terminateProgram()
+    popup(error_str, title="External Control error", blocking=False, error=True)
   elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
 
@@ -232,9 +233,10 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
   local start_q = get_target_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
-    textmsg("Spline time shouldn't be zero as it would require infinite velocity to reach the target. Aborting script.")
+    error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
+    textmsg(error_str)
     socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-    terminateProgram()
+    popup(error_str, title="External Control error", blocking=False, error=True)
   elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
     local start_qdd = spline_qdd
