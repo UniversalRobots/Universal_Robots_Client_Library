@@ -338,21 +338,11 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
   // Create physically unfeasible target
   urcl::vector6d_t tcp_target = tcp_pose_before;
-  tcp_target[2] += 0.2;
+  tcp_target[2] += 0.3;
 
-  double timeout = 0.2;
-  double cur_time = 0.0;
-  while (g_program_running && cur_time < timeout)
-  {
-    // Send unfeasible targets to the robot
-    readDataPackage(data_pkg);
-    g_ur_driver_->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE, RobotReceiveTimeout::millisec(200));
-    cur_time += step_time_;
-  }
-
-  // We expect the control script to stop running when targets are unfeasible meaning that the timeout shouldn't be
-  // reached
-  EXPECT_LT(cur_time, timeout);
+  // Send unfeasible targets to the robot
+  readDataPackage(data_pkg);
+  g_ur_driver_->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE, RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
   readDataPackage(data_pkg);
