@@ -39,6 +39,8 @@
 #include <memory>
 #include <math.h>
 #include <fstream>
+#include <ostream>
+#include <thread>
 
 using namespace urcl;
 
@@ -964,9 +966,9 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
   g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                               RobotReceiveTimeout::off());
 
-  // When an illegal trajectory is send to the robot, the control script should stop running and the trajectory result
-  // should be canceled
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  // When an illegal trajectory is send to the robot, the control script should keep running but the trajectory result
+  // should be canceled.
+  ASSERT_FALSE(waitForProgramNotRunning(1000));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
 
   // Stop consuming rtde packages
@@ -990,7 +992,7 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
   urcl::vector6d_t joint_positions_before;
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
 
-  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  // Start consuming rtde packages to avoid pipeline overflows while testing
   g_consume_rtde_packages_ = true;
 
   // Create illegal trajectory
@@ -1010,9 +1012,9 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
   g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                               RobotReceiveTimeout::off());
 
-  // When an illegal trajectory is send to the robot, the control script should stop running and the trajectory result
+  // When an illegal trajectory is send to the robot, the control script should keep running but the trajectory result
   // should be canceled
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  ASSERT_FALSE(waitForProgramNotRunning(1000));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
 
   // Stop consuming rtde packages
@@ -1057,9 +1059,9 @@ TEST_F(SplineInterpolationTest, physically_unfeasible_trajectory_cubic_spline)
   g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                               RobotReceiveTimeout::off());
 
-  // When an unfeasible trajectory is send to the robot, the control script should stop running and the trajectory
+  // When an unfeasible trajectory is send to the robot, the control script should keep running but the trajectory
   // result should be canceled
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  ASSERT_FALSE(waitForProgramNotRunning(1000));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
 
   // Stop consuming rtde packages
@@ -1105,9 +1107,9 @@ TEST_F(SplineInterpolationTest, physically_unfeasible_trajectory_quintic_spline)
   g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                               RobotReceiveTimeout::off());
 
-  // When an unfeasible trajectory is send to the robot, the control script should stop running and the trajectory
+  // When an unfeasible trajectory is send to the robot, the control script should keep running but the trajectory
   // result should be canceled
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  ASSERT_FALSE(waitForProgramNotRunning(1000));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result_);
 
   // Stop consuming rtde packages
