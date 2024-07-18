@@ -122,6 +122,11 @@ def targetWithinLimits(step_start, step_end, time):
   return True
 end
 
+def trajectory_result_to_str(trajectory_result):
+  trajectory_result_strings = ["SUCCESS", "CANCELED", "FAILURE"]
+  return trajectory_result_strings[trajectory_result]
+end
+
 def terminateProgram():
   textmsg("Terminating robot program due to targets sent to the robot is violating robot constraints.")
   stopj(STOPJ_ACCELERATION)
@@ -470,7 +475,7 @@ thread trajectoryThread():
   exit_critical
   stopj(STOPJ_ACCELERATION)
   socket_send_int(trajectory_result, "trajectory_socket")
-  textmsg("Trajectory finished with result ", trajectory_result)
+  textmsg("Trajectory finished with result ", trajectory_result_to_str(trajectory_result))
 end
 
 def clear_remaining_trajectory_points():
