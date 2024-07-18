@@ -952,14 +952,21 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
 
   // Create illegal trajectory
   std::vector<urcl::vector6d_t> s_pos, s_vel;
-  urcl::vector6d_t first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
-                                   joint_positions_before[3], joint_positions_before[4], 4.15364583e-03 };
+  urcl::vector6d_t first_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.1
+  };
+  urcl::vector6d_t second_point = { joint_positions_before[0], joint_positions_before[1],
+                                    joint_positions_before[2], joint_positions_before[3],
+                                    joint_positions_before[4], joint_positions_before[5] - 0.5 };
   s_pos.push_back(first_point);
+  s_pos.push_back(second_point);
 
   urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
   s_vel.push_back(zeros);
+  s_vel.push_back(zeros);
 
-  std::vector<double> s_time = { 0.0 };
+  std::vector<double> s_time = { 0.0, 1.0 };
 
   // Send illegal trajectory to the robot
   sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
@@ -982,6 +989,36 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
   {
     EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
   }
+
+  // If the first point is very close to the current position, then a 0 time for that is fine
+  first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+                  joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] };
+  second_point = { -1.6, -1.72, -2.175, -0.78, 1.623, -0.5 };
+  urcl::vector6d_t third_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.1
+  };
+  s_pos = { first_point, second_point, third_point };
+  s_vel = { zeros, zeros, zeros };
+  s_time = { 0.0, 1.0, 2.0 };
+  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
+  g_trajectory_running_ = true;
+  waitForTrajectoryStarted();
+  urcl::vector6d_t joint_positions;
+  while (g_trajectory_running_)
+  {
+    readDataPackage(data_pkg);
+    ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
+    // Keep connection alive
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
+  }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
+
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_NEAR(joint_positions[i], third_point[i], eps_);
+  }
 }
 
 TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
@@ -997,8 +1034,10 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
 
   // Create illegal trajectory
   std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
-  urcl::vector6d_t first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
-                                   joint_positions_before[3], joint_positions_before[4], 4.15364583e-03 };
+  urcl::vector6d_t first_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.2
+  };
   s_pos.push_back(first_point);
 
   urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -1027,6 +1066,37 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
   for (unsigned int i = 0; i < 6; ++i)
   {
     EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
+  }
+  //
+  // If the first point is very close to the current position, then a 0 time for that is fine
+  first_point = { joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+                  joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] };
+  urcl::vector6d_t second_point = { -1.6, -1.72, -2.175, -0.78, 1.623, -0.5 };
+  urcl::vector6d_t third_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.1
+  };
+  s_pos = { first_point, second_point, third_point };
+  s_vel = { zeros, zeros, zeros };
+  s_acc = { zeros, zeros, zeros };
+  s_time = { 0.0, 1.0, 2.0 };
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  g_trajectory_running_ = true;
+  waitForTrajectoryStarted();
+  urcl::vector6d_t joint_positions;
+  while (g_trajectory_running_)
+  {
+    readDataPackage(data_pkg);
+    ASSERT_TRUE(data_pkg->getData("target_q", joint_positions));
+    // Keep connection alive
+    ASSERT_TRUE(g_ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
+  }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result_);
+
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_after));
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_NEAR(joint_positions[i], third_point[i], eps_);
   }
 }
 
