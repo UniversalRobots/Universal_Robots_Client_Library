@@ -207,13 +207,23 @@ thread speedThread():
   stopj(STOPJ_ACCELERATION)
 end
 
-def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
+def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=False):
   local str = str_cat(end_q, str_cat(end_qd, time))
   textmsg("Cubic spline arg: ", str)
 
   local start_q = get_target_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
+    if is_first_point and time == 0.0:
+      # If users specify the current joint position with time 0 that may be fine, in that case just
+      # ignore that point
+      local distance = norm(end_q - get_target_joint_positions())
+      if distance < 0.01:
+        local splineTimerTraveled = 0.0
+        # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
+        return None
+      end
+    end
     error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
     textmsg(error_str)
     trajectory_result = TRAJECTORY_RESULT_CANCELED
@@ -233,13 +243,21 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
   end
 end
 
-def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
+def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False, is_first_point=False):
   local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
   textmsg("Quintic spline arg: ", str)
 
   local start_q = get_target_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
+    if is_first_point and time == 0.0:
+      # If users specify the current joint position with time 0 that may be fine, in that case just
+      # ignore that point
+      local distance = norm(end_q - get_target_joint_positions())
+      if distance < 0.01:
+        return None
+      end
+    end
     error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
     textmsg(error_str)
     trajectory_result = TRAJECTORY_RESULT_CANCELED
@@ -410,6 +428,7 @@ end
 
 thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
+  local is_first_point = True
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
@@ -455,7 +474,7 @@ thread trajectoryThread():
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          cubicSplineRun(q, qd, tmptime, is_last_point)
+          cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point)
           # reset old acceleration
           spline_qdd = [0, 0, 0, 0, 0, 0]
 
@@ -463,14 +482,18 @@ thread trajectoryThread():
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-          quinticSplineRun(q, qd, qdd, tmptime, is_last_point)
+          quinticSplineRun(q, qd, qdd, tmptime, is_last_point, is_first_point)
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           clear_remaining_trajectory_points()
           trajectory_result = TRAJECTORY_RESULT_FAILURE
         end
       end
+    else:
+      textmsg("Receiving trajectory point failed!")
+      trajectory_result = TRAJECTORY_RESULT_FAILURE
     end
+    is_first_point = False
   end
   exit_critical
   stopj(STOPJ_ACCELERATION)
