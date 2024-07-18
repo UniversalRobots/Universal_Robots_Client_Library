@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
         return 1;
       }
-      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString());
+      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
     }
     else
     {
