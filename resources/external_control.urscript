@@ -440,7 +440,7 @@ thread trajectoryThread():
   trajectory_result = TRAJECTORY_RESULT_SUCCESS
   while trajectory_result == TRAJECTORY_RESULT_SUCCESS and trajectory_points_left > 0:
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", get_steptime())
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", 0.2)
     trajectory_points_left = trajectory_points_left - 1
 
     if raw_point[0] > 0:
