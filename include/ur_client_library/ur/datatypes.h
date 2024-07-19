@@ -79,6 +79,12 @@ enum class SafetyStatus : int8_t  // Only available on 3.10/5.4
   SYSTEM_THREE_POSITION_ENABLING_STOP = 13
 };
 
+enum class AnalogOutputType : uint8_t
+{
+  CURRENT = 0,
+  VOLTAGE = 1
+};
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)
