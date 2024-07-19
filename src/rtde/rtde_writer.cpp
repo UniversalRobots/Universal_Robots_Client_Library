@@ -221,11 +221,10 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
     return false;
   }
 
-
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
 
-  auto output_type_bits = [](const uint8_t pin, const uint8_t type){return type << pin;};
+  auto output_type_bits = [](const uint8_t pin, const uint8_t type) { return type << pin; };
   uint8_t output_type = output_type_bits(output_pin, toUnderlying(type));
   bool success = true;
   success = package_.setData("standard_analog_output_mask", mask);
