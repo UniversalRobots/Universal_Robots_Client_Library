@@ -204,7 +204,7 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
   return success;
 }
 
-bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value)
+bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, const AnalogOutputType type)
 {
   if (output_pin > 1)
   {
@@ -223,8 +223,9 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value)
 
   std::lock_guard<std::mutex> guard(package_mutex_);
   uint8_t mask = pinToMask(output_pin);
-  // default to current for now, as no functionality to choose included in set io service
-  uint8_t output_type = 0;
+
+  auto output_type_bits = [](const uint8_t pin, const uint8_t type) { return type << pin; };
+  uint8_t output_type = output_type_bits(output_pin, toUnderlying(type));
   bool success = true;
   success = package_.setData("standard_analog_output_mask", mask);
   success = success && package_.setData("standard_analog_output_type", output_type);
