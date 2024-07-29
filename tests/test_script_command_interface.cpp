@@ -64,11 +64,11 @@ protected:
 
     void readMessage(int32_t& command, std::vector<int32_t>& message)
     {
-      // Max message length is 26
-      uint8_t buf[sizeof(int32_t) * 26];
+      // Max message length is 28
+      uint8_t buf[sizeof(int32_t) * 28];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 26;
+      size_t remainder = sizeof(int32_t) * 28;
       while (remainder > 0)
       {
         if (!TCPSocket::read(b_pos, remainder, read))
@@ -252,7 +252,10 @@ TEST_F(ScriptCommandInterfaceTest, test_force_mode)
   urcl::vector6d_t wrench = { 20, 0, 40, 0, 0, 0 };
   int32_t force_mode_type = 2;
   urcl::vector6d_t limits = { 0.1, 0.1, 0.1, 0.785, 0.785, 1.57 };
-  script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, force_mode_type, &limits);
+  double damping = 0.8;
+  double gain_scaling = 0.8;
+  script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, force_mode_type, &limits, damping,
+                                            gain_scaling);
 
   int32_t command;
   std::vector<int32_t> message;
@@ -298,8 +301,16 @@ TEST_F(ScriptCommandInterfaceTest, test_force_mode)
     EXPECT_EQ(received_limits[i], limits[i]);
   }
 
+  // Test damping return
+  double received_damping = (double)message[25] / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_damping, damping);
+
+  // Test Gain scaling return
+  double received_gain = (double)message[26] / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_gain, gain_scaling);
+
   // The rest of the message should be zero
-  int32_t message_sum = std::accumulate(std::begin(message) + 25, std::end(message), 0);
+  int32_t message_sum = std::accumulate(std::begin(message) + 27, std::end(message), 0);
   int32_t expected_message_sum = 0;
   EXPECT_EQ(message_sum, expected_message_sum);
 
