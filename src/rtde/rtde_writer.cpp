@@ -216,7 +216,7 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
   if (value > 1.0 || value < 0.0)
   {
     std::stringstream ss;
-    ss << "Analog output value should be between 0 and 1. The value is " << static_cast<int>(value);
+    ss << "Analog output value should be between 0 and 1. The value is " << static_cast<double>(value);
     URCL_LOG_ERROR(ss.str().c_str());
     return false;
   }
