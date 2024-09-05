@@ -120,13 +120,13 @@ public:
    * \param output_pin The pin to change
    * \param value The new value, it should be between 0 and 1, where 0 is 4mA and 1 is 20mA.
    * \param type The domain for the output can be eitherAnalogOutputType::CURRENT or  AnalogOutputType::VOLTAGE or
-   * AnalogOutputType::UNKNOWN. In the latter case the domain is left untouched and the domain configured on the teach
-   * pendant will be used.
+   * AnalogOutputType::SET_ON_TEACH_PENDANT. In the latter case the domain is left untouched and the domain configured
+   * on the teach pendant will be used.
    *
    * \returns Success of the package creation
    */
   bool sendStandardAnalogOutput(uint8_t output_pin, double value,
-                                const AnalogOutputType type = AnalogOutputType::UNKNOWN);
+                                const AnalogOutputType type = AnalogOutputType::SET_ON_TEACH_PENDANT);
 
   /*!
    * \brief Creates a package to request setting a new value for an input_bit_register

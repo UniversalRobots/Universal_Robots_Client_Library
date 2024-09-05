@@ -81,7 +81,7 @@ enum class SafetyStatus : int8_t  // Only available on 3.10/5.4
 
 enum class AnalogOutputType : int8_t
 {
-  UNKNOWN = -1,
+  SET_ON_TEACH_PENDANT = -1,
   CURRENT = 0,
   VOLTAGE = 1
 };

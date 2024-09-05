@@ -226,7 +226,7 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
 
   bool success = true;
   success = package_.setData("standard_analog_output_mask", mask);
-  if (type != AnalogOutputType::UNKNOWN)
+  if (type != AnalogOutputType::SET_ON_TEACH_PENDANT)
   {
     auto output_type_bits = [](const uint8_t pin, const uint8_t type) { return type << pin; };
     uint8_t output_type = output_type_bits(output_pin, toUnderlying(type));
