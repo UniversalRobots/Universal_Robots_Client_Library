@@ -221,6 +221,7 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=Fals
       if distance < 0.01:
         local splineTimerTraveled = 0.0
         # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
+        textmsg("Ignoring first point with time 0")
         return None
       end
     end
@@ -228,6 +229,7 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=Fals
     textmsg(error_str)
     trajectory_result = TRAJECTORY_RESULT_CANCELED
     popup(error_str, title="External Control error", blocking=False, error=True)
+    return False
   elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
 
@@ -238,8 +240,10 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=Fals
     local coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     local coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+    return True
   else:
     trajectory_result = TRAJECTORY_RESULT_CANCELED
+    return False
   end
 end
 
@@ -262,6 +266,7 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False, is_first
     textmsg(error_str)
     trajectory_result = TRAJECTORY_RESULT_CANCELED
     popup(error_str, title="External Control error", blocking=False, error=True)
+    return False
   elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
     local start_qdd = spline_qdd
@@ -275,8 +280,10 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False, is_first
     local coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0 * start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * pow(time, 4))
     local coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * pow(time, 5))
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+    return True
   else:
     trajectory_result = TRAJECTORY_RESULT_CANCELED
+    return False
   end
 end
 
@@ -429,6 +436,7 @@ end
 thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
   local is_first_point = True
+  local is_robot_moving = False
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
@@ -438,9 +446,14 @@ thread trajectoryThread():
   spline_qd = [0, 0, 0, 0, 0, 0]
   enter_critical
   trajectory_result = TRAJECTORY_RESULT_SUCCESS
+
   while trajectory_result == TRAJECTORY_RESULT_SUCCESS and trajectory_points_left > 0:
+    local timeout = 0.5
+    if is_robot_moving:
+      timeout = get_steptime()
+    end
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", 0.2)
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", timeout)
     trajectory_points_left = trajectory_points_left - 1
 
     if raw_point[0] > 0:
@@ -474,7 +487,9 @@ thread trajectoryThread():
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point)
+          if cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point):
+            is_robot_moving = True
+          end
           # reset old acceleration
           spline_qdd = [0, 0, 0, 0, 0, 0]
 
@@ -482,7 +497,9 @@ thread trajectoryThread():
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-          quinticSplineRun(q, qd, qdd, tmptime, is_last_point, is_first_point)
+          if quinticSplineRun(q, qd, qdd, tmptime, is_last_point, is_first_point):
+            is_robot_moving = True
+          end
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           clear_remaining_trajectory_points()
