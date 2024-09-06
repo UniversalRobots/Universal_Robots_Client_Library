@@ -260,9 +260,12 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
   EXPECT_FALSE(writer_->sendToolDigitalOutput(pin, send_pin_value));
 }
 
-TEST_F(RTDEWriterTest, send_standard_analog_output)
+TEST_F(RTDEWriterTest, send_standard_analog_output_unknown_domain)
 {
+  waitForMessageCallback(1000);
+
   uint8_t expected_standard_analog_output_mask = 1;
+
   uint8_t pin = 0;
   double send_analog_output = 1;
   EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output));
@@ -272,26 +275,100 @@ TEST_F(RTDEWriterTest, send_standard_analog_output)
   ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
   ASSERT_TRUE(dataFieldExist("standard_analog_output_1"));
   ASSERT_TRUE(dataFieldExist("standard_analog_output_mask"));
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_type"));
 
   double received_analog_output = std::get<double>(parsed_data_["standard_analog_output_0"]);
   uint8_t received_standard_analog_output_mask = std::get<uint8_t>(parsed_data_["standard_analog_output_mask"]);
+  uint8_t received_standard_analog_output_type = std::get<uint8_t>(parsed_data_["standard_analog_output_type"]);
 
   EXPECT_EQ(send_analog_output, received_analog_output);
   EXPECT_EQ(expected_standard_analog_output_mask, received_standard_analog_output_mask);
+  // The test server sets this to 0 if not given
+  EXPECT_EQ(0, received_standard_analog_output_type);
+}
+
+TEST_F(RTDEWriterTest, send_standard_analog_output_voltage)
+{
+  uint8_t pin = 0;
+  AnalogOutputType type = AnalogOutputType::VOLTAGE;
+  double send_analog_output = 1;
+
+  uint8_t expected_standard_analog_output_mask = 1;
+  uint8_t expected_standard_analog_output_type = 1;
+
+  EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output, type));
+
+  waitForMessageCallback(1000);
+
+  double received_analog_output = std::get<double>(parsed_data_["standard_analog_output_0"]);
+  uint8_t received_standard_analog_output_mask = std::get<uint8_t>(parsed_data_["standard_analog_output_mask"]);
+  uint8_t received_standard_analog_output_type = std::get<uint8_t>(parsed_data_["standard_analog_output_type"]);
+
+  EXPECT_EQ(send_analog_output, received_analog_output);
+  EXPECT_EQ(expected_standard_analog_output_mask, received_standard_analog_output_mask);
+  EXPECT_EQ(expected_standard_analog_output_type, received_standard_analog_output_type);
 
   pin = 1;
   expected_standard_analog_output_mask = 2;
-  EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output));
+  expected_standard_analog_output_type = 2;
+
+  EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output, type));
 
   waitForMessageCallback(1000);
 
   received_analog_output = std::get<double>(parsed_data_["standard_analog_output_1"]);
   received_standard_analog_output_mask = std::get<uint8_t>(parsed_data_["standard_analog_output_mask"]);
+  received_standard_analog_output_type = std::get<uint8_t>(parsed_data_["standard_analog_output_type"]);
 
   EXPECT_EQ(send_analog_output, received_analog_output);
   EXPECT_EQ(expected_standard_analog_output_mask, received_standard_analog_output_mask);
+  EXPECT_EQ(expected_standard_analog_output_type, received_standard_analog_output_type);
+}
 
-  // Changing pins above 1, should return false.
+TEST_F(RTDEWriterTest, send_standard_analog_output_current)
+{
+  uint8_t pin = 0;
+  AnalogOutputType type = AnalogOutputType::CURRENT;
+  double send_analog_output = 1;
+
+  uint8_t expected_standard_analog_output_mask = 1;
+  uint8_t expected_standard_analog_output_type = 0;
+
+  EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output, type));
+
+  waitForMessageCallback(1000);
+
+  double received_analog_output = std::get<double>(parsed_data_["standard_analog_output_0"]);
+  uint8_t received_standard_analog_output_mask = std::get<uint8_t>(parsed_data_["standard_analog_output_mask"]);
+  uint8_t received_standard_analog_output_type = std::get<uint8_t>(parsed_data_["standard_analog_output_type"]);
+
+  EXPECT_EQ(send_analog_output, received_analog_output);
+  EXPECT_EQ(expected_standard_analog_output_mask, received_standard_analog_output_mask);
+  EXPECT_EQ(expected_standard_analog_output_type, received_standard_analog_output_type);
+
+  pin = 1;
+  expected_standard_analog_output_mask = 2;
+  expected_standard_analog_output_type = 0;
+
+  EXPECT_TRUE(writer_->sendStandardAnalogOutput(pin, send_analog_output, type));
+
+  waitForMessageCallback(1000);
+
+  received_analog_output = std::get<double>(parsed_data_["standard_analog_output_1"]);
+  received_standard_analog_output_mask = std::get<uint8_t>(parsed_data_["standard_analog_output_mask"]);
+  received_standard_analog_output_type = std::get<uint8_t>(parsed_data_["standard_analog_output_type"]);
+
+  EXPECT_EQ(send_analog_output, received_analog_output);
+  EXPECT_EQ(expected_standard_analog_output_mask, received_standard_analog_output_mask);
+  EXPECT_EQ(expected_standard_analog_output_type, received_standard_analog_output_type);
+}
+
+TEST_F(RTDEWriterTest, send_standard_analog_output_illegal_input_fails)
+{
+  uint8_t pin = 0;
+  double send_analog_output = 1;
+
+  // Pin should be either 0 or 1
   pin = 2;
   EXPECT_FALSE(writer_->sendStandardAnalogOutput(pin, send_analog_output));
 

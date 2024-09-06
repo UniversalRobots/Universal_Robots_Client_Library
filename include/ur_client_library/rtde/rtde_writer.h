@@ -34,6 +34,7 @@
 #include "ur_client_library/rtde/data_package.h"
 #include "ur_client_library/comm/stream.h"
 #include "ur_client_library/queue/readerwriterqueue.h"
+#include "ur_client_library/ur/datatypes.h"
 #include <thread>
 #include <mutex>
 
@@ -118,10 +119,14 @@ public:
    *
    * \param output_pin The pin to change
    * \param value The new value, it should be between 0 and 1, where 0 is 4mA and 1 is 20mA.
+   * \param type The domain for the output can be eitherAnalogOutputType::CURRENT or  AnalogOutputType::VOLTAGE or
+   * AnalogOutputType::SET_ON_TEACH_PENDANT. In the latter case the domain is left untouched and the domain configured
+   * on the teach pendant will be used.
    *
    * \returns Success of the package creation
    */
-  bool sendStandardAnalogOutput(uint8_t output_pin, double value);
+  bool sendStandardAnalogOutput(uint8_t output_pin, double value,
+                                const AnalogOutputType type = AnalogOutputType::SET_ON_TEACH_PENDANT);
 
   /*!
    * \brief Creates a package to request setting a new value for an input_bit_register
