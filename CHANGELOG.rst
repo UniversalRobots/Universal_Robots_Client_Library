@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2024-09-10)
+------------------
 * Ensure that the targets are reachable within the robots limits (`#184 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/184>`_)
 * Analog domain (`#211 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/211>`_)
 * Fix clang compilation error (`#210 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/210>`_)
