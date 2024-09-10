@@ -58,7 +58,14 @@ UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
 SPLINE_CUBIC = 1
 SPLINE_QUINTIC = 2
 
+# Maximum allowable joint speed in rad/s
+MAX_JOINT_SPEED = 6.283185
+
+# Any motion commands resulting in a velocity higher than that will be ignored.
+JOINT_IGNORE_SPEED = 20.0
+
 #Global variables are also showed in the Teach pendants variable list
+global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_servo_q = get_actual_joint_positions()
@@ -71,11 +78,68 @@ global trajectory_points_left = 0
 global spline_qdd = [0, 0, 0, 0, 0, 0]
 global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
+global trajectory_result = 0
 
 # Global thread variables
 thread_move = 0
 thread_trajectory = 0
 thread_script_commands = 0
+
+###
+# @brief Function to verify whether the specified target can be reached within the defined time frame while staying within
+# the robot's speed limits
+#
+# @param target array is the joint target to reach
+# @param time float is the time to reach the target
+#
+# @returns bool true if the target is reachable within the robot's speed limits, false otherwise
+###
+def targetWithinLimits(step_start, step_end, time):
+  local idx = 0
+  while idx < 6:
+    local velocity = norm(step_end[idx] - step_start[idx]) / time
+    if velocity > JOINT_IGNORE_SPEED:
+      local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
+      if violation_popup_counter == 0:
+        # We want a popup when an invalid commant is sent. As long as we keep sending invalid
+        # commands, we do not want to repeat the popup.
+        popup(str, title="External Control error", blocking=False, error=True)
+      end
+      if violation_popup_counter * get_steptime() % 5.0 == 0:
+        # We want to have a log printed regularly. We are receiving motion commands that are not
+        # feasible. The user should have a chance to know about this.
+        textmsg(str)
+      end
+      violation_popup_counter = violation_popup_counter + 1
+      return False
+    end
+    idx = idx + 1
+  end
+  if violation_popup_counter > 0:
+    textmsg("Received valid command. Resuming execution.")
+    violation_popup_counter = 0
+  end
+  return True
+end
+
+def trajectory_result_to_str(trajectory_result):
+  if trajectory_result == TRAJECTORY_RESULT_SUCCESS:
+    return "SUCCESS"
+  end
+  if trajectory_result == TRAJECTORY_RESULT_CANCELED:
+    return "CANCELED"
+  end
+  if trajectory_result == TRAJECTORY_RESULT_FAILURE:
+    return "FAILURE"
+  end
+  return "UNKNOWN"
+end
+
+def terminateProgram():
+  textmsg("Terminating robot program due to targets sent to the robot is violating robot constraints.")
+  stopj(STOPJ_ACCELERATION)
+  halt
+end
 
 def set_servo_setpoint(q):
   cmd_servo_state = SERVO_RUNNING
@@ -94,6 +158,7 @@ end
 thread servoThread():
   textmsg("ExternalControl: Starting servo thread")
   state = SERVO_IDLE
+  local q_last = get_target_joint_positions()
   while control_mode == MODE_SERVOJ:
     enter_critical
     q = cmd_servo_q
@@ -113,11 +178,17 @@ thread servoThread():
       end
 
       q = extrapolate()
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q_last, q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+        q_last = q
+      end
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q_last, q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+        q_last = q
+      end
     else:
       extrapolate_count = 0
       sync()
@@ -144,13 +215,32 @@ thread speedThread():
   stopj(STOPJ_ACCELERATION)
 end
 
-def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
+# Function return value (bool) determines whether the robot is moving after this spline segment or
+# not.
+def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=False):
   local str = str_cat(end_q, str_cat(end_qd, time))
   textmsg("Cubic spline arg: ", str)
 
-  # Zero time means zero length and therefore no motion to execute
-  if time > 0.0:
-    local start_q = get_target_joint_positions()
+  local start_q = get_target_joint_positions()
+  # Zero time means infinite velocity to reach the target and is therefore impossible
+  if time <= 0.0:
+    if is_first_point and time == 0.0:
+      # If users specify the current joint position with time 0 that may be fine, in that case just
+      # ignore that point
+      local distance = norm(end_q - get_target_joint_positions())
+      if distance < 0.01:
+        local splineTimerTraveled = 0.0
+        # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
+        textmsg("Ignoring first point with time 0")
+        return False
+      end
+    end
+    error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
+    textmsg(error_str)
+    trajectory_result = TRAJECTORY_RESULT_CANCELED
+    popup(error_str, title="External Control error", blocking=False, error=True)
+    return False
+  elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
 
     # Coefficients0 is not included, since we do not need to calculate the position
@@ -160,16 +250,36 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False):
     local coefficients4 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     local coefficients5 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+    return True and (is_last_point == False)
+  else:
+    trajectory_result = TRAJECTORY_RESULT_CANCELED
+    return False
   end
 end
 
-def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
+# Function return value (bool) determines whether the robot is moving after this spline segment or
+# not.
+def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False, is_first_point=False):
   local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
   textmsg("Quintic spline arg: ", str)
 
-  # Zero time means zero length and therefore no motion to execute
-  if time > 0.0:
-    local start_q = get_target_joint_positions()
+  local start_q = get_target_joint_positions()
+  # Zero time means infinite velocity to reach the target and is therefore impossible
+  if time <= 0.0:
+    if is_first_point and time == 0.0:
+      # If users specify the current joint position with time 0 that may be fine, in that case just
+      # ignore that point
+      local distance = norm(end_q - get_target_joint_positions())
+      if distance < 0.01:
+        return False
+      end
+    end
+    error_str = "Spline time shouldn't be zero as it would require infinite velocity to reach the target. Canceling motion."
+    textmsg(error_str)
+    trajectory_result = TRAJECTORY_RESULT_CANCELED
+    popup(error_str, title="External Control error", blocking=False, error=True)
+    return False
+  elif targetWithinLimits(start_q, end_q, time):
     local start_qd = spline_qd
     local start_qdd = spline_qdd
 
@@ -182,6 +292,10 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False):
     local coefficients4 = (30.0 * start_q - 30.0 * end_q + 3.0 * start_qdd * TIME2 - 2.0 * end_qdd * TIME2 + 16.0 * start_qd * time + 14.0 * end_qd * time) / (2.0 * pow(time, 4))
     local coefficients5 = (-12.0 * start_q + 12.0 * end_q - start_qdd * TIME2 + end_qdd * TIME2 - 6.0 * start_qd * time - 6.0 * end_qd * time) / (2.0 * pow(time, 5))
     jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, time, is_last_point)
+    return True and (is_last_point == False)
+  else:
+    trajectory_result = TRAJECTORY_RESULT_CANCELED
+    return False
   end
 end
 
@@ -199,10 +313,8 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
 
     # Maximum deceleration in rad/s^2
     local max_deceleration = 15
-    # Maximum allowable joint speed in rad/s
-    local max_speed = 6.283185
     # The time needed to decelerate with 15 rad/s^2 to reach zero velocity when we move at maximum velocity.
-    local deceleration_time = max_speed / max_deceleration
+    local deceleration_time = MAX_JOINT_SPEED / max_deceleration
 
     # If the velocity is too large close to the end of the trajectory we scale the
     # trajectory, such that we follow the positional part of the trajectory, but end with zero velocity.
@@ -213,7 +325,7 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
         local qd = jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled + get_steptime())
         # Compute the time left to decelerate if we take a full time step
         local x = deceleration_time - (time_left - get_steptime())
-        is_slowing_down = checkSlowDownRequired(x, qd, max_speed, max_deceleration)
+        is_slowing_down = checkSlowDownRequired(x, qd, max_deceleration)
 
         if is_slowing_down == True:
           # This will ensure that we scale the trajectory right away
@@ -280,18 +392,22 @@ def jointSplinePeek(coefficients1, coefficients2, coefficients3, coefficients4, 
   return qd
 end
 
-# \brief Helper function to figure out if we need to slown down velocity at the last part of the last spline segment.
+
+###
+# @brief Helper function to figure out if we need to slown down velocity at the last part of the last spline segment.
 #
 # The max_speed and max_deceleration is used to compute a linear velocity profile as function of the time left to decelerate,
 # then we can use the time left to decelerate to find the maximum allowed speed given the time we have left. If we are above
 # the maximum allowed speed, we start slowing down.
 #
-# \param 'x' is the time left to decelerate.
-# \param 'qd' is the velocity if we take a full step ahead in the spline.
-# \param 'max_speed' maximum allowed joint speed 6.283185 rad/s
-# \param 'max_deceleration' is the maximum allowed deceleration 15 rad/s^2.
-def checkSlowDownRequired(x, qd, max_speed, max_deceleration):
-  local max_allowable_speed = max_speed - x * max_deceleration
+# @param x float is the time left to decelerate
+# @param qd array is the velocity if we take a full step ahead in the spline
+# @param max_deceleration float is the maximum allowed deceleration 15 rad/s^2
+#
+# @returns bool True if slow don is required, false otherwise
+###
+def checkSlowDownRequired(x, qd, max_deceleration):
+  local max_allowable_speed = MAX_JOINT_SPEED - x * max_deceleration
   local idx = 0
   while idx < 6:
     if norm(qd[idx]) > max_allowable_speed:
@@ -331,6 +447,8 @@ end
 
 thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
+  local is_first_point = True
+  local is_robot_moving = False
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
@@ -339,9 +457,15 @@ thread trajectoryThread():
   spline_qdd = [0, 0, 0, 0, 0, 0]
   spline_qd = [0, 0, 0, 0, 0, 0]
   enter_critical
-  while trajectory_points_left > 0:
+  trajectory_result = TRAJECTORY_RESULT_SUCCESS
+
+  while trajectory_result == TRAJECTORY_RESULT_SUCCESS and trajectory_points_left > 0:
+    local timeout = 0.5
+    if is_robot_moving:
+      timeout = get_steptime()
+    end
     #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", get_steptime())
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", timeout)
     trajectory_points_left = trajectory_points_left - 1
 
     if raw_point[0] > 0:
@@ -375,7 +499,7 @@ thread trajectoryThread():
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          cubicSplineRun(q, qd, tmptime, is_last_point)
+          is_robot_moving = cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point)
           # reset old acceleration
           spline_qdd = [0, 0, 0, 0, 0, 0]
 
@@ -383,19 +507,23 @@ thread trajectoryThread():
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
-          quinticSplineRun(q, qd, qdd, tmptime, is_last_point)
+          is_robot_moving = quinticSplineRun(q, qd, qdd, tmptime, is_last_point, is_first_point)
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           clear_remaining_trajectory_points()
-          socket_send_int(TRAJECTORY_RESULT_FAILURE, "trajectory_socket")
+          trajectory_result = TRAJECTORY_RESULT_FAILURE
         end
       end
+    else:
+      textmsg("Receiving trajectory point failed!")
+      trajectory_result = TRAJECTORY_RESULT_FAILURE
     end
+    is_first_point = False
   end
   exit_critical
   stopj(STOPJ_ACCELERATION)
-  socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
-  textmsg("Trajectory finished")
+  socket_send_int(trajectory_result, "trajectory_socket")
+  textmsg("Trajectory finished with result ", trajectory_result_to_str(trajectory_result))
 end
 
 def clear_remaining_trajectory_points():
@@ -424,6 +552,7 @@ end
 thread servoThreadP():
   textmsg("Starting pose servo thread")
   state = SERVO_IDLE
+  local q_last = get_target_joint_positions()
   while control_mode == MODE_POSE:
     enter_critical
     q = cmd_servo_q
@@ -443,11 +572,15 @@ thread servoThreadP():
       end
 
       q = extrapolate()
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q_last, q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      end
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      if targetWithinLimits(q_last, q, steptime):
+        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
+      end
     else:
       extrapolate_count = 0
       sync()
@@ -532,12 +665,13 @@ end
 # HEADER_END
 
 # NODE_CONTROL_LOOP_BEGINS
-socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
-socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
-socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
-
 force_mode_set_damping({{FORCE_MODE_SET_DAMPING_REPLACE}})
 force_mode_set_gain_scaling({{FORCE_MODE_SET_GAIN_SCALING_REPLACE}})
+
+socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
+socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
+# This socket should be opened last as it tells the driver when it has control over the robot
+socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
@@ -550,7 +684,7 @@ while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
-    # Convert to read timeout from milliseconds to seconds
+    # Convert read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
