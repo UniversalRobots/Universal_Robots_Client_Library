@@ -155,9 +155,8 @@ int main(int argc, char* argv[])
                                           { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
                                           { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
                                           2,                     // do not transform the force frame at all
-                                          { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 }  // limits. See ScriptManual
-                                          ,
-                                          0.8);  // for details.
+                                          { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
+                                          0.8);  // damping_factor. See ScriptManual for details.
   else
   {
     success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
