@@ -117,12 +117,20 @@ int main(int argc, char* argv[])
 
   g_my_driver->startRTDECommunication();
 
-  double increment = 0.01;
+  // Increment depends on robot version
+  double increment_constant = 0.0005;
+  if (g_my_driver->getVersion().major < 5)
+  {
+    increment_constant = 0.002;
+  }
+  double increment = increment_constant;
 
-  bool passed_slow_part = false;
-  bool passed_fast_part = false;
+  bool first_pass = true;
+  bool passed_negative_part = false;
+  bool passed_positive_part = false;
   URCL_LOG_INFO("Start moving the robot");
-  while (!(passed_slow_part && passed_fast_part))
+  urcl::vector6d_t joint_target = { 0, 0, 0, 0, 0, 0 };
+  while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
     // robot will effectively be in charge of setting the frequency of this loop.
@@ -139,28 +147,40 @@ int main(int argc, char* argv[])
         throw std::runtime_error(error_msg);
       }
 
-      // Simple motion command of last joint
-      if (g_joint_positions[5] > 3)
+      if (first_pass)
       {
-        passed_fast_part = increment > 0.01 || passed_fast_part;
-        increment = -3;  // this large jump will activate speed scaling
+        joint_target = g_joint_positions;
+        first_pass = false;
       }
-      else if (g_joint_positions[5] < -3)
+
+      // Open loop control. The target is incremented with a constant each control loop
+      if (passed_positive_part == false)
       {
-        passed_slow_part = increment < 0.01 || passed_slow_part;
-        increment = 0.02;
+        increment = increment_constant;
+        if (g_joint_positions[5] >= 2)
+        {
+          passed_positive_part = true;
+        }
       }
-      g_joint_positions[5] += increment;
+      else if (passed_negative_part == false)
+      {
+        increment = -increment_constant;
+        if (g_joint_positions[5] <= 0)
+        {
+          passed_negative_part = true;
+        }
+      }
+      joint_target[5] += increment;
       // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret = g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ,
+      bool ret = g_my_driver->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
                                                 RobotReceiveTimeout::millisec(100));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
         return 1;
       }
-      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString());
+      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
     }
     else
     {

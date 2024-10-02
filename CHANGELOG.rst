@@ -2,6 +2,17 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.4.0 (2024-09-10)
+------------------
+* Ensure that the targets are reachable within the robots limits (`#184 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/184>`_)
+* Analog domain (`#211 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/211>`_)
+* Fix clang compilation error (`#210 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/210>`_)
+* Moved reset of speed slider to correct teardown function, so that it … (`#206 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/206>`_)
+  …resets between each test.
+* [doc] Fix syntax in example.rst (`#207 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/207>`_)
+* [doc] Migrate documentation to sphinx (`#95 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/95>`_)
+* Contributors: Felix Exner, Mads Holm Peters, Remi Siffert, URJala
+
 1.3.7 (2024-06-03)
 ------------------
 * [ci] Update CI
