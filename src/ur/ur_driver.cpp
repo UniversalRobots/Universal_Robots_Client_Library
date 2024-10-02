@@ -377,7 +377,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The type should be 1, 2 or 3. The type is " << type;
       URCL_LOG_ERROR(ss.str().c_str());
-      return false;
+      throw std::invalid_argument(ss.str().c_str());
   }
   for (unsigned int i = 0; i < selection_vector.size(); ++i)
   {
@@ -394,7 +394,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     return false;
   }
 
-  if (gain_scaling_factor < 0 || gain_scaling_factor > 2)
+  if (gain_scaling_factor > 2 || gain_scaling_factor < 0)
   {
     URCL_LOG_ERROR("The force mode gain scaling factor should be between 0 and 2, both inclusive.");
     return false;
@@ -436,7 +436,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The type should be 1, 2 or 3. The type is " << type;
       URCL_LOG_ERROR(ss.str().c_str());
-      return false;
+      throw std::invalid_argument(ss.str().c_str());
   }
   for (unsigned int i = 0; i < selection_vector.size(); ++i)
   {
