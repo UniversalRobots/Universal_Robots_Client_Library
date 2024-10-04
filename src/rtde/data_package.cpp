@@ -547,6 +547,7 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "standard_digital_output", uint8_t() },
   { "configurable_digital_output_mask", uint8_t() },
   { "configurable_digital_output", uint8_t() },
+  { "tool_digital_output_mask", uint8_t() },
   { "tool_output_mode", uint8_t() },
   { "tool_digital_output0_mode", uint8_t() },
   { "tool_digital_output1_mode", uint8_t() },
