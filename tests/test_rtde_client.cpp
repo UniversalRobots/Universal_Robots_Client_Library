@@ -26,6 +26,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <cmath>
 #include "ur_client_library/exceptions.h"
