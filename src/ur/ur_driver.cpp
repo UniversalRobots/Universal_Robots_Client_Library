@@ -361,8 +361,10 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
 {
   if (robot_version_.major < 5)
   {
-    URCL_LOG_ERROR("Force mode gain scaling factor cannot be set on a CB3 robot.");
-    return false;
+    std::stringstream ss;
+    ss << "Force mode gain scaling factor cannot be set on a CB3 robot.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw std::invalid_argument(ss.str().c_str());
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
@@ -383,21 +385,27 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
   {
     if (selection_vector[i] > 1)
     {
-      URCL_LOG_ERROR("The selection vector should only consist of 0's and 1's");
-      return false;
+      std::stringstream ss;
+      ss << "The selection vector should only consist of 0's and 1's";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw std::invalid_argument(ss.str().c_str());
     }
   }
 
   if (damping_factor > 1 || damping_factor < 0)
   {
-    URCL_LOG_ERROR("The force mode damping factor should be between 0 and 1, both inclusive.");
-    return false;
+    std::stringstream ss;
+    ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw std::invalid_argument(ss.str().c_str());
   }
 
   if (gain_scaling_factor > 2 || gain_scaling_factor < 0)
   {
-    URCL_LOG_ERROR("The force mode gain scaling factor should be between 0 and 2, both inclusive.");
-    return false;
+    std::stringstream ss;
+    ss << "The force mode gain scaling factor should be between 0 and 2, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw std::invalid_argument(ss.str().c_str());
   }
 
   if (script_command_interface_->clientConnected())
@@ -419,9 +427,10 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
 {
   if (robot_version_.major >= 5)
   {
-    URCL_LOG_ERROR("You should also specify a force mode gain scaling factor to activate force mode on a e-series "
-                   "robot.");
-    return false;
+    std::stringstream ss;
+    ss << "You should also specify a force mode gain scaling factor to activate force mode on an e-series robot.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw std::invalid_argument(ss.str().c_str());
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
@@ -442,15 +451,19 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
   {
     if (selection_vector[i] > 1)
     {
-      URCL_LOG_ERROR("The selection vector should only consist of 0's and 1's");
-      return false;
+      std::stringstream ss;
+      ss << "The selection vector should only consist of 0's and 1's";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw std::invalid_argument(ss.str().c_str());
     }
   }
 
   if (damping_factor > 1 || damping_factor < 0)
   {
-    URCL_LOG_ERROR("The force mode damping factor should be between 0 and 1, both inclusive.");
-    return false;
+    std::stringstream ss;
+    ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw std::invalid_argument(ss.str().c_str());
   }
 
   if (script_command_interface_->clientConnected())
