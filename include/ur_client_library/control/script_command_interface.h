@@ -105,14 +105,23 @@ public:
    *  2: The force frame is not transformed.
    *  3: The force frame is transformed in a way such that its x-axis is the projection of the robot tcp velocity vector
    *  onto the x-y plane of the force frame
-   * \param limits (Float) 6d vector. For compliant axes, these values are the maximum allowed tcp speed along/about the
+   * \param limits 6d vector. For compliant axes, these values are the maximum allowed tcp speed along/about the
    * axis. For non-compliant axes, these values are the maximum allowed deviation along/about an axis between the actual
    * tcp position and the one set by the program
+   *
+   * \param damping_factor Sets the damping parameter in force mode. In range [0,1], default value is 0.025
+   * A value of 1 is full damping, so the robot will decelerate quickly if no force is present. A value of 0
+   * is no damping, here the robot will maintain the speed.
+   *
+   * \param gain_scaling_factor Scales the gain in force mode. scaling parameter is in range [0,2], default
+   * is 0.5. A value larger than 1 can make force mode unstable, e.g. in case of collisions or pushing against hard
+   * surfaces.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool startForceMode(const vector6d_t* task_frame, const vector6uint32_t* selection_vector, const vector6d_t* wrench,
-                      const unsigned int type, const vector6d_t* limits);
+                      const unsigned int type, const vector6d_t* limits, double damping_factor,
+                      double gain_scaling_factor);
 
   /*!
    * \brief Stop force mode and put the robot into normal operation mode.
@@ -178,7 +187,7 @@ private:
   };
 
   bool client_connected_;
-  static const int MAX_MESSAGE_LENGTH = 26;
+  static const int MAX_MESSAGE_LENGTH = 28;
 
   std::function<void(ToolContactResult)> handle_tool_contact_result_;
 };
