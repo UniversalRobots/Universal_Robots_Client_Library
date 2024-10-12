@@ -34,7 +34,7 @@ TRAJECTORY_MODE_CANCEL = -1
 TRAJECTORY_POINT_JOINT = 0
 TRAJECTORY_POINT_CARTESIAN = 1
 TRAJECTORY_POINT_JOINT_SPLINE = 2
-TRAJECTORY_DATA_DIMENSION = 3*6 + 1
+TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
 TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
@@ -47,7 +47,7 @@ START_FORCE_MODE = 3
 END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
-SCRIPT_COMMAND_DATA_DIMENSION = 26
+SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
 FREEDRIVE_MODE_STOP = -1
@@ -356,7 +356,7 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
       scaled_step_time = get_steptime() * scaling_factor
 
       splineTimerTraveled = splineTimerTraveled + scaled_step_time
-    
+
       jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, get_steptime(), scaling_factor, is_slowing_down)
     end
     scaling_factor = 0.0
@@ -373,7 +373,7 @@ def jointSplineRun(coefficients1, coefficients2, coefficients3, coefficients4, c
   jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTotalTravelTime, timeLeftToTravel, scaling_factor, is_slowing_down)
 end
 
-def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep, scaling_factor, is_slowing_down=False):
+def jointSplineStep(coefficients1, coefficients2, coefficients3, coefficients4, coefficients5, splineTimerTraveled, timestep, scaling_factor, is_slowing_down = False):
   local last_spline_qd = spline_qd
   spline_qd = coefficients1 + 2.0 * splineTimerTraveled * coefficients2 + 3.0 * pow(splineTimerTraveled, 2) * coefficients3 + 4.0 * pow(splineTimerTraveled, 3) * coefficients4 + 5.0 * pow(splineTimerTraveled, 4) * coefficients5
   spline_qdd = 2.0 * coefficients2 + 6.0 * splineTimerTraveled * coefficients3 + 12.0 * pow(splineTimerTraveled, 2) * coefficients4 + 20.0 * pow(splineTimerTraveled, 3) * coefficients5
@@ -469,7 +469,7 @@ thread trajectoryThread():
     trajectory_points_left = trajectory_points_left - 1
 
     if raw_point[0] > 0:
-      local q = [ raw_point[1]/ MULT_jointstate, raw_point[2]/ MULT_jointstate, raw_point[3]/ MULT_jointstate, raw_point[4]/ MULT_jointstate, raw_point[5]/ MULT_jointstate, raw_point[6]/ MULT_jointstate]
+      local q = [raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
       local tmptime = raw_point[INDEX_TIME] / MULT_time
       local blend_radius = raw_point[INDEX_BLEND] / MULT_time
       local is_last_point = False
@@ -479,31 +479,32 @@ thread trajectoryThread():
       end
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-        movej(q, t=tmptime, r=blend_radius)
+        movej(q, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
 
-      # Movel point
+        # Movel point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-        movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t=tmptime, r=blend_radius)
+        movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
 
-      # Joint spline point
+        # Joint spline point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
 
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           is_robot_moving = cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point)
+
           # reset old acceleration
           spline_qdd = [0, 0, 0, 0, 0, 0]
 
-        # Quintic spline
+          # Quintic spline
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
           qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
           qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
@@ -528,7 +529,7 @@ end
 
 def clear_remaining_trajectory_points():
   while trajectory_points_left > 0:
-    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+2, "trajectory_socket")
+    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket")
     trajectory_points_left = trajectory_points_left - 1
   end
 end
@@ -646,6 +647,13 @@ thread script_commands():
         wrench = [raw_command[14] / MULT_jointstate, raw_command[15] / MULT_jointstate, raw_command[16] / MULT_jointstate, raw_command[17] / MULT_jointstate, raw_command[18] / MULT_jointstate, raw_command[19] / MULT_jointstate]
         force_type = raw_command[20] / MULT_jointstate
         force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
+        force_mode_set_damping(raw_command[27] / MULT_jointstate)
+        # Check whether script is running on CB3 or e-series. Gain scaling can only be set on e-series robots.
+        # step time = 0.008: CB3 robot
+        # Step time = 0.002: e-series robot
+        if (get_steptime() < 0.008):
+          force_mode_set_gain_scaling(raw_command[28] / MULT_jointstate)
+        end
         force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
       elif command == END_FORCE_MODE:
         end_force_mode()
@@ -665,9 +673,6 @@ end
 # HEADER_END
 
 # NODE_CONTROL_LOOP_BEGINS
-force_mode_set_damping({{FORCE_MODE_SET_DAMPING_REPLACE}})
-force_mode_set_gain_scaling({{FORCE_MODE_SET_GAIN_SCALING_REPLACE}})
-
 socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
 socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
 # This socket should be opened last as it tells the driver when it has control over the robot
@@ -684,8 +689,10 @@ while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
+
     # Convert read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
+
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
@@ -693,7 +700,7 @@ while control_mode > MODE_STOPPED:
         clear_remaining_trajectory_points()
         stopj(STOPJ_ACCELERATION)
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-      # Stop freedrive
+        # Stop freedrive
       elif control_mode == MODE_FREEDRIVE:
         textmsg("Leaving freedrive mode")
         end_freedrive_mode()
@@ -724,10 +731,10 @@ while control_mode > MODE_STOPPED:
 
     # Update the motion commands with new parameters
     if control_mode == MODE_SERVOJ:
-      q = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
+      q = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
       set_servo_setpoint(q)
     elif control_mode == MODE_SPEEDJ:
-      qd = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
+      qd = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
       set_speed(qd)
     elif control_mode == MODE_FORWARD:
       if params_mult[2] == TRAJECTORY_MODE_RECEIVE:
