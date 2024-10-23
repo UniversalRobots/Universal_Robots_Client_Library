@@ -4,6 +4,11 @@ A C++ library for accessing Universal Robots interfaces. With this library C++-b
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
 
+<!-- markdownlint-disable MD033 -->
+<div align="center">
+  <img src="doc/resources/family_photo.png" alt="Universal Robot family" style="width: 90%;"/>
+ </div>
+
 ## Requirements
 
 * **Polyscope** (The software running on the robot controller) version **3.14.3** (for CB3-Series),
