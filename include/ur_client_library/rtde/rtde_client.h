@@ -29,6 +29,8 @@
 #ifndef UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 
+#include <memory>
+
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/rtde/package_header.h"
 #include "ur_client_library/rtde/rtde_package.h"
@@ -206,14 +208,15 @@ public:
   {
     return output_recipe_;
   }
-
+  
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
   std::vector<std::string> input_recipe_;
   RTDEParser parser_;
-  comm::URProducer<RTDEPackage> prod_;
-  comm::Pipeline<RTDEPackage> pipeline_;
+  std::unique_ptr<comm::URProducer<RTDEPackage>> prod_;
+  comm::INotifier notifier_;
+  std::unique_ptr<comm::Pipeline<RTDEPackage>> pipeline_;
   RTDEWriter writer_;
 
   VersionInformation urcontrol_version_;
@@ -240,6 +243,14 @@ private:
   void setupOutputs(const uint16_t protocol_version);
   void setupInputs();
   void disconnect();
+
+  /*!
+   * \brief Updates the output recipe to the given one and recreates all the objects which depend on it.
+   * It should only be called while setting up the communication.
+   *
+   * \param new_recipe the new output recipe to use
+   */
+  void resetOutputRecipe(const std::vector<std::string> new_recipe);
 
   /*!
    * \brief Checks whether the robot is booted, this is done by looking at the timestamp from the robot controller, this

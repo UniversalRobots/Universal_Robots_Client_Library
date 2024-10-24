@@ -43,6 +43,8 @@ template <typename T>
 class IConsumer
 {
 public:
+  virtual ~IConsumer() = default;
+
   /*!
    * \brief Set-up functionality of the consumer.
    */
@@ -170,6 +172,8 @@ template <typename T>
 class IProducer
 {
 public:
+  virtual ~IProducer() = default;
+
   /*!
    * \brief Set-up functionality of the producers.
    *
