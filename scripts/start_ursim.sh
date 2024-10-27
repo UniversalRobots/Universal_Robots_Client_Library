@@ -30,6 +30,9 @@
 
 PERSISTENT_BASE="${HOME}/.ursim"
 URCAP_VERSION="1.0.5"
+IP_ADDRESS="192.168.56.101"
+PORT_FORWARDING="-p 30001-30004:30001-30004 -p 29999:29999"
+CONTAINER_NAME="ursim"
 
 help()
 {
@@ -46,7 +49,10 @@ help()
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
   echo "    -u <folder>    Location from which URCaps are read / to which URCaps are written.
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
-  echo "    -d     Detached mode - start in backgound"
+  echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
+  echo "    -i             IP address the container should get. Defaults to $IP_ADDRESS"
+  echo "    -d             Detached mode - start in backgound"
+  echo "    -f             Specify port forwarding to use. Defaults to '$PORT_FORWARDING'. Set to empty string to disable port forwarding."
   echo "    -h             Print this Help."
   echo
 }
@@ -131,7 +137,7 @@ validate_ursim_version()
 }
 
 
-while getopts ":hm:v:p:u:d" option; do
+while getopts ":hm:v:p:u:i:f:n:d" option; do
   case $option in
     h) # display Help
       help
@@ -147,6 +153,15 @@ while getopts ":hm:v:p:u:d" option; do
       ;;
     u) # urcaps_folder
       URCAP_STORAGE_ARG=${OPTARG}
+      ;;
+    i) # IP address
+      IP_ADDRESS=${OPTARG}
+      ;;
+    f) # forward ports
+      PORT_FORWARDING=${OPTARG}
+      ;;
+    n) # container_name
+      CONTAINER_NAME=${OPTARG}
       ;;
     d) # detached mode
       DETACHED=true
@@ -189,28 +204,29 @@ else
   docker network create --subnet=192.168.56.0/24 ursim_net
 fi
 
-# run docker contain
-docker run --rm -d --net ursim_net --ip 192.168.56.101\
-  -v "${URCAP_STORAGE}":/urcaps \
-  -v "${PROGRAM_STORAGE}":/ursim/programs \
-  -e ROBOT_MODEL="${ROBOT_MODEL}" \
-  -p 30001-30004:30001-30004 \
-  -p 29999:29999 \
-  --name ursim \
-  universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION || exit
+docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
+  -v ${URCAP_STORAGE}:/urcaps \
+  -v ${PROGRAM_STORAGE}:/ursim/programs \
+  -e ROBOT_MODEL=${ROBOT_MODEL} \
+  $PORT_FORWARDING \
+  --name $CONTAINER_NAME \
+  universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION || exit"
+
+#echo $docker_cmd
+$docker_cmd
 
 # Stop container when interrupted
 TRAP_CMD="
 echo \"killing ursim\";
-docker container kill ursim >> /dev/null;
-docker container wait ursim >> /dev/null;
+docker container kill $CONTAINER_NAME >> /dev/null;
+docker container wait $CONTAINER_NAME >> /dev/null;
 echo \"done\";
 exit
 "
 trap "$TRAP_CMD" SIGINT SIGTERM
 
 echo "Docker URSim is running"
-printf "\nTo access Polyscope, open the following URL in a web browser.\n\thttp://192.168.56.101:6080/vnc.html\n\n"
+printf "\nTo access Polyscope, open the following URL in a web browser.\n\thttp://$IP_ADDRESS:6080/vnc.html\n\n"
 
 if [ "$DETACHED" = false ]; then
 echo "To exit, press CTRL+C"
@@ -219,5 +235,5 @@ echo "To exit, press CTRL+C"
     sleep 1
   done
 else
-  echo "To kill it, please execute 'docker stop ursim'"
+  echo "To kill it, please execute 'docker stop $CONTAINER_NAME'"
 fi
