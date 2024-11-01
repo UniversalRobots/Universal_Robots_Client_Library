@@ -124,5 +124,44 @@ public:
 private:
   std::string text_;
 };
+
+class IncompatibleRobotVersion : public UrException
+{
+public:
+  explicit IncompatibleRobotVersion() = delete;
+  explicit IncompatibleRobotVersion(std::string text, int required_robot_version, int actual_robot_version)
+    : std::runtime_error(text)
+  {
+    std::stringstream ss;
+    ss << text << "\n"
+       << "The requested feature is incompatible with the connected robot. Required Polyscope version: "
+       << required_robot_version << ", actual Polyscope version: " << actual_robot_version;
+    text_ = ss.str();
+  }
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+
+private:
+  std::string text_;
+};
+
+class InvalidRange : public UrException
+{
+private:
+  std::string text_;
+
+public:
+  explicit InvalidRange() = delete;
+  explicit InvalidRange(std::string text) : std::runtime_error(text)
+  {
+    text_ = text;
+  }
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+};
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

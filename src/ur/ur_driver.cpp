@@ -364,7 +364,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "Force mode gain scaling factor cannot be set on a CB3 robot.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw std::invalid_argument(ss.str().c_str());
+    throw IncompatibleRobotVersion(ss.str(), 5, robot_version_.major);
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
@@ -379,7 +379,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The type should be 1, 2 or 3. The type is " << type;
       URCL_LOG_ERROR(ss.str().c_str());
-      throw std::invalid_argument(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
   }
   for (unsigned int i = 0; i < selection_vector.size(); ++i)
   {
@@ -388,7 +388,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The selection vector should only consist of 0's and 1's";
       URCL_LOG_ERROR(ss.str().c_str());
-      throw std::invalid_argument(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
     }
   }
 
@@ -397,7 +397,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw std::invalid_argument(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
   }
 
   if (gain_scaling_factor > 2 || gain_scaling_factor < 0)
@@ -405,7 +405,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "The force mode gain scaling factor should be between 0 and 2, both inclusive.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw std::invalid_argument(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
   }
 
   if (script_command_interface_->clientConnected())
@@ -430,7 +430,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "You should also specify a force mode gain scaling factor to activate force mode on an e-series robot.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw std::invalid_argument(ss.str().c_str());
+    throw IncompatibleRobotVersion(ss.str(), 3, robot_version_.major);
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
@@ -445,7 +445,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The type should be 1, 2 or 3. The type is " << type;
       URCL_LOG_ERROR(ss.str().c_str());
-      throw std::invalid_argument(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
   }
   for (unsigned int i = 0; i < selection_vector.size(); ++i)
   {
@@ -454,7 +454,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The selection vector should only consist of 0's and 1's";
       URCL_LOG_ERROR(ss.str().c_str());
-      throw std::invalid_argument(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
     }
   }
 
@@ -463,7 +463,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw std::invalid_argument(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
   }
 
   if (script_command_interface_->clientConnected())
