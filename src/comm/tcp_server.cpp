@@ -296,12 +296,13 @@ void TCPServer::readData(const int fd)
   }
   else
   {
-    if (0 < nbytesrecv)
+    if (nbytesrecv < 0)
     {
       if (errno == ECONNRESET)  // if connection gets reset by client, we want to suppress this output
       {
-        URCL_LOG_DEBUG("client from FD %s sent a connection reset package.", fd);
+        URCL_LOG_DEBUG("client from FD %d sent a connection reset package.", fd);
       }
+      else
       {
         URCL_LOG_ERROR("recv() on FD %d failed.", fd);
       }
