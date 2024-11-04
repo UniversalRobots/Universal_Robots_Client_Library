@@ -489,6 +489,14 @@ public:
 
 private:
   static std::string readScriptFile(const std::string& filename);
+  /*!
+   * \brief Reconnects the secondary stream used to send program to the robot.
+   *
+   * Only for use in headless mode, as it replaces the use of the URCaps program.
+   *
+   * \returns true of on successful reconnection, false otherwise
+   */
+  bool reconnectSecondaryStream();
 
   int rtde_frequency_;
   comm::INotifier notifier_;

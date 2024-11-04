@@ -542,9 +542,8 @@ bool UrDriver::sendScript(const std::string& program)
 {
   if (secondary_stream_ == nullptr)
   {
-    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
-                             "This "
-                             "should not happen.");
+    throw std::runtime_error("Sending script to robot requested while there is no secondary interface established. "
+                             "This should not happen.");
   }
 
   // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
@@ -562,6 +561,16 @@ bool UrDriver::sendScript(const std::string& program)
     return true;
   }
   URCL_LOG_ERROR("Could not send program to robot");
+
+  URCL_LOG_INFO("Reconnecting secondary stream to retry sending program...");
+  secondary_stream_->close();
+  if (secondary_stream_->connect() && secondary_stream_->write(data, len, written))
+  {
+    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+    return true;
+  }
+  URCL_LOG_ERROR("Retry sending program failed!");
+
   return false;
 }
 
@@ -576,6 +585,19 @@ bool UrDriver::sendRobotProgram()
     URCL_LOG_ERROR("Tried to send robot program directly while not in headless mode");
     return false;
   }
+}
+
+bool UrDriver::reconnectSecondaryStream()
+{
+  URCL_LOG_DEBUG("Closing secondary stream...");
+  secondary_stream_->close();
+  if (secondary_stream_->connect())
+  {
+    URCL_LOG_DEBUG("Secondary stream connected");
+    return true;
+  }
+  URCL_LOG_ERROR("Failed to reconnect secodary stream!");
+  return false;
 }
 
 std::vector<std::string> UrDriver::getRTDEOutputRecipe()
