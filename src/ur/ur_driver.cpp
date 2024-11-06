@@ -38,6 +38,7 @@
 #include <sstream>
 
 #include <ur_client_library/ur/calibration_checker.h>
+#include <ur_client_library/ur/error_code_reader.h>
 
 namespace urcl
 {
@@ -73,6 +74,9 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
+
+  primary_interface::PrimaryParser parser;
+  error_code_client_.reset(new ErrorCodeClient(*primary_stream_, error_code_notifier_, parser));
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -727,4 +731,13 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state_, step_time));
 }
 
+void UrDriver::startErrorCodeClientCommunication() 
+{
+  error_code_client_->start();
+}
+
+std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
+{
+  return error_code_client_->getErrorCodes();
+}
 }  // namespace urcl

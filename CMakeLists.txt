@@ -19,6 +19,7 @@ add_library(urcl SHARED
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
     src/primary/robot_message/version_message.cpp
+    src/primary/robot_message/error_code_message.cpp
     src/primary/robot_state/kinematics_info.cpp
     src/rtde/control_package_pause.cpp
     src/rtde/control_package_setup_inputs.cpp
@@ -32,6 +33,8 @@ add_library(urcl SHARED
     src/rtde/rtde_client.cpp
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
+    src/ur/error_code_reader.cpp
+    src/ur/error_code_client.cpp
     src/ur/dashboard_client.cpp
     src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp
