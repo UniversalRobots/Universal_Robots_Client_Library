@@ -129,12 +129,12 @@ class IncompatibleRobotVersion : public UrException
 {
 public:
   explicit IncompatibleRobotVersion() = delete;
-  explicit IncompatibleRobotVersion(std::string text, int required_robot_version, int actual_robot_version)
+  explicit IncompatibleRobotVersion(const std::string& text, const VersionInformation& minimum_robot_version, const VersionInformation& actual_robot_version)
     : std::runtime_error(text)
   {
     std::stringstream ss;
     ss << text << "\n"
-       << "The requested feature is incompatible with the connected robot. Required Polyscope version: "
+       << "The requested feature is incompatible with the connected robot. Minimum required Polyscope version: "
        << required_robot_version << ", actual Polyscope version: " << actual_robot_version;
     text_ = ss.str();
   }
