@@ -364,7 +364,8 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "Force mode gain scaling factor cannot be set on a CB3 robot.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw IncompatibleRobotVersion(ss.str(), 5, robot_version_.major);
+    VersionInformation req_version = VersionInformation::fromString("5.0.0.0");
+    throw IncompatibleRobotVersion(ss.str(), req_version, robot_version_);
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
@@ -430,7 +431,7 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
     std::stringstream ss;
     ss << "You should also specify a force mode gain scaling factor to activate force mode on an e-series robot.";
     URCL_LOG_ERROR(ss.str().c_str());
-    throw IncompatibleRobotVersion(ss.str(), 3, robot_version_.major);
+    throw MissingArgument(ss.str(), "startForceMode", "gain_scaling_factor", 0.5);
   }
   // Test that the type is either 1, 2 or 3.
   switch (type)
