@@ -36,6 +36,7 @@
 #include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
+#include "ur_client_library/ur/error_code_client.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
@@ -410,6 +411,14 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
+  *  \brief Retrieves error codes ErrorCodeClient. 
+  *
+  *  \returns list of error codes 
+  *
+  */
+  std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
+
+  /*!
    * \brief Getter for the RTDE writer used to write to the robot's RTDE interface.
    *
    * \returns The active RTDE writer
@@ -517,6 +526,12 @@ public:
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
                        double target_frequency = 0.0);
 
+  /*!
+  *  \brief Starts the error code client 
+  */
+  void startErrorCodeClientCommunication();
+
+
 private:
   static std::string readScriptFile(const std::string& filename);
   /*!
@@ -533,6 +548,8 @@ private:
 
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
+  comm::INotifier error_code_notifier_;
+  std::unique_ptr<ErrorCodeClient> error_code_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
