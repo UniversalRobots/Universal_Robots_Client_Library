@@ -22,21 +22,21 @@ bool ErrorCodeReader::consume(std::shared_ptr<primary_interface::PrimaryPackage>
     switch(code.report_level) {
       case urcl::primary_interface::ReportLevel::DEBUG:
       case urcl::primary_interface::ReportLevel::DEVL_DEBUG:
+      case urcl::primary_interface::ReportLevel::DEVL_INFO:
+      case urcl::primary_interface::ReportLevel::DEVL_WARNING:
+      case urcl::primary_interface::ReportLevel::DEVL_VIOLATION:
+      case urcl::primary_interface::ReportLevel::DEVL_FAULT:
         URCL_LOG_DEBUG(logContents.c_str());
         break;
       case urcl::primary_interface::ReportLevel::INFO:
-      case urcl::primary_interface::ReportLevel::DEVL_INFO:
         URCL_LOG_INFO(logContents.c_str());
         break;
       case urcl::primary_interface::ReportLevel::WARNING:
-      case urcl::primary_interface::ReportLevel::DEVL_WARNING:
         URCL_LOG_WARN(logContents.c_str());
         break;
       default:
         //urcl::primary_interface::ReportLevel::VIOLATION:
-        //urcl::primary_interface::ReportLevel::DEVL_VIOLATION:
         //urcl::primary_interface::ReportLevel::FAULT:
-        //urcl::primary_interface::ReportLevel::DEVL_FAULT:
         URCL_LOG_ERROR(logContents.c_str());
         break;
     }
