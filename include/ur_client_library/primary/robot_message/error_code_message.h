@@ -57,7 +57,7 @@ struct ErrorCode
   int32_t message_code{-1};
   int32_t message_argument{-1};
   ReportLevel report_level{ReportLevel::DEBUG};
-  uint8_t data_type{0};
+  uint32_t data_type{0};
   uint32_t data{0};
   std::string text;
   uint64_t timestamp{0};
