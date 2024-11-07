@@ -555,21 +555,27 @@ bool UrDriver::sendScript(const std::string& program)
   const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
   size_t written;
 
-  if (secondary_stream_->write(data, len, written))
-  {
-    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
-    return true;
-  }
-  URCL_LOG_ERROR("Could not send program to robot");
+  const auto send_script_contents = [this, program_with_newline, data, len,
+                                     &written](const std::string&& description) -> bool {
+    if (secondary_stream_->write(data, len, written))
+    {
+      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+      return true;
+    }
+    const std::string error_message = "Could not send program to robot: " + description;
+    URCL_LOG_ERROR(error_message.c_str());
+    return false;
+  };
 
-  URCL_LOG_INFO("Reconnecting secondary stream to retry sending program...");
-  secondary_stream_->close();
-  if (secondary_stream_->connect() && secondary_stream_->write(data, len, written))
+  if (send_script_contents("initial attempt"))
   {
-    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
     return true;
   }
-  URCL_LOG_ERROR("Retry sending program failed!");
+
+  if (reconnectSecondaryStream())
+  {
+    return send_script_contents("after reconnecting secondary stream");
+  }
 
   return false;
 }
@@ -596,7 +602,7 @@ bool UrDriver::reconnectSecondaryStream()
     URCL_LOG_DEBUG("Secondary stream connected");
     return true;
   }
-  URCL_LOG_ERROR("Failed to reconnect secodary stream!");
+  URCL_LOG_ERROR("Failed to reconnect secondary stream!");
   return false;
 }
 
