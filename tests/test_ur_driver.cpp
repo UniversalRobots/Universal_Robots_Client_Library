@@ -359,6 +359,19 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
   waitForProgramNotRunning(1000);
 }
 
+TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
+{
+  // Start robot program
+  g_ur_driver_->sendRobotProgram();
+  EXPECT_TRUE(waitForProgramRunning(1000));
+
+  // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
+  // switching from Remote to Local and back to Remote mode for example.
+  g_ur_driver_->secondary_stream_->close();
+
+  EXPECT_TRUE(g_ur_driver_->sendRobotProgram());
+}
+
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])

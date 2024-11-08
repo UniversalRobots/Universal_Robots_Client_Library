@@ -187,7 +187,14 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
     return false;
   }
   else if (res < 0)
+  {
+    if (!(errno == EAGAIN || errno == EWOULDBLOCK))
+    {
+      // any permanent error should be detected early
+      state_ = SocketState::Disconnected;
+    }
     return false;
+  }
 
   read = static_cast<size_t>(res);
   return true;
