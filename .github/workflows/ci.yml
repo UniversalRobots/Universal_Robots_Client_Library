@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:
+      fail-fast: false
       matrix:
         env:
           - DOCKER_RUN_OPTS: --network ursim_net
