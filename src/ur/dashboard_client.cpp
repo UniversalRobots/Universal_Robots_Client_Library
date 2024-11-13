@@ -156,6 +156,7 @@ bool DashboardClient::sendRequest(const std::string& command, const std::string&
 {
   URCL_LOG_DEBUG("Send Request: %s", command.c_str());
   std::string response = sendAndReceive(command);
+  URCL_LOG_DEBUG("Got Response: %s", response.c_str());
   bool ret = std::regex_match(response, std::regex(expected));
   if (!ret)
   {
