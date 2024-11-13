@@ -27,7 +27,7 @@ catkin_package = catkin_pkg.package.parse_package(
 # -- Project information -----------------------------------------------------
 
 project = "ur_client_library"
-copyright = "2022, Felix Exner"
+copyright = "2022, Universal Robots A/S"
 author = "Felix Exner"
 
 # The short X.Y version
