@@ -372,6 +372,13 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
   EXPECT_TRUE(g_ur_driver_->sendRobotProgram());
 }
 
+TEST_F(UrDriverTest, reset_rtde_client)
+{
+  double target_frequency = 50;
+  g_ur_driver_->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
+  ASSERT_EQ(g_ur_driver_->getControlFrequency(), target_frequency);
+}
+
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])
