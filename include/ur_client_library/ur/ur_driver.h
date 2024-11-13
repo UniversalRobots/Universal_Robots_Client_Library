@@ -240,7 +240,7 @@ public:
 
   uint32_t getControlFrequency() const
   {
-    return rtde_frequency_;
+    return rtde_client_->getTargetFrequency();
   }
 
   /*!
@@ -595,10 +595,50 @@ public:
     script_command_interface_->setToolContactResultCallback(tool_contact_result_cb);
   }
 
+  /**
+   * \brief Reset the RTDE client. As during initialization the driver will start RTDE communication
+   * with the maximum available frequency, this enables users to start RTDE communication with a
+   * custom rate.
+   *
+   * Note: After calling this function startRTDECommunication() has to be called again to actually
+   * start RTDE communication.
+   *
+   * \param output_recipe Vector containing the output recipe
+   * \param input_recipe Vector containing the input recipe
+   * \param target_frequency Frequency to run the RTDE client at. Defaults to 0.0 which means maximum frequency.
+   */
+  void resetRTDEClient(const std::vector<std::string>& output_recipe, const std::vector<std::string>& input_recipe,
+                       double target_frequency = 0.0);
+
+  /**
+   * \brief Reset the RTDE client. As during initialization the driver will start RTDE communication
+   * with the maximum available frequency, this enables users to start RTDE communication with a
+   * custom rate.
+   *
+   * Note: After calling this function startRTDECommunication() has to be called again to actually
+   * start RTDE communication.
+   *
+   * \param output_recipe_filename Filename where the output recipe is stored in.
+   * \param input_recipe_filename Filename where the input recipe is stored in.
+   * \param target_frequency Frequency to run the RTDE client at. Defaults to 0.0 which means maximum frequency.
+   */
+  void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
+                       double target_frequency = 0.0);
+
 private:
   static std::string readScriptFile(const std::string& filename);
+  /*!
+   * \brief Reconnects the secondary stream used to send program to the robot.
+   *
+   * Only for use in headless mode, as it replaces the use of the URCaps program.
+   *
+   * \returns true of on successful reconnection, false otherwise
+   */
+  bool reconnectSecondaryStream();
 
-  int rtde_frequency_;
+  void initRTDE();
+  void setupReverseInterface(const uint32_t reverse_port);
+
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
@@ -613,7 +653,6 @@ private:
 
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;
-  std::chrono::milliseconds step_time_;
 
   std::function<void(bool)> handle_program_state_;
 

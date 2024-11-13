@@ -61,7 +61,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          const uint32_t script_command_port)
   : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
-  , step_time_(std::chrono::milliseconds(8))
   , handle_program_state_(handle_program_state)
   , robot_ip_(robot_ip)
 {
@@ -78,13 +77,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
 
-  if (!rtde_client_->init())
-  {
-    throw UrException("Initialization of RTDE client went wrong.");
-  }
-
-  rtde_frequency_ = rtde_client_->getMaxFrequency();
-  step_time_ = std::chrono::milliseconds(1000 / rtde_frequency_);
+  initRTDE();
+  setupReverseInterface(reverse_port);
 
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
@@ -171,7 +165,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state, step_time_));
   trajectory_interface_.reset(new control::TrajectoryPointInterface(trajectory_port));
   script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
 
@@ -618,9 +611,8 @@ bool UrDriver::sendScript(const std::string& program)
 {
   if (secondary_stream_ == nullptr)
   {
-    throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
-                             "This "
-                             "should not happen.");
+    throw std::runtime_error("Sending script to robot requested while there is no secondary interface established. "
+                             "This should not happen.");
   }
 
   // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
@@ -632,12 +624,28 @@ bool UrDriver::sendScript(const std::string& program)
   const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
   size_t written;
 
-  if (secondary_stream_->write(data, len, written))
+  const auto send_script_contents = [this, program_with_newline, data, len,
+                                     &written](const std::string&& description) -> bool {
+    if (secondary_stream_->write(data, len, written))
+    {
+      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+      return true;
+    }
+    const std::string error_message = "Could not send program to robot: " + description;
+    URCL_LOG_ERROR(error_message.c_str());
+    return false;
+  };
+
+  if (send_script_contents("initial attempt"))
   {
-    URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
     return true;
   }
-  URCL_LOG_ERROR("Could not send program to robot");
+
+  if (reconnectSecondaryStream())
+  {
+    return send_script_contents("after reconnecting secondary stream");
+  }
+
   return false;
 }
 
@@ -654,6 +662,19 @@ bool UrDriver::sendRobotProgram()
   }
 }
 
+bool UrDriver::reconnectSecondaryStream()
+{
+  URCL_LOG_DEBUG("Closing secondary stream...");
+  secondary_stream_->close();
+  if (secondary_stream_->connect())
+  {
+    URCL_LOG_DEBUG("Secondary stream connected");
+    return true;
+  }
+  URCL_LOG_ERROR("Failed to reconnect secondary stream!");
+  return false;
+}
+
 std::vector<std::string> UrDriver::getRTDEOutputRecipe()
 {
   return rtde_client_->getOutputRecipe();
@@ -667,6 +688,37 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                 "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
+}
+
+void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,
+                               const std::vector<std::string>& input_recipe, double target_frequency)
+{
+  rtde_client_.reset(
+      new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe, target_frequency));
+  initRTDE();
+}
+
+void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
+                               double target_frequency)
+{
+  rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_filename, input_recipe_filename,
+                                                    target_frequency));
+  initRTDE();
+}
+
+void UrDriver::initRTDE()
+{
+  if (!rtde_client_->init())
+  {
+    throw UrException("Initialization of RTDE client went wrong.");
+  }
+}
+
+void UrDriver::setupReverseInterface(const uint32_t reverse_port)
+{
+  auto rtde_frequency = rtde_client_->getTargetFrequency();
+  auto step_time = std::chrono::milliseconds(static_cast<int>(1000 / rtde_frequency));
+  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state_, step_time));
 }
 
 }  // namespace urcl

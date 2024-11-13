@@ -360,6 +360,28 @@ TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
   EXPECT_TRUE(client_->setup(2));
 }
 
+TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
+{
+  client_->setup();
+
+  // Make sure the client has connected to the server, before writing to the client
+  EXPECT_TRUE(waitForConnectionCallback());
+
+  std::string send_message = "test message";
+  size_t len = send_message.size();
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(send_message.c_str());
+  size_t written;
+  server_->write(client_fd_, data, len, written);
+
+  // Simulate socket failure
+  close(client_->getSocketFD());
+
+  char characters;
+  size_t read_chars = 0;
+  EXPECT_FALSE(client_->read((uint8_t*)&characters, 1, read_chars));
+  EXPECT_EQ(client_->getState(), comm::SocketState::Disconnected);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

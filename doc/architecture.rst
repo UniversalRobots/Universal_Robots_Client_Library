@@ -63,6 +63,11 @@ sure to
 * run it from the package's main folder, as for simplicity reasons it doesn't use any sophisticated
   method to locate the required files.
 
+.. note::
+   The ``URDriver`` class creates a ``RTDEClient`` during initialization using the provided
+   recipes and utilizing the robot model's maximum frequency. If you would like to use a different
+   frequency, please use the ``resetRTDEClient()`` method after the ``UrDriver`` object has been
+   created.
 
 RTDEWriter
 ^^^^^^^^^^
