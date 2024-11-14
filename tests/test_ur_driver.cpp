@@ -245,6 +245,29 @@ TEST_F(UrDriverTest, reset_rtde_client)
   ASSERT_EQ(g_my_robot->ur_driver_->getControlFrequency(), target_frequency);
 }
 
+TEST_F(UrDriverTest, read_error_code)
+{
+  g_ur_driver_->startErrorCodeClientCommunication();
+  std::stringstream cmd;
+  cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
+  EXPECT_TRUE(g_ur_driver_->sendScript(cmd.str()));
+  
+  auto error_codes = g_ur_driver_->getErrorCodes();
+  while (error_codes.size() == 0) {
+    error_codes = g_ur_driver_->getErrorCodes();
+  }
+
+  ASSERT_EQ(error_codes.size(), 1);
+  ASSERT_EQ(error_codes.at(0).message_code, 209);
+  ASSERT_EQ(error_codes.at(0).message_argument, 0);
+
+  // Wait for PSTOP to show up on TP so we can clear it
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  EXPECT_TRUE(g_dashboard_client_->commandCloseSafetyPopup());
+  EXPECT_TRUE(g_dashboard_client_->commandUnlockProtectiveStop());
+}
+
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])
