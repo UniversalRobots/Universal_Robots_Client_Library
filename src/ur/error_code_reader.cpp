@@ -17,9 +17,11 @@ bool ErrorCodeReader::consume(std::shared_ptr<primary_interface::PrimaryPackage>
     code.timestamp = error_code_message->timestamp_;
     code.to_string = error_code_message->toString();
 
-    const auto logContents = "Logging an ErrorCodeMessage from the UR Controller Box: " + error_code_message->toString();
+    const auto logContents =
+        "Logging an ErrorCodeMessage from the UR Controller Box: " + error_code_message->toString();
 
-    switch(code.report_level) {
+    switch (code.report_level)
+    {
       case urcl::primary_interface::ReportLevel::DEBUG:
       case urcl::primary_interface::ReportLevel::DEVL_DEBUG:
       case urcl::primary_interface::ReportLevel::DEVL_INFO:
@@ -35,8 +37,8 @@ bool ErrorCodeReader::consume(std::shared_ptr<primary_interface::PrimaryPackage>
         URCL_LOG_WARN(logContents.c_str());
         break;
       default:
-        //urcl::primary_interface::ReportLevel::VIOLATION:
-        //urcl::primary_interface::ReportLevel::FAULT:
+        // urcl::primary_interface::ReportLevel::VIOLATION:
+        // urcl::primary_interface::ReportLevel::FAULT:
         URCL_LOG_ERROR(logContents.c_str());
         break;
     }
@@ -47,7 +49,7 @@ bool ErrorCodeReader::consume(std::shared_ptr<primary_interface::PrimaryPackage>
   return true;
 }
 
-std::deque<primary_interface::ErrorCode> ErrorCodeReader::getErrorCodesFromQueue() 
+std::deque<primary_interface::ErrorCode> ErrorCodeReader::getErrorCodesFromQueue()
 {
   std::lock_guard<std::mutex> lock_guard(queue_mutex_);
   std::deque<primary_interface::ErrorCode> error_codes;

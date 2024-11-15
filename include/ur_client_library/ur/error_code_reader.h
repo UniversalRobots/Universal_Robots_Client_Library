@@ -11,7 +11,7 @@ namespace urcl
 {
 /*!
  * \brief The ErrorCodeReader class consumes primary packages ignoring all but RobotCommMessage
- * packages to retrieve the latest code reported by the robot. 
+ * packages to retrieve the latest code reported by the robot.
  */
 class ErrorCodeReader : public comm::IConsumer<primary_interface::PrimaryPackage>
 {
@@ -53,15 +53,15 @@ public:
   virtual bool consume(std::shared_ptr<primary_interface::PrimaryPackage> product);
 
   /*!
-  *  \brief Retrieves a list of error codes from the queue if there are any.
-  * 
-  *  \return A list of error codes 
-  */
+   *  \brief Retrieves a list of error codes from the queue if there are any.
+   *
+   *  \return A list of error codes
+   */
   std::deque<primary_interface::ErrorCode> getErrorCodesFromQueue();
+
 private:
   std::deque<primary_interface::ErrorCode> queue_;
   std::mutex queue_mutex_;
-
 };
 }  // namespace urcl
 

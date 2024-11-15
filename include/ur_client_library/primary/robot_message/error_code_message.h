@@ -1,7 +1,7 @@
 // Below code is copied from a branch on the Universal_Robot_Client_Library
-// with some modification. Link to branch: 
+// with some modification. Link to branch:
 // https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/improve_primary_interface
-// 
+//
 // this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
 
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
@@ -52,15 +52,15 @@ enum class ReportLevel : int32_t
   DEVL_FAULT = 132
 };
 
-struct ErrorCode 
+struct ErrorCode
 {
-  int32_t message_code{-1};
-  int32_t message_argument{-1};
-  ReportLevel report_level{ReportLevel::DEBUG};
-  uint32_t data_type{0};
-  uint32_t data{0};
+  int32_t message_code{ -1 };
+  int32_t message_argument{ -1 };
+  ReportLevel report_level{ ReportLevel::DEBUG };
+  uint32_t data_type{ 0 };
+  uint32_t data{ 0 };
   std::string text;
-  uint64_t timestamp{0};
+  uint64_t timestamp{ 0 };
   std::string to_string;
 };
 
@@ -112,7 +112,7 @@ public:
   int32_t message_code_;
   int32_t message_argument_;
   ReportLevel report_level_;
-  uint8_t data_type_;
+  uint32_t data_type_;
   uint32_t data_;
   std::string text_;
 };

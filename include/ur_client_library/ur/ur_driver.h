@@ -411,11 +411,11 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
-  *  \brief Retrieves error codes ErrorCodeClient. 
-  *
-  *  \returns list of error codes 
-  *
-  */
+   *  \brief Retrieves error codes ErrorCodeClient.
+   *
+   *  \returns list of error codes
+   *
+   */
   std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
 
   /*!
@@ -527,10 +527,9 @@ public:
                        double target_frequency = 0.0);
 
   /*!
-  *  \brief Starts the error code client 
-  */
+   *  \brief Starts the error code client
+   */
   void startErrorCodeClientCommunication();
-
 
 private:
   static std::string readScriptFile(const std::string& filename);
