@@ -385,9 +385,10 @@ TEST_F(UrDriverTest, read_error_code)
   std::stringstream cmd;
   cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
   EXPECT_TRUE(g_ur_driver_->sendScript(cmd.str()));
-  
+
   auto error_codes = g_ur_driver_->getErrorCodes();
-  while (error_codes.size() == 0) {
+  while (error_codes.size() == 0)
+  {
     error_codes = g_ur_driver_->getErrorCodes();
   }
 
@@ -395,8 +396,8 @@ TEST_F(UrDriverTest, read_error_code)
   ASSERT_EQ(error_codes.at(0).message_code, 209);
   ASSERT_EQ(error_codes.at(0).message_argument, 0);
 
-  // Wait for PSTOP to show up on TP so we can clear it
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  // Wait for 5s after PSTOP before clearing it
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 
   EXPECT_TRUE(g_dashboard_client_->commandCloseSafetyPopup());
   EXPECT_TRUE(g_dashboard_client_->commandUnlockProtectiveStop());
