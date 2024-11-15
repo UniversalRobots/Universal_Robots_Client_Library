@@ -1,7 +1,7 @@
 // Below code is copied from a branch on the Universal_Robot_Client_Library
 // with some modification. Link to branch:
 // https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/improve_primary_interface
-// 
+//
 // this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
 
 // -- BEGIN LICENSE BLOCK ----------------------------------------------

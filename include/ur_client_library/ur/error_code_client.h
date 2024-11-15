@@ -10,15 +10,15 @@ namespace urcl
 {
 class ErrorCodeClient
 {
-public: 
+public:
   ErrorCodeClient() = delete;
-  ErrorCodeClient(comm::URStream<primary_interface::PrimaryPackage>& stream, comm::INotifier& notifier, 
-                primary_interface::PrimaryParser& parser);
+  ErrorCodeClient(comm::URStream<primary_interface::PrimaryPackage>& stream, comm::INotifier& notifier,
+                  primary_interface::PrimaryParser& parser);
   ~ErrorCodeClient();
 
-void start();
+  void start();
 
-std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
+  std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
 
 private:
   comm::URStream<primary_interface::PrimaryPackage>& stream_;
@@ -27,4 +27,4 @@ private:
   comm::URProducer<primary_interface::PrimaryPackage> prod_;
   comm::Pipeline<primary_interface::PrimaryPackage> pipeline_;
 };
-}
+}  // namespace urcl

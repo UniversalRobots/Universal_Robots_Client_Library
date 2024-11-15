@@ -66,7 +66,7 @@ public:
   RobotMessage(const uint64_t timestamp, const uint8_t source) : timestamp_(timestamp), source_(source)
   {
   }
-    /*!
+  /*!
    * \brief Creates a new RobotMessage object to be filled from a package.
    *
    * \param timestamp Timestamp of the package

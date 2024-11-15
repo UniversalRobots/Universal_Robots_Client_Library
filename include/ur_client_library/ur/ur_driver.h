@@ -536,11 +536,11 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
-  *  \brief Retrieves error codes ErrorCodeClient. 
-  *
-  *  \returns list of error codes 
-  *
-  */
+   *  \brief Retrieves error codes ErrorCodeClient.
+   *
+   *  \returns list of error codes
+   *
+   */
   std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
 
   /*!
