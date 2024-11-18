@@ -142,11 +142,13 @@ TEST_F(RTDEClientTest, empty_recipe_file)
 TEST_F(RTDEClientTest, invalid_target_frequency)
 {
   // Setting target frequency below 0 or above 500, should throw an exception
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0));
+  client_.reset(
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, -1.0));
 
   EXPECT_THROW(client_->init(), UrException);
 
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000));
+  client_.reset(
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, 1000));
 
   EXPECT_THROW(client_->init(), UrException);
 }
@@ -165,7 +167,7 @@ TEST_F(RTDEClientTest, unconfigured_target_frequency)
 
 TEST_F(RTDEClientTest, set_target_frequency)
 {
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, 1));
   client_->init();
 
   // Maximum frequency should still be equal to the robot's maximum frequency

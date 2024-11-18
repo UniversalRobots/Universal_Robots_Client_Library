@@ -375,7 +375,7 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 TEST_F(UrDriverTest, reset_rtde_client)
 {
   double target_frequency = 50;
-  g_ur_driver_->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
+  g_ur_driver_->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, false, target_frequency);
   ASSERT_EQ(g_ur_driver_->getControlFrequency(), target_frequency);
 }
 
