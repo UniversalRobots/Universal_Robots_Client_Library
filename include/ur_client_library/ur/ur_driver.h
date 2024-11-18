@@ -92,16 +92,61 @@ public:
    * trajectory forwarding.
    * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
    * executed locally on the robot.
-   * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
-   * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
-           const uint32_t script_command_port = 50004, double force_mode_damping = 0.025,
-           double force_mode_gain_scaling = 0.5);
+           const uint32_t script_command_port = 50004);
+
+  /*!
+   * \brief Constructs a new UrDriver object.
+   * \param robot_ip IP-address under which the robot is reachable.
+   * \param script_file URScript file that should be sent to the robot.
+   * \param output_recipe_file Filename where the output recipe is stored in.
+   * \param input_recipe_file Filename where the input recipe is stored in.
+   * \param handle_program_state Function handle to a callback on program state changes. For this to
+   * work, the URScript program will have to send keepalive signals to the \p reverse_port. I no
+   * keepalive signal can be read, program state will be false.
+   * \param headless_mode Parameter to control if the driver should be started in headless mode.
+   * \param tool_comm_setup Configuration for using the tool communication.
+   * calibration reported by the robot.
+   * \param reverse_port Port that will be opened by the driver to allow direct communication between the driver
+   * and the robot controller.
+   * \param script_sender_port The driver will offer an interface to receive the program's URScript on this port. If
+   * the robot cannot connect to this port, `External Control` will stop immediately.
+   * \param non_blocking_read Enable non-blocking mode for read (useful when used with combined_robot_hw)
+   * \param servoj_gain Proportional gain for arm joints following target position, range [100,2000]
+   * \param servoj_lookahead_time Time [S], range [0.03,0.2] smoothens the trajectory with this lookahead time
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
+   * \param trajectory_port Port used for sending trajectory points to the robot in case of
+   * trajectory forwarding.
+   * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
+   * executed locally on the robot.
+   * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
+   * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
+   */
+  [[deprecated(
+      "Specifying the force mode damping factor and the force mode gain scaling factor at driver creation has "
+      "been deprecated. Force mode parameters should be specified with each activiation of force mode, and "
+      "can be set in the function call to start force mode.")]] UrDriver(const std::string& robot_ip,
+                                                                         const std::string& script_file,
+                                                                         const std::string& output_recipe_file,
+                                                                         const std::string& input_recipe_file,
+                                                                         std::function<void(bool)> handle_program_state,
+                                                                         bool headless_mode,
+                                                                         std::unique_ptr<ToolCommSetup> tool_comm_setup,
+                                                                         const uint32_t reverse_port,
+                                                                         const uint32_t script_sender_port,
+                                                                         int servoj_gain, double servoj_lookahead_time,
+                                                                         bool non_blocking_read,
+                                                                         const std::string& reverse_ip,
+                                                                         const uint32_t trajectory_port,
+                                                                         const uint32_t script_command_port,
+                                                                         double force_mode_damping,
+                                                                         double force_mode_gain_scaling = 0.5);
 
   /*!
    * \brief Constructs a new UrDriver object.
@@ -134,7 +179,7 @@ public:
    */
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
-           std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum = "",
+           std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
            const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
            double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
            const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004,
@@ -340,10 +385,73 @@ public:
    * along/about the axis. For non-compliant axes, these values are the maximum allowed deviation along/about an axis
    * between the actual tcp position and the one set by the program
    *
+   * \param damping_factor (double) Sets the damping parameter in force mode. In range [0,1], default value is 0.025
+   * A value of 1 is full damping, so the robot will decelerate quickly if no force is present. A value of 0
+   * is no damping, here the robot will maintain the speed.
+   *
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
-                      const unsigned int type, const vector6d_t& limits);
+                      const unsigned int type, const vector6d_t& limits, double damping_factor);
+
+  /*!
+   * \brief Start the robot to be controlled in force mode.
+   *
+   * \param task_frame A pose vector that defines the force frame relative to the base frame
+   * \param selection_vector A 6d vector of 0s and 1s. 1 means that the robot will be compliant in the corresponding
+   * axis of the task frame
+   * \param wrench 6d vector of forces/torques [x,y,z,rotX,rotY,rotZ] that the robot will apply to its environment. The
+   * robot adjusts its position along/about compliant axis in order to achieve the specified force/torque. Values have
+   * no effect for non-compliant axes.
+   * \param type An integer [1;3] specifying how the robot interprets the force frame.
+   *  1: The force frame is transformed in a way such that its y-axis is aligned with a vector pointing from the robot
+   *  tcp towards the origin of the force frame
+   *  2: The force frame is not transformed
+   *  3: The force frame is transformed in a way such that its x-axis is the projection of the robot tcp velocity vector
+   *  onto the x-y plane of the force frame
+   * \param limits (double) 6d vector. For compliant axes, these values are the maximum allowed tcp speed
+   * along/about the axis. For non-compliant axes, these values are the maximum allowed deviation along/about an axis
+   * between the actual tcp position and the one set by the program
+   *
+   * \param damping_factor (double) Sets the damping parameter in force mode. In range [0,1], default value is 0.025
+   * A value of 1 is full damping, so the robot will decelerate quickly if no force is present. A value of 0
+   * is no damping, here the robot will maintain the speed.
+   *
+   * \param gain_scaling_factor (double) Scales the gain in force mode. scaling parameter in range [0,2], default is
+   * 0.5. A value larger than 1 can make force mode unstable, e.g. in case of collisions or pushing against hard
+   * surfaces.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
+                      const unsigned int type, const vector6d_t& limits, double damping_factor,
+                      double gain_scaling_factor);
+
+  /*!
+   * \brief Start the robot to be controlled in force mode.
+   *
+   * \param task_frame A pose vector that defines the force frame relative to the base frame
+   * \param selection_vector A 6d vector of 0s and 1s. 1 means that the robot will be compliant in the corresponding
+   * axis of the task frame
+   * \param wrench 6d vector of forces/torques [x,y,z,rotX,rotY,rotZ] that the robot will apply to its environment. The
+   * robot adjusts its position along/about compliant axis in order to achieve the specified force/torque. Values have
+   * no effect for non-compliant axes.
+   * \param type An integer [1;3] specifying how the robot interprets the force frame.
+   *  1: The force frame is transformed in a way such that its y-axis is aligned with a vector pointing from the robot
+   *  tcp towards the origin of the force frame
+   *  2: The force frame is not transformed
+   *  3: The force frame is transformed in a way such that its x-axis is the projection of the robot tcp velocity vector
+   *  onto the x-y plane of the force frame
+   * \param limits (double) 6d vector. For compliant axes, these values are the maximum allowed tcp speed
+   * along/about the axis. For non-compliant axes, these values are the maximum allowed deviation along/about an axis
+   * between the actual tcp position and the one set by the program
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  [[deprecated("Starting force mode without specifying the force mode damping factor and gain scale factor has been "
+               "deprecated. These values should be given with each function call.")]] bool
+  startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector, const vector6d_t& wrench,
+                 const unsigned int type, const vector6d_t& limits);
 
   /*!
    * \brief Stop force mode and put the robot into normal operation mode.
@@ -539,6 +647,9 @@ private:
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+
+  double force_mode_gain_scale_factor_ = 0.5;
+  double force_mode_damping_factor_ = 0.025;
 
   uint32_t servoj_gain_;
   double servoj_lookahead_time_;

@@ -32,6 +32,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <sstream>
+#include "ur/version_information.h"
 
 namespace urcl
 {
@@ -123,6 +124,68 @@ public:
 
 private:
   std::string text_;
+};
+
+class IncompatibleRobotVersion : public UrException
+{
+public:
+  explicit IncompatibleRobotVersion() = delete;
+  explicit IncompatibleRobotVersion(const std::string& text, const VersionInformation& minimum_robot_version,
+                                    const VersionInformation& actual_robot_version)
+    : std::runtime_error(text)
+  {
+    std::stringstream ss;
+    ss << text << "\n"
+       << "The requested feature is incompatible with the connected robot. Minimum required Polyscope version: "
+       << minimum_robot_version << ", actual Polyscope version: " << actual_robot_version;
+    text_ = ss.str();
+  }
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+
+private:
+  std::string text_;
+};
+
+class InvalidRange : public UrException
+{
+private:
+  std::string text_;
+
+public:
+  explicit InvalidRange() = delete;
+  explicit InvalidRange(std::string text) : std::runtime_error(text)
+  {
+    text_ = text;
+  }
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+};
+
+class MissingArgument : public UrException
+{
+private:
+  std::string text_;
+
+public:
+  explicit MissingArgument() = delete;
+  explicit MissingArgument(std::string text, std::string function_name, std::string argument_name, float default_value)
+    : std::runtime_error("")
+  {
+    std::stringstream ss;
+    ss << text << "\nMissing argument when calling function: " << function_name
+       << ". \nArgument missing: " << argument_name
+       << ". \nSet to default value if not important, default value is: " << default_value;
+    text_ = ss.str();
+  }
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
 };
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

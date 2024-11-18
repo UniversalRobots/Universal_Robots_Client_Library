@@ -108,9 +108,10 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
 }
 
 bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const vector6uint32_t* selection_vector,
-                                            const vector6d_t* wrench, const unsigned int type, const vector6d_t* limits)
+                                            const vector6d_t* wrench, const unsigned int type, const vector6d_t* limits,
+                                            double damping_factor, double gain_scaling_factor)
 {
-  const int message_length = 26;
+  const int message_length = 28;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
 
@@ -143,6 +144,12 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const 
     val = htobe32(static_cast<int32_t>(round(lim * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
+
+  val = htobe32(static_cast<int32_t>(round(damping_factor * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(round(gain_scaling_factor * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
   for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)

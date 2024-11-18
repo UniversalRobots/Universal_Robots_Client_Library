@@ -58,7 +58,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
-                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
+                         const uint32_t script_command_port)
   : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
   , handle_program_state_(handle_program_state)
@@ -123,45 +123,6 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                  std::to_string(script_command_port));
   }
 
-  while (prog.find(FORCE_MODE_SET_DAMPING_REPLACE) != std::string::npos)
-  {
-    if (force_mode_damping < 0 || force_mode_damping > 1)
-    {
-      std::stringstream ss;
-      ss << "Force mode damping, should be between 0 and 1, but it is " << force_mode_damping;
-      force_mode_damping = 0.025;
-      ss << " setting it to default " << force_mode_damping;
-      URCL_LOG_ERROR(ss.str().c_str());
-    }
-    prog.replace(prog.find(FORCE_MODE_SET_DAMPING_REPLACE), FORCE_MODE_SET_DAMPING_REPLACE.length(),
-                 std::to_string(force_mode_damping));
-  }
-
-  while (prog.find(FORCE_MODE_SET_GAIN_SCALING_REPLACE) != std::string::npos)
-  {
-    if (robot_version_.major < 5)
-    {
-      // force_mode_set_gain_scaling is only available for e-series and is therefore removed, if the robot is not
-      // e-series
-      std::stringstream ss;
-      ss << "force_mode_set_gain_scaling(" << FORCE_MODE_SET_GAIN_SCALING_REPLACE << ")";
-      prog.replace(prog.find(ss.str()), ss.str().length(), "");
-    }
-    else
-    {
-      if (force_mode_gain_scaling < 0 || force_mode_gain_scaling > 2)
-      {
-        std::stringstream ss;
-        ss << "Force mode gain scaling, should be between 0 and 2, but it is " << force_mode_gain_scaling;
-        force_mode_gain_scaling = 0.5;
-        ss << " setting it to default " << force_mode_gain_scaling;
-        URCL_LOG_ERROR(ss.str().c_str());
-      }
-      prog.replace(prog.find(FORCE_MODE_SET_GAIN_SCALING_REPLACE), FORCE_MODE_SET_GAIN_SCALING_REPLACE.length(),
-                   std::to_string(force_mode_gain_scaling));
-    }
-  }
-
   robot_version_ = rtde_client_->getVersion();
 
   std::stringstream begin_replace;
@@ -208,6 +169,21 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
 
   URCL_LOG_DEBUG("Initialization done");
+}
+
+urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
+                         const std::string& output_recipe_file, const std::string& input_recipe_file,
+                         std::function<void(bool)> handle_program_state, bool headless_mode,
+                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
+                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
+                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
+                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
+  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
+             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
+             non_blocking_read, reverse_ip, trajectory_port, script_command_port)
+{
+  force_mode_damping_factor_ = force_mode_damping;
+  force_mode_gain_scale_factor_ = force_mode_gain_scaling;
 }
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
@@ -371,10 +347,19 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
     return sendScript(cmd.str());
   }
 }
-
+// Function for e-series robots (Needs both damping factor and gain scaling factor)
 bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector,
-                              const vector6d_t& wrench, const unsigned int type, const vector6d_t& limits)
+                              const vector6d_t& wrench, const unsigned int type, const vector6d_t& limits,
+                              double damping_factor, double gain_scaling_factor)
 {
+  if (robot_version_.major < 5)
+  {
+    std::stringstream ss;
+    ss << "Force mode gain scaling factor cannot be set on a CB3 robot.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    VersionInformation req_version = VersionInformation::fromString("5.0.0.0");
+    throw IncompatibleRobotVersion(ss.str(), req_version, robot_version_);
+  }
   // Test that the type is either 1, 2 or 3.
   switch (type)
   {
@@ -388,25 +373,116 @@ bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_
       std::stringstream ss;
       ss << "The type should be 1, 2 or 3. The type is " << type;
       URCL_LOG_ERROR(ss.str().c_str());
-      return false;
+      throw InvalidRange(ss.str().c_str());
   }
   for (unsigned int i = 0; i < selection_vector.size(); ++i)
   {
     if (selection_vector[i] > 1)
     {
-      URCL_LOG_ERROR("The selection vector should only consist of 0's and 1's");
-      return false;
+      std::stringstream ss;
+      ss << "The selection vector should only consist of 0's and 1's";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
     }
+  }
+
+  if (damping_factor > 1 || damping_factor < 0)
+  {
+    std::stringstream ss;
+    ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
+  }
+
+  if (gain_scaling_factor > 2 || gain_scaling_factor < 0)
+  {
+    std::stringstream ss;
+    ss << "The force mode gain scaling factor should be between 0 and 2, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
   }
 
   if (script_command_interface_->clientConnected())
   {
-    return script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, type, &limits);
+    return script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, type, &limits,
+                                                     damping_factor, gain_scaling_factor);
   }
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to start Force mode.");
     return false;
+  }
+}
+
+// Function for CB3 robots (CB3 robots cannot use gain scaling)
+bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector,
+                              const vector6d_t& wrench, const unsigned int type, const vector6d_t& limits,
+                              double damping_factor)
+{
+  if (robot_version_.major >= 5)
+  {
+    std::stringstream ss;
+    ss << "You should also specify a force mode gain scaling factor to activate force mode on an e-series robot.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw MissingArgument(ss.str(), "startForceMode", "gain_scaling_factor", 0.5);
+  }
+  // Test that the type is either 1, 2 or 3.
+  switch (type)
+  {
+    case 1:
+      break;
+    case 2:
+      break;
+    case 3:
+      break;
+    default:
+      std::stringstream ss;
+      ss << "The type should be 1, 2 or 3. The type is " << type;
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
+  }
+  for (unsigned int i = 0; i < selection_vector.size(); ++i)
+  {
+    if (selection_vector[i] > 1)
+    {
+      std::stringstream ss;
+      ss << "The selection vector should only consist of 0's and 1's";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw InvalidRange(ss.str().c_str());
+    }
+  }
+
+  if (damping_factor > 1 || damping_factor < 0)
+  {
+    std::stringstream ss;
+    ss << "The force mode damping factor should be between 0 and 1, both inclusive.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw InvalidRange(ss.str().c_str());
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->startForceMode(&task_frame, &selection_vector, &wrench, type, &limits,
+                                                     damping_factor, 0);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to start Force mode.");
+    return false;
+  }
+}
+
+bool UrDriver::startForceMode(const vector6d_t& task_frame, const vector6uint32_t& selection_vector,
+                              const vector6d_t& wrench, const unsigned int type, const vector6d_t& limits)
+{
+  if (robot_version_.major < 5)
+  {
+    return startForceMode(task_frame, selection_vector, wrench, type, limits, force_mode_damping_factor_);
+  }
+  else
+  {
+    return startForceMode(task_frame, selection_vector, wrench, type, limits, force_mode_damping_factor_,
+                          force_mode_gain_scale_factor_);
   }
 }
 

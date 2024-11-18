@@ -55,11 +55,21 @@ const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
 
+std::condition_variable g_program_running_cv_;
+std::mutex g_program_running_mutex_;
+bool g_program_running;
+
 // We need a callback function to register. See UrDriver's parameters for details.
 void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  if (program_running)
+  {
+    std::lock_guard<std::mutex> lk(g_program_running_mutex_);
+    g_program_running = program_running;
+    g_program_running_cv_.notify_one();
+  }
 }
 
 void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_action)
@@ -70,6 +80,17 @@ void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_
     URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
     exit(1);
   }
+}
+
+bool waitForProgramRunning(int milliseconds = 100)
+{
+  std::unique_lock<std::mutex> lk(g_program_running_mutex_);
+  if (g_program_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+      g_program_running == true)
+  {
+    return true;
+  }
+  return false;
 }
 
 int main(int argc, char* argv[])
@@ -130,7 +151,16 @@ int main(int argc, char* argv[])
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   const bool HEADLESS = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+                                 std::move(tool_comm_setup)));
+
+  if (!g_my_driver->checkCalibration(CALIBRATION_CHECKSUM))
+  {
+    URCL_LOG_ERROR("Calibration checksum does not match actual robot.");
+    URCL_LOG_ERROR("Use the ur_calibration tool to extract the correct calibration from the robot and pass that into "
+                   "the description. See "
+                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                   "for details.");
+  }
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
@@ -141,15 +171,37 @@ int main(int argc, char* argv[])
   std::chrono::duration<double> timeout(second_to_run);
   auto stopwatch_last = std::chrono::steady_clock::now();
   auto stopwatch_now = stopwatch_last;
-  g_my_driver->writeKeepalive();
+  // Make sure that external control script is running
+  if (!waitForProgramRunning())
+  {
+    URCL_LOG_ERROR("External Control script not running.");
+    return 1;
+  }
   // Task frame at the robot's base with limits being large enough to cover the whole workspace
   // Compliance in z axis and rotation around z axis
-  g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },                 // Task frame at the robot's base
-                              { 0, 0, 1, 0, 0, 1 },                 // Compliance in z axis and rotation around z axis
-                              { 0, 0, 0, 0, 0, 0 },                 // do not apply any active wrench
-                              2,                                    // do not transform the force frame at all
-                              { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 });  // limits. See ScriptManual for
-                                                                    // details.
+  bool success;
+  if (g_my_driver->getVersion().major < 5)
+    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
+                                          { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
+                                          { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
+                                          2,                     // do not transform the force frame at all
+                                          { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
+                                          0.025);  // damping_factor. See ScriptManual for details.
+  else
+  {
+    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
+                                          { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
+                                          { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
+                                          2,                     // do not transform the force frame at all
+                                          { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
+                                          0.025,                               // damping_factor
+                                          0.8);  // gain_scaling. See ScriptManual for details.
+  }
+  if (!success)
+  {
+    URCL_LOG_ERROR("Failed to start force mode.");
+    return 1;
+  }
 
   while (true)
   {
