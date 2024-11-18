@@ -124,7 +124,7 @@ public:
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
-             const std::vector<std::string>& input_recipe, bool ignore_available_outputs = false,
+             const std::vector<std::string>& input_recipe, bool ignore_unavailable_outputs = false,
              double target_frequency = 0.0);
   ~RTDEClient();
   /*!
