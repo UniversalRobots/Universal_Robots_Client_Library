@@ -103,10 +103,13 @@ public:
    * \param notifier The notifier to use in the pipeline
    * \param output_recipe_file Path to the file containing the output recipe
    * \param input_recipe_file Path to the file containing the input recipe
+   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-             const std::string& input_recipe_file, double target_frequency = 0.0);
+             const std::string& input_recipe_file, bool ignore_unavailable_outputs = false,
+             double target_frequency = 0.0);
 
   /*!
    * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
@@ -116,10 +119,13 @@ public:
    * \param notifier The notifier to use in the pipeline
    * \param output_recipe Vector containing the output recipe
    * \param input_recipe Vector containing the input recipe
+   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
-             const std::vector<std::string>& input_recipe, double target_frequency = 0.0);
+             const std::vector<std::string>& input_recipe, bool ignore_available_outputs = false,
+             double target_frequency = 0.0);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
@@ -208,10 +214,11 @@ public:
   {
     return output_recipe_;
   }
-  
+
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
+  bool ignore_unavailable_outputs_;
   std::vector<std::string> input_recipe_;
   RTDEParser parser_;
   std::unique_ptr<comm::URProducer<RTDEPackage>> prod_;

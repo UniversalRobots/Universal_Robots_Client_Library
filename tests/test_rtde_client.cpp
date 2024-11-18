@@ -373,7 +373,9 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 {
   client_->init();
 
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_));
+  // Ignore unknown output variables to account for variables not available in old urcontrol versions.
+  client_.reset(
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_, true));
 
   EXPECT_NO_THROW(client_->init());
   client_->start();
@@ -392,6 +394,19 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
 
   client_->pause();
+}
+
+TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
+{
+  client_->init();
+
+  std::vector<std::string> incorrect_output_recipe = client_->getOutputRecipe();
+  incorrect_output_recipe.push_back("unknown_rtde_variable");
+
+  client_.reset(
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_, false));
+
+  EXPECT_THROW(client_->init(), UrException);
 }
 
 int main(int argc, char* argv[])

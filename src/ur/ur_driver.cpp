@@ -691,7 +691,8 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
 }
 
 void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,
-                               const std::vector<std::string>& input_recipe, double target_frequency)
+                               const std::vector<std::string>& input_recipe, bool ignore_unavailable_outputs,
+                               double target_frequency)
 {
   rtde_client_.reset(
       new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe, target_frequency));
@@ -699,10 +700,10 @@ void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,
 }
 
 void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
-                               double target_frequency)
+                               bool ignore_unavailable_outputs, double target_frequency)
 {
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_filename, input_recipe_filename,
-                                                    target_frequency));
+                                                    ignore_unavailable_outputs, target_frequency));
   initRTDE();
 }
 

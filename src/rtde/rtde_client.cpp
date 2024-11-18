@@ -35,9 +35,10 @@ namespace urcl
 namespace rtde_interface
 {
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-                       const std::string& input_recipe_file, double target_frequency)
+                       const std::string& input_recipe_file, bool ignore_unavailable_outputs, double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(ensureTimestampIsPresent(readRecipe(output_recipe_file)))
+  , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , input_recipe_(readRecipe(input_recipe_file))
   , parser_(output_recipe_)
   , prod_(std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_))
@@ -51,9 +52,11 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 }
 
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
-                       const std::vector<std::string>& input_recipe, double target_frequency)
+                       const std::vector<std::string>& input_recipe, bool ignore_unavailable_outputs,
+                       double target_frequency)
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(ensureTimestampIsPresent(output_recipe))
+  , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , input_recipe_(input_recipe)
   , parser_(output_recipe_)
   , prod_(std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_))
@@ -251,11 +254,12 @@ void RTDEClient::queryURControlVersion()
   throw UrException(ss.str());
 }
 
-void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe) {
+void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
+{
   prod_->teardownProducer();
   disconnect();
 
-  output_recipe_.assign(new_recipe.begin(), new_recipe.end());      
+  output_recipe_.assign(new_recipe.begin(), new_recipe.end());
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
   pipeline_ = std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier_, true);
@@ -308,33 +312,52 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
     {
       std::vector<std::string> variable_types = splitVariableTypes(tmp_output->variable_types_);
       std::vector<std::string> available_variables;
+      std::vector<std::string> unavailable_variables;
       assert(output_recipe_.size() == variable_types.size());
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
         const std::string variable_name = output_recipe_[i];
         URCL_LOG_DEBUG("%s confirmed as datatype: %s", variable_name.c_str(), variable_types[i].c_str());
-        
+
         if (variable_types[i] == "NOT_FOUND")
         {
-          const std::string message = "Variable '" + variable_name + "' not recognized by the robot. "
-                                  "Either your output recipe contains errors or the urcontrol version "
-                                  "does not support it. It will be removed from the output recipe.";
-          URCL_LOG_WARN("%s", message.c_str());
-        } 
-        else 
+          unavailable_variables.push_back(variable_name);
+        }
+        else
         {
           available_variables.push_back(variable_name);
         }
       }
 
-      if (available_variables.size() == output_recipe_.size()) {
+      if (!unavailable_variables.empty())
+      {
+        std::stringstream error_message;
+        error_message << "The following variables are not recognized by the robot: ";
+        std::for_each(unavailable_variables.begin(), unavailable_variables.end(),
+                      [&error_message](const std::string& variable_name) { error_message << variable_name << " "; });
+        error_message << ". Either your output recipe contains errors "
+                         "or the urcontrol version does not support "
+                         "them.";
+
+        if (ignore_unavailable_outputs_)
+        {
+          error_message << " They will be removed from the output recipe.";
+          URCL_LOG_WARN("%s", error_message.str().c_str());
+
+          // Some variables are not available so retry setting up the communication with a stripped-down output recipe
+          resetOutputRecipe(available_variables);
+        }
+        else
+        {
+          URCL_LOG_ERROR("%s", error_message.str().c_str());
+          throw UrException(error_message.str());
+        }
+      }
+      else
+      {
         // All variables are accounted for in the RTDE package
         return;
       }
-
-      // Some variables are not available so retry setting up the communication with a stripped-down output recipe
-      resetOutputRecipe(available_variables);
-      return;
     }
     else
     {
