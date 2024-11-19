@@ -8,3 +8,7 @@ install_manifest.txt
 .directory
 .vscode
 build/
+bazel*
+.bazelversion
+.bazelrc
+*.lock
