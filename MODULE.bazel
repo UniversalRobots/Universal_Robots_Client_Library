@@ -1,0 +1,13 @@
+# TODO(halbrock): Doc
+
+module(
+    name = "universal_robots_client_library",
+    version = "1.4.0",
+)
+
+# use_repo(
+
+# )
+
+# Most recent version from https://registry.bazel.build/modules/googletest
+bazel_dep(name = "googletest", version = "1.15.2")
