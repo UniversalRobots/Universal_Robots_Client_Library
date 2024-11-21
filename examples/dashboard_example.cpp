@@ -36,6 +36,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <unistd.h>
 
 using namespace urcl;
 
@@ -95,6 +96,8 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Could not load %s program", program_file_name_to_be_loaded.c_str());
     return 1;
   }
+
+  sleep(1);
 
   // Play loaded program
   if (!my_dashboard->commandPlay())

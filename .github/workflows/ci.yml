@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:
+      fail-fast: false
       matrix:
         env:
           - DOCKER_RUN_OPTS: --network ursim_net
@@ -98,16 +99,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Check URLs
         run: |
-          .github/helpers/check_urls.sh -rI \
-            --exclude-dir=.git \
-            --exclude-dir=build/ \
-            --exclude-dir=tests \
-            --exclude=package.xml \
-            --exclude-dir=CMakeModules \
-            --exclude=tcp_socket.cpp \
-            --exclude-dir=debian \
-            --exclude=dataflow.graphml \
-            --exclude=start_ursim.sh
+          .github/helpers/check_urls.sh \
+            -d ".git build CMakeModules debian" \
+            -f "package.xml architecture_coarse.svg dataflow.graphml start_ursim.sh" \
+            -p "vnc\.html opensource\.org\/licenses\/BSD-3-Clause kernel\.org\/pub\/linux\/kernel"
 
   rosdoc_lite_check:
     runs-on: ubuntu-latest
