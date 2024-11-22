@@ -35,7 +35,7 @@ namespace urcl
 namespace rtde_interface
 {
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-                       const std::string& input_recipe_file, bool ignore_unavailable_outputs, double target_frequency)
+                       const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs)
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(ensureTimestampIsPresent(readRecipe(output_recipe_file)))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
@@ -52,8 +52,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 }
 
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
-                       const std::vector<std::string>& input_recipe, bool ignore_unavailable_outputs,
-                       double target_frequency)
+                       const std::vector<std::string>& input_recipe, double target_frequency,
+                       bool ignore_unavailable_outputs)
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(ensureTimestampIsPresent(output_recipe))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
@@ -88,8 +88,8 @@ bool RTDEClient::init(const size_t max_num_tries, const std::chrono::millisecond
     if (client_state_ == ClientState::INITIALIZED)
       return true;
 
-    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 1 seconds");
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 10 seconds");
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     attempts++;
   }
   std::stringstream ss;
@@ -275,7 +275,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
 
   while (num_retries < MAX_REQUEST_RETRIES)
   {
-    URCL_LOG_INFO("Sending output recipe");
+    URCL_LOG_DEBUG("Sending output recipe");
     if (protocol_version == 2)
     {
       size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, target_frequency_, output_recipe_);

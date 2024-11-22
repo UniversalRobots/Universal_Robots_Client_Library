@@ -143,12 +143,12 @@ TEST_F(RTDEClientTest, invalid_target_frequency)
 {
   // Setting target frequency below 0 or above 500, should throw an exception
   client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, -1.0));
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
 
   client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, 1000));
+      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000, false));
 
   EXPECT_THROW(client_->init(), UrException);
 }
@@ -167,7 +167,7 @@ TEST_F(RTDEClientTest, unconfigured_target_frequency)
 
 TEST_F(RTDEClientTest, set_target_frequency)
 {
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, false, 1));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1, false));
   client_->init();
 
   // Maximum frequency should still be equal to the robot's maximum frequency
@@ -376,8 +376,8 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_->init();
 
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
-  client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_, true));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_,
+                                               0.0, true));
 
   EXPECT_NO_THROW(client_->init());
   client_->start();
@@ -405,8 +405,8 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
   std::vector<std::string> incorrect_output_recipe = client_->getOutputRecipe();
   incorrect_output_recipe.push_back("unknown_rtde_variable");
 
-  client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_, false));
+  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_,
+                                               0.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
 }

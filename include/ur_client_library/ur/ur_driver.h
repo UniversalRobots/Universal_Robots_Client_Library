@@ -605,13 +605,13 @@ public:
    *
    * \param output_recipe Vector containing the output recipe
    * \param input_recipe Vector containing the input recipe
-   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
-   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    * \param target_frequency
    * Frequency to run the RTDE client at. Defaults to 0.0 which means maximum frequency.
+   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   void resetRTDEClient(const std::vector<std::string>& output_recipe, const std::vector<std::string>& input_recipe,
-                       bool ignore_unavailable_outputs = false, double target_frequency = 0.0);
+                       double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
   /**
    * \brief Reset the RTDE client. As during initialization the driver will start RTDE communication
@@ -623,12 +623,12 @@ public:
    *
    * \param output_recipe_filename Filename where the output recipe is stored in.
    * \param input_recipe_filename Filename where the input recipe is stored in.
+   * \param target_frequency Frequency to run the RTDE client at. Defaults to 0.0 which means maximum frequency.
    * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
    * from the robot: output is silently ignored if true, a UrException is raised otherwise.
-   * \param target_frequency Frequency to run the RTDE client at. Defaults to 0.0 which means maximum frequency.
    */
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
-                       bool ignore_unavailable_outputs = false, double target_frequency = 0.0);
+                       double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
 private:
   static std::string readScriptFile(const std::string& filename);
