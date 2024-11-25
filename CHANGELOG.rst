@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.5.0 (2024-11-25)
+------------------
 * Adapt RTDE output recipe based on robot response (`#221 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/221>`_)
 * CI: Fix flaky example runs (`#223 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/223>`_)
 * Giving force mode parameters as arguments when calling startForceMode (`#208 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/208>`_)
