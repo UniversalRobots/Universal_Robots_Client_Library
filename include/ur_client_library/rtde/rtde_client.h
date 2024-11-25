@@ -29,6 +29,8 @@
 #ifndef UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 
+#include <memory>
+
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/rtde/package_header.h"
 #include "ur_client_library/rtde/rtde_package.h"
@@ -102,9 +104,12 @@ public:
    * \param output_recipe_file Path to the file containing the output recipe
    * \param input_recipe_file Path to the file containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
+   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-             const std::string& input_recipe_file, double target_frequency = 0.0);
+             const std::string& input_recipe_file, double target_frequency = 0.0,
+             bool ignore_unavailable_outputs = false);
 
   /*!
    * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
@@ -115,9 +120,12 @@ public:
    * \param output_recipe Vector containing the output recipe
    * \param input_recipe Vector containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
+   * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
-             const std::vector<std::string>& input_recipe, double target_frequency = 0.0);
+             const std::vector<std::string>& input_recipe, double target_frequency = 0.0,
+             bool ignore_unavailable_outputs = false);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
@@ -210,10 +218,12 @@ public:
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
+  bool ignore_unavailable_outputs_;
   std::vector<std::string> input_recipe_;
   RTDEParser parser_;
-  comm::URProducer<RTDEPackage> prod_;
-  comm::Pipeline<RTDEPackage> pipeline_;
+  std::unique_ptr<comm::URProducer<RTDEPackage>> prod_;
+  comm::INotifier notifier_;
+  std::unique_ptr<comm::Pipeline<RTDEPackage>> pipeline_;
   RTDEWriter writer_;
 
   VersionInformation urcontrol_version_;
@@ -240,6 +250,14 @@ private:
   void setupOutputs(const uint16_t protocol_version);
   void setupInputs();
   void disconnect();
+
+  /*!
+   * \brief Updates the output recipe to the given one and recreates all the objects which depend on it.
+   * It should only be called while setting up the communication.
+   *
+   * \param new_recipe the new output recipe to use
+   */
+  void resetOutputRecipe(const std::vector<std::string> new_recipe);
 
   /*!
    * \brief Checks whether the robot is booted, this is done by looking at the timestamp from the robot controller, this
