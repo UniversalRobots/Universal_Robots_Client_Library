@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Adapt RTDE output recipe based on robot response (`#221 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/221>`_)
+* CI: Fix flaky example runs (`#223 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/223>`_)
+* Giving force mode parameters as arguments when calling startForceMode (`#208 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/208>`_)
+* Add more arguments to start_ursim.sh (`#220 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/220>`_)
+* Tcp socket improvements (`#222 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/222>`_)
+* Added family photo to readme (`#219 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/219>`_)
+* Add missing algorithm include (`#214 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/214>`_)
+* Added missing RTDE data packages and fixed incorrect names (`#213 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/213>`_)
+* Contributors: Felix Exner, Remi Siffert, URJala
+
 1.4.0 (2024-09-10)
 ------------------
 * Ensure that the targets are reachable within the robots limits (`#184 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/184>`_)
