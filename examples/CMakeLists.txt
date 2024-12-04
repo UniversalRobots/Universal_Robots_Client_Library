@@ -54,3 +54,8 @@ add_executable(force_mode_example
 force_mode_example.cpp)
 target_compile_options(force_mode_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(force_mode_example ur_client_library::urcl)
+
+add_executable(script_sender_example
+script_sender.cpp)
+target_compile_options(script_sender_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(script_sender_example ur_client_library::urcl)

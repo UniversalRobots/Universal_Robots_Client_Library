@@ -13,71 +13,13 @@ The core of this library is the ``UrDriver`` class which creates a
 fully functioning robot interface. For details on how to use it, please see the
 :ref:`example-driver` section.
 
+.. toctree::
+   :maxdepth: 1
+
+   architecture/script_sender
+
 The ``UrDriver``'s modules will be explained in the following.
 
-RTDEClient
-----------
-
-The ``RTDEClient`` class serves as a standalone
-`RTDE <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
-client. To use the RTDE-Client, you'll have to initialize and start it separately:
-
-.. code-block:: c++
-
-   rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
-   my_client.init();
-   my_client.start();
-   while (true)
-   {
-     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
-     if (data_pkg)
-     {
-       std::cout << data_pkg->toString() << std::endl;
-     }
-   }
-
-Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
-outputs. Please refer to the `RTDE
-guide <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
-on which elements are available.
-
-Inside the ``RTDEclient`` data is received in a separate thread, parsed by the ``RTDEParser`` and
-added to a pipeline queue.
-
-Right after calling ``my_client.start()``, it should be made sure to read the buffer from the
-``RTDEClient`` by calling ``getDataPackage()`` frequently. The Client's queue can only contain 1
-item at a time, so a ``Pipeline producer overflowed!`` error will be raised if the buffer isn't read
-before the next package arrives.
-
-For writing data to the RTDE interface, use the ``RTDEWriter`` member of the ``RTDEClient``. It can be
-retrieved by calling ``getWriter()`` method. The ``RTDEWriter`` provides convenience methods to write
-all data available at the RTDE interface. Make sure that the required keys are configured inside the
-input recipe, as otherwise the send-methods will return ``false`` if the data field is not setup in
-the recipe.
-
-An example of a standalone RTDE-client can be found in the ``examples`` subfolder. To run it make
-sure to
-
-* have an instance of a robot controller / URSim running at the configured IP address (or adapt the
-  address to your needs)
-* run it from the package's main folder, as for simplicity reasons it doesn't use any sophisticated
-  method to locate the required files.
-
-.. note::
-   The ``URDriver`` class creates a ``RTDEClient`` during initialization using the provided
-   recipes and utilizing the robot model's maximum frequency. If you would like to use a different
-   frequency, please use the ``resetRTDEClient()`` method after the ``UrDriver`` object has been
-   created.
-
-RTDEWriter
-^^^^^^^^^^
-
-The ``RTDEWriter`` class provides an interface to write data to the RTDE interface. Data fields that
-should be written have to be defined inside the ``INPUT_RECIPE`` as noted above.
-
-The class offers specific methods for every RTDE input possible to write.
-
-Data is sent asynchronously to the RTDE interface.
 
 ReverseInterface
 ----------------
@@ -96,21 +38,6 @@ script <../resources/external_control.urscript>`_ for reference.
 
 Also see the :ref:`ScriptSender` for a way to define the corresponding URScript on the
 control PC and sending it to the robot upon request.
-
-.. _ScriptSender:
-
-ScriptSender
-------------
-
-The ``ScriptSender`` class opens a tcp socket on the remote PC whose single purpose it is to answer
-with a URScript code snippet on a "*request_program*" request. The script code itself has to be
-given to the class constructor.
-
-Use this class in conjunction with the `External Control URCap
-<https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap>`_ which will make the
-corresponding request when starting a program on the robot that contains the **External Control**
-program node. In order to work properly, make sure that the IP address and script sender port are
-configured correctly on the robot.
 
 Other public interface functions
 --------------------------------
