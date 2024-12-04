@@ -17,6 +17,7 @@ fully functioning robot interface. For details on how to use it, please see the
    :maxdepth: 1
 
    architecture/script_sender
+   architecture/rtde_client
 
 The ``UrDriver``'s modules will be explained in the following.
 
