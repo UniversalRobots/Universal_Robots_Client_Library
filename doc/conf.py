@@ -48,9 +48,12 @@ release = catkin_package.version
 extensions = [
     "sphinx_copybutton",
     "sphinx_rtd_theme",
+    "sphinx.ext.todo",
 ]
 
 copybutton_exclude = ".linenos, .gp, .go"
+todo_include_todos = True
+todo_emit_warnings = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["doc/_templates"]
