@@ -18,7 +18,9 @@ fully functioning robot interface. For details on how to use it, please see the
 
    architecture/dashboard_client
    architecture/rtde_client
+   architecture/script_command_interface
    architecture/script_sender
+
 
 The ``UrDriver``'s modules will be explained in the following.
 
