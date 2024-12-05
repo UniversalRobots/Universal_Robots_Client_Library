@@ -16,8 +16,9 @@ fully functioning robot interface. For details on how to use it, please see the
 .. toctree::
    :maxdepth: 1
 
-   architecture/script_sender
+   architecture/dashboard_client
    architecture/rtde_client
+   architecture/script_sender
 
 The ``UrDriver``'s modules will be explained in the following.
 
@@ -59,17 +60,3 @@ sendScript()
 This function sends given URScript code directly to the secondary interface. The
 ``sendRobotProgram()`` function is a special case that will send the script code given in the
 ``RTDEClient`` constructor.
-
-DashboardClient
----------------
-
-The ``DashboardClient`` wraps the calls on the `Dashboard server <https://www.universal-robots.com/articles/ur-articles/dashboard-server-e-series-port-29999/>`_
-directly into C++ functions.
-
-After connecting to the dashboard server by using the ``connect()`` function, dashboard calls can be
-sent using the ``sendAndReceive()`` function. Answers from the dashboard server will be returned as
-string from this function. If no answer is received, a ``UrException`` is thrown.
-
-Note: In order to make this more useful developers are expected to wrap this bare interface into
-something that checks the returned string for something that is expected. See the
-`DashboardClientROS <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/dashboard_client_ros.h>`_ as an example.
