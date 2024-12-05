@@ -103,9 +103,3 @@ jobs:
             -d ".git build CMakeModules debian" \
             -f "package.xml architecture_coarse.svg dataflow.graphml start_ursim.sh" \
             -p "vnc\.html opensource\.org\/licenses\/BSD-3-Clause kernel\.org\/pub\/linux\/kernel"
-
-  rosdoc_lite_check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/rosdoc_lite_action
