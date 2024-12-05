@@ -27,4 +27,4 @@ jobs:
           pip install -r doc_requirements.txt
       - name: Build documentation
         run: |
-          sphinx-build -b html doc _doc_build
+          sphinx-build -W -b html doc _doc_build
