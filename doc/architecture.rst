@@ -17,31 +17,16 @@ fully functioning robot interface. For details on how to use it, please see the
    :maxdepth: 1
 
    architecture/dashboard_client
+   architecture/reverse_interface
    architecture/rtde_client
    architecture/script_command_interface
    architecture/script_sender
+   architecture/trajectory_point_interface
 
 
 The ``UrDriver``'s modules will be explained in the following.
 
 
-ReverseInterface
-----------------
-
-The ``ReverseInterface`` opens a TCP port on which a custom protocol is implemented between the
-robot and the control PC. The port can be specified in the class constructor.
-
-It's basic functionality is to send a vector of floating point data together with a mode. It is
-meant to send joint positions or velocities together with a mode that tells the robot how to
-interpret those values (e.g. ``SERVOJ``, ``SPEEDJ``). Therefore, this interface can be used to do
-motion command streaming to the robot.
-
-In order to use this class in an application together with a robot, make sure that a corresponding
-URScript is running on the robot that can interpret the commands sent. See `this example
-script <../resources/external_control.urscript>`_ for reference.
-
-Also see the :ref:`ScriptSender` for a way to define the corresponding URScript on the
-control PC and sending it to the robot upon request.
 
 Other public interface functions
 --------------------------------
