@@ -41,15 +41,29 @@ meaning:
    index  meaning
    =====  =====
    0      read timeout in milliseconds. The next read from the socket will use this timeout.
-   1-6    Current motion target. depending on the control mode, this can be interpreted as joint
-          positions or velocities or a Cartesian pose.
+   1-6    Current motion target. depending on the control mode, this can be interpreted as
+
+           - joint positions (SERVOJ)
+           - joint velocities (SPEEDL)
+           - trajectory instructions (FORWARD)
+
+             - field 1: Trajectory control mode(1: TRAJECTORY_MODE_RECEIVE, -1: TRAJECTORY_MODE_CANCEL)
+             - field 2: Number of trajectory points left to transfer
+
+           - Cartesian velocities (SPEEDL)
+           - Cartesian pose (POSE)
+           - freedrive instruction (FREEDRIVE)
+
+             - field 1: Freedrive mode (1: FREEDRIVE_MODE_START, -1: FREEDRIVE_MODE_STOP)
+
    7      Control mode. Can be either of
+
            - -2: STOPPED
            - -1: UNINITIALIZED
            - 0: IDLE -- no motion
            - 1: SERVOJ -- High-frequent joint position control
            - 2: SPEEDJ -- Low-frequent joint velocity control
-           - 3: FORWARD -- Trajectory interpolation on the robot
+           - 3: FORWARD -- Trajectory interpolation on the robot, see :ref:`trajectory_point_interface`
            - 4: SPEEDL
            - 5: POSE
            - 6: FREEDRIVE
