@@ -64,8 +64,8 @@ TCPServer::~TCPServer()
 
 void TCPServer::init()
 {
-  int err = (listen_fd_ = socket(AF_INET, SOCK_STREAM, 0));
-  if (err == -1)
+  socket_t err = (listen_fd_ = socket(AF_INET, SOCK_STREAM, 0));
+  if (err < 0)
   {
     throw std::system_error(std::error_code(errno, std::generic_category()), "Failed to create socket endpoint");
   }
@@ -100,7 +100,8 @@ void TCPServer::shutdown()
   }
 #endif
 
-  struct sockaddr_in address = { 0 };
+  struct sockaddr_in address;
+  memset(&address, 0, sizeof(address));
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   address.sin_port = htons(port_);
