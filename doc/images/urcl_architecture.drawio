@@ -1,0 +1,37 @@
+<mxfile host="localhost" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" version="24.7.17">
+  <diagram name="Page-1" id="f_7MsYzxkcWwScyV1uhC">
+    <mxGraphModel dx="2074" dy="1146" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="qigunUAiiPU7ou8LCX0M-1" value="UrDriver" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="170" width="980" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-2" value="ReverseInterface" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-1">
+          <mxGeometry x="20" y="310" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-3" value="Socket: 50001" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-2">
+          <mxGeometry x="10" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-5" value="ScriptSender" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-1">
+          <mxGeometry x="170" y="310" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-6" value="Socket: 50002" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-5">
+          <mxGeometry x="10" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-7" value="TrajectoryPointInterface" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-1">
+          <mxGeometry x="320" y="310" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-8" value="Socket: 50003" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-7">
+          <mxGeometry x="20" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-9" value="ScriptCommandInterface" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-1">
+          <mxGeometry x="490" y="310" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="qigunUAiiPU7ou8LCX0M-10" value="Socket: 50004" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="qigunUAiiPU7ou8LCX0M-9">
+          <mxGeometry x="20" y="30" width="120" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
