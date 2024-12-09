@@ -29,7 +29,37 @@
 #ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 
+
+#ifdef _WIN32
+
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+#ifdef ERROR
+#undef ERROR
+#endif  // ERROR
+
+#define SCHED_FIFO (1)
+
+typedef HANDLE pthread_t;
+
+
+static inline pthread_t pthread_self()
+{
+  return ::GetCurrentThread();
+}
+
+static inline int sched_get_priority_max(int policy)
+{
+  return THREAD_PRIORITY_TIME_CRITICAL;
+}
+
+#else // _WIN32
+
 #include <pthread.h>
+
+#endif // _WIN32
 
 namespace urcl
 {

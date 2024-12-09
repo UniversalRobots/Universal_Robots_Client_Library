@@ -1,3 +1,0 @@
-[submodule "3rdparty/pthread-win32"]
-	path = 3rdparty/pthread-win32
-	url = https://github.com/GerHobbelt/pthread-win32.git
