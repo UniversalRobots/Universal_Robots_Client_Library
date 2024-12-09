@@ -29,15 +29,14 @@
 #ifndef UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>
+
+#include "ur_client_library/comm/socket_t.h"
+
 
 namespace urcl
 {
@@ -178,25 +177,22 @@ private:
   std::atomic<bool> keep_running_;
   std::thread worker_thread_;
 
-  std::atomic<int> listen_fd_;
+  std::atomic<socket_t> listen_fd_;
   int port_;
 
-  int maxfd_;
+  socket_t maxfd_;
   fd_set masterfds_;
   fd_set tempfds_;
 
   uint32_t max_clients_allowed_;
-  std::vector<int> client_fds_;
-
-  // Pipe for the self-pipe trick (https://cr.yp.to/docs/selfpipe.html)
-  int self_pipe_[2];
+  std::vector<socket_t> client_fds_;
 
   static const int INPUT_BUFFER_SIZE = 100;
   char input_buffer_[INPUT_BUFFER_SIZE];
 
-  std::function<void(const int)> new_connection_callback_;
-  std::function<void(const int)> disconnect_callback_;
-  std::function<void(const int, char* buffer, int nbytesrecv)> message_callback_;
+  std::function<void(const socket_t)> new_connection_callback_;
+  std::function<void(const socket_t)> disconnect_callback_;
+  std::function<void(const socket_t, char* buffer, int nbytesrecv)> message_callback_;
 };
 
 }  // namespace comm

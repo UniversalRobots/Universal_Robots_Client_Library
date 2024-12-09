@@ -29,7 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 
-#include <thread>
+#include <pthread.h>
 
 namespace urcl
 {

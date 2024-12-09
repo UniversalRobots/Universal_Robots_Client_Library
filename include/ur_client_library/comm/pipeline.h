@@ -342,6 +342,7 @@ public:
     producer_.stopProducer();
     if (pThread_.joinable())
     {
+      printf("Join Thread");
       pThread_.join();
     }
     if (cThread_.joinable())
@@ -396,6 +397,7 @@ private:
     std::vector<std::unique_ptr<T>> products;
     while (running_)
     {
+      printf("runProducer() is running\n");
       if (!producer_.tryGet(products))
       {
         producer_.teardownProducer();
@@ -403,6 +405,7 @@ private:
         break;
       }
 
+      printf("runProducer() for loop\n");
       for (auto& p : products)
       {
         if (!queue_.tryEnqueue(std::move(p)))
@@ -413,6 +416,7 @@ private:
 
       products.clear();
     }
+    printf("runProducer() ended\n");
     URCL_LOG_DEBUG("Pipeline producer ended! <%s>", name_.c_str());
     notifier_.stopped(name_);
   }

@@ -20,14 +20,16 @@
  * limitations under the License.
  */
 
-#include <arpa/inet.h>
 #include <endian.h>
-#include <netinet/tcp.h>
-#include <unistd.h>
 #include <chrono>
 #include <cstring>
 #include <sstream>
 #include <thread>
+
+#ifndef _WIN32
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
+#endif
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/tcp_socket.h"
@@ -36,8 +38,12 @@ namespace urcl
 {
 namespace comm
 {
-TCPSocket::TCPSocket() : socket_fd_(-1), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
+TCPSocket::TCPSocket() : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
 {
+#ifdef _WIN32
+  WSAData data;
+  ::WSAStartup(MAKEWORD(1, 1), &data);
+#endif // _WIN32
 }
 TCPSocket::~TCPSocket()
 {
@@ -47,12 +53,18 @@ TCPSocket::~TCPSocket()
 void TCPSocket::setupOptions()
 {
   int flag = 1;
-  setsockopt(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
-  setsockopt(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
+  ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+  ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
 
   if (recv_timeout_ != nullptr)
   {
-    setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+#ifdef _WIN32
+    DWORD value = recv_timeout_->tv_usec * 1000;
+    value += recv_timeout_->tv_sec / 1000;
+    ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value));
+#else
+    ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+#endif
   }
 }
 
@@ -141,8 +153,8 @@ void TCPSocket::close()
   if (socket_fd_ >= 0)
   {
     state_ = SocketState::Closed;
-    ::close(socket_fd_);
-    socket_fd_ = -1;
+    ::ur_close(socket_fd_);
+    socket_fd_ = INVALID_SOCKET;
   }
 }
 
@@ -179,7 +191,7 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   if (state_ != SocketState::Connected)
     return false;
 
-  ssize_t res = ::recv(socket_fd_, buf, buf_len, 0);
+  ssize_t res = ::recv(socket_fd_, reinterpret_cast<char*>(buf), buf_len, 0);
 
   if (res == 0)
   {
@@ -188,11 +200,19 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   }
   else if (res < 0)
   {
+    res = 0;
+#ifdef _WIN32
+    if (::WSAGetLastError() != WSAEWOULDBLOCK)
+    {
+      state_ = SocketState::Disconnected;
+    }
+#else
     if (!(errno == EAGAIN || errno == EWOULDBLOCK))
     {
       // any permanent error should be detected early
       state_ = SocketState::Disconnected;
     }
+#endif
     return false;
   }
 
@@ -215,7 +235,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(socket_fd_, buf + written, remaining, 0);
+    ssize_t sent = ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), remaining, 0);
 
     if (sent <= 0)
     {
@@ -223,7 +243,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
       return false;
     }
 
-    written += sent;
+    written += static_cast<size_t>(sent);
     remaining -= sent;
   }
 
