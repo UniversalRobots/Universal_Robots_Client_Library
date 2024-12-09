@@ -59,8 +59,8 @@ void TCPSocket::setupOptions()
   if (recv_timeout_ != nullptr)
   {
 #ifdef _WIN32
-    DWORD value = recv_timeout_->tv_usec * 1000;
-    value += recv_timeout_->tv_sec / 1000;
+    DWORD value = recv_timeout_->tv_sec * 1000;
+    value += recv_timeout_->tv_usec / 1000;
     ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value));
 #else
     ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
@@ -202,7 +202,8 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   {
     res = 0;
 #ifdef _WIN32
-    if (::WSAGetLastError() != WSAEWOULDBLOCK)
+    int code = ::WSAGetLastError();
+    if (code != WSAETIMEDOUT && code != WSAEWOULDBLOCK)
     {
       state_ = SocketState::Disconnected;
     }
