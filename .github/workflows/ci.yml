@@ -101,5 +101,5 @@ jobs:
         run: |
           .github/helpers/check_urls.sh \
             -d ".git build CMakeModules debian" \
-            -f "package.xml architecture_coarse.svg dataflow.graphml start_ursim.sh" \
+            -f "package.xml urcl_architecture.svg trajectory_interface.svg dataflow.graphml start_ursim.sh" \
             -p "vnc\.html opensource\.org\/licenses\/BSD-3-Clause kernel\.org\/pub\/linux\/kernel"
