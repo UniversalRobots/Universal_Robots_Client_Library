@@ -26,7 +26,7 @@ jobs:
             OS_VERSION: noble
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - run: sudo apt-get install -y python3-pip
       - run: sudo pip3 install empy==3.3.4  # Added as bloom not yet support empy v4
       - run: sudo pip3 install bloom rosdep

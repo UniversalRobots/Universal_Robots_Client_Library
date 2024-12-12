@@ -30,7 +30,7 @@ jobs:
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: start ursim
         run: |
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
@@ -96,7 +96,7 @@ jobs:
   check_links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Check URLs
         run: |
           .github/helpers/check_urls.sh \
@@ -107,5 +107,5 @@ jobs:
   rosdoc_lite_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/rosdoc_lite_action
