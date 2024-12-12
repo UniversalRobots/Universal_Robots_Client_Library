@@ -58,7 +58,7 @@ jobs:
       - name: gcovr
         run: cd build && gcovr -r ..
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           gcov: true
       - name: Generate URSim log files
