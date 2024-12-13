@@ -61,6 +61,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           gcov: true
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Generate URSim log files
         if: always()
         run: |
