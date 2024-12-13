@@ -11,21 +11,29 @@ body {
     min-height: 100%;
     background: #DEE2E1;
 
+    h2, h3, h4, h5, h6, h7 {
+        color: #3E7698
+    }
+
+    h1 {
+        color: #002B39
+    }
+
     a {
         color: #56A0D3;
         text-decoration: none;
         cursor:pointer
     }
-    
+
     a:hover {
         color:#80B8DE
     }
-    
+
     a:visited {
         color: purple
     }
-    
-.wy-menu-vertical header, .wy-menu-vertical p.caption {
+
+.wy-menu-vertical header,.wy-menu-vertical p.caption {
     color: #3E7698;
     height: 32px;
     line-height: 32px;
@@ -38,20 +46,6 @@ body {
     white-space: nowrap
 }
 
-.wy-nav-side {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    padding-bottom: 2em;
-    width: 300px;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    min-height: 100%;
-    color: #002B39;
-    background: #D7DDDF;
-    z-index: 200
-}
 
 .wy-menu-vertical li.toctree-l2.current>a,
 .wy-menu-vertical li.toctree-l2.current li.toctree-l3>a {
@@ -204,14 +198,20 @@ body {
     color: #D7DDDF
 }
 
-
+.wy-nav-side {
+    min-height: 100%;
+    color: #002B39;
+    background: #D7DDDF
+}
 @media screen and (max-width: 768px) {
     .wy-body-for-nav {
         background:#fcfcfc
     }
 
     .wy-nav-top {
-        display: block
+        display: block;
+        color: #002B39;
+        background: #D7DDDF
     }
 
     .wy-nav-side {
@@ -247,16 +247,20 @@ body {
 
 @media screen and (min-width: 1100px) {
     .wy-nav-content-wrap {
-        background:rgba(0,0,0,.05)
+        background: white
     }
 
     .wy-nav-content {
         margin: 0;
-        background: #fcfcfc;
-        max-width: none
+        background:white
+    }
+
+    .wy-nav-side {
+        min-height: 100%;
+        color: #002B39;
+        background: #D7DDDF
     }
 }
-
 .rst-content.style-external-links a.reference.external:after {
     font-family: FontAwesome;
     content: "\f08e";
@@ -340,12 +344,4 @@ body {
     border-right:1px solid #e6e9ea
 }
 
-}
-
-h2, h3, h4, h5, h6, h7 {
-    color: #3E7698
-}
-
-h1 {
-    color: #002B39
 }
