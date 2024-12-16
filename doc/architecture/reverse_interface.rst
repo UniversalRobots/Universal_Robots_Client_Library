@@ -58,16 +58,18 @@ meaning:
 
    7      Control mode. Can be either of
 
-           - -2: STOPPED
-           - -1: UNINITIALIZED
+           - -2: STOPPED -- status - not meant to be sent
+           - -1: UNINITIALIZED -- status - not meant to be sent
            - 0: IDLE -- no motion
            - 1: SERVOJ -- High-frequent joint position control
-           - 2: SPEEDJ -- Low-frequent joint velocity control
+           - 2: SPEEDJ -- High-frequent joint velocity control
            - 3: FORWARD -- Trajectory interpolation on the robot, see :ref:`trajectory_point_interface`
-           - 4: SPEEDL
-           - 5: POSE
-           - 6: FREEDRIVE
-           - 7: TOOL_IN_CONTACT
+           - 4: SPEEDL -- High-frequenct Cartesian velocity control
+           - 5: POSE -- High-frequent Cartesian pose control (servoj using inverse kinematics)
+           - 6: FREEDRIVE -- Use the robot's freedrive mode
+           - 7: TOOL_IN_CONTACT -- status - not meant to be sent.
+             In tool contact mode this will
+             encode whether tool contact has been established or not.
    =====  =====
 
 .. note::
