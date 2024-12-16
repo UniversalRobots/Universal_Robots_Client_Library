@@ -67,7 +67,7 @@ When you want to use this library in other cmake projects, make sure to
 As a minimal example, take the following “project”:
 
 As a minimal executable, we'll create a client for the dashboard server and ask for the
-PolyscopeVersion.
+PolyScope version.
 
 .. note:: This will not work on PolyScope X versions, as the dashboard server is not available
    there.
