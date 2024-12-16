@@ -25,4 +25,13 @@ your robot.
      - `polyscope_compat_break_1 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/polyscope_compat_break_1>`_
      - `tcp_offset in RTDE interface <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/110>`_
 
+
+.. note::
+   |polyscope| X doesn't support all features supported by this library for |polyscope| 5.
+   Currently, the following components are known not to be supported:
+
+     - Dashboard client -- |polyscope| X doesn't have a dashboard server.
+     - Using external control on |polyscope| X requires another URCapX for making external control
+       work. This is currently in the process of being created.
+
 .. |polyscope| replace:: PolyScope

@@ -22,3 +22,7 @@ The following example creates a ``ScriptSender`` listening on port ``12345`` and
    :linenos:
    :lineno-match:
    :start-at: constexpr uint32_t PORT
+
+.. note::
+   PolyScope X users cannot use the URCap linked above. There is a development version of a URCapX
+   available at https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX.
