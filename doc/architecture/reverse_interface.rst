@@ -44,7 +44,7 @@ meaning:
    1-6    Current motion target. depending on the control mode, this can be interpreted as
 
            - joint positions (SERVOJ)
-           - joint velocities (SPEEDL)
+           - joint velocities (SPEEDJ)
            - trajectory instructions (FORWARD)
 
              - field 1: Trajectory control mode(1: TRAJECTORY_MODE_RECEIVE, -1: TRAJECTORY_MODE_CANCEL)

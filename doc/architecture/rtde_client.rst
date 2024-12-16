@@ -3,7 +3,7 @@
 RTDEClient
 ==========
 
-The ``RTDEClient`` class serves as a standalone
+The Real Time Data Exchange Client, ``RTDEClient``, class serves as a standalone
 `RTDE <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
 client. To use the RTDE-Client, you'll have to initialize and start it separately:
 

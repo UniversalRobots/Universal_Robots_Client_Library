@@ -69,7 +69,7 @@ As a minimal example, take the following “project”:
 As a minimal executable, we'll create a client for the dashboard server and ask for the
 PolyscopeVersion.
 
-.. note:: This will not work on Polyscope X versions, as the dashboard server is not available
+.. note:: This will not work on PolyScope X versions, as the dashboard server is not available
    there.
 
 .. code-block:: cpp
