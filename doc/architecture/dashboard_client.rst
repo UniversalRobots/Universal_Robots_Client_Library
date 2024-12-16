@@ -10,6 +10,12 @@ After connecting to the dashboard server by using the ``connect()`` function, da
 sent using the ``sendAndReceive()`` function. Answers from the dashboard server will be returned as
 string from this function. If no answer is received, a ``UrException`` is thrown.
 
+Some functions are also wrapped into ``command...()`` functions such as
+``commandCloseSafetyPopup()``. These functions are blocking and will wait for the necessary action
+being done. This can involve querying another call to the dashboard server until the action is
+done. For example, ``commandPowerOn()`` will block until the robot reports "Robotmode: RUNNING" or
+the given timeout is reached.
+
 The `dashboard_example.cpp <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/dashboard_example.cpp>`_ shows how to use this class:
 
 .. literalinclude:: ../../examples/dashboard_example.cpp
@@ -19,10 +25,3 @@ The `dashboard_example.cpp <https://github.com/UniversalRobots/Universal_Robots_
    :lineno-match:
    :start-at: std::make_unique<DashboardClient>
    :end-at: my_dashboard->commandCloseSafetyPopup();
-
-
-.. note::
-   In order to make this more useful developers are expected to wrap this bare interface into
-   something that checks the returned string for something that is expected. See the
-   `DashboardClientROS <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/include/ur_robot_driver/dashboard_client_ros.h>`_ as an example.
-
