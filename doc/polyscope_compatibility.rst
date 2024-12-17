@@ -17,14 +17,17 @@ your robot.
    :header-rows: 1
 
    * - |polyscope| version
-     - Max. version
-     - Max. tag
+     - Version
+     - Tag
      - Breaking changes
-   * - < 3.14.3 / 5.9.4
+   * - < 3.12.3 / 5.5.1
      - 1.1.0
      - `polyscope_compat_break_1 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/polyscope_compat_break_1>`_
      - `tcp_offset in RTDE interface <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/110>`_
-
+   * - < 3.14.3 / 5.9.4
+     - 1.3.2
+     - `polyscope_compat_break_2 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/polyscope_compat_break_2>`_
+     - `Use of scalar product in urscript <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/151>`_
 
 .. note::
    |polyscope| X doesn't support all features supported by this library for |polyscope| 5.
@@ -33,5 +36,6 @@ your robot.
      - Dashboard client -- |polyscope| X doesn't have a dashboard server.
      - Using external control on |polyscope| X requires another URCapX for making external control
        work. This is currently in the process of being created.
+       See `Universal Robots External Control URCapX <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX>`_
 
 .. |polyscope| replace:: PolyScope
