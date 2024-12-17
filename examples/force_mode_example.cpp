@@ -55,8 +55,8 @@ const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
 
-std::condition_variable g_program_running_cv_;
-std::mutex g_program_running_mutex_;
+std::condition_variable g_program_running_cv;
+std::mutex g_program_running_mutex;
 bool g_program_running;
 
 // We need a callback function to register. See UrDriver's parameters for details.
@@ -66,9 +66,9 @@ void handleRobotProgramState(bool program_running)
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
   if (program_running)
   {
-    std::lock_guard<std::mutex> lk(g_program_running_mutex_);
+    std::lock_guard<std::mutex> lk(g_program_running_mutex);
     g_program_running = program_running;
-    g_program_running_cv_.notify_one();
+    g_program_running_cv.notify_one();
   }
 }
 
@@ -84,8 +84,8 @@ void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_
 
 bool waitForProgramRunning(int milliseconds = 100)
 {
-  std::unique_lock<std::mutex> lk(g_program_running_mutex_);
-  if (g_program_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+  std::unique_lock<std::mutex> lk(g_program_running_mutex);
+  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
       g_program_running == true)
   {
     return true;
@@ -149,8 +149,8 @@ int main(int argc, char* argv[])
 
   // Now the robot is ready to receive a program
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  const bool HEADLESS = true;
-  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
+  const bool headless = true;
+  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
                                  std::move(tool_comm_setup)));
 
   if (!g_my_driver->checkCalibration(CALIBRATION_CHECKSUM))

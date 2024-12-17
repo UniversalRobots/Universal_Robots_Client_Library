@@ -60,7 +60,7 @@ protected:
     pipeline_->init();
   }
 
-  void Teardown()
+  void teardown()
   {
     // Clean up
     pipeline_->stop();

@@ -52,7 +52,7 @@ std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
 vector6d_t g_joint_positions;
 
-void SendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector6d_t>& p_v,
+void sendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector6d_t>& p_v,
                     const std::vector<vector6d_t>& p_a, const std::vector<double>& time, bool use_spline_interpolation_)
 {
   assert(p_p.size() == time.size());
@@ -146,8 +146,8 @@ int main(int argc, char* argv[])
   }
 
   // if the robot is not powered on and ready
-  std::string robotModeRunning("RUNNING");
-  while (!g_my_dashboard->commandRobotMode(robotModeRunning))
+  std::string robot_mode_running("RUNNING");
+  while (!g_my_dashboard->commandRobotMode(robot_mode_running))
   {
     // Power it off
     if (!g_my_dashboard->commandPowerOff())
@@ -174,8 +174,8 @@ int main(int argc, char* argv[])
   // Now the robot is ready to receive a program
 
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  const bool HEADLESS = true;
-  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, HEADLESS,
+  const bool headless = true;
+  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
                                  std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
 
   g_my_driver->registerTrajectoryDoneCallback(&handleTrajectoryState);
@@ -241,7 +241,7 @@ int main(int argc, char* argv[])
   }
 
   // CUBIC
-  SendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
+  sendTrajectory(p, v, std::vector<vector6d_t>(), time, true);
 
   g_trajectory_running = true;
   while (g_trajectory_running)
@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
   URCL_LOG_INFO("CUBIC Movement done");
 
   // QUINTIC
-  SendTrajectory(p, v, a, time, true);
+  sendTrajectory(p, v, a, time, true);
 
   g_trajectory_running = true;
   while (g_trajectory_running)

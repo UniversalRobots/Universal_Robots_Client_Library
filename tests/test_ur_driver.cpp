@@ -40,16 +40,16 @@ const std::string SCRIPT_FILE = "../resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
-std::string ROBOT_IP = "192.168.56.101";
+std::string g_ROBOT_IP = "192.168.56.101";
 
-std::unique_ptr<UrDriver> g_ur_driver_;
-std::unique_ptr<DashboardClient> g_dashboard_client_;
+std::unique_ptr<UrDriver> g_ur_driver;
+std::unique_ptr<DashboardClient> g_dashboard_client;
 
 bool g_program_running;
-std::condition_variable g_program_not_running_cv_;
-std::mutex g_program_not_running_mutex_;
-std::condition_variable g_program_running_cv_;
-std::mutex g_program_running_mutex_;
+std::condition_variable g_program_not_running_cv;
+std::mutex g_program_not_running_mutex;
+std::condition_variable g_program_running_cv;
+std::mutex g_program_running_mutex;
 
 // Helper functions for the driver
 void handleRobotProgramState(bool program_running)
@@ -58,33 +58,33 @@ void handleRobotProgramState(bool program_running)
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
   if (program_running)
   {
-    std::lock_guard<std::mutex> lk(g_program_running_mutex_);
+    std::lock_guard<std::mutex> lk(g_program_running_mutex);
     g_program_running = program_running;
-    g_program_running_cv_.notify_one();
+    g_program_running_cv.notify_one();
   }
   else
   {
-    std::lock_guard<std::mutex> lk(g_program_not_running_mutex_);
+    std::lock_guard<std::mutex> lk(g_program_not_running_mutex);
     g_program_running = program_running;
-    g_program_not_running_cv_.notify_one();
+    g_program_not_running_cv.notify_one();
   }
 }
 
-bool g_rtde_read_thread_running_ = false;
-bool g_consume_rtde_packages_ = false;
-std::mutex g_read_package_mutex_;
+bool g_rtde_read_thread_running = false;
+bool g_consume_rtde_packages = false;
+std::mutex g_read_package_mutex;
 std::thread g_rtde_read_thread;
 
 void rtdeConsumeThread()
 {
-  while (g_rtde_read_thread_running_)
+  while (g_rtde_read_thread_running)
   {
     // Consume package to prevent pipeline overflow
-    if (g_consume_rtde_packages_ == true)
+    if (g_consume_rtde_packages == true)
     {
-      std::lock_guard<std::mutex> lk(g_read_package_mutex_);
+      std::lock_guard<std::mutex> lk(g_read_package_mutex);
       std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-      data_pkg = g_ur_driver_->getDataPackage();
+      data_pkg = g_ur_driver->getDataPackage();
     }
     else
     {
@@ -98,76 +98,76 @@ class UrDriverTest : public ::testing::Test
 protected:
   static void SetUpTestSuite()
   {
-    g_dashboard_client_.reset(new DashboardClient(ROBOT_IP));
-    ASSERT_TRUE(g_dashboard_client_->connect());
+    g_dashboard_client.reset(new DashboardClient(g_ROBOT_IP));
+    ASSERT_TRUE(g_dashboard_client->connect());
 
     // Make robot ready for test
     timeval tv;
     tv.tv_sec = 10;
     tv.tv_usec = 0;
-    g_dashboard_client_->setReceiveTimeout(tv);
+    g_dashboard_client->setReceiveTimeout(tv);
 
     // Stop running program if there is one
-    ASSERT_TRUE(g_dashboard_client_->commandStop());
+    ASSERT_TRUE(g_dashboard_client->commandStop());
 
     // if the robot is not powered on and ready
-    ASSERT_TRUE(g_dashboard_client_->commandBrakeRelease());
+    ASSERT_TRUE(g_dashboard_client->commandBrakeRelease());
 
     // Setup driver
     std::unique_ptr<ToolCommSetup> tool_comm_setup;
-    const bool HEADLESS = true;
+    const bool headless = true;
     try
     {
-      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                      HEADLESS, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+      g_ur_driver.reset(new UrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
+                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
     }
     catch (UrException& exp)
     {
       std::cout << "caught exception " << exp.what() << " while launch driver, retrying once in 10 seconds"
                 << std::endl;
       std::this_thread::sleep_for(std::chrono::seconds(10));
-      g_ur_driver_.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                      HEADLESS, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+      g_ur_driver.reset(new UrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
+                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
     }
-    g_ur_driver_->startRTDECommunication();
+    g_ur_driver->startRTDECommunication();
     // Setup rtde read thread
-    g_rtde_read_thread_running_ = true;
+    g_rtde_read_thread_running = true;
     g_rtde_read_thread = std::thread(rtdeConsumeThread);
   }
 
   void SetUp()
   {
     step_time_ = 0.002;
-    if (g_ur_driver_->getVersion().major < 5)
+    if (g_ur_driver->getVersion().major < 5)
     {
       step_time_ = 0.008;
     }
     // Make sure script is running on the robot
     if (g_program_running == false)
     {
-      g_consume_rtde_packages_ = true;
-      g_ur_driver_->sendRobotProgram();
+      g_consume_rtde_packages = true;
+      g_ur_driver->sendRobotProgram();
       ASSERT_TRUE(waitForProgramRunning(1000));
     }
-    g_consume_rtde_packages_ = false;
+    g_consume_rtde_packages = false;
   }
 
   static void TearDownTestSuite()
   {
-    g_rtde_read_thread_running_ = false;
+    g_rtde_read_thread_running = false;
     g_rtde_read_thread.join();
-    g_dashboard_client_->disconnect();
+    g_dashboard_client->disconnect();
   }
 
   void readDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_pkg)
   {
-    if (g_consume_rtde_packages_ == true)
+    if (g_consume_rtde_packages == true)
     {
       URCL_LOG_ERROR("Unable to read packages while consuming, this should not happen!");
       GTEST_FAIL();
     }
-    std::lock_guard<std::mutex> lk(g_read_package_mutex_);
-    data_pkg = g_ur_driver_->getDataPackage();
+    std::lock_guard<std::mutex> lk(g_read_package_mutex);
+    data_pkg = g_ur_driver->getDataPackage();
     if (data_pkg == nullptr)
     {
       URCL_LOG_ERROR("Timed out waiting for a new package from the robot");
@@ -177,8 +177,8 @@ protected:
 
   bool waitForProgramRunning(int milliseconds = 100)
   {
-    std::unique_lock<std::mutex> lk(g_program_running_mutex_);
-    if (g_program_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+    std::unique_lock<std::mutex> lk(g_program_running_mutex);
+    if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
         g_program_running == true)
     {
       return true;
@@ -188,8 +188,8 @@ protected:
 
   bool waitForProgramNotRunning(int milliseconds = 100)
   {
-    std::unique_lock<std::mutex> lk(g_program_not_running_mutex_);
-    if (g_program_not_running_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+    std::unique_lock<std::mutex> lk(g_program_not_running_mutex);
+    if (g_program_not_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
         g_program_running == false)
     {
       return true;
@@ -203,14 +203,14 @@ protected:
 
 TEST_F(UrDriverTest, read_non_existing_script_file)
 {
-  g_consume_rtde_packages_ = true;
+  g_consume_rtde_packages = true;
   const std::string non_existing_script_file = "";
   EXPECT_THROW(UrDriver::readScriptFile(non_existing_script_file), UrException);
 }
 
 TEST_F(UrDriverTest, read_existing_script_file)
 {
-  g_consume_rtde_packages_ = true;
+  g_consume_rtde_packages = true;
   char existing_script_file[] = "urscript.XXXXXX";
   int fd = mkstemp(existing_script_file);
   if (fd == -1)
@@ -227,73 +227,73 @@ TEST_F(UrDriverTest, read_existing_script_file)
 
 TEST_F(UrDriverTest, robot_receive_timeout)
 {
-  g_consume_rtde_packages_ = true;
+  g_consume_rtde_packages = true;
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
+  g_ur_driver->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(waitForProgramNotRunning(400));
 
   // Start robot program
-  g_ur_driver_->sendRobotProgram();
+  g_ur_driver->sendRobotProgram();
   EXPECT_TRUE(waitForProgramRunning(1000));
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_ur_driver_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+  g_ur_driver->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+                                            RobotReceiveTimeout::millisec(200));
+  EXPECT_TRUE(waitForProgramNotRunning(400));
+
+  // Start robot program
+  g_ur_driver->sendRobotProgram();
+  EXPECT_TRUE(waitForProgramRunning(1000));
+
+  // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
+  g_ur_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                              RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(waitForProgramNotRunning(400));
 
   // Start robot program
-  g_ur_driver_->sendRobotProgram();
+  g_ur_driver->sendRobotProgram();
   EXPECT_TRUE(waitForProgramRunning(1000));
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
-                                              RobotReceiveTimeout::millisec(200));
-  EXPECT_TRUE(waitForProgramNotRunning(400));
-
-  // Start robot program
-  g_ur_driver_->sendRobotProgram();
-  EXPECT_TRUE(waitForProgramRunning(1000));
-
-  // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_ur_driver_->writeKeepalive(RobotReceiveTimeout::millisec(200));
+  g_ur_driver->writeKeepalive(RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(waitForProgramNotRunning(400));
 }
 
 TEST_F(UrDriverTest, robot_receive_timeout_off)
 {
-  g_consume_rtde_packages_ = true;
+  g_consume_rtde_packages = true;
 
   // Program should keep running when setting receive timeout off
-  g_ur_driver_->writeKeepalive(RobotReceiveTimeout::off());
+  g_ur_driver->writeKeepalive(RobotReceiveTimeout::off());
   EXPECT_FALSE(waitForProgramNotRunning(1000));
 
   // Program should keep running when setting receive timeout off
-  g_ur_driver_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+  g_ur_driver->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+                                            RobotReceiveTimeout::off());
+  EXPECT_FALSE(waitForProgramNotRunning(1000));
+
+  // Program should keep running when setting receive timeout off
+  g_ur_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
                                              RobotReceiveTimeout::off());
-  EXPECT_FALSE(waitForProgramNotRunning(1000));
-
-  // Program should keep running when setting receive timeout off
-  g_ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
-                                              RobotReceiveTimeout::off());
   EXPECT_FALSE(waitForProgramNotRunning(1000));
 
   // It shouldn't be possible to set robot receive timeout off, when dealing with realtime commands
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_SPEEDJ, RobotReceiveTimeout::off());
+  g_ur_driver->writeJointCommand(zeros, comm::ControlMode::MODE_SPEEDJ, RobotReceiveTimeout::off());
   EXPECT_TRUE(waitForProgramNotRunning(400));
 }
 
 TEST_F(UrDriverTest, stop_robot_control)
 {
-  g_consume_rtde_packages_ = true;
+  g_consume_rtde_packages = true;
 
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::off());
+  g_ur_driver->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::off());
 
   // Make sure that we can stop the robot control, when robot receive timeout has been set off
-  g_ur_driver_->stopControl();
+  g_ur_driver->stopControl();
   EXPECT_TRUE(waitForProgramNotRunning(400));
 }
 
@@ -311,7 +311,7 @@ TEST_F(UrDriverTest, target_outside_limits_servoj)
 
   // Send unfeasible targets to the robot
   readDataPackage(data_pkg);
-  g_ur_driver_->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ, RobotReceiveTimeout::millisec(200));
+  g_ur_driver->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ, RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
   readDataPackage(data_pkg);
@@ -323,8 +323,8 @@ TEST_F(UrDriverTest, target_outside_limits_servoj)
   }
 
   // Make sure the program is stopped
-  g_consume_rtde_packages_ = true;
-  g_ur_driver_->stopControl();
+  g_consume_rtde_packages = true;
+  g_ur_driver->stopControl();
   waitForProgramNotRunning(1000);
 }
 
@@ -342,7 +342,7 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
   // Send unfeasible targets to the robot
   readDataPackage(data_pkg);
-  g_ur_driver_->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE, RobotReceiveTimeout::millisec(200));
+  g_ur_driver->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE, RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
   readDataPackage(data_pkg);
@@ -354,29 +354,29 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
   }
 
   // Make sure the program is stopped
-  g_consume_rtde_packages_ = true;
-  g_ur_driver_->stopControl();
+  g_consume_rtde_packages = true;
+  g_ur_driver->stopControl();
   waitForProgramNotRunning(1000);
 }
 
 TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 {
   // Start robot program
-  g_ur_driver_->sendRobotProgram();
+  g_ur_driver->sendRobotProgram();
   EXPECT_TRUE(waitForProgramRunning(1000));
 
   // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
   // switching from Remote to Local and back to Remote mode for example.
-  g_ur_driver_->secondary_stream_->close();
+  g_ur_driver->secondary_stream_->close();
 
-  EXPECT_TRUE(g_ur_driver_->sendRobotProgram());
+  EXPECT_TRUE(g_ur_driver->sendRobotProgram());
 }
 
 TEST_F(UrDriverTest, reset_rtde_client)
 {
   double target_frequency = 50;
-  g_ur_driver_->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
-  ASSERT_EQ(g_ur_driver_->getControlFrequency(), target_frequency);
+  g_ur_driver->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
+  ASSERT_EQ(g_ur_driver->getControlFrequency(), target_frequency);
 }
 
 // TODO we should add more tests for the UrDriver class.
@@ -389,7 +389,7 @@ int main(int argc, char* argv[])
   {
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
-      ROBOT_IP = argv[i + 1];
+      g_ROBOT_IP = argv[i + 1];
       break;
     }
   }

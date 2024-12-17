@@ -26,7 +26,7 @@ using namespace urcl;
 class CalibrationConsumer : public urcl::comm::IConsumer<urcl::primary_interface::PrimaryPackage>
 {
 public:
-  CalibrationConsumer() : calibrated_(0), have_received_data(false)
+  CalibrationConsumer() : calibrated_(0), have_received_data_(false)
   {
   }
   virtual ~CalibrationConsumer() = default;
@@ -38,25 +38,25 @@ public:
     {
       URCL_LOG_INFO("%s", product->toString().c_str());
       calibrated_ = kin_info->calibration_status_;
-      have_received_data = true;
+      have_received_data_ = true;
     }
     return true;
   }
 
   bool isCalibrated() const
   {
-    const uint32_t LINEARIZED = 2;
-    return calibrated_ == LINEARIZED;
+    const uint32_t linearized = 2;
+    return calibrated_ == linearized;
   }
 
   bool calibrationStatusReceived()
   {
-    return have_received_data;
+    return have_received_data_;
   }
 
 private:
   uint32_t calibrated_;
-  bool have_received_data;
+  bool have_received_data_;
 };
 
 // In a real-world example it would be better to get those values from command line parameters / a better configuration
