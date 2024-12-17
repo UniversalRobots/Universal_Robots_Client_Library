@@ -16,7 +16,6 @@ jobs:
         ROS_DISTRO:
           - {NAME: noetic, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master https://raw.githubusercontent.com/UniversalRobots/Universal_Robots_ROS_Driver/master/.noetic.rosinstall"}
           - {NAME: humble, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble"}
-          - {NAME: iron, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#iron"}
           - {NAME: jazzy, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"}
           - {NAME: rolling, DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"}
         ROS_REPO:
