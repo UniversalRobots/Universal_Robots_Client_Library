@@ -23,6 +23,8 @@
  */
 //----------------------------------------------------------------------
 
+#include <chrono>
+#include <sstream>
 #include <iostream>
 #include <thread>
 
@@ -40,13 +42,25 @@ int main(int argc, char* argv[])
   }
   urcl::control::ScriptSender sender(PORT, "textmsg(\"Hello, World!\")");
 
-  std::cout << "Waiting for incoming requests on port " << PORT << "..." << std::endl;
-
-  unsigned long startTime = clock();
-  while (second_to_run < 0 || ((clock() - startTime) / CLOCKS_PER_SEC) < static_cast<unsigned int>(second_to_run))
+  std::stringstream ss;
+  ss << "Waiting for incoming requests on port " << PORT;
+  if (second_to_run > 0)
   {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ss << " for " << second_to_run << " seconds";
   }
+  else
+  {
+    ss << " indefinitely";
+  }
+
+  std::cout << ss.str() << std::endl;
+
+  const auto start_time = std::chrono::system_clock::now();
+  while (second_to_run < 0 || std::chrono::system_clock::now() - start_time < std::chrono::seconds(second_to_run))
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+  std::cout << "Timeout reached" << std::endl;
 
   return 0;
 }
