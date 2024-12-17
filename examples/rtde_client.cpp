@@ -93,9 +93,7 @@ int main(int argc, char* argv[])
     {
       // This will happen for example, when the required keys are not configured inside the input
       // recipe.
-      std::cout << "\033[1;31mSending RTDE data failed."
-                << "\033[0m\n"
-                << std::endl;
+      std::cout << "\033[1;31mSending RTDE data failed." << "\033[0m\n" << std::endl;
       return 1;
     }
 

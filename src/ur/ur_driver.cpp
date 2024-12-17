@@ -136,9 +136,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     }
     begin_replace << "set_tool_voltage("
                   << static_cast<std::underlying_type<ToolVoltage>::type>(tool_comm_setup->getToolVoltage()) << ")\n";
-    begin_replace << "set_tool_communication("
-                  << "True"
-                  << ", " << tool_comm_setup->getBaudRate() << ", "
+    begin_replace << "set_tool_communication(" << "True" << ", " << tool_comm_setup->getBaudRate() << ", "
                   << static_cast<std::underlying_type<Parity>::type>(tool_comm_setup->getParity()) << ", "
                   << tool_comm_setup->getStopBits() << ", " << tool_comm_setup->getRxIdleChars() << ", "
                   << tool_comm_setup->getTxIdleChars() << ")";
