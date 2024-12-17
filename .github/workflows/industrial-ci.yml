@@ -1,5 +1,10 @@
 name: ROS industrial ci
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   industrial_ci:
