@@ -13,12 +13,15 @@ If your |polyscope| version is less than the minimum required version for the la
 we suggest to upgrade your robot's software. Please refer to the robot's user manual how to update
 your robot.
 
+If you don't want to update your robot you can either use the release version as listed in the
+table below or checkout the latest tag before the breaking changes were introduced.
+
 .. list-table::
    :header-rows: 1
 
    * - |polyscope| version
-     - Version
-     - Tag
+     - Max. release
+     - Latest tag
      - Breaking changes
    * - < 3.12.3 / 5.5.1
      - 1.1.0
