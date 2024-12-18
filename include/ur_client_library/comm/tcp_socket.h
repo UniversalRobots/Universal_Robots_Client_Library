@@ -19,14 +19,14 @@
  */
 
 #pragma once
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <atomic>
 #include <chrono>
 #include <mutex>
 #include <string>
 #include <memory>
+
+#include "ur_client_library/comm/socket_t.h"
+
 
 namespace urcl
 {
@@ -49,7 +49,7 @@ enum class SocketState
 class TCPSocket
 {
 private:
-  std::atomic<int> socket_fd_;
+  std::atomic<socket_t> socket_fd_;
   std::atomic<SocketState> state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
