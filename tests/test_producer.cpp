@@ -49,7 +49,7 @@ protected:
     server_->start();
   }
 
-  void Teardown()
+  void teardown()
   {
     // Clean up
     server_.reset();

@@ -39,14 +39,14 @@
 
 using namespace urcl;
 
-std::string ROBOT_IP = "192.168.56.101";
+std::string g_ROBOT_IP = "192.168.56.101";
 
 class DashboardClientTest : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    dashboard_client_.reset(new DashboardClient(ROBOT_IP));
+    dashboard_client_.reset(new DashboardClient(g_ROBOT_IP));
   }
 
   void TearDown()
@@ -227,7 +227,7 @@ int main(int argc, char* argv[])
   {
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
-      ROBOT_IP = argv[i + 1];
+      g_ROBOT_IP = argv[i + 1];
       break;
     }
   }

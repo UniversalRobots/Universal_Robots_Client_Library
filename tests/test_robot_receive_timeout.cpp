@@ -35,7 +35,7 @@
 
 using namespace urcl;
 
-const std::chrono::milliseconds g_step_time(2);
+const std::chrono::milliseconds G_STEP_TIME(2);
 
 TEST(RobotReceiveTimeout, milliseconds_configuration)
 {
@@ -80,8 +80,8 @@ TEST(RobotReceiveTimeout, off_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout =
-        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
-    EXPECT_EQ(actual_timeout, g_step_time.count());
+        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], G_STEP_TIME);
+    EXPECT_EQ(actual_timeout, G_STEP_TIME.count());
   }
 }
 
@@ -92,7 +92,7 @@ TEST(RobotReceiveTimeout, off_non_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(
-        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], g_step_time);
+        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], G_STEP_TIME);
     const int expected_timeout = 0;
     EXPECT_EQ(actual_timeout, expected_timeout);
   }
@@ -105,8 +105,8 @@ TEST(RobotReceiveTimeout, timeout_below_step_time_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout =
-        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
-    EXPECT_EQ(actual_timeout, g_step_time.count());
+        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], G_STEP_TIME);
+    EXPECT_EQ(actual_timeout, G_STEP_TIME.count());
   }
 }
 
@@ -117,8 +117,8 @@ TEST(RobotReceiveTimeout, timeout_below_step_time_non_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(
-        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], g_step_time);
-    EXPECT_EQ(actual_timeout, g_step_time.count());
+        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], G_STEP_TIME);
+    EXPECT_EQ(actual_timeout, G_STEP_TIME.count());
   }
 }
 
@@ -129,7 +129,7 @@ TEST(RobotReceiveTimeout, timeout_above_max_allowed_timeout_realtime_control_mod
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout =
-        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], G_STEP_TIME);
     EXPECT_EQ(actual_timeout, RobotReceiveTimeout::MAX_RT_RECEIVE_TIMEOUT_MS.count());
   }
 }
@@ -142,7 +142,7 @@ TEST(RobotReceiveTimeout, timeout_within_limit_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout =
-        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], g_step_time);
+        robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i], G_STEP_TIME);
     EXPECT_EQ(actual_timeout, expected_timeout);
   }
 }
@@ -155,7 +155,7 @@ TEST(RobotReceiveTimeout, timeout_within_limit_non_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     const int actual_timeout = robot_receive_timeout.verifyRobotReceiveTimeout(
-        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], g_step_time);
+        comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i], G_STEP_TIME);
     EXPECT_EQ(actual_timeout, expected_timeout);
   }
 }
@@ -167,7 +167,7 @@ TEST(RobotReceiveTimeout, unknown_control_mode)
   {
     RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::millisec(200);
     EXPECT_THROW(robot_receive_timeout.verifyRobotReceiveTimeout(comm::ControlModeTypes::STATIONARY_CONTROL_MODES[i],
-                                                                 g_step_time),
+                                                                 G_STEP_TIME),
                  UrException);
   }
 }
