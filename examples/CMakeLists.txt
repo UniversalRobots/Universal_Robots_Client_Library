@@ -7,8 +7,9 @@ project(ur_driver_examples)
 # # Check C++11 support / enable global pedantic and Wall
 # #
 include(DefineCXX17CompilerFlag)
-DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
+#DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
 
 add_executable(driver_example
   full_driver.cpp)
@@ -64,3 +65,7 @@ add_executable(trajectory_point_interface_example
 trajectory_point_interface.cpp)
 target_compile_options(trajectory_point_interface_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(trajectory_point_interface_example ur_client_library::urcl)
+
+add_executable(instruction_executor
+instruction_executor.cpp)
+target_link_libraries(instruction_executor ur_client_library::urcl)

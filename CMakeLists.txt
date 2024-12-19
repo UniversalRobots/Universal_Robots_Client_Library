@@ -42,6 +42,7 @@ add_library(urcl SHARED
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
     src/ur/dashboard_client.cpp
+    src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp
     src/ur/robot_receive_timeout.cpp
     src/ur/version_information.cpp

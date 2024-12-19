@@ -197,8 +197,12 @@ void TrajectoryPointInterface::connectionCallback(const int filedescriptor)
 
 void TrajectoryPointInterface::disconnectionCallback(const int filedescriptor)
 {
-  URCL_LOG_DEBUG("Connection to trajectory interface dropped.", filedescriptor);
+  URCL_LOG_INFO("Connection to trajectory interface dropped.");
   client_fd_ = -1;
+  if (disconnection_callback_ != nullptr)
+  {
+    disconnection_callback_(filedescriptor);
+  }
 }
 
 void TrajectoryPointInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
