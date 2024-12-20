@@ -28,6 +28,7 @@
 #include "ur_client_library/primary/robot_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
 
 namespace urcl
 {
@@ -174,6 +175,8 @@ private:
         return new MBD;*/
       case RobotMessagePackageType::ROBOT_MESSAGE_VERSION:
         return new VersionMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
+        return new ErrorCodeMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source);
     }
