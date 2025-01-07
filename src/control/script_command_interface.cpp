@@ -89,6 +89,31 @@ bool ScriptCommandInterface::setPayload(const double mass, const vector3d_t* cog
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setGravity(const vector3d_t* gravity)
+{
+  const int message_length = 4;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_GRAVITY));
+  b_pos += append(b_pos, val);
+
+  for (auto const& grav_component : *gravity)
+  {
+    val = htobe32(static_cast<int32_t>(round(grav_component * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
 {
   const int message_length = 2;

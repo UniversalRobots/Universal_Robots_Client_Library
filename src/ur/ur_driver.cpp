@@ -298,6 +298,26 @@ bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
   }
 }
 
+bool UrDriver::setGravity(const vector3d_t& gravity)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setGravity(&gravity);
+  }
+  else
+  {
+    // URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+    //               "robots this will only work, if the robot is in remote_control mode.");
+    // std::stringstream cmd;
+    // cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
+    // cmd << "sec setup():" << std::endl
+    //     << " set_gravity([" << gravity[0] << ", " << gravity[1] << ", " << gravity[2] << "])" << std::endl
+    //     << "end";
+    // return sendScript(cmd.str());
+    return true;
+  }
+}
+
 bool UrDriver::setToolVoltage(const ToolVoltage voltage)
 {
   // Test that the tool voltage is either 0, 12 or 24.
