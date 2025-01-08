@@ -59,3 +59,8 @@ add_executable(script_sender_example
 script_sender.cpp)
 target_compile_options(script_sender_example PUBLIC ${CXX17_FLAG})
 target_link_libraries(script_sender_example ur_client_library::urcl)
+
+add_executable(trajectory_point_interface_example
+trajectory_point_interface.cpp)
+target_compile_options(trajectory_point_interface_example PUBLIC ${CXX17_FLAG})
+target_link_libraries(trajectory_point_interface_example ur_client_library::urcl)

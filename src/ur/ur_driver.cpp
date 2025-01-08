@@ -232,6 +232,13 @@ bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMo
   return reverse_interface_->write(&values, control_mode, robot_receive_timeout);
 }
 
+bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const float acceleration, const float velocity,
+                                    const bool cartesian, const float goal_time, const float blend_radius)
+{
+  return trajectory_interface_->writeTrajectoryPoint(&positions, acceleration, velocity, goal_time, blend_radius,
+                                                     cartesian);
+}
+
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
                                     const float blend_radius)
 {
