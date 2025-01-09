@@ -31,25 +31,30 @@
 #include "ur_client_library/ur/instruction_executor.h"
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
-  result_ = result;
-  trajectory_done_ = true;
+  std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+  trajectory_result_ = result;
+  trajectory_running_ = false;
 }
 void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
 {
   URCL_LOG_INFO("Trajectory disconnect");
-  result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
-  trajectory_done_ = true;
+  std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+  if (trajectory_running_)
+  {
+    trajectory_result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
+    trajectory_running_ = false;
+  }
 }
-void urcl::InstructionExecutor::executeMotion(
+bool urcl::InstructionExecutor::executeMotion(
     const std::vector<std::shared_ptr<control::MotionPrimitive>>& motion_sequence)
 {
-  trajectory_done_ = false;
   if (!driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
                                               motion_sequence.size()))
   {
     URCL_LOG_ERROR("Cannot send trajectory control command. No client connected?");
-    return;
-    ;
+    std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    trajectory_result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
+    return false;
   }
 
   for (const auto& primitive : motion_sequence)
@@ -69,43 +74,38 @@ void urcl::InstructionExecutor::executeMotion(
         urcl::vector6d_t pose_vec = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,
                                       movel_primitive->target_pose.z,  movel_primitive->target_pose.rx,
                                       movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
-        if (!driver_->writeTrajectoryPoint(pose_vec, primitive->acceleration, primitive->velocity, true,
-                                           primitive->duration.count(), primitive->blend_radius))
-        {
-          URCL_LOG_ERROR("Cannot send trajectory control command. No client connected?");
-          return;
-        }
+        driver_->writeTrajectoryPoint(pose_vec, primitive->acceleration, primitive->velocity, true,
+                                      primitive->duration.count(), primitive->blend_radius);
         break;
       }
       default:
         URCL_LOG_ERROR("Unsupported motion type");
-        return;
+        std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+        trajectory_result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
+        return false;
     }
   }
+  trajectory_running_ = true;
 
-  while (!trajectory_done_)
+  while (trajectory_running_)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    if (!driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
-    {
-      URCL_LOG_ERROR("Cannot send trajectory control command. No client connected?");
-      return;
-      ;
-    }
+    driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   }
-  URCL_LOG_INFO("Trajectory done with result %d", result_);
+  URCL_LOG_INFO("Trajectory done with result %d", trajectory_result_);
+  return true;
 }
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
   executeMotion({ std::make_shared<control::MoveJPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
-  return result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
+  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
 }
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
   executeMotion({ std::make_shared<control::MoveLPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
-  return result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
+  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
 }

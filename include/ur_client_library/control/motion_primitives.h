@@ -46,6 +46,7 @@ enum class MotionType : uint8_t
   MOVEP = 2,
   MOVEC = 3,
   SPLINE = 51,
+  UNKNOWN = 255
 };
 struct MotionPrimitive
 {

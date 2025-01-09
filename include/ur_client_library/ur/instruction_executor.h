@@ -56,7 +56,7 @@ public:
    *
    * \param motion_sequence The sequence of motion primitives to execute
    */
-  void executeMotion(const std::vector<std::shared_ptr<control::MotionPrimitive>>& motion_sequence);
+  bool executeMotion(const std::vector<std::shared_ptr<control::MotionPrimitive>>& motion_sequence);
 
   /**
    * \brief Move the robot to a joint target.
@@ -96,8 +96,9 @@ private:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
   void trajDisconnectCallback(const int filedescriptor);
   std::shared_ptr<urcl::UrDriver> driver_;
-  bool trajectory_done_ = false;
-  urcl::control::TrajectoryResult result_;
+  std::atomic<bool> trajectory_running_ = false;
+  std::mutex trajectory_result_mutex_;
+  urcl::control::TrajectoryResult trajectory_result_;
 };
 }  // namespace urcl
 

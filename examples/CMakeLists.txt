@@ -7,9 +7,8 @@ project(ur_driver_examples)
 # # Check C++11 support / enable global pedantic and Wall
 # #
 include(DefineCXX17CompilerFlag)
-#DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
 add_executable(driver_example
   full_driver.cpp)
