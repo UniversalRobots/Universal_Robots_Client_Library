@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
     std::make_shared<urcl::control::MoveLPrimitive>(urcl::Pose{ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1,
                                                     std::chrono::seconds(2)),
   };
-  instruction_executor->executeMotion(motion_sequence);  // That could also receive velocity parametrization
+  instruction_executor->executeMotion(motion_sequence);
 
   instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 });
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 });
