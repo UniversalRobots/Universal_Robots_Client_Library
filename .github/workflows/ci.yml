@@ -40,10 +40,6 @@ jobs:
         run: |
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
         env: ${{matrix.env}}
-      - name: install gtest
-        run: sudo apt-get install -y libgtest-dev
-      - name: install boost
-        run: sudo apt-get install -y libboost-dev
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
