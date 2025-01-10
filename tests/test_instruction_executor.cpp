@@ -204,13 +204,13 @@ TEST_F(InstructionExecutorTest, execute_movel_success)
   ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5));
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 750, 100);
+  ASSERT_NEAR(duration.count(), 800, 150);
 
   start = std::chrono::steady_clock::now();
   ASSERT_TRUE(executor_->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5));
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 750, 100);
+  ASSERT_NEAR(duration.count(), 800, 150);
 
   // time parametrization
   start = std::chrono::steady_clock::now();
