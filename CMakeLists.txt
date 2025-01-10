@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.14.0)
 project(ur_client_library)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/" ${CMAKE_MODULE_PATH})
-
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   message("${PROJECT_NAME}: You did not request a specific build type: selecting 'RelWithDebInfo'.")
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
