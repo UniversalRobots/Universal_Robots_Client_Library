@@ -31,7 +31,6 @@
 #include <gtest/gtest.h>
 
 #include <ur_client_library/ur/dashboard_client.h>
-#define private public
 #include <ur_client_library/ur/ur_driver.h>
 
 using namespace urcl;
@@ -42,7 +41,24 @@ const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string g_ROBOT_IP = "192.168.56.101";
 
-std::unique_ptr<UrDriver> g_ur_driver;
+class TestableUrDriver : public UrDriver
+{
+public:
+  TestableUrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
+                   const std::string& input_recipe_file, std::function<void(bool)> handle_program_state,
+                   bool headless_mode, std::unique_ptr<ToolCommSetup> tool_comm_setup,
+                   const std::string& calibration_checksum)
+    : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
+               std::move(tool_comm_setup), calibration_checksum)
+  {
+  }
+  void closeSecondaryStream()
+  {
+    secondary_stream_->close();
+  }
+};
+
+std::unique_ptr<TestableUrDriver> g_ur_driver;
 std::unique_ptr<DashboardClient> g_dashboard_client;
 
 bool g_program_running;
@@ -118,16 +134,18 @@ protected:
     const bool headless = true;
     try
     {
-      g_ur_driver.reset(new UrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+      g_ur_driver.reset(new TestableUrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                             &handleRobotProgramState, headless, std::move(tool_comm_setup),
+                                             CALIBRATION_CHECKSUM));
     }
     catch (UrException& exp)
     {
       std::cout << "caught exception " << exp.what() << " while launch driver, retrying once in 10 seconds"
                 << std::endl;
       std::this_thread::sleep_for(std::chrono::seconds(10));
-      g_ur_driver.reset(new UrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+      g_ur_driver.reset(new TestableUrDriver(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                             &handleRobotProgramState, headless, std::move(tool_comm_setup),
+                                             CALIBRATION_CHECKSUM));
     }
     g_ur_driver->startRTDECommunication();
     // Setup rtde read thread
@@ -367,7 +385,7 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 
   // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
   // switching from Remote to Local and back to Remote mode for example.
-  g_ur_driver->secondary_stream_->close();
+  g_ur_driver->closeSecondaryStream();
 
   EXPECT_TRUE(g_ur_driver->sendRobotProgram());
 }

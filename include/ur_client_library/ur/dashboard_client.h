@@ -434,7 +434,6 @@ public:
    */
   bool commandSaveLog();
 
-private:
   /*!
    * \brief Makes sure that the dashboard_server's version is above the required version
    *
@@ -446,9 +445,6 @@ private:
    */
   void assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,
                      const std::string& required_call);
-  bool send(const std::string& text);
-  std::string read();
-  void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
 
   /*!
    * \brief Gets the configured receive timeout. If receive timeout is unconfigured "normal" socket timeout of 1 second
@@ -458,7 +454,14 @@ private:
    */
   timeval getConfiguredReceiveTimeout() const;
 
+protected:
   VersionInformation polyscope_version_;
+
+private:
+  bool send(const std::string& text);
+  std::string read();
+  void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
+
   std::string host_;
   int port_;
   std::mutex write_mutex_;

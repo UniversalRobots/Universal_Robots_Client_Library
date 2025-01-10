@@ -34,19 +34,34 @@
 #include <thread>
 #include "ur_client_library/comm/tcp_socket.h"
 #include "ur_client_library/ur/version_information.h"
-#define private public
 #include <ur_client_library/ur/dashboard_client.h>
 
 using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
+class TestableDashboardClient : public DashboardClient
+{
+public:
+  TestableDashboardClient(const std::string& host) : DashboardClient(host)
+  {
+  }
+  void setPolyscopeVersion(const std::string& version)
+  {
+    polyscope_version_ = VersionInformation::fromString(version);
+  }
+  VersionInformation getPolyscopeVersion()
+  {
+    return polyscope_version_;
+  }
+};
+
 class DashboardClientTest : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    dashboard_client_.reset(new DashboardClient(g_ROBOT_IP));
+    dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
   }
 
   void TearDown()
@@ -54,7 +69,7 @@ protected:
     dashboard_client_.reset();
   }
 
-  std::unique_ptr<DashboardClient> dashboard_client_;
+  std::unique_ptr<TestableDashboardClient> dashboard_client_;
 };
 
 TEST_F(DashboardClientTest, connect)
@@ -143,11 +158,11 @@ TEST_F(DashboardClientTest, e_series_version)
 {
   std::string msg;
   EXPECT_TRUE(dashboard_client_->connect());
-  if (!dashboard_client_->polyscope_version_.isESeries())
+  if (!dashboard_client_->getPolyscopeVersion().isESeries())
     GTEST_SKIP();
-  dashboard_client_->polyscope_version_ = VersionInformation::fromString("5.0.0");
+  dashboard_client_->setPolyscopeVersion("5.0.0");
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(msg), UrException);
-  dashboard_client_->polyscope_version_ = VersionInformation::fromString("5.5.0");
+  dashboard_client_->setPolyscopeVersion("5.5.0");
   EXPECT_TRUE(dashboard_client_->commandSafetyStatus(msg));
   EXPECT_THROW(dashboard_client_->commandSetUserRole("none"), UrException);
 }
@@ -157,11 +172,12 @@ TEST_F(DashboardClientTest, cb3_version)
 {
   std::string msg;
   EXPECT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->polyscope_version_.isESeries())
+  if (dashboard_client_->getPolyscopeVersion().isESeries())
     GTEST_SKIP();
-  dashboard_client_->polyscope_version_ = VersionInformation::fromString("1.6.0");
+
+  dashboard_client_->setPolyscopeVersion("1.6.0");
   EXPECT_THROW(dashboard_client_->commandIsProgramSaved(), UrException);
-  dashboard_client_->polyscope_version_ = VersionInformation::fromString("1.8.0");
+  dashboard_client_->setPolyscopeVersion("1.8.0");
   EXPECT_TRUE(dashboard_client_->commandIsProgramSaved());
   EXPECT_THROW(dashboard_client_->commandIsInRemoteControl(), UrException);
 }
