@@ -228,6 +228,9 @@ TEST_F(UrDriverTest, read_non_existing_script_file)
 
 TEST_F(UrDriverTest, read_existing_script_file)
 {
+#ifdef _WIN32
+#define mkstemp _mktemp_s
+#endif
   g_consume_rtde_packages = true;
   char existing_script_file[] = "urscript.XXXXXX";
   int fd = mkstemp(existing_script_file);
