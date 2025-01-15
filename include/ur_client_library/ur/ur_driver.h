@@ -36,7 +36,7 @@
 #include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
-#include "ur_client_library/ur/error_code_client.h"
+#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
@@ -656,6 +656,11 @@ public:
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
                        double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
+  /*!
+   *  \brief Starts the primary client
+   */
+  void startPrimaryClientCommunication();
+  
   void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
   {
     trajectory_interface_->registerDisconnectionCallback(fun);
@@ -678,7 +683,7 @@ private:
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
   comm::INotifier error_code_notifier_;
-  std::unique_ptr<ErrorCodeClient> error_code_client_;
+  std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;

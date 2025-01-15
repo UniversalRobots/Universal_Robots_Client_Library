@@ -75,8 +75,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
 
-  primary_interface::PrimaryParser parser;
-  error_code_client_.reset(new ErrorCodeClient(*primary_stream_, error_code_notifier_, parser));
+  primary_client_.reset(new urcl::primary_interface::PrimaryClient(*primary_stream_));
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -731,13 +730,13 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state_, step_time));
 }
 
-void UrDriver::startErrorCodeClientCommunication() 
+void UrDriver::startPrimaryClientCommunication() 
 {
-  error_code_client_->start();
+  primary_client_->start();
 }
 
 std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
 {
-  return error_code_client_->getErrorCodes();
+  return primary_client_->getErrorCodes();
 }
 }  // namespace urcl

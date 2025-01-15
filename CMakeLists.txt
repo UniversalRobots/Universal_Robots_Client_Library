@@ -16,6 +16,7 @@ add_library(urcl SHARED
     src/control/trajectory_point_interface.cpp
     src/control/script_command_interface.cpp
     src/primary/primary_package.cpp
+    src/primary/primary_client.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
     src/primary/robot_message/version_message.cpp
@@ -34,7 +35,6 @@ add_library(urcl SHARED
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
     src/ur/error_code_reader.cpp
-    src/ur/error_code_client.cpp
     src/ur/dashboard_client.cpp
     src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp

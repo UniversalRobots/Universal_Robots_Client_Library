@@ -247,15 +247,15 @@ TEST_F(UrDriverTest, reset_rtde_client)
 
 TEST_F(UrDriverTest, read_error_code)
 {
-  g_ur_driver_->startErrorCodeClientCommunication();
+  g_ur_driver->startPrimaryClientCommunication();
   std::stringstream cmd;
   cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
-  EXPECT_TRUE(g_ur_driver_->sendScript(cmd.str()));
+  EXPECT_TRUE(g_ur_driver->sendScript(cmd.str()));
 
-  auto error_codes = g_ur_driver_->getErrorCodes();
+  auto error_codes = g_ur_driver->getErrorCodes();
   while (error_codes.size() == 0)
   {
-    error_codes = g_ur_driver_->getErrorCodes();
+    error_codes = g_ur_driver->getErrorCodes();
   }
 
   ASSERT_EQ(error_codes.size(), 1);
@@ -265,8 +265,8 @@ TEST_F(UrDriverTest, read_error_code)
   // Wait for 5s after PSTOP before clearing it
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  EXPECT_TRUE(g_dashboard_client_->commandCloseSafetyPopup());
-  EXPECT_TRUE(g_dashboard_client_->commandUnlockProtectiveStop());
+  EXPECT_TRUE(g_dashboard_client->commandCloseSafetyPopup());
+  EXPECT_TRUE(g_dashboard_client->commandUnlockProtectiveStop());
 }
 
 // TODO we should add more tests for the UrDriver class.
