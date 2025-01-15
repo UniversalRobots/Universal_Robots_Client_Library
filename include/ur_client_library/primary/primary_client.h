@@ -1,4 +1,8 @@
+#ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
+#define UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
+
 #include <memory>
+#include <deque>
 
 #include <ur_client_library/comm/stream.h>
 #include <ur_client_library/comm/pipeline.h>
@@ -7,7 +11,7 @@
 #include <ur_client_library/primary/primary_consumer.h>
 #include <ur_client_library/primary/primary_package.h>
 #include <ur_client_library/primary/primary_parser.h>
-#include <ur_client_library/ur/error_code_reader.h>
+
 namespace urcl
 {
 namespace primary_interface
@@ -57,3 +61,5 @@ private:
 
 }  // namespace primary_interface
 }  // namespace urcl
+
+#endif  // ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED

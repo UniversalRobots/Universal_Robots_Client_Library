@@ -34,7 +34,6 @@ add_library(urcl SHARED
     src/rtde/rtde_client.cpp
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
-    src/ur/error_code_reader.cpp
     src/ur/dashboard_client.cpp
     src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp

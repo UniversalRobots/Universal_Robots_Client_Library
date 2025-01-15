@@ -38,7 +38,6 @@
 #include <sstream>
 
 #include <ur_client_library/ur/calibration_checker.h>
-#include <ur_client_library/ur/error_code_reader.h>
 
 namespace urcl
 {
