@@ -36,9 +36,9 @@
 #include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
-#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
+#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
@@ -536,7 +536,7 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
-   *  \brief Retrieves error codes ErrorCodeClient.
+   *  \brief Retrieves error codes from PrimaryClient.
    *
    *  \returns list of error codes
    *
@@ -682,7 +682,6 @@ private:
 
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
-  comm::INotifier error_code_notifier_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
