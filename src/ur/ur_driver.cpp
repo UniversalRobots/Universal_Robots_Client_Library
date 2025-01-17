@@ -74,7 +74,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
 
-  primary_client_.reset(new urcl::primary_interface::PrimaryClient(*primary_stream_));
+  primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
   non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;

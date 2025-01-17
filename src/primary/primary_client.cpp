@@ -6,8 +6,8 @@ namespace urcl
 {
 namespace primary_interface
 {
-PrimaryClient::PrimaryClient(comm::URStream<PrimaryPackage>& stream)
-  : stream_(stream)
+PrimaryClient::PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier)
+  : stream_(robot_ip, UR_PRIMARY_PORT)
 {
   prod_.reset(new comm::URProducer<PrimaryPackage>(stream_, parser_));
 
@@ -32,15 +32,16 @@ PrimaryClient::~PrimaryClient()
 void PrimaryClient::start()
 {
   URCL_LOG_INFO("Starting primary client pipeline");
+  pipeline_->init();
   pipeline_->run();
 }
 
-void PrimaryClient::addPrimaryConsumer(std::shared_ptr<AbstractPrimaryConsumer> primary_consumer)
+void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
 {
   multi_consumer_->addConsumer(primary_consumer);
 }
 
-void PrimaryClient::removePrimaryConsumer(std::shared_ptr<AbstractPrimaryConsumer> primary_consumer)
+void PrimaryClient::removePrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
 {
   multi_consumer_->removeConsumer(primary_consumer);
 }
