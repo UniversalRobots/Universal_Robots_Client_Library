@@ -70,8 +70,8 @@ int main(int argc, char* argv[])
   // loop.
   my_client.start();
 
-  unsigned long startTime = clock();
-  while (second_to_run < 0 || ((clock() - startTime) / CLOCKS_PER_SEC) < static_cast<unsigned int>(second_to_run))
+  unsigned long start_time = clock();
+  while (second_to_run < 0 || ((clock() - start_time) / CLOCKS_PER_SEC) < static_cast<unsigned int>(second_to_run))
   {
     // Read latest RTDE package. This will block for READ_TIMEOUT, so the
     // robot will effectively be in charge of setting the frequency of this loop unless RTDE
@@ -93,9 +93,7 @@ int main(int argc, char* argv[])
     {
       // This will happen for example, when the required keys are not configured inside the input
       // recipe.
-      std::cout << "\033[1;31mSending RTDE data failed."
-                << "\033[0m\n"
-                << std::endl;
+      std::cout << "\033[1;31mSending RTDE data failed." << "\033[0m\n" << std::endl;
       return 1;
     }
 

@@ -40,14 +40,14 @@
 
 using namespace urcl;
 
-std::string ROBOT_IP = "192.168.56.101";
+std::string g_ROBOT_IP = "192.168.56.101";
 
 class RTDEClientTest : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_));
+    client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_));
   }
 
   void TearDown()
@@ -116,12 +116,12 @@ TEST_F(RTDEClientTest, no_recipe)
   std::string output_recipe_file = "";
   std::string input_recipe_file = "";
   EXPECT_THROW(
-      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
       UrException);
 
   // Only input recipe is unconfigured
   EXPECT_THROW(
-      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
       UrException);
 }
 
@@ -130,12 +130,12 @@ TEST_F(RTDEClientTest, empty_recipe_file)
   std::string output_recipe_file = "resources/empty.txt";
   std::string input_recipe_file = "resources/empty.txt";
   EXPECT_THROW(
-      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
       UrException);
 
   // Only input recipe is empty
   EXPECT_THROW(
-      client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
       UrException);
 }
 
@@ -143,12 +143,12 @@ TEST_F(RTDEClientTest, invalid_target_frequency)
 {
   // Setting target frequency below 0 or above 500, should throw an exception
   client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0, false));
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
 
   client_.reset(
-      new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000, false));
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000, false));
 
   EXPECT_THROW(client_->init(), UrException);
 }
@@ -167,7 +167,8 @@ TEST_F(RTDEClientTest, unconfigured_target_frequency)
 
 TEST_F(RTDEClientTest, set_target_frequency)
 {
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1, false));
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1, false));
   client_->init();
 
   // Maximum frequency should still be equal to the robot's maximum frequency
@@ -268,7 +269,7 @@ TEST_F(RTDEClientTest, output_recipe_file)
 TEST_F(RTDEClientTest, recipe_compairson)
 {
   // Check that vectorized constructor provides same recipes as from file
-  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
+  auto client = rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
 
   std::vector<std::string> output_recipe_from_file = client_->getOutputRecipe();
   std::vector<std::string> output_recipe_from_vector = client.getOutputRecipe();
@@ -341,7 +342,7 @@ TEST_F(RTDEClientTest, write_rtde_data)
 TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 {
   std::string output_recipe_file = "resources/rtde_output_recipe_without_timestamp.txt";
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
 
   std::vector<std::string> actual_output_recipe_from_file = client_->getOutputRecipe();
   const std::string timestamp = "timestamp";
@@ -350,7 +351,7 @@ TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 
   // Verify that timestamp is added to the recipe when using the vectorized constructor
   std::vector<std::string> output_recipe = { "actual_q", "actual_qd" };
-  auto client = rtde_interface::RTDEClient(ROBOT_IP, notifier_, output_recipe, resources_input_recipe_);
+  auto client = rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe, resources_input_recipe_);
   std::vector<std::string> actual_output_recipe_from_vector = client.getOutputRecipe();
   it = std::find(actual_output_recipe_from_vector.begin(), actual_output_recipe_from_vector.end(), timestamp);
   EXPECT_FALSE(it == actual_output_recipe_from_vector.end());
@@ -376,8 +377,8 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_->init();
 
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_,
-                                               0.0, true));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,
+                                               input_recipe_file_, 0.0, true));
 
   EXPECT_NO_THROW(client_->init());
   client_->start();
@@ -405,7 +406,7 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
   std::vector<std::string> incorrect_output_recipe = client_->getOutputRecipe();
   incorrect_output_recipe.push_back("unknown_rtde_variable");
 
-  client_.reset(new rtde_interface::RTDEClient(ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_,
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_,
                                                0.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
@@ -419,7 +420,7 @@ int main(int argc, char* argv[])
   {
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
-      ROBOT_IP = argv[i + 1];
+      g_ROBOT_IP = argv[i + 1];
       break;
     }
   }

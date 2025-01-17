@@ -29,6 +29,8 @@
 #ifndef UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 
+#include <optional>
+
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
@@ -44,6 +46,7 @@ namespace control
 enum class TrajectoryResult : int32_t
 {
 
+  TRAJECTORY_RESULT_UNKNOWN = -1,  ///< No result received, yet
   TRAJECTORY_RESULT_SUCCESS = 0,   ///< Successful execution
   TRAJECTORY_RESULT_CANCELED = 1,  ///< Canceled by user
   TRAJECTORY_RESULT_FAILURE = 2    ///< Aborted due to error during execution
@@ -76,6 +79,7 @@ class TrajectoryPointInterface : public ReverseInterface
 {
 public:
   static const int32_t MULT_TIME = 1000;
+  static const int MESSAGE_LENGTH = 21;
 
   TrajectoryPointInterface() = delete;
   /*!
@@ -102,6 +106,23 @@ public:
    */
   bool writeTrajectoryPoint(const vector6d_t* positions, const float goal_time, const float blend_radius,
                             const bool cartesian);
+
+  /*!
+   * \brief Writes information for a robot motion to the robot to be read by the URScript program.
+   *
+   * \param positions A vector of joint or cartesian targets for the robot
+   * \param acceleration Joint acceleration of leading axis [rad/s^2] / tool acceleration [m/s^2]
+   * for Cartesian motions
+   * \param velocity Joint speed of leading axis [rad/s] / tool speed [m/s] for Cartesian motions
+   * \param goal_time The goal time to reach the target. When a non-zero goal time is specified,
+   * this has priority over speed and acceleration settings.
+   * \param blend_radius The radius to be used for blending between control points
+   * \param cartesian True, if the written point is specified in Cartesian space, false if in joint space
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeTrajectoryPoint(const vector6d_t* positions, const float acceleration = 1.4, const float velocity = 1.05,
+                            const float goal_time = 0, const float blend_radius = 0, const bool cartesian = false);
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program including
@@ -131,7 +152,6 @@ protected:
   virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv) override;
 
 private:
-  static const int MESSAGE_LENGTH = 21;
   std::function<void(TrajectoryResult)> handle_trajectory_end_;
 };
 

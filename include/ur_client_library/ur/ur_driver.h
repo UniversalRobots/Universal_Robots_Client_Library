@@ -273,6 +273,23 @@ public:
                             const float blend_radius = 0.052);
 
   /*!
+   * \brief Writes a trajectory point onto the dedicated socket.
+   *
+   * \param positions Desired joint or cartesian positions
+   * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param acceleration Joint acceleration of leading axis [rad/s^2] / tool acceleration [m/s^2]
+   * for Cartesian motions
+   * \param velocity Joint speed of leading axis [rad/s] / tool speed [m/s] for Cartesian motions
+   * \param goal_time Time for the robot to reach this point. When a non-zero goal time is specified,
+   * this has priority over speed and acceleration settings.
+   * \param blend_radius  The radius to be used for blending between control points
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryPoint(const vector6d_t& positions, float acceleration, float velocity, const bool cartesian,
+                            const float goal_time = 0.0, const float blend_radius = 0.052);
+
+  /*!
    * \brief Writes a trajectory spline point for quintic spline interpolation onto the dedicated socket.
    *
    * \param positions Desired joint positions
@@ -630,8 +647,13 @@ public:
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
                        double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
-private:
   static std::string readScriptFile(const std::string& filename);
+
+protected:
+  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
+  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+
+private:
   /*!
    * \brief Reconnects the secondary stream used to send program to the robot.
    *
@@ -650,8 +672,6 @@ private:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
 
   double force_mode_gain_scale_factor_ = 0.5;
   double force_mode_damping_factor_ = 0.025;
