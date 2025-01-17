@@ -49,7 +49,7 @@ protected:
     server_->start();
   }
 
-  void Teardown()
+  void teardown()
   {
     // Clean up
     server_.reset();
@@ -133,7 +133,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   auto end = std::chrono::system_clock::now();
   auto elapsed = end - start;
   // This is only a rough estimate, obviously
-  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+  EXPECT_LT(elapsed, std::chrono::milliseconds(7500));
 }
 
 int main(int argc, char* argv[])

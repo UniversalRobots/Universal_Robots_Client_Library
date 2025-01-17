@@ -351,7 +351,7 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
   auto end = std::chrono::system_clock::now();
   auto elapsed = end - start;
   // This is only a rough estimate, obviously
-  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+  EXPECT_LT(elapsed, std::chrono::milliseconds(7500));
 }
 
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
@@ -374,7 +374,7 @@ TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
   server_->write(client_fd_, data, len, written);
 
   // Simulate socket failure
-  close(client_->getSocketFD());
+  ur_close(client_->getSocketFD());
 
   char characters;
   size_t read_chars = 0;

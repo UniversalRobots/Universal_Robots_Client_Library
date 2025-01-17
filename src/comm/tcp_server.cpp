@@ -70,7 +70,9 @@ void TCPServer::init()
     throw std::system_error(std::error_code(errno, std::generic_category()), "Failed to create socket endpoint");
   }
   int flag = 1;
+#ifndef _WIN32
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
+#endif
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
 
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
