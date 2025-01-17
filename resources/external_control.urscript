@@ -68,8 +68,8 @@ JOINT_IGNORE_SPEED = 20.0
 global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global cmd_servo_q = get_actual_joint_positions()
-global cmd_servo_q_last = get_actual_joint_positions()
+global cmd_servo_q = get_joint_positions()
+global cmd_servo_q_last = cmd_servo_q
 global cmd_twist = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global extrapolate_count = 0
 global extrapolate_max_count = 0
@@ -158,7 +158,7 @@ end
 thread servoThread():
   textmsg("ExternalControl: Starting servo thread")
   state = SERVO_IDLE
-  local q_last = get_target_joint_positions()
+  local q_last = get_joint_positions()
   while control_mode == MODE_SERVOJ:
     enter_critical
     q = cmd_servo_q
@@ -221,13 +221,13 @@ def cubicSplineRun(end_q, end_qd, time, is_last_point=False, is_first_point=Fals
   local str = str_cat(end_q, str_cat(end_qd, time))
   textmsg("Cubic spline arg: ", str)
 
-  local start_q = get_target_joint_positions()
+  local start_q = get_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
     if is_first_point and time == 0.0:
       # If users specify the current joint position with time 0 that may be fine, in that case just
       # ignore that point
-      local distance = norm(end_q - get_target_joint_positions())
+      local distance = norm(end_q - start_q)
       if distance < 0.01:
         local splineTimerTraveled = 0.0
         # USED_IN_TEST_SPLINE_INTERPOLATION write_output_float_register(1, splineTimerTraveled)
@@ -263,13 +263,13 @@ def quinticSplineRun(end_q, end_qd, end_qdd, time, is_last_point=False, is_first
   local str = str_cat(end_q, str_cat(end_qd, str_cat(end_qdd, time)))
   textmsg("Quintic spline arg: ", str)
 
-  local start_q = get_target_joint_positions()
+  local start_q = get_joint_positions()
   # Zero time means infinite velocity to reach the target and is therefore impossible
   if time <= 0.0:
     if is_first_point and time == 0.0:
       # If users specify the current joint position with time 0 that may be fine, in that case just
       # ignore that point
-      local distance = norm(end_q - get_target_joint_positions())
+      local distance = norm(end_q - start_q)
       if distance < 0.01:
         return False
       end
@@ -479,7 +479,9 @@ thread trajectoryThread():
       end
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-        movej(q, t = tmptime, r = blend_radius)
+        acceleration = raw_point[7] / MULT_jointstate
+        velocity = raw_point[13] / MULT_jointstate
+        movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
@@ -487,7 +489,9 @@ thread trajectoryThread():
 
         # Movel point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-        movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], t = tmptime, r = blend_radius)
+        acceleration = raw_point[7] / MULT_jointstate
+        velocity = raw_point[13] / MULT_jointstate
+        movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
@@ -553,7 +557,7 @@ end
 thread servoThreadP():
   textmsg("Starting pose servo thread")
   state = SERVO_IDLE
-  local q_last = get_target_joint_positions()
+  local q_last = get_joint_positions()
   while control_mode == MODE_POSE:
     enter_critical
     q = cmd_servo_q

@@ -273,6 +273,23 @@ public:
                             const float blend_radius = 0.052);
 
   /*!
+   * \brief Writes a trajectory point onto the dedicated socket.
+   *
+   * \param positions Desired joint or cartesian positions
+   * \param cartesian True, if the point sent is cartesian, false if joint-based
+   * \param acceleration Joint acceleration of leading axis [rad/s^2] / tool acceleration [m/s^2]
+   * for Cartesian motions
+   * \param velocity Joint speed of leading axis [rad/s] / tool speed [m/s] for Cartesian motions
+   * \param goal_time Time for the robot to reach this point. When a non-zero goal time is specified,
+   * this has priority over speed and acceleration settings.
+   * \param blend_radius  The radius to be used for blending between control points
+   *
+   * \returns True on successful write.
+   */
+  bool writeTrajectoryPoint(const vector6d_t& positions, float acceleration, float velocity, const bool cartesian,
+                            const float goal_time = 0.0, const float blend_radius = 0.052);
+
+  /*!
    * \brief Writes a trajectory spline point for quintic spline interpolation onto the dedicated socket.
    *
    * \param positions Desired joint positions

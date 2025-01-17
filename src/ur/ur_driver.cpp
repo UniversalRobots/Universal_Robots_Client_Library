@@ -136,9 +136,7 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
     }
     begin_replace << "set_tool_voltage("
                   << static_cast<std::underlying_type<ToolVoltage>::type>(tool_comm_setup->getToolVoltage()) << ")\n";
-    begin_replace << "set_tool_communication("
-                  << "True"
-                  << ", " << tool_comm_setup->getBaudRate() << ", "
+    begin_replace << "set_tool_communication(" << "True" << ", " << tool_comm_setup->getBaudRate() << ", "
                   << static_cast<std::underlying_type<Parity>::type>(tool_comm_setup->getParity()) << ", "
                   << tool_comm_setup->getStopBits() << ", " << tool_comm_setup->getRxIdleChars() << ", "
                   << tool_comm_setup->getTxIdleChars() << ")";
@@ -232,6 +230,13 @@ bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMo
                                  const RobotReceiveTimeout& robot_receive_timeout)
 {
   return reverse_interface_->write(&values, control_mode, robot_receive_timeout);
+}
+
+bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const float acceleration, const float velocity,
+                                    const bool cartesian, const float goal_time, const float blend_radius)
+{
+  return trajectory_interface_->writeTrajectoryPoint(&positions, acceleration, velocity, goal_time, blend_radius,
+                                                     cartesian);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,

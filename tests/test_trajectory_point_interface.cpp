@@ -63,16 +63,15 @@ protected:
                      int32_t& blend_radius_or_spline_type, int32_t& motion_type)
     {
       // Read message
-      uint8_t buf[sizeof(int32_t) * 21];
+      uint8_t buf[sizeof(int32_t) * urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 21;
+      size_t remainder = sizeof(int32_t) * urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH;
       while (remainder > 0)
       {
         if (!TCPSocket::read(b_pos, remainder, read))
         {
-          std::cout << "Failed to read from socket, this should not happen during a test!" << std::endl;
-          break;
+          throw(std::runtime_error("Failed to read from socket, this should not happen during a test!"));
         }
         b_pos += read;
         remainder -= read;
@@ -133,6 +132,14 @@ protected:
       vector6int32_t pos, vel, acc;
       readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
       return vel;
+    }
+
+    vector6int32_t getAcceleration()
+    {
+      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      return acc;
     }
 
     int32_t getGoalTime()
@@ -218,13 +225,13 @@ public:
 private:
   std::condition_variable trajectory_end_;
   std::mutex trajectory_end_mutex_;
-  control::TrajectoryResult result_;
+  control::TrajectoryResult result_ = control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN;
 };
 
 TEST_F(TrajectoryPointInterfaceTest, write_postions)
 {
   urcl::vector6d_t send_positions = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
-  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, 0);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
   vector6int32_t received_positions = client_->getPosition();
 
   EXPECT_EQ(send_positions[0], ((double)received_positions[0]) / traj_point_interface_->MULT_JOINTSTATE);
@@ -361,9 +368,30 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   float send_goal_time = 0.5;
-  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, 0);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, false);
   int32_t received_goal_time = client_->getGoalTime();
 
+  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_TIME);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
+{
+  urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
+  float send_move_acceleration = 0.123;
+  float send_move_velocity = 0.456;
+  float send_goal_time = 0.5;
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_move_acceleration, send_move_velocity,
+                                              send_goal_time, 0, 0);
+  int32_t received_move_acceleration = client_->getAcceleration()[0];
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_move_acceleration, send_move_velocity,
+                                              send_goal_time, 0, 0);
+  int32_t received_move_velocity = client_->getVelocity()[0];
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_move_acceleration, send_move_velocity,
+                                              send_goal_time, 0, 0);
+  int32_t received_goal_time = client_->getGoalTime();
+
+  EXPECT_EQ(send_move_acceleration, ((float)received_move_acceleration) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_move_velocity, ((float)received_move_velocity) / traj_point_interface_->MULT_JOINTSTATE);
   EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_TIME);
 }
 
@@ -371,7 +399,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_blend_radius)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   float send_blend_radius = 0.5;
-  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, send_blend_radius, 0);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, send_blend_radius, false);
   int32_t received_blend_radius = client_->getBlendRadius();
 
   EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface_->MULT_TIME);

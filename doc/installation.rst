@@ -8,7 +8,8 @@ applications using this library, follow the usual cmake procedure:
 
 .. code:: console
 
-   $ cd <clone of this repository>
+   $ git clone https://github.com/UniversalRobots/Universal_Robots_Client_Library ur_client_library
+   $ cd ur_client_library
    $ mkdir build && cd build
    $ cmake ..
    $ make
@@ -24,9 +25,9 @@ Inside a ROS / ROS 2 workspace
 The ``ur_client_library`` is available in all maintained ROS distribution and can be installed
 using
 
-.. code-block:: console
+.. code:: console
 
-   $ sudo apt install ros-<distro>-ur-client-library
+   $ sudo apt install ros-$ROS_DISTRO-ur-client-library
 
 Unless you explicitly want to contribute to this library we recommend using the binary installation
 instead of building from source as explained below.
@@ -57,15 +58,23 @@ Use this library in other projects
 
 When you want to use this library in other cmake projects, make sure to
 
-* Add ``find_package(ur_client_library REQUIRED)`` to your ``CMakeLists.txt``
+* Add ``find_package(ur_client_library REQUIRED)`` to your ``CMakeLists.txt`` (Requires to have the
+  client library installed and your PATH setup done correctly. As an alternative, fetch and build
+  it as part of your project as shown below.)
 * add ``ur_client_library::urcl`` to the list of ``target_link_libraries(...)`` commands inside your
-  ``CMakeLists.txt`` file
+  ``CMakeLists.txt`` file.
 
 As a minimal example, take the following “project”:
 
-.. code:: cpp
+As a minimal executable, we'll create a client for the dashboard server and ask for the
+PolyScope version.
 
-   /*main.cpp*/
+.. note:: This will not work on PolyScope X versions, as the dashboard server is not available
+   there.
+
+.. code-block:: cpp
+   :caption: main.cpp
+   :linenos:
 
    #include <iostream>
    #include <ur_client_library/ur/dashboard_client.h>
@@ -83,13 +92,43 @@ As a minimal example, take the following “project”:
      return 0;
    }
 
-.. code:: cmake
+In this example, we'll fetch the client library as part of the project and build it together with
+our application:
 
-   # CMakeLists.txt
+.. code-block:: cmake
+   :caption: CMakeLists.txt
+   :linenos:
 
-   cmake_minimum_required(VERSION 3.0.2)
+   cmake_minimum_required(VERSION 3.11.0) # That's the minimum required version for FetchContent
    project(minimal_example)
 
-   find_package(ur_client_library REQUIRED)
+   include(FetchContent)
+   FetchContent_Declare(
+     ur_client_library
+     GIT_REPOSITORY https://github.com/UniversalRobots/Universal_Robots_Client_Library.git
+     GIT_TAG        master
+   )
+
+   # This will download the ur_client_library and replace the `find_package(ur_client_library)` call.
+   FetchContent_MakeAvailable(ur_client_library)
+
    add_executable(db_client main.cpp)
    target_link_libraries(db_client ur_client_library::urcl)
+
+To build the project, create a build directory and run cmake:
+
+.. code:: console
+
+   $ mkdir build && cd build
+   $ cmake ..
+   $ cmake --build .
+
+Then (with a robot switched on and available on 192.168.56.101), you can test the minimal example application:
+
+.. code:: console
+
+   $ ./db_client
+   INFO /<...>/ur/dashboard_client.cpp 72: Connected: Universal Robots Dashboard Server
+
+   URSoftware 5.19.0.1210631 (Oct 23 2024)
+   INFO /<...>/ur/dashboard_client.cpp 98: Disconnecting from Dashboard server on 192.168.56.101:29999
