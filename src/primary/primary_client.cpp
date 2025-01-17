@@ -13,14 +13,15 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, comm::INotifier& notif
 
   consumer_.reset(new PrimaryConsumer());
   consumer_->setErrorCodeMessageCallback(std::bind(&PrimaryClient::errorMessageCallback, this, std::placeholders::_1));
-  
+
   // Configure multi consumer even though we only have one consumer as default, as this enables the user to add more
   // consumers after the object has been created
   std::vector<std::shared_ptr<comm::IConsumer<PrimaryPackage>>> consumers;
   consumers.push_back(consumer_);
   multi_consumer_.reset(new comm::MultiConsumer<PrimaryPackage>(consumers));
-  
-  pipeline_.reset(new comm::Pipeline<PrimaryPackage>(*prod_, multi_consumer_.get(), "PrimaryClient Pipeline", notifier_));
+
+  pipeline_.reset(
+      new comm::Pipeline<PrimaryPackage>(*prod_, multi_consumer_.get(), "PrimaryClient Pipeline", notifier_));
 }
 
 PrimaryClient::~PrimaryClient()

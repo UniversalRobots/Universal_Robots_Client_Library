@@ -536,7 +536,8 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
-   *  \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be deleted.
+   *  \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
+   * deleted.
    *
    *  \returns list of error codes
    *

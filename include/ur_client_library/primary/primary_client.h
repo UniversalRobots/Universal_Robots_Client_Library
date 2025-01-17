@@ -28,7 +28,7 @@ public:
    *
    * \param primary_consumer Primary consumer that should be added to the list
    */
-  void addPrimaryConsumer (std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer);
+  void addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer);
 
   /*!
    * \brief Remove a primary consumer from the list of consumers
@@ -39,12 +39,12 @@ public:
   void start();
 
   /*!
-   * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be deleted.
+   * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
+   * deleted.
    */
   std::deque<ErrorCode> getErrorCodes();
 
 private:
-
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
 

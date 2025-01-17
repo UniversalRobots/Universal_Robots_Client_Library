@@ -729,7 +729,7 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
   reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state_, step_time));
 }
 
-void UrDriver::startPrimaryClientCommunication() 
+void UrDriver::startPrimaryClientCommunication()
 {
   primary_client_->start();
 }

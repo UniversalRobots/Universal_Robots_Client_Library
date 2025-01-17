@@ -47,7 +47,9 @@ namespace primary_interface
 class PrimaryConsumer : public AbstractPrimaryConsumer
 {
 public:
-  PrimaryConsumer() {}
+  PrimaryConsumer()
+  {
+  }
   virtual ~PrimaryConsumer() = default;
 
   /*!
@@ -117,8 +119,7 @@ public:
     code.timestamp = pkg.timestamp_;
     code.to_string = pkg.toString();
 
-    const auto logContents =
-        "Logging an ErrorCodeMessage from the UR Controller Box: " + pkg.toString();
+    const auto logContents = "Logging an ErrorCodeMessage from the UR Controller Box: " + pkg.toString();
 
     switch (code.report_level)
     {
@@ -150,7 +151,7 @@ public:
     return true;
   }
 
-   /*!
+  /*!
    * \brief Set callback function which will be triggered whenever error code messages are received
    *
    * \param callback_function Function handling the event information. The error code message received is passed to the
@@ -163,7 +164,6 @@ public:
 
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
-
 };
 
 }  // namespace primary_interface
