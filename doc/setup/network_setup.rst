@@ -1,3 +1,5 @@
+.. _network_setup:
+
 Network setup
 =============
 
