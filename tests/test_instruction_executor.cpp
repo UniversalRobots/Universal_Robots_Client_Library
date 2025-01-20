@@ -170,26 +170,32 @@ TEST_F(InstructionExecutorTest, execute_movej_success)
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 3.4, 3.1, 0));
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 1550, 100);
+  // With this parametrization execution should take about 1.4 seconds plus some overhead. We test
+  // time parametrization below with a motion time of 2.5 seconds, so this is the upper bound to
+  // distinguish between the two. This large range is necessary, as the actual overhead is not
+  // known.
+  ASSERT_GT(duration.count(), 1400);
+  ASSERT_LT(duration.count(), 2500);
 
   start = std::chrono::steady_clock::now();
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 3.4, 3.1, 0));
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 1550, 100);
+  ASSERT_GT(duration.count(), 1400);
+  ASSERT_LT(duration.count(), 2500);
 
   // time parametrization
   start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 1.4, 1.04, 3));
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 3.4, 3.1, 3));  // 3 seconds
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 3100, 200);
+  ASSERT_GE(duration.count(), 3000);
 
   start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 1.4, 1.04, 2.5));
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 3.4, 3.1, 2.5));  // 2.5 seconds
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 2600, 150);
+  ASSERT_GE(duration.count(), 2500);
 }
 
 TEST_F(InstructionExecutorTest, execute_movel_success)
@@ -201,29 +207,35 @@ TEST_F(InstructionExecutorTest, execute_movel_success)
 
   // acceleration & velocity parametrization
   auto start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5));
+  ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 2.5, 2.5));
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 800, 150);
+  // With this parametrization execution should take about 0.6 seconds plus some overhead. We test
+  // time parametrization below with a motion time of 2.0 seconds, so this is the upper bound to
+  // distinguish between the two. This large range is necessary, as the actual overhead is not
+  // known.
+  ASSERT_GT(duration.count(), 500);
+  ASSERT_LT(duration.count(), 2000);
 
   start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5));
+  ASSERT_TRUE(executor_->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 2.5, 2.5));
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 800, 150);
+  ASSERT_GT(duration.count(), 500);
+  ASSERT_LT(duration.count(), 2000);
 
   // time parametrization
   start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5, 0.3));
+  ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 2.5, 2.5, 2.0));
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 400, 50);
+  ASSERT_GT(duration.count(), 2000);
 
   start = std::chrono::steady_clock::now();
-  ASSERT_TRUE(executor_->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5, 0.3));
+  ASSERT_TRUE(executor_->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 2.5, 1.5, 2.2));
   end = std::chrono::steady_clock::now();
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  ASSERT_NEAR(duration.count(), 400, 50);
+  ASSERT_GT(duration.count(), 2200);
 }
 
 TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_connected_fails)
