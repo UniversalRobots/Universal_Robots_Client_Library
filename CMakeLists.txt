@@ -1,7 +1,5 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.14.0)
 project(ur_client_library)
-
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/" ${CMAKE_MODULE_PATH})
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   message("${PROJECT_NAME}: You did not request a specific build type: selecting 'RelWithDebInfo'.")
@@ -9,13 +7,6 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(WITH_ASAN "Compile with address sanitizer support" OFF)
-
-##
-## Check C++11 support / enable global pedantic and Wall
-##
-include(DefineCXX17CompilerFlag)
-DEFINE_CXX_17_COMPILER_FLAG(CXX17_FLAG)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 
 add_library(urcl SHARED
     src/comm/tcp_socket.cpp
@@ -53,7 +44,7 @@ add_library(urcl SHARED
 )
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
-target_compile_options(urcl PUBLIC ${CXX17_FLAG})
+target_compile_features(urcl PUBLIC cxx_std_17)
 if(WITH_ASAN)
   target_compile_options(urcl PUBLIC -fsanitize=address)
   target_link_options(urcl PUBLIC -fsanitize=address)
