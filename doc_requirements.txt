@@ -1,4 +1,5 @@
 sphinx
-sphinx_rtd_theme
 sphinx-copybutton
+sphinx-tabs
+sphinx_rtd_theme
 catkin-pkg
