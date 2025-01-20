@@ -44,8 +44,7 @@ if (INTEGRATION_TESTS)
   )
 
   add_executable(instruction_executor_test test_instruction_executor.cpp)
-  target_include_directories(instruction_executor_test PRIVATE ${GTEST_INCLUDE_DIRS})
-  target_link_libraries(instruction_executor_test PRIVATE ur_client_library::urcl ${GTEST_LIBRARIES})
+  target_link_libraries(instruction_executor_test PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET instruction_executor_test
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
