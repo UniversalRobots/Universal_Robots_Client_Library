@@ -13,7 +13,7 @@
 #include <utility>
 #include "atomicops.h"
 #if __cplusplus > 199711L || _MSC_VER >= 1700  // C++11 or VS2012
-#include <chrono>
+#  include <chrono>
 #endif
 
 // A lock-free queue for a single-consumer, single-producer architecture.
@@ -30,21 +30,21 @@
 // Using the queue exclusively from one thread is fine, though a bit silly.
 
 #ifndef MOODYCAMEL_CACHE_LINE_SIZE
-#define MOODYCAMEL_CACHE_LINE_SIZE 64
+#  define MOODYCAMEL_CACHE_LINE_SIZE 64
 #endif
 
 #ifndef MOODYCAMEL_EXCEPTIONS_ENABLED
-#if (defined(_MSC_VER) && defined(_CPPUNWIND)) || (defined(__GNUC__) && defined(__EXCEPTIONS)) ||                      \
-    (!defined(_MSC_VER) && !defined(__GNUC__))
-#define MOODYCAMEL_EXCEPTIONS_ENABLED
-#endif
+#  if (defined(_MSC_VER) && defined(_CPPUNWIND)) || (defined(__GNUC__) && defined(__EXCEPTIONS)) ||                    \
+      (!defined(_MSC_VER) && !defined(__GNUC__))
+#    define MOODYCAMEL_EXCEPTIONS_ENABLED
+#  endif
 #endif
 
 #ifdef AE_VCPP
-#pragma warning(push)
-#pragma warning(disable : 4324)  // structure was padded due to __declspec(align())
-#pragma warning(disable : 4820)  // padding was added
-#pragma warning(disable : 4127)  // conditional expression is constant
+#  pragma warning(push)
+#  pragma warning(disable : 4324)  // structure was padded due to __declspec(align())
+#  pragma warning(disable : 4820)  // padding was added
+#  pragma warning(disable : 4127)  // conditional expression is constant
 #endif
 
 namespace moodycamel
@@ -861,5 +861,5 @@ private:
 }  // end namespace moodycamel
 
 #ifdef AE_VCPP
-#pragma warning(pop)
+#  pragma warning(pop)
 #endif
