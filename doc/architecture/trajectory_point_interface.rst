@@ -8,7 +8,7 @@ be used in conjunction with the :ref:`reverse_interface` during trajectory forwa
 
 Communication regarding trajectory point execution would usually look like this:
 
-.. figure:: /images/trajectory_interface.svg
+.. figure:: ../images/trajectory_interface.svg
    :width: 100%
    :alt: Trajectory interface
 
