@@ -68,7 +68,7 @@ protected:
     server_.reset();
   }
 
-  void connectionCallback(const int filedescriptor)
+  void connectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(connect_mutex_);
     client_fd_ = filedescriptor;
@@ -89,7 +89,7 @@ protected:
   }
 
   std::unique_ptr<comm::TCPServer> server_;
-  int client_fd_;
+  socket_t client_fd_;
 
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
   std::unique_ptr<rtde_interface::RTDEParser> parser_;

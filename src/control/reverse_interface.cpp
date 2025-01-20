@@ -35,7 +35,7 @@ namespace control
 {
 ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state,
                                    std::chrono::milliseconds step_time)
-  : client_fd_(-1)
+  : client_fd_(INVALID_SOCKET)
   , server_(port)
   , handle_program_state_(handle_program_state)
   , step_time_(step_time)
@@ -54,7 +54,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
                              const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 7;
-  if (client_fd_ == -1)
+  if (client_fd_ == INVALID_SOCKET)
   {
     return false;
   }
@@ -115,7 +115,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 3;
-  if (client_fd_ == -1)
+  if (client_fd_ == INVALID_SOCKET)
   {
     return false;
   }
@@ -162,7 +162,7 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
                                                     const RobotReceiveTimeout& robot_receive_timeout)
 {
   const int message_length = 2;
-  if (client_fd_ == -1)
+  if (client_fd_ == INVALID_SOCKET)
   {
     return false;
   }
@@ -212,9 +212,9 @@ void ReverseInterface::setKeepaliveCount(const uint32_t count)
   keep_alive_count_modified_deprecated_ = true;
 }
 
-void ReverseInterface::connectionCallback(const int filedescriptor)
+void ReverseInterface::connectionCallback(const socket_t filedescriptor)
 {
-  if (client_fd_ < 0)
+  if (client_fd_ == INVALID_SOCKET)
   {
     URCL_LOG_INFO("Robot connected to reverse interface. Ready to receive control commands.");
     client_fd_ = filedescriptor;
@@ -227,14 +227,14 @@ void ReverseInterface::connectionCallback(const int filedescriptor)
   }
 }
 
-void ReverseInterface::disconnectionCallback(const int filedescriptor)
+void ReverseInterface::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Connection to reverse interface dropped.", filedescriptor);
-  client_fd_ = -1;
+  client_fd_ = INVALID_SOCKET;
   handle_program_state_(false);
 }
 
-void ReverseInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
+void ReverseInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
 {
   URCL_LOG_WARN("Message on ReverseInterface received. The reverse interface currently does not support any message "
                 "handling. This message will be ignored.");

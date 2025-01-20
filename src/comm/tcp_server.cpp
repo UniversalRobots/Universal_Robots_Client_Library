@@ -172,8 +172,8 @@ void TCPServer::handleConnect()
 {
   struct sockaddr_storage client_addr;
   socklen_t addrlen = sizeof(client_addr);
-  int client_fd = accept(listen_fd_, (struct sockaddr*)&client_addr, &addrlen);
-  if (client_fd < 0)
+  socket_t client_fd = accept(listen_fd_, (struct sockaddr*)&client_addr, &addrlen);
+  if (client_fd == INVALID_SOCKET)
   {
     std::ostringstream ss;
     ss << "Failed to accept connection request on port  " << port_;
@@ -207,7 +207,7 @@ void TCPServer::spin()
   tempfds_ = masterfds_;
 
   // blocks until activity on any socket from tempfds
-  int sel = select(maxfd_ + 1, &tempfds_, NULL, NULL, NULL);
+  int sel = select(static_cast<int>(maxfd_ + 1), &tempfds_, NULL, NULL, NULL);
   if (sel < 0)
   {
     URCL_LOG_ERROR("select() failed. Shutting down socket event handler.");
@@ -239,7 +239,7 @@ void TCPServer::spin()
   }
 }
 
-void TCPServer::handleDisconnect(const int fd)
+void TCPServer::handleDisconnect(const socket_t fd)
 {
   URCL_LOG_DEBUG("%d disconnected.", fd);
   ur_close(fd);
@@ -259,7 +259,7 @@ void TCPServer::handleDisconnect(const int fd)
   }
 }
 
-void TCPServer::readData(const int fd)
+void TCPServer::readData(const socket_t fd)
 {
   memset(input_buffer_, 0, INPUT_BUFFER_SIZE);  // clear input buffer
   int nbytesrecv = recv(fd, input_buffer_, INPUT_BUFFER_SIZE, 0);
@@ -307,7 +307,7 @@ void TCPServer::start()
   worker_thread_ = std::thread(&TCPServer::worker, this);
 }
 
-bool TCPServer::write(const int fd, const uint8_t* buf, const size_t buf_len, size_t& written)
+bool TCPServer::write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written)
 {
   written = 0;
 
@@ -316,7 +316,7 @@ bool TCPServer::write(const int fd, const uint8_t* buf, const size_t buf_len, si
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(fd, reinterpret_cast<const char*>(buf + written), remaining, 0);
+    ssize_t sent = ::send(fd, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {

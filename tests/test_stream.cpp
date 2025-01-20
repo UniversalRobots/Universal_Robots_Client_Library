@@ -58,7 +58,7 @@ protected:
   }
 
   // callback functions for the tcp server
-  void messageCallback(const int filedescriptor, char* buffer, size_t nbytesrecv)
+  void messageCallback(const socket_t filedescriptor, char* buffer, size_t nbytesrecv)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     read_ = nbytesrecv;
@@ -67,7 +67,7 @@ protected:
     message_callback_ = true;
   }
 
-  void connectionCallback(const int filedescriptor)
+  void connectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(connect_mutex_);
     client_fd_ = filedescriptor;
@@ -100,7 +100,7 @@ protected:
   }
 
   std::unique_ptr<comm::TCPServer> server_;
-  int client_fd_;
+  socket_t client_fd_;
   std::string received_message_;
   size_t read_;
 

@@ -65,7 +65,7 @@ protected:
     server_.reset();
   }
 
-  void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
+  void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     uint8_t* buf = reinterpret_cast<uint8_t*>(buffer);

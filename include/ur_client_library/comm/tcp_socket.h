@@ -57,9 +57,9 @@ private:
   void setupOptions();
 
 protected:
-  static bool open(int socket_fd, struct sockaddr* address, size_t address_len)
+  static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
   {
-    return ::connect(socket_fd, address, address_len) == 0;
+    return ::connect(socket_fd, address, static_cast<socklen_t>(address_len)) == 0;
   }
 
   bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
@@ -90,7 +90,7 @@ public:
    *
    * \returns The file descriptor of the socket
    */
-  int getSocketFD()
+  socket_t getSocketFD()
   {
     return socket_fd_;
   }

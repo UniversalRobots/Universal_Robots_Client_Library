@@ -79,7 +79,7 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    */
-  void setConnectCallback(std::function<void(const int)> func)
+  void setConnectCallback(std::function<void(const socket_t)> func)
   {
     new_connection_callback_ = func;
   }
@@ -90,7 +90,7 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    */
-  void setDisconnectCallback(std::function<void(const int)> func)
+  void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
     disconnect_callback_ = func;
   }
@@ -101,7 +101,7 @@ public:
    * \param func Function handling the event information. The file client's file_descriptor will be
    * passed to the function as well as the actual message received from the client.
    */
-  void setMessageCallback(std::function<void(const int, char*, int)> func)
+  void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
     message_callback_ = func;
   }
@@ -132,7 +132,7 @@ public:
    *
    * \returns True on success, false otherwise
    */
-  bool write(const int fd, const uint8_t* buf, const size_t buf_len, size_t& written);
+  bool write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
    * \brief Get the maximum number of clients allowed to connect to this server
@@ -163,10 +163,10 @@ private:
   //! Handles connection events
   void handleConnect();
 
-  void handleDisconnect(const int fd);
+  void handleDisconnect(const socket_t fd);
 
   //! read data from socket
-  void readData(const int fd);
+  void readData(const socket_t fd);
 
   //! Event handler. Blocks until activity on any client or connection attempt
   void spin();

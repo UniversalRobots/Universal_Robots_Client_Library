@@ -52,6 +52,7 @@ static inline pthread_t pthread_self()
 
 static inline int sched_get_priority_max(int policy)
 {
+  (void)policy;
   return THREAD_PRIORITY_TIME_CRITICAL;
 }
 

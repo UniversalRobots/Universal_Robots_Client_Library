@@ -191,7 +191,7 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   if (state_ != SocketState::Connected)
     return false;
 
-  ssize_t res = ::recv(socket_fd_, reinterpret_cast<char*>(buf), buf_len, 0);
+  ssize_t res = ::recv(socket_fd_, reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
 
   if (res == 0)
   {
@@ -236,7 +236,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), remaining, 0);
+    ssize_t sent = ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {
