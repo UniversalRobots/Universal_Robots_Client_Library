@@ -45,7 +45,7 @@ In order to use the client library with a robot, that robot has to be setup.
       #. Enable the Primary Client Interface, Secondary Client Interface and Real-Time Data Exchange (RTDE) interfaces.
       #. Lock the menu and press exit.
 
-      .. image:: ../images/initial_setup_images/services_polyscopex.jpg
+      .. image:: ../images/initial_setup_images/services_polyscopex.png
          :width: 600
          :alt: Screenshot from PolyScope X screen.
 
