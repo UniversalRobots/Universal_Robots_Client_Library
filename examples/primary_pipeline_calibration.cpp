@@ -31,8 +31,11 @@ public:
   }
   virtual ~CalibrationConsumer() = default;
 
+  // This will consume any primary package
   virtual bool consume(std::shared_ptr<urcl::primary_interface::PrimaryPackage> product)
   {
+    // Try to cast the product to a KinematicsInfo package. If that succeeds, we handle the
+    // calibration information.
     auto kin_info = std::dynamic_pointer_cast<urcl::primary_interface::KinematicsInfo>(product);
     if (kin_info != nullptr)
     {
@@ -105,11 +108,11 @@ int main(int argc, char* argv[])
 
   if (calib_consumer.isCalibrated())
   {
-    printf("The robot on IP: %s is calibrated\n", robot_ip.c_str());
+    printf("The robot on IP: %s is calibrated.\n", robot_ip.c_str());
   }
   else
   {
-    printf("The robot controller on IP: %s do not have a valid calibration\n", robot_ip.c_str());
+    printf("The robot controller on IP: %s does not have a valid calibration.\n", robot_ip.c_str());
     printf("Remeber to turn on the robot to get calibration stored on the robot!\n");
   }
 

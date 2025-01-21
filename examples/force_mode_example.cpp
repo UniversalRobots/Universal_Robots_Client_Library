@@ -162,40 +162,35 @@ int main(int argc, char* argv[])
                    "for details.");
   }
 
-  // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
-  // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
-  // loop.
-  g_my_driver->startRTDECommunication();
-
-  std::chrono::duration<double> time_done(0);
-  std::chrono::duration<double> timeout(second_to_run);
-  auto stopwatch_last = std::chrono::steady_clock::now();
-  auto stopwatch_now = stopwatch_last;
   // Make sure that external control script is running
   if (!waitForProgramRunning())
   {
     URCL_LOG_ERROR("External Control script not running.");
     return 1;
   }
+  // End of initialization -- We've started the external control program, which means we have to
+  // write keepalive signals from now on. Otherwise the connection will be dropped.
+
+  // Start force mode
   // Task frame at the robot's base with limits being large enough to cover the whole workspace
   // Compliance in z axis and rotation around z axis
   bool success;
   if (g_my_driver->getVersion().major < 5)
-    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
-                                          { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
-                                          { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
-                                          2,                     // do not transform the force frame at all
+    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },   // Task frame at the robot's base
+                                          { 0, 0, 1, 0, 0, 1 },   // Compliance in z axis and rotation around z axis
+                                          { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
+                                          2,                      // do not transform the force frame at all
                                           { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
-                                          0.025);  // damping_factor. See ScriptManual for details.
+                                          0.005);  // damping_factor. See ScriptManual for details.
   else
   {
-    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
-                                          { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
-                                          { 0, 0, 0, 0, 0, 0 },  // do not apply any active wrench
-                                          2,                     // do not transform the force frame at all
+    success = g_my_driver->startForceMode({ 0, 0, 0, 0, 0, 0 },   // Task frame at the robot's base
+                                          { 0, 0, 1, 0, 0, 1 },   // Compliance in z axis and rotation around z axis
+                                          { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
+                                          2,                      // do not transform the force frame at all
                                           { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
-                                          0.025,                               // damping_factor
-                                          0.8);  // gain_scaling. See ScriptManual for details.
+                                          0.005,                               // damping_factor
+                                          1.0);  // gain_scaling. See ScriptManual for details.
   }
   if (!success)
   {
@@ -203,31 +198,19 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  while (true)
+  std::chrono::duration<double> time_done(0);
+  std::chrono::duration<double> timeout(second_to_run);
+  auto stopwatch_last = std::chrono::steady_clock::now();
+  auto stopwatch_now = stopwatch_last;
+  while (time_done < timeout || second_to_run.count() == 0)
   {
-    // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
-    // robot will effectively be in charge of setting the frequency of this loop.
-    // In a real-world application this thread should be scheduled with real-time priority in order
-    // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
-    if (data_pkg)
-    {
-      g_my_driver->writeKeepalive();
-
-      if (time_done > timeout && second_to_run.count() != 0)
-      {
-        URCL_LOG_INFO("Timeout reached.");
-        break;
-      }
-    }
-    else
-    {
-      URCL_LOG_WARN("Could not get fresh data package from robot");
-    }
+    g_my_driver->writeKeepalive();
 
     stopwatch_now = std::chrono::steady_clock::now();
     time_done += stopwatch_now - stopwatch_last;
     stopwatch_last = stopwatch_now;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
+  URCL_LOG_INFO("Timeout reached.");
   g_my_driver->endForceMode();
 }

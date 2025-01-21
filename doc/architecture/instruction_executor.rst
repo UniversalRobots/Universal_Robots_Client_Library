@@ -1,3 +1,5 @@
+.. _instruction_executor:
+
 Instruction Executor
 ====================
 
@@ -21,12 +23,4 @@ for sending motion instructions to the robot. Hence, it requires a :ref:`ur_driv
    Therefore, all parameters and restrictions of these functions apply. For example, velocity and
    acceleration parameters will be ignored if there is a time > 0 given.
 
-As a minimal working example, please see ``examples/instruction_executor.cpp`` example:
-
-.. literalinclude:: ../../examples/instruction_executor.cpp
-   :language: c++
-   :caption: examples/instruction_executor.cpp
-   :linenos:
-   :lineno-match:
-   :start-at: g_my_driver.reset
-   :end-at: g_my_driver->stopControl();
+As a minimal working example, please see the :ref:`instruction_executor_example`.

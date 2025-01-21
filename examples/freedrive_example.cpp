@@ -58,7 +58,7 @@ void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_
   bool ret = g_my_robot->ur_driver_->writeFreedriveControlMessage(freedrive_action);
   if (!ret)
   {
-    URCL_LOG_ERROR("Could not send freedrive command. Is the robot in remote control?");
+    URCL_LOG_ERROR("Could not send joint command. Is there an external_control program running on the robot?");
     exit(1);
   }
 }
@@ -106,6 +106,7 @@ int main(int argc, char* argv[])
     stopwatch_now = std::chrono::steady_clock::now();
     time_done += stopwatch_now - stopwatch_last;
     stopwatch_last = stopwatch_now;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 
   URCL_LOG_INFO("Stopping freedrive mode");

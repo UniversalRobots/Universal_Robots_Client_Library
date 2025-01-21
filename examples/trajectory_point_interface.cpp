@@ -42,18 +42,38 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
-const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 std::unique_ptr<urcl::DashboardClient> g_my_dashboard;
 std::unique_ptr<urcl::UrDriver> g_my_driver;
 
 std::atomic<bool> g_trajectory_done = false;
 
+std::atomic<bool> g_program_running;
+std::condition_variable g_program_running_cv;
+std::mutex g_program_running_mutex;
+
+bool waitForProgramRunning(int milliseconds = 100)
+{
+  std::unique_lock<std::mutex> lk(g_program_running_mutex);
+  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+      g_program_running == true)
+  {
+    return true;
+  }
+  return false;
+}
+
 // We need a callback function to register. See UrDriver's parameters for details.
 void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  g_program_running = program_running;
+  if (program_running)
+  {
+    std::lock_guard<std::mutex> lk(g_program_running_mutex);
+    g_program_running_cv.notify_one();
+  }
 }
 
 void trajDoneCallback(const urcl::control::TrajectoryResult& result)
@@ -113,7 +133,12 @@ int main(int argc, char* argv[])
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   const bool headless = true;
   g_my_driver.reset(new urcl::UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                       headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
+                                       headless, std::move(tool_comm_setup)));
+  if (!waitForProgramRunning(1000))
+  {
+    URCL_LOG_ERROR("Program did not start running. Is the robot in remote control?");
+    return 1;
+  }
   // --------------- INITIALIZATION END -------------------
 
   g_my_driver->registerTrajectoryDoneCallback(&trajDoneCallback);
@@ -218,7 +243,7 @@ int main(int argc, char* argv[])
       g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
     }
   }
-  // --------------- END MOVEJ TRAJECTORY -------------------
+  // --------------- END SPLINE TRAJECTORY -------------------
 
   g_my_driver->stopControl();
   return 0;
