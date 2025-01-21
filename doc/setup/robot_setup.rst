@@ -7,7 +7,12 @@ In order to use the client library with a robot, that robot has to be setup.
 
 .. tabs::
 
-   .. tab:: PolyScope 5
+   .. group-tab:: CB3
+
+      CB3 robots can directly be used with the ur_client_library. No special preparation is needed.
+
+
+   .. group-tab:: PolyScope 5
 
       **Enable remote control:**
 
@@ -35,7 +40,7 @@ In order to use the client library with a robot, that robot has to be setup.
             :alt: Screenshot from PolyScope 5.xx services menu.
 
 
-   .. tab:: PolyScope X
+   .. group-tab:: PolyScope X
 
       **Enable services:**
 
@@ -49,6 +54,7 @@ In order to use the client library with a robot, that robot has to be setup.
          :width: 600
          :alt: Screenshot from PolyScope X screen.
 
+.. _install_urcap:
 
 URCap installation
 ------------------
@@ -60,7 +66,7 @@ application.
 
 .. tabs::
 
-   .. tab:: CB3
+   .. group-tab:: CB3
 
       .. note::
 
@@ -68,10 +74,66 @@ application.
 
       The latest release can be downloaded from `its own repository <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases>`_.
 
-      For installing the necessary URCap and creating a program, please see the individual tutorials on
-      how to :ref:`setup a CB3 robot <install-urcap-cb3>`.
+      To install the URCap you first have to copy it to the robot's **programs** folder which can be done either
+      via scp or using a USB stick.
 
-   .. tab:: e-Series
+      On the welcome screen select *Setup Robot* and then *URCaps* to enter the URCaps installation
+      screen.
+
+
+      .. image:: ../images/initial_setup_images/cb3_01_welcome.png
+         :target: initial_setup_images/cb3_01_welcome.png
+         :alt: Welcome screen of a CB3 robot
+
+
+      There, click the little plus sign at the bottom to open the file selector. There you should see
+      all urcap files stored inside the robot's programs folder or a plugged USB drive.  Select and open
+      the **externalcontrol-X.Y.Z.urcap** file and click *open*. Your URCaps view should now show the
+      **External Control** in the list of active URCaps and a notification to restart the robot. Do that
+      now.
+
+
+      .. image:: ../images/initial_setup_images/cb3_05_urcaps_installed.png
+         :target: initial_setup_images/cb3_05_urcaps_installed.png
+         :alt: URCaps screen with installed urcaps
+
+
+      After the reboot you should find the **External Control** URCaps inside the *Installation* section.
+      For this select *Program Robot* on the welcome screen, select the *Installation* tab and select
+      **External Control** from the list.
+
+
+      .. image:: ../images/initial_setup_images/cb3_07_installation_excontrol.png
+         :target: initial_setup_images/cb3_07_installation_excontrol.png
+         :alt: Installation screen of URCaps
+
+
+      Here you'll have to setup the IP address of the external PC which will be running the remote
+      application.
+      Note that the robot and the external PC have to be in the same network, ideally in a direct
+      connection with each other to minimize network disturbances. The custom port should be left
+      untouched for now.
+
+
+      .. image:: ../images/initial_setup_images/cb3_10_prog_structure_urcaps.png
+         :target: initial_setup_images/cb3_10_prog_structure_urcaps.png
+         :alt: Insert the external control node
+
+
+      To use the new URCaps, create a new program and insert the **External Control** program node into
+      the program tree
+
+
+      .. image:: ../images/initial_setup_images/cb3_11_program_view_excontrol.png
+         :target: initial_setup_images/cb3_11_program_view_excontrol.png
+         :alt: Program view of external control
+
+
+      If you click on the *command* tab again, you'll see the settings entered inside the *Installation*.
+      Check that they are correct, then save the program. Your robot is now ready to be used together with
+      this driver
+
+   .. group-tab:: PolyScope 5
 
       .. note::
 
@@ -79,10 +141,64 @@ application.
 
       The latest release can be downloaded from `its own repository <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases>`_.
 
-      For installing the necessary URCap and creating a program, please see the individual tutorials on
-      how to :ref:`setup an e-Series robot <install-urcap-e-series>`.
+      To install it you first have to copy it to the robot's **programs** folder which can be done either
+      via scp or using a USB stick.
 
-   .. tab:: PolyScope X
+      On the welcome screen click on the hamburger menu in the top-right corner and select *Settings* to enter the robot's setup.  There select *System* and then *URCaps* to enter the URCaps installation screen.
+
+
+      .. image:: ../images/initial_setup_images/es_01_welcome.png
+         :target: initial_setup_images/es_01_welcome.png
+         :alt: Welcome screen of an e-Series robot
+
+
+      There, click the little plus sign at the bottom to open the file selector. There you should see
+      all urcap files stored inside the robot's programs folder or a plugged USB drive.  Select and open
+      the **externalcontrol-X.Y.Z.urcap** file and click *open*. Your URCaps view should now show the
+      **External Control** in the list of active URCaps and a notification to restart the robot. Do that
+      now.
+
+
+      .. image:: ../images/initial_setup_images/es_05_urcaps_installed.png
+         :target: initial_setup_images/es_05_urcaps_installed.png
+         :alt: URCaps screen with installed urcaps
+
+
+      After the reboot you should find the **External Control** URCaps inside the *Installation* section.
+      For this select *Program Robot* on the welcome screen, select the *Installation* tab and select
+      **External Control** from the list.
+
+
+      .. image:: ../images/initial_setup_images/es_07_installation_excontrol.png
+         :target: initial_setup_images/es_07_installation_excontrol.png
+         :alt: Installation screen of URCaps
+
+
+      Here you'll have to setup the IP address of the external PC which will be running the remote
+      application. Note that the robot and the external PC have to be in the same network, ideally in a
+      direct connection with each other to minimize network disturbances. The custom port should be left
+      untouched for now.
+
+
+      .. image:: ../images/initial_setup_images/es_10_prog_structure_urcaps.png
+         :target: initial_setup_images/es_10_prog_structure_urcaps.png
+         :alt: Insert the external control node
+
+
+      To use the new URCaps, create a new program and insert the **External Control** program node into
+      the program tree
+
+
+      .. image:: ../images/initial_setup_images/es_11_program_view_excontrol.png
+         :target: initial_setup_images/es_11_program_view_excontrol.png
+         :alt: Program view of external control
+
+
+      If you click on the *command* tab again, you'll see the settings entered inside the *Installation*.
+      Check that they are correct, then save the program. Your robot is now ready to be used together with
+      this driver.
+
+   .. group-tab:: PolyScope X
 
       .. warning::
 

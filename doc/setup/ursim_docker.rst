@@ -58,7 +58,7 @@ With this, start your URSim containers with the following command:
    docker run --rm -it -p 5900:5900 -p 6080:6080 -v ${HOME}/.ursim/urcaps:/urcaps -v ${HOME}/.ursim/programs:/ursim/programs --name ursim universalrobots/ursim_e-series
 
 With this, you should be able to setup the ``external_control`` URCap and create a program as
-described in :ref:`URCap setup guide <install-urcap-e-series>`.
+described in :ref:`URCap setup guide <install_urcap>`.
 
 Network setup
 -------------
