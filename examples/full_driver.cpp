@@ -43,17 +43,37 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
-const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
 vector6d_t g_joint_positions;
+
+std::condition_variable g_program_running_cv;
+std::mutex g_program_running_mutex;
+bool g_program_running;
 
 // We need a callback function to register. See UrDriver's parameters for details.
 void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  if (program_running)
+  {
+    std::lock_guard<std::mutex> lk(g_program_running_mutex);
+    g_program_running = program_running;
+    g_program_running_cv.notify_one();
+  }
+}
+
+bool waitForProgramRunning(int milliseconds = 100)
+{
+  std::unique_lock<std::mutex> lk(g_program_running_mutex);
+  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+      g_program_running == true)
+  {
+    return true;
+  }
+  return false;
 }
 
 int main(int argc, char* argv[])
@@ -109,13 +129,13 @@ int main(int argc, char* argv[])
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   const bool headless = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-
-  // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
-  // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
-  // loop.
-
-  g_my_driver->startRTDECommunication();
+                                 std::move(tool_comm_setup)));
+  // Make sure that external control script is running
+  if (!waitForProgramRunning())
+  {
+    URCL_LOG_ERROR("External Control script not running.");
+    return 1;
+  }
 
   // Increment depends on robot version
   double increment_constant = 0.0005;
@@ -130,6 +150,11 @@ int main(int argc, char* argv[])
   bool passed_positive_part = false;
   URCL_LOG_INFO("Start moving the robot");
   urcl::vector6d_t joint_target = { 0, 0, 0, 0, 0, 0 };
+
+  // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
+  // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
+  // loop.
+  g_my_driver->startRTDECommunication();
   while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
@@ -137,55 +162,53 @@ int main(int argc, char* argv[])
     // In a real-world application this thread should be scheduled with real-time priority in order
     // to ensure that this is called in time.
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
-    if (data_pkg)
-    {
-      // Read current joint positions from robot data
-      if (!data_pkg->getData("actual_q", g_joint_positions))
-      {
-        // This throwing should never happen unless misconfigured
-        std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
-        throw std::runtime_error(error_msg);
-      }
-
-      if (first_pass)
-      {
-        joint_target = g_joint_positions;
-        first_pass = false;
-      }
-
-      // Open loop control. The target is incremented with a constant each control loop
-      if (passed_positive_part == false)
-      {
-        increment = increment_constant;
-        if (g_joint_positions[5] >= 2)
-        {
-          passed_positive_part = true;
-        }
-      }
-      else if (passed_negative_part == false)
-      {
-        increment = -increment_constant;
-        if (g_joint_positions[5] <= 0)
-        {
-          passed_negative_part = true;
-        }
-      }
-      joint_target[5] += increment;
-      // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
-      // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret = g_my_driver->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
-                                                RobotReceiveTimeout::millisec(100));
-      if (!ret)
-      {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
-        return 1;
-      }
-      URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
-    }
-    else
+    if (!data_pkg)
     {
       URCL_LOG_WARN("Could not get fresh data package from robot");
+      return 1;
     }
+    // Read current joint positions from robot data
+    if (!data_pkg->getData("actual_q", g_joint_positions))
+    {
+      // This throwing should never happen unless misconfigured
+      std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
+      throw std::runtime_error(error_msg);
+    }
+
+    if (first_pass)
+    {
+      joint_target = g_joint_positions;
+      first_pass = false;
+    }
+
+    // Open loop control. The target is incremented with a constant each control loop
+    if (passed_positive_part == false)
+    {
+      increment = increment_constant;
+      if (g_joint_positions[5] >= 2)
+      {
+        passed_positive_part = true;
+      }
+    }
+    else if (passed_negative_part == false)
+    {
+      increment = -increment_constant;
+      if (g_joint_positions[5] <= 0)
+      {
+        passed_negative_part = true;
+      }
+    }
+    joint_target[5] += increment;
+    // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
+    // reliable on non-realtime systems. Use with caution in productive applications.
+    bool ret = g_my_driver->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
+                                              RobotReceiveTimeout::millisec(100));
+    if (!ret)
+    {
+      URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+      return 1;
+    }
+    URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
   }
   g_my_driver->stopControl();
   URCL_LOG_INFO("Movement done");

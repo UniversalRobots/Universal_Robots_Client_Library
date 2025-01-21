@@ -13,5 +13,5 @@ can be found on `GitHub <https://github.com/UniversalRobots/Universal_Robots_Cli
    setup
    polyscope_compatibility
    architecture
-   example
+   examples
    real_time

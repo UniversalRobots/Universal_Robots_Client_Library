@@ -46,18 +46,26 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
-const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
 std::unique_ptr<UrDriver> g_my_driver;
 std::unique_ptr<DashboardClient> g_my_dashboard;
-bool g_tool_contact_result_triggered;
+std::atomic<bool> g_tool_contact_result_triggered;
 control::ToolContactResult g_tool_contact_result;
+std::atomic<bool> g_program_running;
+std::condition_variable g_program_running_cv;
+std::mutex g_program_running_mutex;
 
 // We need a callback function to register. See UrDriver's parameters for details.
 void handleRobotProgramState(bool program_running)
 {
   // Print the text in green so we see it better
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
+  g_program_running = program_running;
+  if (program_running)
+  {
+    std::lock_guard<std::mutex> lk(g_program_running_mutex);
+    g_program_running_cv.notify_one();
+  }
 }
 
 void handleToolContactResult(control::ToolContactResult result)
@@ -66,6 +74,17 @@ void handleToolContactResult(control::ToolContactResult result)
   std::cout << "\033[1;32mTool contact result: " << toUnderlying(result) << "\033[0m\n" << std::endl;
   g_tool_contact_result = result;
   g_tool_contact_result_triggered = true;
+}
+
+bool waitForProgramRunning(int milliseconds = 100)
+{
+  std::unique_lock<std::mutex> lk(g_program_running_mutex);
+  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+      g_program_running == true)
+  {
+    return true;
+  }
+  return false;
 }
 
 int main(int argc, char* argv[])
@@ -121,68 +140,43 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Could not send BrakeRelease command");
     return 1;
   }
-
   // Now the robot is ready to receive a program
+
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   const bool headless = true;
   g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-
+                                 std::move(tool_comm_setup)));
+  if (!waitForProgramRunning(1000))
+  {
+    std::cout << "Program did not start running. Is the robot in remote control?" << std::endl;
+    return 1;
+  }
   g_my_driver->registerToolContactResultCallback(&handleToolContactResult);
-
-  // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
-  // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
-  // loop.
-  g_my_driver->startRTDECommunication();
+  g_my_driver->startToolContact();
 
   // This will move the robot downward in the z direction of the base until a tool contact is detected or seconds_to_run
   // is reached
-  std::chrono::duration<double> time_done(0);
-  std::chrono::duration<double> timeout(second_to_run);
-  vector6d_t tcp_speed = { 0.0, 0.0, -0.02, 0.0, 0.0, 0.0 };
-  auto stopwatch_last = std::chrono::steady_clock::now();
-  auto stopwatch_now = stopwatch_last;
-  g_my_driver->startToolContact();
-
-  while (true)
+  const vector6d_t tcp_speed = { 0.0, 0.0, -0.02, 0.0, 0.0, 0.0 };
+  auto start_time = std::chrono::system_clock::now();
+  while (second_to_run.count() < 0 || (std::chrono::system_clock::now() - start_time) < second_to_run)
   {
-    // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
-    // robot will effectively be in charge of setting the frequency of this loop.
-    // In a real-world application this thread should be scheduled with real-time priority in order
-    // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
-    if (data_pkg)
+    // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
+    // reliable on non-realtime systems. Use with caution in productive applications.
+    bool ret =
+        g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, RobotReceiveTimeout::millisec(100));
+    if (!ret)
     {
-      // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
-      // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret =
-          g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, RobotReceiveTimeout::millisec(100));
-      if (!ret)
-      {
-        URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
-        return 1;
-      }
-
-      if (g_tool_contact_result_triggered)
-      {
-        URCL_LOG_INFO("Tool contact result triggered. Received tool contact result %i.",
-                      toUnderlying(g_tool_contact_result));
-        break;
-      }
-
-      if (time_done > timeout && second_to_run.count() != 0)
-      {
-        URCL_LOG_INFO("Timed out before reaching tool contact.");
-        break;
-      }
-    }
-    else
-    {
-      URCL_LOG_WARN("Could not get fresh data package from robot");
+      URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+      return 1;
     }
 
-    stopwatch_now = std::chrono::steady_clock::now();
-    time_done += stopwatch_now - stopwatch_last;
-    stopwatch_last = stopwatch_now;
+    if (g_tool_contact_result_triggered)
+    {
+      URCL_LOG_INFO("Tool contact detected");
+      break;
+    }
   }
+  URCL_LOG_INFO("Timed out before reaching tool contact.");
+  g_my_driver->stopControl();
+  return 0;
 }

@@ -71,6 +71,11 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  // Get the PolyScope version
+  std::string version;
+  my_dashboard->commandPolyscopeVersion(version);
+  URCL_LOG_INFO(version.c_str());
+
   my_dashboard->commandCloseSafetyPopup();
 
   // Power it on
@@ -139,7 +144,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Now the robot is ready to receive a program
+  // Make a raw request and save the response
+  std::string program_state = my_dashboard->sendAndReceive("programState");
+  URCL_LOG_INFO("Program state: %s", program_state.c_str());
+
+  // The response can be checked with a regular expression
+  bool success = my_dashboard->sendRequest("power off", "Powering off");
+  URCL_LOG_INFO("Power off command success: %d", success);
 
   return 0;
 }

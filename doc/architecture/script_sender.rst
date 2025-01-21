@@ -13,15 +13,7 @@ corresponding request when starting a program on the robot that contains the **E
 program node. In order to work properly, make sure that the IP address and script sender port are
 configured correctly on the robot.
 
-The following example creates a ``ScriptSender`` listening on port ``12345`` and sends the script
-``textmsg("Hello, World!")`` when requested. A fully compilable example can be found in `script_sender.cpp <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/script_sender.cpp>`_
-
-.. literalinclude:: ../../examples/script_sender.cpp
-   :language: c++
-   :caption: examples/script_sender.cpp
-   :linenos:
-   :lineno-match:
-   :start-at: constexpr uint32_t PORT
+An example of how to use the ``ScriptSender`` class can be found in the :ref:`script_sender_example`.
 
 .. note::
    PolyScope X users cannot use the URCap linked above. There is a development version of a URCapX
