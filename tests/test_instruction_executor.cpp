@@ -44,7 +44,6 @@ const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string ROBOT_IP = "192.168.56.101";
 
 bool g_program_running;
-bool g_is_protective_stopped = false;
 std::condition_variable g_program_not_running_cv;
 std::mutex g_program_not_running_mutex;
 std::condition_variable g_program_running_cv;
@@ -136,7 +135,10 @@ protected:
   void SetUp() override
   {
     executor_ = std::make_unique<InstructionExecutor>(g_ur_driver);
-    if (g_is_protective_stopped)
+    std::string safety_status;
+    g_dashboard_client->commandSafetyStatus(safety_status);
+    bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
+    if (is_protective_stopped)
     {
       // We forced a protective stop above. Some versions require waiting 5 seconds before releasing
       // the protective stop.
@@ -298,7 +300,6 @@ TEST_F(InstructionExecutorTest, unfeasible_movej_target_results_in_failure)
 
   // move to an unfeasible pose
   ASSERT_FALSE(executor_->moveJ({ -123, 0, 0, 0, 0, 0 }));
-  g_is_protective_stopped = true;
 }
 
 TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
@@ -308,7 +309,6 @@ TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
 
   // move to an unfeasible pose
   ASSERT_FALSE(executor_->moveL({ -10.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.4, 1.04, 0.1));
-  g_is_protective_stopped = true;
 }
 
 TEST_F(InstructionExecutorTest, unfeasible_sequence_targets_results_in_failure)
@@ -319,7 +319,6 @@ TEST_F(InstructionExecutorTest, unfeasible_sequence_targets_results_in_failure)
 
   };
   ASSERT_FALSE(executor_->executeMotion(motion_sequence));
-  g_is_protective_stopped = true;
 }
 
 TEST_F(InstructionExecutorTest, unfeasible_times_succeeds)
