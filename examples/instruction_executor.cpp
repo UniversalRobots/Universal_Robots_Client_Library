@@ -69,39 +69,39 @@ int main(int argc, char* argv[])
   // Making the robot ready for the program by:
   // Connect the robot Dashboard
   g_my_dashboard.reset(new urcl::DashboardClient(robot_ip));
-  //  if (!g_my_dashboard->connect())
-  //  {
-  //    URCL_LOG_ERROR("Could not connect to dashboard");
-  //    return 1;
-  //  }
-  //
-  //  // // Stop program, if there is one running
-  //  if (!g_my_dashboard->commandStop())
-  //  {
-  //    URCL_LOG_ERROR("Could not send stop program command");
-  //    return 1;
-  //  }
-  //
-  //  // Power it off
-  //  if (!g_my_dashboard->commandPowerOff())
-  //  {
-  //    URCL_LOG_ERROR("Could not send Power off command");
-  //    return 1;
-  //  }
-  //
-  //  // Power it on
-  //  if (!g_my_dashboard->commandPowerOn())
-  //  {
-  //    URCL_LOG_ERROR("Could not send Power on command");
-  //    return 1;
-  //  }
-  //
-  //  // Release the brakes
-  //  if (!g_my_dashboard->commandBrakeRelease())
-  //  {
-  //    URCL_LOG_ERROR("Could not send BrakeRelease command");
-  //    return 1;
-  //  }
+  if (!g_my_dashboard->connect())
+  {
+    URCL_LOG_ERROR("Could not connect to dashboard");
+    return 1;
+  }
+
+  // // Stop program, if there is one running
+  if (!g_my_dashboard->commandStop())
+  {
+    URCL_LOG_ERROR("Could not send stop program command");
+    return 1;
+  }
+
+  // Power it off
+  if (!g_my_dashboard->commandPowerOff())
+  {
+    URCL_LOG_ERROR("Could not send Power off command");
+    return 1;
+  }
+
+  // Power it on
+  if (!g_my_dashboard->commandPowerOn())
+  {
+    URCL_LOG_ERROR("Could not send Power on command");
+    return 1;
+  }
+
+  // Release the brakes
+  if (!g_my_dashboard->commandBrakeRelease())
+  {
+    URCL_LOG_ERROR("Could not send BrakeRelease command");
+    return 1;
+  }
 
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   const bool headless = true;
