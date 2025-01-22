@@ -81,9 +81,8 @@ bool urcl::InstructionExecutor::executeMotion(
       }
       default:
         URCL_LOG_ERROR("Unsupported motion type");
-        std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
-        trajectory_result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
-        return false;
+        // The hardware will complain about missing trajectory points and return a failure for
+        // trajectory execution. Hence, we need to step into the running loop below.
     }
   }
   trajectory_running_ = true;
@@ -93,8 +92,11 @@ bool urcl::InstructionExecutor::executeMotion(
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   }
-  URCL_LOG_INFO("Trajectory done with result %s", control::trajectoryResultToString(trajectory_result_).c_str());
-  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
+  {
+    std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    URCL_LOG_INFO("Trajectory done with result %s", control::trajectoryResultToString(trajectory_result_).c_str());
+    return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
+  }
 }
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
