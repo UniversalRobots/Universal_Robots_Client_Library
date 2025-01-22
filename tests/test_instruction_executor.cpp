@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <thread>
 #include "ur_client_library/ur/dashboard_client.h"
 #include "ur_client_library/ur/instruction_executor.h"
 #include "ur_client_library/control/motion_primitives.h"
@@ -137,6 +138,10 @@ protected:
     // Make sure script is running on the robot
     if (g_program_running == false)
     {
+      g_dashboard_client->commandCloseSafetyPopup();
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      ASSERT_TRUE(g_dashboard_client->commandUnlockProtectiveStop());
+
       g_ur_driver->sendRobotProgram();
       ASSERT_TRUE(waitForProgramRunning(1000));
     }
@@ -280,6 +285,56 @@ TEST_F(InstructionExecutorTest, sending_illegal_motion_type_fails)
   std::vector<std::shared_ptr<urcl::control::MotionPrimitive>> motion_sequence{ primitive };
   ASSERT_FALSE(executor_->executeMotion(motion_sequence));
 }
+
+TEST_F(InstructionExecutorTest, unfeasible_movej_target_results_in_failure)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  // move to an unfeasible pose
+  ASSERT_FALSE(executor_->moveJ({ -123, 0, 0, 0, 0, 0 }));
+}
+
+TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  // move to an unfeasible pose
+  ASSERT_FALSE(executor_->moveL({ -10.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.4, 1.04, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, unfeasible_sequence_targets_results_in_failure)
+{
+  std::vector<std::shared_ptr<urcl::control::MotionPrimitive>> motion_sequence{
+    std::make_shared<urcl::control::MoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 0, 0, 0, 0 }, 0.1),
+    std::make_shared<urcl::control::MoveJPrimitive>(urcl::vector6d_t{ -157, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1),
+
+  };
+  ASSERT_FALSE(executor_->executeMotion(motion_sequence));
+}
+
+TEST_F(InstructionExecutorTest, unfeasible_times_succeeds)
+{
+  // Unfeasible time constraints should simply result in speed scaling slowing down the robot.
+
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+  // Request going to another pose unfeasibly fast
+  ASSERT_TRUE(executor_->moveJ({ 1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 1.4, 1.4, 0.1));
+
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+  // Request going to another pose unfeasibly fast
+  ASSERT_TRUE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.4, 1.04, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, empty_sequence_succeeds)
+{
+  std::vector<std::shared_ptr<urcl::control::MotionPrimitive>> motion_sequence{};
+  ASSERT_TRUE(executor_->executeMotion(motion_sequence));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
