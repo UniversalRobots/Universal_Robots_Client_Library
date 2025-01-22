@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include "ur_client_library/ur/instruction_executor.h"
+#include "ur_client_library/control/trajectory_point_interface.h"
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
   std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
@@ -92,20 +93,18 @@ bool urcl::InstructionExecutor::executeMotion(
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   }
-  URCL_LOG_INFO("Trajectory done with result %d", trajectory_result_);
-  return true;
+  URCL_LOG_INFO("Trajectory done with result %s", control::trajectoryResultToString(trajectory_result_).c_str());
+  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
 }
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
-  executeMotion({ std::make_shared<control::MoveJPrimitive>(
+  return executeMotion({ std::make_shared<control::MoveJPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
-  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
 }
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
-  executeMotion({ std::make_shared<control::MoveLPrimitive>(
+  return executeMotion({ std::make_shared<control::MoveLPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
-  return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
 }
