@@ -39,6 +39,7 @@ add_library(urcl SHARED
     src/ur/version_information.cpp
     src/rtde/rtde_writer.cpp
     src/default_log_handler.cpp
+    src/example_robot_wrapper.cpp
     src/log.cpp
     src/helpers.cpp
 )
