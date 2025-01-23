@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2025-01-23)
+------------------
 * Do not throw exception in DashboardClient::sendRequest (`#249 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/249>`_)
 * Add instruction executor for high-level robot control (`#242 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/242>`_)
 * Modernize cmake (`#244 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/244>`_)
