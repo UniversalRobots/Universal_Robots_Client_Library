@@ -647,6 +647,11 @@ public:
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
                        double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
+  void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
+  {
+    trajectory_interface_->registerDisconnectionCallback(fun);
+  }
+
 private:
   static std::string readScriptFile(const std::string& filename);
   /*!

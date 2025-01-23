@@ -31,6 +31,23 @@ using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 
+struct Pose
+{
+  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0)
+  {
+  }
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
+    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz)
+  {
+  }
+  double x;
+  double y;
+  double z;
+  double rx;
+  double ry;
+  double rz;
+};
+
 template <class T, std::size_t N>
 std::ostream& operator<<(std::ostream& out, const std::array<T, N>& item)
 {

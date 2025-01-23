@@ -141,12 +141,19 @@ public:
                "commands.")]] virtual void
   setKeepaliveCount(const uint32_t count);
 
+  void registerDisconnectionCallback(std::function<void(const int)> disconnection_fun)
+  {
+    disconnection_callback_ = disconnection_fun;
+  }
+
 protected:
   virtual void connectionCallback(const int filedescriptor);
 
   virtual void disconnectionCallback(const int filedescriptor);
 
   virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv);
+
+  std::function<void(const int)> disconnection_callback_ = nullptr;
 
   int client_fd_;
   comm::TCPServer server_;

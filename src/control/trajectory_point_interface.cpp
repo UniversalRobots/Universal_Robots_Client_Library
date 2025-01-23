@@ -29,11 +29,30 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
 #include <math.h>
+#include <stdexcept>
 
 namespace urcl
 {
 namespace control
 {
+
+std::string trajectoryResultToString(const TrajectoryResult result)
+{
+  switch (result)
+  {
+    case TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN:
+      return "UNKNOWN";
+    case TrajectoryResult::TRAJECTORY_RESULT_SUCCESS:
+      return "SUCCESS";
+    case TrajectoryResult::TRAJECTORY_RESULT_CANCELED:
+      return "CANCELED";
+    case TrajectoryResult::TRAJECTORY_RESULT_FAILURE:
+      return "FAILURE";
+    default:
+      throw std::invalid_argument("Illegal Trajectory result");
+  }
+}
+
 TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInterface(port, [](bool foo) { return foo; })
 {
 }
@@ -197,8 +216,12 @@ void TrajectoryPointInterface::connectionCallback(const int filedescriptor)
 
 void TrajectoryPointInterface::disconnectionCallback(const int filedescriptor)
 {
-  URCL_LOG_DEBUG("Connection to trajectory interface dropped.", filedescriptor);
+  URCL_LOG_DEBUG("Connection to trajectory interface dropped.");
   client_fd_ = -1;
+  if (disconnection_callback_ != nullptr)
+  {
+    disconnection_callback_(filedescriptor);
+  }
 }
 
 void TrajectoryPointInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
