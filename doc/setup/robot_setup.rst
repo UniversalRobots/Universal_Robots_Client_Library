@@ -3,7 +3,7 @@
 Robot setup
 ===========
 
-In order to use the client library with a robot, that robot has to be setup.
+In order to use the client library with a robot, the robot needs to be prepared.
 
 .. tabs::
 
