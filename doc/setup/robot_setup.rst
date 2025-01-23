@@ -203,6 +203,6 @@ application.
       .. warning::
 
          Support for PolyScope X isn't fully developed, yet. Please consider using External Control
-         with PolyScope X an open beta.
+         with PolyScope X as an open beta.
 
       For details on installing the External Control URCapX, please see https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX
