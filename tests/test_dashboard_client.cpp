@@ -219,6 +219,29 @@ TEST_F(DashboardClientTest, connect_non_running_robot)
   EXPECT_LT(elapsed, 2 * comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
 }
 
+TEST_F(DashboardClientTest, non_expected_result_returns_correctly)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  EXPECT_TRUE(dashboard_client_->commandPowerOff());
+
+  // We will not get this answer
+  EXPECT_FALSE(dashboard_client_->sendRequest("brake release", "non-existing-response"));
+
+  // A non-matching answer should throw an exception for this call
+  EXPECT_THROW(dashboard_client_->sendRequestString("brake release", "non-existing-response"), UrException);
+
+  // Waiting for a non-matching answer should return false
+  // Internally we wait 100ms between each attempt, hence the 300ms wait time
+  EXPECT_FALSE(
+      dashboard_client_->waitForReply("brake_release", "non-existing-response", std::chrono::milliseconds(300)));
+}
+
+TEST_F(DashboardClientTest, connecting_twice_returns_false)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  EXPECT_FALSE(dashboard_client_->connect());
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
