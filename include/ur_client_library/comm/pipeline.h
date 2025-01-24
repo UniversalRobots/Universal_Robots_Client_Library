@@ -112,7 +112,7 @@ public:
    */
   void addConsumer(std::shared_ptr<IConsumer<T>> consumer)
   {
-    std::lock_guard<std::mutex> lk(consumer_list);
+    std::lock_guard<std::mutex> lk(consumer_list_);
     consumers_.push_back(consumer);
   }
 
@@ -123,7 +123,7 @@ public:
    */
   void removeConsumer(std::shared_ptr<IConsumer<T>> consumer)
   {
-    std::lock_guard<std::mutex> lk(consumer_list);
+    std::lock_guard<std::mutex> lk(consumer_list_);
     auto it = std::find(consumers_.begin(), consumers_.end(), consumer);
     if (it == consumers_.end())
     {
@@ -183,7 +183,7 @@ public:
    */
   bool consume(std::shared_ptr<T> product)
   {
-    std::lock_guard<std::mutex> lk(consumer_list);
+    std::lock_guard<std::mutex> lk(consumer_list_);
     bool res = true;
     for (auto& con : consumers_)
     {
@@ -194,7 +194,7 @@ public:
   }
 
 private:
-  std::mutex consumer_list;
+  std::mutex consumer_list_;
 };
 
 /*!

@@ -119,7 +119,7 @@ public:
     code.timestamp = pkg.timestamp_;
     code.to_string = pkg.toString();
 
-    const auto logContents = "Logging an ErrorCodeMessage from the UR Controller Box: " + pkg.toString();
+    const auto log_contents = "Logging an ErrorCodeMessage from the UR Controller Box: " + pkg.toString();
 
     switch (code.report_level)
     {
@@ -129,18 +129,18 @@ public:
       case urcl::primary_interface::ReportLevel::DEVL_WARNING:
       case urcl::primary_interface::ReportLevel::DEVL_VIOLATION:
       case urcl::primary_interface::ReportLevel::DEVL_FAULT:
-        URCL_LOG_DEBUG(logContents.c_str());
+        URCL_LOG_DEBUG(log_contents.c_str());
         break;
       case urcl::primary_interface::ReportLevel::INFO:
-        URCL_LOG_INFO(logContents.c_str());
+        URCL_LOG_INFO(log_contents.c_str());
         break;
       case urcl::primary_interface::ReportLevel::WARNING:
-        URCL_LOG_WARN(logContents.c_str());
+        URCL_LOG_WARN(log_contents.c_str());
         break;
       default:
         // urcl::primary_interface::ReportLevel::VIOLATION:
         // urcl::primary_interface::ReportLevel::FAULT:
-        URCL_LOG_ERROR(logContents.c_str());
+        URCL_LOG_ERROR(log_contents.c_str());
         break;
     }
 
