@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
     std::vector<double> accelerations{ 2.5, 2.5 };
     std::vector<double> blend_radii{ 0.0, 0.0 };
 
-    // Trajectory execution
+    // Trajectory execution of the path that goes through the points twice.
     g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
                                                points.size() * 2);
     for (size_t i = 0; i < points.size(); i++)
