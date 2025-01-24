@@ -4,6 +4,9 @@ A C++ library for accessing Universal Robots interfaces. With this library C++-b
 implemented in order to create external applications leveraging the versatility of Universal Robots
 robotic manipulators.
 
+The library is standalone without any external dependencies and.
+Though it was initially developed for the ROS / ROS 2 drivers, it can be used in any C++ project.
+
 <!-- markdownlint-disable MD033 -->
 <div align="center">
   <img src="doc/resources/family_photo.png" alt="Universal Robot family" style="width: 90%;"/>
