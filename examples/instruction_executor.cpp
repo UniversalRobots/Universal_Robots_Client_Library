@@ -115,8 +115,9 @@ int main(int argc, char* argv[])
   std::vector<std::shared_ptr<urcl::control::MotionPrimitive>> motion_sequence{
     std::make_shared<urcl::control::MoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 0, 0, 0, 0 }, 0.1,
                                                     std::chrono::seconds(5)),
+    // This point uses acceleration / velocity parametrization
     std::make_shared<urcl::control::MoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1,
-                                                    std::chrono::seconds(5)),
+                                                    std::chrono::seconds(0), 1.4, 2.0),
 
     std::make_shared<urcl::control::MoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
                                                     std::chrono::seconds(2)),
@@ -125,10 +126,16 @@ int main(int argc, char* argv[])
   };
   instruction_executor->executeMotion(motion_sequence);
 
-  instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 });
-  instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 });
-  instruction_executor->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 });
-  instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 });
+  double goal_time_sec = 2.0;
+
+  // acceleration / velocity parametrization
+  instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
+  // goal time parametrization -- acceleration and velocity will be ignored
+  instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
+  // acceleration / velocity parametrization
+  instruction_executor->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  // goal time parametrization -- acceleration and velocity will be ignored
+  instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
   g_my_driver->stopControl();
   return 0;

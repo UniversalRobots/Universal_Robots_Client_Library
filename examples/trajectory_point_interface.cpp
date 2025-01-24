@@ -58,8 +58,7 @@ void handleRobotProgramState(bool program_running)
 
 void trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
-  URCL_LOG_INFO("Trajectory done with result %d", result);
-  ;
+  URCL_LOG_INFO("Trajectory done with result %s", urcl::control::trajectoryResultToString(result).c_str());
   g_trajectory_done = true;
 }
 
@@ -126,6 +125,8 @@ int main(int argc, char* argv[])
     // Trajectory definition
     std::vector<urcl::vector6d_t> points{ { -1.57, -1.57, 0, 0, 0, 0 }, { -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 } };
     std::vector<double> motion_durations{ 5.0, 2.0 };
+    std::vector<double> velocities{ 2.0, 2.3 };
+    std::vector<double> accelerations{ 2.5, 2.5 };
     std::vector<double> blend_radii{ 0.1, 0.1 };
 
     // Trajectory execution
@@ -140,7 +141,8 @@ int main(int argc, char* argv[])
     motion_durations = { 0.0, 0.0 };
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_driver->writeTrajectoryPoint(points[i], 2.0, 2.0, false, motion_durations[i], blend_radii[i]);
+      g_my_driver->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], false, motion_durations[i],
+                                        blend_radii[i]);
     }
 
     while (!g_trajectory_done)
@@ -159,15 +161,25 @@ int main(int argc, char* argv[])
     std::vector<urcl::vector6d_t> points{ { -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 },
                                           { -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 } };
     std::vector<double> motion_durations{ 5.0, 5.0 };
+    std::vector<double> velocities{ 2.0, 2.3 };
+    std::vector<double> accelerations{ 2.5, 2.5 };
     std::vector<double> blend_radii{ 0.0, 0.0 };
 
     // Trajectory execution
     g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                               points.size());
+                                               points.size() * 2);
     for (size_t i = 0; i < points.size(); i++)
     {
       // setting the cartesian parameter makes it interpret the 6d vector as a pose and use movel
       g_my_driver->writeTrajectoryPoint(points[i], true, motion_durations[i], blend_radii[i]);
+    }
+
+    // Same motion, but parametrized with acceleration and velocity
+    motion_durations = { 0.0, 0.0 };
+    for (size_t i = 0; i < points.size(); i++)
+    {
+      g_my_driver->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], true, motion_durations[i],
+                                        blend_radii[i]);
     }
 
     while (!g_trajectory_done)
