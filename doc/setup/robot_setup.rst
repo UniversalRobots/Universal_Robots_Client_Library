@@ -14,9 +14,10 @@ In order to use the client library with a robot, the robot needs to be prepared.
 
    .. group-tab:: PolyScope 5
 
-There are two ways the client library can be enabled to send command to the robot.
-- Remote control, there the full control is given to the client library and enables it to e.g. power on and off, brake release, load PolyScope programs and send URScript programs directly to the controller.
-- External Control URCap, there the control to power on, off and start programs etc. still remains on the teach pendant. The External Control URCap injects the needed URScript code from the client library. This also makes it possible to combine the use of the client library and other PolyScope program nodes, like standard moves or other third-party URCaps. 
+      There are two ways the client library can be enabled to send command to the robot.
+
+      - **Remote control**: There the full control is given to the client library and enables it to e.g. power on and off, brake release, load PolyScope programs and send URScript programs directly to the controller.
+      - **External Control URCap**: There the control to power on, off and start programs etc. still remains on the teach pendant. The External Control URCap injects the needed URScript code from the client library. This also makes it possible to combine the use of the client library and other PolyScope program nodes, like standard moves or other third-party URCaps.
 
       **Enable remote control:**
 
