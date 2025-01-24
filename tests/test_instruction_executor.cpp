@@ -30,9 +30,10 @@
 
 #include <gtest/gtest.h>
 #include <thread>
-#include "ur_client_library/ur/dashboard_client.h"
 #include "ur_client_library/ur/instruction_executor.h"
 #include "ur_client_library/control/motion_primitives.h"
+
+#include <ur_client_library/example_robot_wrapper.h>
 
 using namespace urcl;
 using namespace urcl::control;
@@ -43,55 +44,7 @@ const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string ROBOT_IP = "192.168.56.101";
 
-bool g_program_running;
-std::condition_variable g_program_not_running_cv;
-std::mutex g_program_not_running_mutex;
-std::condition_variable g_program_running_cv;
-std::mutex g_program_running_mutex;
-
-std::unique_ptr<DashboardClient> g_dashboard_client;
-std::shared_ptr<UrDriver> g_ur_driver;
-
-// Helper functions for the driver
-void handleRobotProgramState(bool program_running)
-{
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
-  if (program_running)
-  {
-    std::lock_guard<std::mutex> lk(g_program_running_mutex);
-    g_program_running = program_running;
-    g_program_running_cv.notify_one();
-  }
-  else
-  {
-    std::lock_guard<std::mutex> lk(g_program_not_running_mutex);
-    g_program_running = program_running;
-    g_program_not_running_cv.notify_one();
-  }
-}
-
-bool waitForProgramNotRunning(int milliseconds = 100)
-{
-  std::unique_lock<std::mutex> lk(g_program_not_running_mutex);
-  if (g_program_not_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-      g_program_running == false)
-  {
-    return true;
-  }
-  return false;
-}
-
-bool waitForProgramRunning(int milliseconds = 100)
-{
-  std::unique_lock<std::mutex> lk(g_program_running_mutex);
-  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-      g_program_running == true)
-  {
-    return true;
-  }
-  return false;
-}
+std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
 class InstructionExecutorTest : public ::testing::Test
 {
@@ -100,57 +53,30 @@ protected:
 
   static void SetUpTestSuite()
   {
-    g_dashboard_client.reset(new DashboardClient(ROBOT_IP));
-    ASSERT_TRUE(g_dashboard_client->connect());
-
-    // Make robot ready for test
-    timeval tv;
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-    g_dashboard_client->setReceiveTimeout(tv);
-
-    // Stop running program if there is one
-    ASSERT_TRUE(g_dashboard_client->commandStop());
-
-    // if the robot is not powered on and ready
-    ASSERT_TRUE(g_dashboard_client->commandBrakeRelease());
-
     // Setup driver
-    std::unique_ptr<ToolCommSetup> tool_comm_setup;
-    const bool headless = true;
-    try
-    {
-      g_ur_driver.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-    }
-    catch (UrException& exp)
-    {
-      std::cout << "caught exception " << exp.what() << " while launch driver, retrying once in 10 seconds"
-                << std::endl;
-      std::this_thread::sleep_for(std::chrono::seconds(10));
-      g_ur_driver.reset(new UrDriver(ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                     headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-    }
+    bool headless_mode = false;
+    g_my_robot = std::make_unique<ExampleRobotWrapper>(ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+                                                       "external_control.urp", SCRIPT_FILE);
   }
   void SetUp() override
   {
-    executor_ = std::make_unique<InstructionExecutor>(g_ur_driver);
+    executor_ = std::make_unique<InstructionExecutor>(g_my_robot->ur_driver_);
     std::string safety_status;
-    g_dashboard_client->commandSafetyStatus(safety_status);
+    g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
     bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
     if (is_protective_stopped)
     {
       // We forced a protective stop above. Some versions require waiting 5 seconds before releasing
       // the protective stop.
       std::this_thread::sleep_for(std::chrono::seconds(5));
-      g_dashboard_client->commandCloseSafetyPopup();
-      ASSERT_TRUE(g_dashboard_client->commandUnlockProtectiveStop());
+      g_my_robot->dashboard_client_->commandCloseSafetyPopup();
+      ASSERT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
     }
     // Make sure script is running on the robot
-    if (g_program_running == false)
+    if (!g_my_robot->waitForProgramRunning())
     {
-      g_ur_driver->sendRobotProgram();
-      ASSERT_TRUE(waitForProgramRunning(1000));
+      g_my_robot->resendRobotProgram();
+      ASSERT_TRUE(g_my_robot->waitForProgramRunning());
     }
   }
 };
@@ -252,8 +178,8 @@ TEST_F(InstructionExecutorTest, execute_movel_success)
 
 TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_connected_fails)
 {
-  g_dashboard_client->commandStop();
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  g_my_robot->dashboard_client_->commandStop();
+  ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
 
   ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
   ASSERT_FALSE(executor_->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }));
@@ -271,8 +197,8 @@ TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_conne
   ASSERT_FALSE(executor_->executeMotion(motion_sequence));
 
   // Disconnect mid-motion
-  g_ur_driver->sendRobotProgram();
-  ASSERT_TRUE(waitForProgramRunning(1000));
+  g_my_robot->resendRobotProgram();
+  ASSERT_TRUE(g_my_robot->waitForProgramRunning(1000));
 
   // move to first pose
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }));
@@ -280,8 +206,8 @@ TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_conne
   auto motion_thread = std::thread([&]() { ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 })); });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  g_dashboard_client->commandStop();
-  ASSERT_TRUE(waitForProgramNotRunning(1000));
+  g_my_robot->dashboard_client_->commandStop();
+  ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
   motion_thread.join();
 }
 
