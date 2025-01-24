@@ -11,6 +11,8 @@ testing instance with very little computational overload.
 This guide will assume that you have Docker already installed and setup such that you can startup
 Docker containers using your current user.
 
+The following example will start up a simulator on a UR5e. See the Docker image `documentation <https://hub.docker.com/r/universalrobots/ursim_e-series>`_ for more details and configuration options.
+
 Start a URSim docker container
 ------------------------------
 
@@ -33,7 +35,7 @@ External Control
 To use the external control functionality, we will need the ``external_control`` URCap installed on
 the robot and a program containing its *ExternalControl* program node. Both can be prepared on the
 host machine either by creating an own Dockerfile containing those or by mounting two folders
-containing installed URCaps and programs. See the Dockerfile's upstream `documentation <https://hub.docker.com/r/universalrobots/ursim_e-series>`_.
+containing installed URCaps and programs. See the Docker image `documentation <https://hub.docker.com/r/universalrobots/ursim_e-series>`_.
 
 In this example, we will bind-mount a folder for the programs and URCaps. First, let's create a
 local folder where we can store things inside:
@@ -63,10 +65,10 @@ described in :ref:`URCap setup guide <install_urcap>`.
 Network setup
 -------------
 
-As described above, you can always start the URSim container using the default network setup. As long
-as you don't have any other docker containers running, it will most probably always get the same IP
-address assigned every time. However, to make things a bit more explicit, we can setup our own
-docker network where we can assign a static IP address to our URSim container.
+As described above, you can always start the URSim container using the default network setup. It will most probably
+always get the same IP address assigned every time, as long as you don't have any other docker containers running.
+However, to make things a bit more explicit, we can setup our own docker network where we can assign a static IP
+address to our URSim container.
 
 .. code-block:: bash
 
@@ -76,8 +78,7 @@ docker network where we can assign a static IP address to our URSim container.
 The above commands first create a network for docker and then create a container with the URSim
 image attaching to this network.
 
-As we now have a fixed IP address we can also skip the port exposure as we know the robot's IP
-address. The VNC web server will be available at `<http://192.168.56.101:6080/vnc.html>`_
+We can skip the port exposure, as we use a fixed IP address for the simulated robot. Therefore, the VNC web server will be available at `<http://192.168.56.101:6080/vnc.html>`_.
 
 Script startup
 --------------
