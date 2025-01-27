@@ -10,6 +10,7 @@ can be found on `GitHub <https://github.com/UniversalRobots/Universal_Robots_Cli
    :caption: Contents:
 
    installation
+   setup
    polyscope_compatibility
    architecture
    example
