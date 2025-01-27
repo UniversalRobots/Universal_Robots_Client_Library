@@ -1,8 +1,8 @@
 Setup a robot
 =============
 
-To enable communication between the robot and the client library you must first prepare the robot
-and set up the robot correctly. This documentation will guide you through the necessary steps.
+The robot has to be prepared, to enable communication between the robot and the client library.
+This documentation will guide you through the necessary steps.
 
 .. toctree::
    :maxdepth: 1
