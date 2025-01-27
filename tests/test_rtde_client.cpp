@@ -211,7 +211,7 @@ TEST_F(RTDEClientTest, set_target_frequency)
   data_pkg->getData("timestamp", second_time_stamp);
 
   // There should be 1 second between each timestamp
-  EXPECT_EQ(second_time_stamp - first_time_stamp, 1);
+  EXPECT_NEAR(second_time_stamp - first_time_stamp, 1, 1e-6);
 
   client_->pause();
 }
