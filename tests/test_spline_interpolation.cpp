@@ -51,6 +51,7 @@ const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe_spline.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string g_ROBOT_IP = "192.168.56.101";
+bool g_HEADLESS = true;
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
@@ -96,8 +97,7 @@ protected:
     out_file.close();
 
     // Setup driver
-    bool headless_mode = false;
-    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SPLINE_SCRIPT_FILE);
 
     g_my_robot->startRTDECommununication(true);
@@ -1103,6 +1103,12 @@ int main(int argc, char* argv[])
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
       g_ROBOT_IP = argv[i + 1];
+      break;
+    }
+    if (std::string(argv[i]) == "--headless" && i + 1 < argc)
+    {
+      std::string headless = argv[i + 1];
+      g_HEADLESS = headless == "true" || headless == "1" || headless == "True" || headless == "TRUE";
       break;
     }
   }

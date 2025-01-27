@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include <ur_client_library/ur/dashboard_client.h>
+#include <thread>
 #define private public
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
@@ -42,6 +43,7 @@ const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string g_ROBOT_IP = "192.168.56.101";
+bool g_HEADLESS = true;
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
@@ -51,8 +53,7 @@ protected:
   static void SetUpTestSuite()
   {
     // Setup driver
-    bool headless_mode = false;
-    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
 
     g_my_robot->startRTDECommununication(true);
@@ -225,15 +226,15 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
 TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 {
-  // Start robot program
-  g_my_robot->resendRobotProgram();
-  EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
-
   // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
   // switching from Remote to Local and back to Remote mode for example.
   g_my_robot->ur_driver_->secondary_stream_->close();
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
   EXPECT_TRUE(g_my_robot->resendRobotProgram());
+
+  EXPECT_TRUE(g_my_robot->waitForProgramRunning());
 }
 
 TEST_F(UrDriverTest, reset_rtde_client)
@@ -255,6 +256,12 @@ int main(int argc, char* argv[])
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
       g_ROBOT_IP = argv[i + 1];
+      break;
+    }
+    if (std::string(argv[i]) == "--headless" && i + 1 < argc)
+    {
+      std::string headless = argv[i + 1];
+      g_HEADLESS = headless == "true" || headless == "1" || headless == "True" || headless == "TRUE";
       break;
     }
   }

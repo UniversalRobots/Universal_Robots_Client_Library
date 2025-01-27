@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <iostream>
 #include <thread>
 #include "ur_client_library/ur/instruction_executor.h"
 #include "ur_client_library/control/motion_primitives.h"
@@ -43,6 +44,7 @@ const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string ROBOT_IP = "192.168.56.101";
+bool g_HEADLESS = true;
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
@@ -54,8 +56,7 @@ protected:
   static void SetUpTestSuite()
   {
     // Setup driver
-    bool headless_mode = false;
-    g_my_robot = std::make_unique<ExampleRobotWrapper>(ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+    g_my_robot = std::make_unique<ExampleRobotWrapper>(ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
   }
   void SetUp() override
@@ -277,6 +278,12 @@ int main(int argc, char* argv[])
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
       ROBOT_IP = argv[i + 1];
+      break;
+    }
+    if (std::string(argv[i]) == "--headless" && i + 1 < argc)
+    {
+      std::string headless = argv[i + 1];
+      g_HEADLESS = headless == "true" || headless == "1" || headless == "True" || headless == "TRUE";
       break;
     }
   }

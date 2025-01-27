@@ -31,22 +31,52 @@ if (INTEGRATION_TESTS)
   gtest_add_tests(TARGET      dashboard_client_tests
   )
 
-  add_executable(spline_tests test_spline_interpolation.cpp)
-  target_link_libraries(spline_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
-  gtest_add_tests(TARGET      spline_tests
+  # Spline tests
+  add_executable(spline_tests_urcap test_spline_interpolation.cpp)
+  target_link_libraries(spline_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      spline_tests_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(spline_tests_headless test_spline_interpolation.cpp)
+  target_link_libraries(spline_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      spline_tests_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true
+                  TEST_SUFFIX _headless
   )
 
-  add_executable(ur_driver_tests test_ur_driver.cpp)
-  target_link_libraries(ur_driver_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
-  gtest_add_tests(TARGET      ur_driver_tests
+  # UrDriver tests
+  add_executable(ur_driver_tests_urcap test_ur_driver.cpp)
+  target_link_libraries(ur_driver_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      ur_driver_tests_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(ur_driver_tests_headless test_ur_driver.cpp)
+  target_link_libraries(ur_driver_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      ur_driver_tests_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true
+                  TEST_SUFFIX _headless
   )
 
-  add_executable(instruction_executor_test test_instruction_executor.cpp)
-  target_link_libraries(instruction_executor_test PRIVATE ur_client_library::urcl GTest::gtest_main)
-  gtest_add_tests(TARGET instruction_executor_test
+  # InstructionExecutor tests
+  add_executable(instruction_executor_test_urcap test_instruction_executor.cpp)
+  target_link_libraries(instruction_executor_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_test_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(instruction_executor_test_headless test_instruction_executor.cpp)
+  target_link_libraries(instruction_executor_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_test_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true
+                  TEST_SUFFIX _headless
   )
 else()
   message(STATUS "Skipping integration tests.")
