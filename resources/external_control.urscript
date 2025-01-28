@@ -99,16 +99,23 @@ def targetWithinLimits(step_start, step_end, time):
   while idx < 6:
     local velocity = norm(step_end[idx] - step_start[idx]) / time
     if velocity > JOINT_IGNORE_SPEED:
-      local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
+      local str = str_cat(
+        str_cat("Velocity ", velocity), str_cat(
+          str_cat(" required in joint ", idx), str_cat(
+            str_cat(" to go from ", step_start[idx]), str_cat(
+              str_cat(" to ", step_end[idx]), str_cat(
+                str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))))
       if violation_popup_counter == 0:
         # We want a popup when an invalid commant is sent. As long as we keep sending invalid
         # commands, we do not want to repeat the popup.
-        popup(str, title="External Control error", blocking=False, error=True)
+        popup(str, title="External Control speed limit", blocking=False, warning=True)
       end
       if violation_popup_counter * get_steptime() % 5.0 == 0:
         # We want to have a log printed regularly. We are receiving motion commands that are not
         # feasible. The user should have a chance to know about this.
         textmsg(str)
+        textmsg("start configuration: ", step_start)
+        textmsg("end   configuration: ", step_end)
       end
       violation_popup_counter = violation_popup_counter + 1
       return False
