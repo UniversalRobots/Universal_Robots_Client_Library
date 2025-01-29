@@ -148,8 +148,9 @@ def set_servo_setpoint(q):
 end
 
 def extrapolate():
-  diff = [cmd_servo_q[0] - cmd_servo_q_last[0], cmd_servo_q[1] - cmd_servo_q_last[1], cmd_servo_q[2] - cmd_servo_q_last[2], cmd_servo_q[3] - cmd_servo_q_last[3], cmd_servo_q[4] - cmd_servo_q_last[4], cmd_servo_q[5] - cmd_servo_q_last[5]]
   cmd_servo_q_last = cmd_servo_q
+  local vel = get_actual_joint_speeds()
+  local diff = [vel[0] * steptime, vel[1] * steptime, vel[2] * steptime, vel[3] * steptime, vel[4] * steptime, vel[5] * steptime]
   cmd_servo_q = [cmd_servo_q[0] + diff[0], cmd_servo_q[1] + diff[1], cmd_servo_q[2] + diff[2], cmd_servo_q[3] + diff[3], cmd_servo_q[4] + diff[4], cmd_servo_q[5] + diff[5]]
 
   return cmd_servo_q
