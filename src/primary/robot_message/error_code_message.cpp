@@ -1,10 +1,6 @@
-// this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
-
 // -- BEGIN LICENSE BLOCK ----------------------------------------------
-// Copyright 2019 FZI Forschungszentrum Informatik (ur_robot_driver)
-// Copyright 2017, 2018 Simon Rasmussen (refactor)
-//
-// Copyright 2015, 2016 Thomas Timm Andersen (original version)
+// Copyright 2020 FZI Forschungszentrum Informatik
+// Created on behalf of Universal Robots A/S
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +24,6 @@
  */
 //----------------------------------------------------------------------
 
-#include "ur_client_library/log.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 
