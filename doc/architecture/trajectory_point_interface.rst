@@ -24,7 +24,7 @@ externally), the robot will send a response back to the control PC via the traje
    or `movel
    <https://www.universal-robots.com/manuals/EN/HTML/SW5_20/Content/prod-scriptmanual/G5/movel_posea12v025t.htm>`_.
    Therefore, all parameters and restrictions of these functions apply. For example, velocity and
-   acceleration parameters will be ignored if there is a time != 0 given.
+   acceleration parameters will be ignored if there is a time > 0 given.
 
 
 Communication protocol
