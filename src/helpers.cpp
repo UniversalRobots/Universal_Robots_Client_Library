@@ -33,6 +33,9 @@
 #include <fstream>
 #include <iostream>
 
+const std::string RT_DOC_URL = "https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/"
+                               "ur_client_library/doc/real_time.html";
+
 namespace urcl
 {
 bool setFiFoScheduling(pthread_t& thread, const int priority)
@@ -48,8 +51,8 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
       {
         URCL_LOG_WARN("Your system/user seems not to be setup for FIFO scheduling. We recommend using a lowlatency "
                       "kernel with FIFO scheduling. See "
-                      "https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/"
-                      "doc/real_time.md for details.");
+                      "%s for details.",
+                      RT_DOC_URL.c_str());
         break;
       }
       default:
