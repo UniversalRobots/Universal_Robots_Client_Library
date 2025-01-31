@@ -256,7 +256,6 @@ void RTDEClient::queryURControlVersion()
 
 void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
 {
-  prod_->teardownProducer();
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
@@ -445,10 +444,16 @@ void RTDEClient::setupInputs()
 void RTDEClient::disconnect()
 {
   // If communication is started it should be paused before disconnecting
+  if (client_state_ == ClientState::RUNNING)
+  {
+    pause();
+  }
+  if (client_state_ >= ClientState::INITIALIZING)
+  {
+    pipeline_->stop();
+  }
   if (client_state_ > ClientState::UNINITIALIZED)
   {
-    sendPause();
-    pipeline_->stop();
     stream_.disconnect();
   }
   client_state_ = ClientState::UNINITIALIZED;
