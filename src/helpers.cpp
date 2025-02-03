@@ -33,8 +33,11 @@
 #include <fstream>
 #include <iostream>
 
-const std::string RT_DOC_URL = "https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/"
-                               "ur_client_library/doc/real_time.html";
+// clang-format off
+// We want to keep the URL in one line to avoid formatting issues. This will make it easier to
+// extract the URL for an automatic check.
+const std::string RT_DOC_URL = "https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_client_library/doc/real_time.html";
+// clang-format on
 
 namespace urcl
 {
