@@ -1,4 +1,4 @@
-:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/trajecotry_joint_interface_example.rst
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/trajectory_point_interface.rst
 
 .. _trajecotry_joint_interface_example:
 
