@@ -247,18 +247,17 @@ TEST_F(UrDriverTest, reset_rtde_client)
 
 TEST_F(UrDriverTest, read_error_code)
 {
-  g_consume_rtde_packages = true;
-  g_ur_driver->startPrimaryClientCommunication();
+  g_my_robot->ur_driver_->startPrimaryClientCommunication();
   // Wait until we actually received a package
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   std::stringstream cmd;
   cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
-  EXPECT_TRUE(g_ur_driver->sendScript(cmd.str()));
+  EXPECT_TRUE(g_my_robot->ur_driver_->sendScript(cmd.str()));
 
-  auto error_codes = g_ur_driver->getErrorCodes();
+  auto error_codes = g_my_robot->ur_driver_->getErrorCodes();
   while (error_codes.size() == 0)
   {
-    error_codes = g_ur_driver->getErrorCodes();
+    error_codes = g_my_robot->ur_driver_->getErrorCodes();
   }
 
   ASSERT_EQ(error_codes.size(), 1);
@@ -270,8 +269,8 @@ TEST_F(UrDriverTest, read_error_code)
   // Wait for after PSTOP before clearing it
   std::this_thread::sleep_for(std::chrono::seconds(6));
 
-  EXPECT_TRUE(g_dashboard_client->commandCloseSafetyPopup());
-  EXPECT_TRUE(g_dashboard_client->commandUnlockProtectiveStop());
+  EXPECT_TRUE(g_my_robot->dashboard_client_->commandCloseSafetyPopup());
+  EXPECT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
 }
 
 // TODO we should add more tests for the UrDriver class.
