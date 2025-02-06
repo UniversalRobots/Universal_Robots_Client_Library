@@ -56,6 +56,7 @@ jobs:
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
