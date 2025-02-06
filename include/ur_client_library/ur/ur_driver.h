@@ -661,7 +661,7 @@ public:
    *  \brief Starts the primary client
    */
   void startPrimaryClientCommunication();
-  
+
   void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
   {
     trajectory_interface_->registerDisconnectionCallback(fun);
