@@ -28,6 +28,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <ur_client_library/example_robot_wrapper.h>
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/types.h>
@@ -44,37 +45,8 @@ const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
-std::unique_ptr<UrDriver> g_my_driver;
-std::unique_ptr<DashboardClient> g_my_dashboard;
+std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 vector6d_t g_joint_positions;
-
-std::condition_variable g_program_running_cv;
-std::mutex g_program_running_mutex;
-bool g_program_running;
-
-// We need a callback function to register. See UrDriver's parameters for details.
-void handleRobotProgramState(bool program_running)
-{
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
-  if (program_running)
-  {
-    std::lock_guard<std::mutex> lk(g_program_running_mutex);
-    g_program_running = program_running;
-    g_program_running_cv.notify_one();
-  }
-}
-
-bool waitForProgramRunning(int milliseconds = 100)
-{
-  std::unique_lock<std::mutex> lk(g_program_running_mutex);
-  if (g_program_running_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-      g_program_running == true)
-  {
-    return true;
-  }
-  return false;
-}
 
 int main(int argc, char* argv[])
 {
@@ -87,51 +59,11 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // Making the robot ready for the program by:
-  // Connect the the robot Dashboard
-  g_my_dashboard.reset(new DashboardClient(robot_ip));
-  if (!g_my_dashboard->connect())
-  {
-    URCL_LOG_ERROR("Could not connect to dashboard");
-    return 1;
-  }
-
-  // Stop program, if there is one running
-  if (!g_my_dashboard->commandStop())
-  {
-    URCL_LOG_ERROR("Could not send stop program command");
-    return 1;
-  }
-
-  // Power it off
-  if (!g_my_dashboard->commandPowerOff())
-  {
-    URCL_LOG_ERROR("Could not send Power off command");
-    return 1;
-  }
-
-  // Power it on
-  if (!g_my_dashboard->commandPowerOn())
-  {
-    URCL_LOG_ERROR("Could not send Power on command");
-    return 1;
-  }
-
-  // Release the brakes
-  if (!g_my_dashboard->commandBrakeRelease())
-  {
-    URCL_LOG_ERROR("Could not send BrakeRelease command");
-    return 1;
-  }
-
-  // Now the robot is ready to receive a program
-
-  std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  const bool headless = true;
-  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
-                                 std::move(tool_comm_setup)));
+  bool headless_mode = true;
+  g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+                                                     "external_control.urp");
   // Make sure that external control script is running
-  if (!waitForProgramRunning())
+  if (!g_my_robot->waitForProgramRunning())
   {
     URCL_LOG_ERROR("External Control script not running.");
     return 1;
@@ -139,7 +71,7 @@ int main(int argc, char* argv[])
 
   // Increment depends on robot version
   double increment_constant = 0.0005;
-  if (g_my_driver->getVersion().major < 5)
+  if (g_my_robot->ur_driver_->getVersion().major < 5)
   {
     increment_constant = 0.002;
   }
@@ -154,14 +86,14 @@ int main(int argc, char* argv[])
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
-  g_my_driver->startRTDECommunication();
+  g_my_robot->ur_driver_->startRTDECommunication();
   while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
     // robot will effectively be in charge of setting the frequency of this loop.
     // In a real-world application this thread should be scheduled with real-time priority in order
     // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
     if (!data_pkg)
     {
       URCL_LOG_WARN("Could not get fresh data package from robot");
@@ -201,8 +133,8 @@ int main(int argc, char* argv[])
     joint_target[5] += increment;
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications.
-    bool ret = g_my_driver->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
-                                              RobotReceiveTimeout::millisec(100));
+    bool ret = g_my_robot->ur_driver_->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
+                                                         RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
       URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
@@ -210,7 +142,7 @@ int main(int argc, char* argv[])
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
   }
-  g_my_driver->stopControl();
+  g_my_robot->ur_driver_->stopControl();
   URCL_LOG_INFO("Movement done");
   return 0;
 }

@@ -35,6 +35,7 @@
 #include "ur_client_library/types.h"
 #include "ur_client_library/ur/ur_driver.h"
 #include "ur_client_library/log.h"
+#include <ur_client_library/example_robot_wrapper.h>
 #include "ur_client_library/control/trajectory_point_interface.h"
 #include "ur_client_library/ur/dashboard_client.h"
 #include "ur_client_library/ur/instruction_executor.h"
@@ -45,15 +46,7 @@ const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
-std::unique_ptr<urcl::DashboardClient> g_my_dashboard;
-std::shared_ptr<urcl::UrDriver> g_my_driver;
-
-// We need a callback function to register. See UrDriver's parameters for details.
-void handleRobotProgramState(bool program_running)
-{
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
-}
+std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 
 int main(int argc, char* argv[])
 {
@@ -65,49 +58,24 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // --------------- INITIALIZATION BEGIN -------------------
-  // Making the robot ready for the program by:
-  // Connect the robot Dashboard
-  g_my_dashboard.reset(new urcl::DashboardClient(robot_ip));
-  if (!g_my_dashboard->connect())
+  bool headless_mode = true;
+  g_my_robot = std::make_unique<urcl::ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+                                                           "external_control.urp");
+  if (!g_my_robot->ur_driver_->checkCalibration(CALIBRATION_CHECKSUM))
   {
-    URCL_LOG_ERROR("Could not connect to dashboard");
+    URCL_LOG_ERROR("Calibration checksum does not match actual robot.");
+    URCL_LOG_ERROR("Use the ur_calibration tool to extract the correct calibration from the robot and pass that into "
+                   "the description. See "
+                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                   "for details.");
+  }
+  if (!g_my_robot->waitForProgramRunning(1000))
+  {
+    std::cout << "Program did not start running. Is the robot in remote control?" << std::endl;
     return 1;
   }
 
-  // // Stop program, if there is one running
-  if (!g_my_dashboard->commandStop())
-  {
-    URCL_LOG_ERROR("Could not send stop program command");
-    return 1;
-  }
-
-  // Power it off
-  if (!g_my_dashboard->commandPowerOff())
-  {
-    URCL_LOG_ERROR("Could not send Power off command");
-    return 1;
-  }
-
-  // Power it on
-  if (!g_my_dashboard->commandPowerOn())
-  {
-    URCL_LOG_ERROR("Could not send Power on command");
-    return 1;
-  }
-
-  // Release the brakes
-  if (!g_my_dashboard->commandBrakeRelease())
-  {
-    URCL_LOG_ERROR("Could not send BrakeRelease command");
-    return 1;
-  }
-
-  std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
-  const bool headless = true;
-  g_my_driver.reset(new urcl::UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState,
-                                       headless, std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-  auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_driver);
+  auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->ur_driver_);
   // --------------- INITIALIZATION END -------------------
 
   URCL_LOG_INFO("Running motion");
@@ -137,6 +105,6 @@ int main(int argc, char* argv[])
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
-  g_my_driver->stopControl();
+  g_my_robot->ur_driver_->stopControl();
   return 0;
 }
