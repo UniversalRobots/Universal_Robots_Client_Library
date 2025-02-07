@@ -53,11 +53,15 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
     throw UrException("Could not initialize robot with dashboard");
   }
 
-  std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  ur_driver_ =
-      std::make_shared<UrDriver>(robot_ip, script_file, output_recipe_file, input_recipe_file,
-                                 std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1),
-                                 headless_mode, std::move(tool_comm_setup));
+  UrDriverConfiguration driver_config;
+  driver_config.robot_ip = robot_ip;
+  driver_config.script_file = script_file;
+  driver_config.output_recipe_file = output_recipe_file;
+  driver_config.input_recipe_file = input_recipe_file;
+  driver_config.handle_program_state =
+      std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1);
+  driver_config.headless_mode = headless_mode;
+  ur_driver_ = std::make_shared<UrDriver>(driver_config);
 
   if (!headless_mode && !std::empty(autostart_program))
   {

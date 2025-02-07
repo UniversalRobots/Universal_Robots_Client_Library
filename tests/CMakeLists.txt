@@ -94,6 +94,12 @@ if (INTEGRATION_TESTS)
                   EXTRA_ARGS --headless true
                   TEST_SUFFIX _headless
   )
+
+  add_executable(ur_driver_deprecated_constructor_test test_deprecated_ur_driver_construction.cpp)
+  target_link_libraries(ur_driver_deprecated_constructor_test PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET ur_driver_deprecated_constructor_test
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 else()
   message(STATUS "Skipping integration tests.")
 endif()
