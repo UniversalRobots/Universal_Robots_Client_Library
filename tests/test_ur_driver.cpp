@@ -261,8 +261,8 @@ TEST_F(UrDriverTest, read_error_code)
   }
 
   ASSERT_EQ(error_codes.size(), 1);
-  // Error code description can be found here:
-  // https://myur.universal-robots.com/manuals/content/SW_5_16/Documentation%20Menu/Error%20Codes/Introduction/C209%20A%20protective%20stop%20was%20triggered%20%28for%20test%20purposes%20only%29
+  // Check whether it is a "A protective stop was triggered"
+  // https://www.universal-robots.com/manuals/EN/HTML/SW5_21/Content/prod-err-codes/topics/CODE_209.html
   ASSERT_EQ(error_codes.at(0).message_code, 209);
   ASSERT_EQ(error_codes.at(0).message_argument, 0);
 
