@@ -665,7 +665,11 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
                 "set the "
                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                 "to the write functions.");
+// TODO: Remove 2027-05
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   reverse_interface_->setKeepaliveCount(count);
+#pragma GCC diagnostic pop
 }
 
 void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,
