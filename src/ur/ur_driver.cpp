@@ -52,21 +52,19 @@ static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PO
 static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
 static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
 
-urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
-                         const std::string& output_recipe_file, const std::string& input_recipe_file,
-                         std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
-                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
-                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
-                         const uint32_t script_command_port)
-  : servoj_gain_(servoj_gain)
-  , servoj_lookahead_time_(servoj_lookahead_time)
-  , handle_program_state_(handle_program_state)
-  , robot_ip_(robot_ip)
+void UrDriver::init(const UrDriverConfiguration& config)
 {
+  robot_ip_ = config.robot_ip;
+  non_blocking_read_ = config.non_blocking_read;
+  servoj_gain_ = config.servoj_gain;
+  servoj_lookahead_time_ = config.servoj_lookahead_time;
+  handle_program_state_ = config.handle_program_state;
+  in_headless_mode_ = config.headless_mode;
+
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
-  rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_file, input_recipe_file));
+  rtde_client_.reset(
+      new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
   primary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
@@ -76,16 +74,15 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
-  non_blocking_read_ = non_blocking_read;
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
 
   initRTDE();
-  setupReverseInterface(reverse_port);
+  setupReverseInterface(config.reverse_port);
 
   // Figure out the ip automatically if the user didn't provide it
-  std::string local_ip = reverse_ip.empty() ? rtde_client_->getIP() : reverse_ip;
+  std::string local_ip = config.reverse_ip.empty() ? rtde_client_->getIP() : config.reverse_ip;
 
-  std::string prog = readScriptFile(script_file);
+  std::string prog = readScriptFile(config.script_file);
   while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
   {
     prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(),
@@ -111,24 +108,25 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
 
   while (prog.find(SERVER_PORT_REPLACE) != std::string::npos)
   {
-    prog.replace(prog.find(SERVER_PORT_REPLACE), SERVER_PORT_REPLACE.length(), std::to_string(reverse_port));
+    prog.replace(prog.find(SERVER_PORT_REPLACE), SERVER_PORT_REPLACE.length(), std::to_string(config.reverse_port));
   }
 
   while (prog.find(TRAJECTORY_PORT_REPLACE) != std::string::npos)
   {
-    prog.replace(prog.find(TRAJECTORY_PORT_REPLACE), TRAJECTORY_PORT_REPLACE.length(), std::to_string(trajectory_port));
+    prog.replace(prog.find(TRAJECTORY_PORT_REPLACE), TRAJECTORY_PORT_REPLACE.length(),
+                 std::to_string(config.trajectory_port));
   }
 
   while (prog.find(SCRIPT_COMMAND_PORT_REPLACE) != std::string::npos)
   {
     prog.replace(prog.find(SCRIPT_COMMAND_PORT_REPLACE), SCRIPT_COMMAND_PORT_REPLACE.length(),
-                 std::to_string(script_command_port));
+                 std::to_string(config.script_command_port));
   }
 
   robot_version_ = rtde_client_->getVersion();
 
   std::stringstream begin_replace;
-  if (tool_comm_setup != nullptr)
+  if (config.tool_comm_setup != nullptr)
   {
     if (robot_version_.major < 5)
     {
@@ -137,15 +135,15 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                                  5, robot_version_.major);
     }
     begin_replace << "set_tool_voltage("
-                  << static_cast<std::underlying_type<ToolVoltage>::type>(tool_comm_setup->getToolVoltage()) << ")\n";
-    begin_replace << "set_tool_communication(" << "True" << ", " << tool_comm_setup->getBaudRate() << ", "
-                  << static_cast<std::underlying_type<Parity>::type>(tool_comm_setup->getParity()) << ", "
-                  << tool_comm_setup->getStopBits() << ", " << tool_comm_setup->getRxIdleChars() << ", "
-                  << tool_comm_setup->getTxIdleChars() << ")";
+                  << static_cast<std::underlying_type<ToolVoltage>::type>(config.tool_comm_setup->getToolVoltage())
+                  << ")\n";
+    begin_replace << "set_tool_communication(" << "True" << ", " << config.tool_comm_setup->getBaudRate() << ", "
+                  << static_cast<std::underlying_type<Parity>::type>(config.tool_comm_setup->getParity()) << ", "
+                  << config.tool_comm_setup->getStopBits() << ", " << config.tool_comm_setup->getRxIdleChars() << ", "
+                  << config.tool_comm_setup->getTxIdleChars() << ")";
   }
   prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
 
-  in_headless_mode_ = headless_mode;
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";
@@ -161,61 +159,34 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
   }
   else
   {
-    script_sender_.reset(new control::ScriptSender(script_sender_port, prog));
+    script_sender_.reset(new control::ScriptSender(config.script_sender_port, prog));
     URCL_LOG_DEBUG("Created script sender");
   }
 
-  trajectory_interface_.reset(new control::TrajectoryPointInterface(trajectory_port));
-  script_command_interface_.reset(new control::ScriptCommandInterface(script_command_port));
+  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
+  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
 
+  if (!std::empty(config.calibration_checksum))
+  {
+    URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
+                  "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
+                  "notice is for application developers using this library. If you are only using an application using "
+                  "this library, you can ignore this message.");
+    if (checkCalibration(config.calibration_checksum))
+    {
+      URCL_LOG_INFO("Calibration checked successfully.");
+    }
+    else
+    {
+      URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
+                     "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
+                     "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
+                     "description. See "
+                     "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                     "for details.");
+    }
+  }
   URCL_LOG_DEBUG("Initialization done");
-}
-
-urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
-                         const std::string& output_recipe_file, const std::string& input_recipe_file,
-                         std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
-                         const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
-                         bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
-                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
-  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
-             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
-             non_blocking_read, reverse_ip, trajectory_port, script_command_port)
-{
-  force_mode_damping_factor_ = force_mode_damping;
-  force_mode_gain_scale_factor_ = force_mode_gain_scaling;
-}
-
-urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
-                         const std::string& output_recipe_file, const std::string& input_recipe_file,
-                         std::function<void(bool)> handle_program_state, bool headless_mode,
-                         std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
-                         const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
-                         double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip,
-                         const uint32_t trajectory_port, const uint32_t script_command_port, double force_mode_damping,
-                         double force_mode_gain_scaling)
-  : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
-             std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
-             non_blocking_read, reverse_ip, trajectory_port, script_command_port, force_mode_damping,
-             force_mode_gain_scaling)
-{
-  URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
-                "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
-                "notice is for application developers using this library. If you are only using an application using "
-                "this library, you can ignore this message.");
-  if (checkCalibration(calibration_checksum))
-  {
-    URCL_LOG_INFO("Calibration checked successfully.");
-  }
-  else
-  {
-    URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
-                   "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
-                   "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
-                   "description. See "
-                   "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
-                   "for details.");
-  }
 }
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
