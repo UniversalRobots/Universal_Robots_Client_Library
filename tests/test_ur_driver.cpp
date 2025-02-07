@@ -245,6 +245,34 @@ TEST_F(UrDriverTest, reset_rtde_client)
   ASSERT_EQ(g_my_robot->ur_driver_->getControlFrequency(), target_frequency);
 }
 
+TEST_F(UrDriverTest, read_error_code)
+{
+  g_my_robot->ur_driver_->startPrimaryClientCommunication();
+  // Wait until we actually received a package
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  std::stringstream cmd;
+  cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
+  EXPECT_TRUE(g_my_robot->ur_driver_->sendScript(cmd.str()));
+
+  auto error_codes = g_my_robot->ur_driver_->getErrorCodes();
+  while (error_codes.size() == 0)
+  {
+    error_codes = g_my_robot->ur_driver_->getErrorCodes();
+  }
+
+  ASSERT_EQ(error_codes.size(), 1);
+  // Check whether it is a "A protective stop was triggered"
+  // https://www.universal-robots.com/manuals/EN/HTML/SW5_21/Content/prod-err-codes/topics/CODE_209.html
+  ASSERT_EQ(error_codes.at(0).message_code, 209);
+  ASSERT_EQ(error_codes.at(0).message_argument, 0);
+
+  // Wait for after PSTOP before clearing it
+  std::this_thread::sleep_for(std::chrono::seconds(6));
+
+  EXPECT_TRUE(g_my_robot->dashboard_client_->commandCloseSafetyPopup());
+  EXPECT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
+}
+
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])

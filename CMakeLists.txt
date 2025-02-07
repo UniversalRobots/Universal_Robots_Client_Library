@@ -16,9 +16,11 @@ add_library(urcl SHARED
     src/control/trajectory_point_interface.cpp
     src/control/script_command_interface.cpp
     src/primary/primary_package.cpp
+    src/primary/primary_client.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
     src/primary/robot_message/version_message.cpp
+    src/primary/robot_message/error_code_message.cpp
     src/primary/robot_state/kinematics_info.cpp
     src/rtde/control_package_pause.cpp
     src/rtde/control_package_setup_inputs.cpp

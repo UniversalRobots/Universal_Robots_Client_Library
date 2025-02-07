@@ -32,6 +32,7 @@
 #include "ur_client_library/log.h"
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 
 namespace urcl
@@ -51,7 +52,7 @@ public:
   virtual ~AbstractPrimaryConsumer() = default;
 
   /*!
-   * \brief This consume method is usally being called by the Pipeline structure. We don't
+   * \brief This consume method is usually being called by the Pipeline structure. We don't
    * necessarily need to know the specific package type here, as the packages themselves will take
    * care to be consumed with the correct function (visitor pattern).
    *
@@ -73,6 +74,7 @@ public:
   virtual bool consume(RobotState& pkg) = 0;
   virtual bool consume(VersionMessage& pkg) = 0;
   virtual bool consume(KinematicsInfo& pkg) = 0;
+  virtual bool consume(ErrorCodeMessage& pkg) = 0;
 
 private:
   /* data */
