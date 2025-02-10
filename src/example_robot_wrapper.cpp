@@ -30,6 +30,7 @@
 
 #include <ur_client_library/example_robot_wrapper.h>
 #include <iostream>
+#include "ur_client_library/exceptions.h"
 
 namespace urcl
 {
@@ -45,7 +46,11 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
   }
-  initializeRobotWithDashboard();
+
+  if (!initializeRobotWithDashboard())
+  {
+    throw UrException("Could not initialize robot with dashboard");
+  }
 
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   ur_driver_ =
@@ -62,7 +67,7 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     if (!waitForProgramRunning(500))
     {
-      URCL_LOG_ERROR("Program did not start running. Is the robot in remote control?");
+      throw UrException("Program did not start running. Is the robot in remote control?");
     }
   }
 }
