@@ -122,6 +122,11 @@ protected:
 
   void SetUp()
   {
+    step_time_ = 0.002;
+    if (g_my_robot->ur_driver_->getVersion().major < 5)
+    {
+      step_time_ = 0.008;
+    }
     std::string safety_status;
     g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
     bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
