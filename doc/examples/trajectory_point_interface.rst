@@ -14,7 +14,7 @@ At first, we create a ``UrDriver`` object as usual:
    :caption: examples/trajectory_point_interface.cpp
    :linenos:
    :lineno-match:
-   :start-at: std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
+   :start-at: bool headless_mode = true;
    :end-before: // --------------- INITIALIZATION END -------------------
 
 We use a small helper function to make sure that the reverse interface is active and connected
@@ -45,8 +45,8 @@ That callback can be registered at the ``UrDriver`` object:
    :caption: examples/trajectory_point_interface.cpp
    :linenos:
    :lineno-match:
-   :start-at: g_my_driver->registerTrajectoryDoneCallback(&trajDoneCallback);
-   :end-at: g_my_driver->registerTrajectoryDoneCallback(&trajDoneCallback);
+   :start-at: g_my_robot->ur_driver_->registerTrajectoryDoneCallback(&trajDoneCallback);
+   :end-at: g_my_robot->ur_driver_->registerTrajectoryDoneCallback(&trajDoneCallback);
 
 
 MoveJ Trajectory
@@ -67,12 +67,12 @@ parameters. The following example shows execution of a 2-point trajectory using 
 In fact, the path is followed twice, once parametrized by a segment duration and once using maximum
 velocity / acceleration settings. If a duration > 0 is given for a segment, the velocity and
 acceleration settings will be ignored as in the underlying URScript functions. In the example
-above, each of the ``g_my_driver->writeTrajectoryPoint()`` calls will be translated into a
+above, each of the ``g_my_robot->ur_driver_->writeTrajectoryPoint()`` calls will be translated into a
 ``movej`` command in URScript.
 
 While the trajectory is running, we need to tell the robot program that connection is still active
 and we expect the trajectory to be running. This is being done by the
-``g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);``
+``g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);``
 call.
 
 MoveL Trajectory

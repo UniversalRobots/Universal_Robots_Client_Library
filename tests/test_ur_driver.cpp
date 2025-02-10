@@ -61,12 +61,7 @@ protected:
 
   void SetUp()
   {
-    // Make sure script is running on the robot
-    if (!g_my_robot->waitForProgramRunning())
-    {
-      g_my_robot->resendRobotProgram();
-      ASSERT_TRUE(g_my_robot->waitForProgramRunning());
-    }
+    ASSERT_TRUE(g_my_robot->isHealthy());
   }
 };
 

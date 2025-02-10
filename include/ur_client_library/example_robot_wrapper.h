@@ -83,7 +83,7 @@ public:
    *
    * The robot will be power-cycled once and end up switched on, breaks released.
    */
-  void initializeRobotWithDashboard();
+  bool initializeRobotWithDashboard();
 
   /**
    * @brief Starts RTDE communication with the robot.
@@ -157,6 +157,16 @@ public:
    */
   bool startRobotProgram(const std::string& program_file_name);
 
+  /**
+   * @brief Clear protective stop on the robot.
+   *
+   * This will try to clear a protective stop on the robot. If the robot is not in protective stop
+   * this call will do nothing.
+   */
+  bool clearProtectiveStop();
+
+  bool isHealthy() const;
+
   std::shared_ptr<urcl::DashboardClient> dashboard_client_; /*!< Dashboard client to interact with the robot */
   std::shared_ptr<urcl::UrDriver> ur_driver_;               /*!< UR driver to interact with the robot */
 
@@ -167,6 +177,8 @@ private:
   std::atomic<bool> consume_rtde_packages_ = false;
   std::mutex read_package_mutex_;
   std::unique_ptr<rtde_interface::DataPackage> data_pkg_;
+
+  bool robot_initialized_ = false;
 
   bool program_running_;
   std::condition_variable program_running_cv_;

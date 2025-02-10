@@ -62,17 +62,7 @@ protected:
   void SetUp() override
   {
     executor_ = std::make_unique<InstructionExecutor>(g_my_robot->ur_driver_);
-    std::string safety_status;
-    g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
-    bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
-    if (is_protective_stopped)
-    {
-      // We forced a protective stop above. Some versions require waiting 5 seconds before releasing
-      // the protective stop.
-      std::this_thread::sleep_for(std::chrono::seconds(5));
-      g_my_robot->dashboard_client_->commandCloseSafetyPopup();
-      ASSERT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
-    }
+    g_my_robot->clearProtectiveStop();
     // Make sure script is running on the robot
     if (!g_my_robot->waitForProgramRunning())
     {

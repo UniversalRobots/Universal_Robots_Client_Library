@@ -6,15 +6,16 @@ Force Mode example
 The ``ur_client_library`` supports leveraging the robot's force mode directly. An example on how to
 use it can be found in `force_mode_example.cpp <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/force_mode_example.cpp>`_.
 
-In order to utilize force mode, we'll have to create and initialize a full ``UrDriver`` object
-first:
+In order to utilize force mode, we'll have to create and initialize a driver object
+first. We use the ``ExampleRobotWrapper`` class for this example. That starts a :ref:`ur_driver`
+and a :ref:`dashboard_client` to communicate with the robot:
 
 .. literalinclude:: ../../examples/force_mode_example.cpp
    :language: c++
    :caption: examples/force_mode_example.cpp
    :linenos:
    :lineno-match:
-   :start-at: // Now the robot is ready to receive a program
+   :start-at: bool headless_mode = true;
    :end-at: // End of initialization
 
 Start force mode

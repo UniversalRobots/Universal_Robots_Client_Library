@@ -30,6 +30,8 @@
 
 #include <ur_client_library/example_robot_wrapper.h>
 #include <iostream>
+#include "ur_client_library/exceptions.h"
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
@@ -45,7 +47,11 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
   }
-  initializeRobotWithDashboard();
+
+  if (!initializeRobotWithDashboard())
+  {
+    throw UrException("Could not initialize robot with dashboard");
+  }
 
   std::unique_ptr<ToolCommSetup> tool_comm_setup;
   ur_driver_ =
@@ -57,6 +63,14 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     startRobotProgram(autostart_program);
   }
+
+  if (headless_mode | !std::empty(autostart_program))
+  {
+    if (!waitForProgramRunning(500))
+    {
+      throw UrException("Program did not start running. Is the robot in remote control?");
+    }
+  }
 }
 
 ExampleRobotWrapper::~ExampleRobotWrapper()
@@ -66,34 +80,70 @@ ExampleRobotWrapper::~ExampleRobotWrapper()
     stopConsumingRTDEData();
   }
 }
-void ExampleRobotWrapper::initializeRobotWithDashboard()
+
+bool ExampleRobotWrapper::clearProtectiveStop()
 {
-  // // Stop program, if there is one running
+  std::string safety_status;
+  dashboard_client_->commandSafetyStatus(safety_status);
+  bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
+  if (is_protective_stopped)
+  {
+    URCL_LOG_INFO("Robot is in protective stop, trying to release it");
+    dashboard_client_->commandClosePopup();
+    dashboard_client_->commandCloseSafetyPopup();
+    if (!dashboard_client_->commandUnlockProtectiveStop())
+    {
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+      if (!dashboard_client_->commandUnlockProtectiveStop())
+      {
+        URCL_LOG_ERROR("Could not unlock protective stop");
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool ExampleRobotWrapper::initializeRobotWithDashboard()
+{
+  if (!clearProtectiveStop())
+  {
+    URCL_LOG_ERROR("Could not clear protective stop");
+    return false;
+  }
+
+  // Stop program, if there is one running
   if (!dashboard_client_->commandStop())
   {
     URCL_LOG_ERROR("Could not send stop program command");
+    return false;
   }
 
   // Power it off
   if (!dashboard_client_->commandPowerOff())
   {
     URCL_LOG_ERROR("Could not send Power off command");
+    return false;
   }
 
   // Power it on
   if (!dashboard_client_->commandPowerOn())
   {
     URCL_LOG_ERROR("Could not send Power on command");
+    return false;
   }
 
   // Release the brakes
   if (!dashboard_client_->commandBrakeRelease())
   {
     URCL_LOG_ERROR("Could not send BrakeRelease command");
+    return false;
   }
 
   // Now the robot is ready to receive a program
   URCL_LOG_INFO("Robot ready to start a program");
+  robot_initialized_ = true;
+  return true;
 }
 
 void ExampleRobotWrapper::handleRobotProgramState(bool program_running)
@@ -208,6 +258,21 @@ bool ExampleRobotWrapper::resendRobotProgram()
     return ur_driver_->sendRobotProgram();
   }
   return startRobotProgram(autostart_program_);
+}
+
+bool ExampleRobotWrapper::isHealthy() const
+{
+  if (!robot_initialized_)
+  {
+    URCL_LOG_ERROR("Robot is not initialized");
+    return false;
+  }
+  if (!program_running_)
+  {
+    URCL_LOG_ERROR("Robot program is not running");
+    return false;
+  }
+  return true;
 }
 
 }  // namespace urcl

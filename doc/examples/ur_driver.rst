@@ -20,7 +20,7 @@ example.
 Initialization
 --------------
 
-At first, we create a ``UrDriver`` object giving it the robot's IP address, script file and RTDE
+At first, we create a ``ExampleRobotWrapper`` object giving it the robot's IP address, script file and RTDE
 recipes.
 
 .. literalinclude:: ../../examples/full_driver.cpp
@@ -28,8 +28,8 @@ recipes.
    :caption: examples/full_driver.cpp
    :linenos:
    :lineno-match:
-   :start-at: std::unique_ptr<ToolCommSetup> tool_comm_setup;
-   :end-at: std::move(tool_comm_setup)
+   :start-at: bool headless_mode = true;
+   :end-at: // --------------- INITIALIZATION END -------------------
 
 Robot control loop
 ------------------

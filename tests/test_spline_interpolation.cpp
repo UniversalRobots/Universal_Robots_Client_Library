@@ -122,6 +122,11 @@ protected:
 
   void SetUp()
   {
+    step_time_ = 0.002;
+    if (g_my_robot->ur_driver_->getVersion().major < 5)
+    {
+      step_time_ = 0.008;
+    }
     std::string safety_status;
     g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
     bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
@@ -133,12 +138,7 @@ protected:
       g_my_robot->dashboard_client_->commandCloseSafetyPopup();
       ASSERT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
     }
-    // Make sure script is running on the robot
-    if (!g_my_robot->waitForProgramRunning())
-    {
-      g_my_robot->resendRobotProgram();
-      ASSERT_TRUE(g_my_robot->waitForProgramRunning());
-    }
+    ASSERT_TRUE(g_my_robot->isHealthy());
   }
 
   void sendIdle()
