@@ -68,6 +68,7 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("External Control script not running.");
     return 1;
   }
+  // --------------- INITIALIZATION END -------------------
 
   // Increment depends on robot version
   double increment_constant = 0.0005;

@@ -12,15 +12,15 @@ tool contact mode to detect collisions and stop the robot.
 As a basic concept, we will move the robot linearly in the negative z axis until the tool hits
 something or the program's timeout is hit.
 
-At first, we create a ``UrDriver`` object as usual:
+At first, we create a initialize a driver as usual:
 
 .. literalinclude:: ../../examples/tool_contact_example.cpp
    :language: c++
    :caption: examples/tool_contact_example.cpp
    :linenos:
    :lineno-match:
-   :start-at: std::unique_ptr<ToolCommSetup> tool_comm_setup;
-   :end-before: g_my_driver->registerToolContactResultCallback
+   :start-at: bool headless_mode = true;
+   :end-before: g_my_robot->ur_driver_->registerToolContactResultCallback
 
 We use a small helper function to make sure that the reverse interface is active and connected
 before proceeding.
@@ -45,8 +45,8 @@ This function is registered as a callback to the driver and then tool_contact mo
    :caption: examples/tool_contact_example.cpp
    :linenos:
    :lineno-match:
-   :start-at: g_my_driver->registerToolContactResultCallback(&handleToolContactResult);
-   :end-at: g_my_driver->startToolContact()
+   :start-at: g_my_robot->ur_driver_->registerToolContactResultCallback(&handleToolContactResult);
+   :end-at: g_my_robot->ur_driver_->startToolContact()
 
 Once everything is initialized, we can start a control loop commanding the robot to move in the
 negative z direction until the program timeout is hit or a tool contact is detected:
