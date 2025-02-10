@@ -62,10 +62,9 @@ int main(int argc, char* argv[])
   bool headless_mode = true;
   g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                      "external_control.urp");
-  // Make sure that external control script is running
-  if (!g_my_robot->waitForProgramRunning())
+  if (!g_my_robot->isHealthy())
   {
-    URCL_LOG_ERROR("External Control script not running.");
+    URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
   // --------------- INITIALIZATION END -------------------

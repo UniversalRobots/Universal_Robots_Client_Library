@@ -86,6 +86,11 @@ int main(int argc, char* argv[])
   g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                      "external_control.urp");
 
+  if (!g_my_robot->isHealthy())
+  {
+    URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
+    return 1;
+  }
   if (!g_my_robot->ur_driver_->checkCalibration(CALIBRATION_CHECKSUM))
   {
     URCL_LOG_ERROR("Calibration checksum does not match actual robot.");
@@ -95,12 +100,6 @@ int main(int argc, char* argv[])
                    "for details.");
   }
 
-  // Make sure that external control script is running
-  if (!g_my_robot->waitForProgramRunning())
-  {
-    URCL_LOG_ERROR("External Control script not running.");
-    return 1;
-  }
   // End of initialization -- We've started the external control program, which means we have to
   // write keepalive signals from now on. Otherwise the connection will be dropped.
 

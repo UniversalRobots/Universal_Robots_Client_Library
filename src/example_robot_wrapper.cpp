@@ -57,6 +57,14 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     startRobotProgram(autostart_program);
   }
+
+  if (headless_mode | !std::empty(autostart_program))
+  {
+    if (!waitForProgramRunning(500))
+    {
+      URCL_LOG_ERROR("Program did not start running. Is the robot in remote control?");
+    }
+  }
 }
 
 ExampleRobotWrapper::~ExampleRobotWrapper()
@@ -66,34 +74,41 @@ ExampleRobotWrapper::~ExampleRobotWrapper()
     stopConsumingRTDEData();
   }
 }
-void ExampleRobotWrapper::initializeRobotWithDashboard()
+
+bool ExampleRobotWrapper::initializeRobotWithDashboard()
 {
   // // Stop program, if there is one running
   if (!dashboard_client_->commandStop())
   {
     URCL_LOG_ERROR("Could not send stop program command");
+    return false;
   }
 
   // Power it off
   if (!dashboard_client_->commandPowerOff())
   {
     URCL_LOG_ERROR("Could not send Power off command");
+    return false;
   }
 
   // Power it on
   if (!dashboard_client_->commandPowerOn())
   {
     URCL_LOG_ERROR("Could not send Power on command");
+    return false;
   }
 
   // Release the brakes
   if (!dashboard_client_->commandBrakeRelease())
   {
     URCL_LOG_ERROR("Could not send BrakeRelease command");
+    return false;
   }
 
   // Now the robot is ready to receive a program
   URCL_LOG_INFO("Robot ready to start a program");
+  robot_initialized_ = true;
+  return true;
 }
 
 void ExampleRobotWrapper::handleRobotProgramState(bool program_running)
@@ -208,6 +223,21 @@ bool ExampleRobotWrapper::resendRobotProgram()
     return ur_driver_->sendRobotProgram();
   }
   return startRobotProgram(autostart_program_);
+}
+
+bool ExampleRobotWrapper::isHealthy() const
+{
+  if (!robot_initialized_)
+  {
+    URCL_LOG_ERROR("Robot is not initialized");
+    return false;
+  }
+  if (!program_running_)
+  {
+    URCL_LOG_ERROR("Robot program is not running");
+    return false;
+  }
+  return true;
 }
 
 }  // namespace urcl

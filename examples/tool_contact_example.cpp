@@ -80,9 +80,9 @@ int main(int argc, char* argv[])
   bool headless_mode = true;
   g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                      "external_control.urp");
-  if (!g_my_robot->waitForProgramRunning(1000))
+  if (!g_my_robot->isHealthy())
   {
-    std::cout << "Program did not start running. Is the robot in remote control?" << std::endl;
+    URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
   g_my_robot->ur_driver_->registerToolContactResultCallback(&handleToolContactResult);

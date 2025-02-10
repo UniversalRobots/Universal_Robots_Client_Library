@@ -69,9 +69,9 @@ int main(int argc, char* argv[])
                    "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
                    "for details.");
   }
-  if (!g_my_robot->waitForProgramRunning(1000))
+  if (!g_my_robot->isHealthy())
   {
-    std::cout << "Program did not start running. Is the robot in remote control?" << std::endl;
+    URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
 
