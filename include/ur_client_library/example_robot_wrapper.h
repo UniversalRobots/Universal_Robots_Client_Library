@@ -157,6 +157,14 @@ public:
    */
   bool startRobotProgram(const std::string& program_file_name);
 
+  /**
+   * @brief Clear protective stop on the robot.
+   *
+   * This will try to clear a protective stop on the robot. If the robot is not in protective stop
+   * this call will do nothing.
+   */
+  bool clearProtectiveStop();
+
   bool isHealthy() const;
 
   std::shared_ptr<urcl::DashboardClient> dashboard_client_; /*!< Dashboard client to interact with the robot */

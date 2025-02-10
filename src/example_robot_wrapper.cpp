@@ -31,6 +31,7 @@
 #include <ur_client_library/example_robot_wrapper.h>
 #include <iostream>
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
@@ -80,9 +81,38 @@ ExampleRobotWrapper::~ExampleRobotWrapper()
   }
 }
 
+bool ExampleRobotWrapper::clearProtectiveStop()
+{
+  std::string safety_status;
+  dashboard_client_->commandSafetyStatus(safety_status);
+  bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
+  if (is_protective_stopped)
+  {
+    URCL_LOG_INFO("Robot is in protective stop, trying to release it");
+    dashboard_client_->commandClosePopup();
+    dashboard_client_->commandCloseSafetyPopup();
+    if (!dashboard_client_->commandUnlockProtectiveStop())
+    {
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+      if (!dashboard_client_->commandUnlockProtectiveStop())
+      {
+        URCL_LOG_ERROR("Could not unlock protective stop");
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool ExampleRobotWrapper::initializeRobotWithDashboard()
 {
-  // // Stop program, if there is one running
+  if (!clearProtectiveStop())
+  {
+    URCL_LOG_ERROR("Could not clear protective stop");
+    return false;
+  }
+
+  // Stop program, if there is one running
   if (!dashboard_client_->commandStop())
   {
     URCL_LOG_ERROR("Could not send stop program command");
