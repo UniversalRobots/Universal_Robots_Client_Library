@@ -28,7 +28,9 @@
 
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/log.h"
 #include <algorithm>
+#include <chrono>
 
 namespace urcl
 {
@@ -88,9 +90,11 @@ bool RTDEClient::init(const size_t max_num_tries, const std::chrono::millisecond
     if (client_state_ == ClientState::INITIALIZED)
       return true;
 
-    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 10 seconds");
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    attempts++;
+    if (++attempts < MAX_INITIALIZE_ATTEMPTS)
+    {
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 10 seconds");
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
   }
   std::stringstream ss;
   ss << "Failed to initialize RTDE client after " << MAX_INITIALIZE_ATTEMPTS << " attempts";
@@ -241,7 +245,7 @@ void RTDEClient::queryURControlVersion()
     else
     {
       std::stringstream ss;
-      ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
+      ss << "Did not receive URControl version from robot. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
       URCL_LOG_WARN("%s", ss.str().c_str());
