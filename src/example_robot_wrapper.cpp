@@ -48,6 +48,13 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
     URCL_LOG_ERROR("Could not connect to dashboard");
   }
 
+  // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
+  // here.
+  timeval tv;
+  tv.tv_sec = 10;
+  tv.tv_usec = 0;
+  dashboard_client_->setReceiveTimeout(tv);
+
   if (!initializeRobotWithDashboard())
   {
     throw UrException("Could not initialize robot with dashboard");
