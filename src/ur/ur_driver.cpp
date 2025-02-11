@@ -66,10 +66,10 @@ void UrDriver::init(const UrDriverConfiguration& config)
   rtde_client_.reset(
       new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
+  primary_stream_.reset(new comm::URPersistentStream<primary_interface::PrimaryPackage>(
+      robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
+  secondary_stream_.reset(new comm::URPersistentStream<primary_interface::PrimaryPackage>(
+      robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
   secondary_stream_->connect();
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
