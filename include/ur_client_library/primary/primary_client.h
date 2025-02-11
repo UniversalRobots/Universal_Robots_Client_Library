@@ -66,7 +66,8 @@ public:
    * \param primary_consumer Primary consumer that should be removed from the list
    */
   void removePrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer);
-  void start();
+  void start(const size_t max_num_tries = 0,
+             const std::chrono::milliseconds reconnection_time = urcl::comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
 
   /*!
    * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be

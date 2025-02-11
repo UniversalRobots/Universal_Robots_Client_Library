@@ -708,7 +708,7 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
 
 void UrDriver::startPrimaryClientCommunication()
 {
-  primary_client_->start();
+  primary_client_->start(socket_connection_attempts_, socket_reconnection_timeout_);
 }
 
 std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
