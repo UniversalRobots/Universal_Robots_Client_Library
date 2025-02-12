@@ -246,8 +246,7 @@ bool DashboardClient::commandBrakeRelease()
 bool DashboardClient::commandLoadProgram(const std::string& program_file_name)
 {
   assertVersion("5.0.0", "1.4", "load <program>");
-  return sendRequest("load " + program_file_name + "", "(?:Loading program: ).*(?:" + program_file_name + ").*") &&
-         waitForReply("programState", "STOPPED " + program_file_name);
+  return sendRequest("load " + program_file_name + "", "(?:Loading program: ).*(?:" + program_file_name + ").*");
 }
 
 bool DashboardClient::commandLoadInstallation(const std::string& installation_file_name)
