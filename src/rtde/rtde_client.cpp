@@ -98,7 +98,7 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
 
     if (++attempts < max_initialization_attempts)
     {
-      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 10 seconds");
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
       std::this_thread::sleep_for(initialization_timeout);
     }
   }
