@@ -62,6 +62,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   in_headless_mode_ = config.headless_mode;
   socket_connection_attempts_ = config.socket_reconnect_attempts;
   socket_reconnection_timeout_ = config.socket_reconnection_timeout;
+  rtde_initialization_attempts_ = config.rtde_initialization_attempts_;
+  rtde_initialization_timeout_ = config.rtde_initialization_timeout_;
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
@@ -693,7 +695,8 @@ void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const 
 
 void UrDriver::initRTDE()
 {
-  if (!rtde_client_->init(socket_connection_attempts_, socket_reconnection_timeout_))
+  if (!rtde_client_->init(socket_connection_attempts_, socket_reconnection_timeout_, rtde_initialization_attempts_,
+                          rtde_initialization_timeout_))
   {
     throw UrException("Initialization of RTDE client went wrong.");
   }
