@@ -27,8 +27,8 @@
 #include <thread>
 
 #ifndef _WIN32
-#include <arpa/inet.h>
-#include <netinet/tcp.h>
+#  include <arpa/inet.h>
+#  include <netinet/tcp.h>
 #endif
 
 #include "ur_client_library/log.h"
@@ -38,12 +38,13 @@ namespace urcl
 {
 namespace comm
 {
-TCPSocket::TCPSocket() : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
+TCPSocket::TCPSocket()
+  : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
 {
 #ifdef _WIN32
   WSAData data;
   ::WSAStartup(MAKEWORD(1, 1), &data);
-#endif // _WIN32
+#endif  // _WIN32
 }
 TCPSocket::~TCPSocket()
 {
@@ -236,7 +237,8 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
+    ssize_t sent =
+        ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {

@@ -27,7 +27,6 @@
 
 #include "ur_client_library/comm/socket_t.h"
 
-
 namespace urcl
 {
 namespace comm

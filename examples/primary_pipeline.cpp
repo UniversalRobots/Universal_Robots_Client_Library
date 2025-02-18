@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     second_to_run = std::stoi(argv[2]);
   }
 
-  // First of all, we need a stream that connects to the robot
+  // First of all, we need a stream that connects to the robot's primary interface
   comm::URStream<primary_interface::PrimaryPackage> primary_stream(robot_ip, urcl::primary_interface::UR_PRIMARY_PORT);
 
   // This will parse the primary packages
@@ -63,11 +63,12 @@ int main(int argc, char* argv[])
 
   // The producer needs both, the stream and the parser to fully work
   comm::URProducer<primary_interface::PrimaryPackage> prod(primary_stream, parser);
+
+  // Connect to the stream
   prod.setupProducer();
 
   // The shell consumer will print the package contents to the shell
-  std::unique_ptr<comm::IConsumer<primary_interface::PrimaryPackage>> consumer;
-  consumer.reset(new comm::ShellConsumer<primary_interface::PrimaryPackage>());
+  auto consumer = std::make_unique<comm::ShellConsumer<primary_interface::PrimaryPackage>>();
 
   // The notifer will be called at some points during connection setup / loss. This isn't fully
   // implemented atm.

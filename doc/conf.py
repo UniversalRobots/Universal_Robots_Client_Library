@@ -4,7 +4,7 @@
 #
 # This file does only contain a selection of the most common options. For a
 # full list see the documentation:
-# http://www.sphinx-doc.org/en/master/config
+# https://www.sphinx-doc.org/en/master/config
 
 # -- Path setup --------------------------------------------------------------
 
@@ -46,9 +46,10 @@ release = catkin_package.version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx_tabs.tabs",
+    "sphinx.ext.todo",
     "sphinx_copybutton",
     "sphinx_rtd_theme",
-    "sphinx.ext.todo",
 ]
 
 copybutton_exclude = ".linenos, .gp, .go"

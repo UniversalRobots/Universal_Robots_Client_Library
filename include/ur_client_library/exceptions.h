@@ -35,12 +35,12 @@
 #include "ur/version_information.h"
 
 #ifdef _WIN32
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#ifdef ERROR
-#undef ERROR
-#endif  // ERROR
+#  define NOMINMAX
+#  define WIN32_LEAN_AND_MEAN
+#  include <WinSock2.h>
+#  ifdef ERROR
+#    undef ERROR
+#  endif  // ERROR
 #endif
 
 namespace urcl

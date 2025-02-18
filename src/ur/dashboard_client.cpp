@@ -34,9 +34,8 @@
 #include <ur_client_library/exceptions.h>
 
 #ifndef _WIN32
-#include <unistd.h>
+#  include <unistd.h>
 #endif  // !_WIN32
-
 
 using namespace std::chrono_literals;
 
@@ -164,7 +163,7 @@ bool DashboardClient::sendRequest(const std::string& command, const std::string&
   bool ret = std::regex_match(response, std::regex(expected));
   if (!ret)
   {
-    throw UrException("Expected: " + expected + ", but received: " + response);
+    URCL_LOG_WARN("Expected: \"%s\", but received: \"%s\"", expected.c_str(), response.c_str());
   }
   return ret;
 }

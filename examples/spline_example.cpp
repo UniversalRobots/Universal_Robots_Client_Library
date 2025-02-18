@@ -30,6 +30,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
+#include <ur_client_library/example_robot_wrapper.h>
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
@@ -46,10 +47,8 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
-const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 
-std::unique_ptr<UrDriver> g_my_driver;
-std::unique_ptr<DashboardClient> g_my_dashboard;
+std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 vector6d_t g_joint_positions;
 
 void sendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector6d_t>& p_v,
@@ -58,41 +57,35 @@ void sendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector
   assert(p_p.size() == time.size());
 
   URCL_LOG_INFO("Starting joint-based trajectory forward");
-  g_my_driver->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START, p_p.size());
+  g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                        p_p.size());
 
   for (size_t i = 0; i < p_p.size() && p_p.size() == time.size() && p_p[i].size() == 6; i++)
   {
     // MoveJ
     if (!use_spline_interpolation_)
     {
-      g_my_driver->writeTrajectoryPoint(p_p[i], false, time[i]);
+      g_my_robot->ur_driver_->writeTrajectoryPoint(p_p[i], false, time[i]);
     }
     else  // Use spline interpolation
     {
       // QUINTIC
       if (p_v.size() == time.size() && p_a.size() == time.size() && p_v[i].size() == 6 && p_a[i].size() == 6)
       {
-        g_my_driver->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], time[i]);
+        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], time[i]);
       }
       // CUBIC
       else if (p_v.size() == time.size() && p_v[i].size() == 6)
       {
-        g_my_driver->writeTrajectorySplinePoint(p_p[i], p_v[i], time[i]);
+        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], p_v[i], time[i]);
       }
       else
       {
-        g_my_driver->writeTrajectorySplinePoint(p_p[i], time[i]);
+        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], time[i]);
       }
     }
   }
   URCL_LOG_INFO("Finished Sending Trajectory");
-}
-
-// We need a callback function to register. See UrDriver's parameters for details.
-void handleRobotProgramState(bool program_running)
-{
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
 }
 
 // Callback function for trajectory execution.
@@ -129,64 +122,24 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // Making the robot ready for the program by:
-  // Connect the the robot Dashboard
-  g_my_dashboard.reset(new DashboardClient(robot_ip));
-  if (!g_my_dashboard->connect())
+  bool headless_mode = true;
+  g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
+                                                     "external_control.urp");
+  if (!g_my_robot->isHealthy())
   {
-    URCL_LOG_ERROR("Could not connect to dashboard");
+    URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
 
-  // Stop program, if there is one running
-  if (!g_my_dashboard->commandStop())
-  {
-    URCL_LOG_ERROR("Could not send stop program command");
-    return 1;
-  }
-
-  // if the robot is not powered on and ready
-  std::string robot_mode_running("RUNNING");
-  while (!g_my_dashboard->commandRobotMode(robot_mode_running))
-  {
-    // Power it off
-    if (!g_my_dashboard->commandPowerOff())
-    {
-      URCL_LOG_ERROR("Could not send Power off command");
-      return 1;
-    }
-
-    // Power it on
-    if (!g_my_dashboard->commandPowerOn())
-    {
-      URCL_LOG_ERROR("Could not send Power on command");
-      return 1;
-    }
-  }
-
-  // Release the brakes
-  if (!g_my_dashboard->commandBrakeRelease())
-  {
-    URCL_LOG_ERROR("Could not send BrakeRelease command");
-    return 1;
-  }
-
-  // Now the robot is ready to receive a program
-
-  std::unique_ptr<ToolCommSetup> tool_comm_setup;
-  const bool headless = true;
-  g_my_driver.reset(new UrDriver(robot_ip, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, &handleRobotProgramState, headless,
-                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM));
-
-  g_my_driver->registerTrajectoryDoneCallback(&handleTrajectoryState);
+  g_my_robot->ur_driver_->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
   // loop.
 
-  g_my_driver->startRTDECommunication();
+  g_my_robot->ur_driver_->startRTDECommunication();
 
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
 
   if (data_pkg)
   {
@@ -209,7 +162,7 @@ int main(int argc, char* argv[])
                                             4.00000000e+00 };
 
   bool ret = false;
-  ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+  ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -246,7 +199,7 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
     if (data_pkg)
     {
       // Read current joint positions from robot data
@@ -256,7 +209,7 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -277,7 +230,7 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_driver->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
     if (data_pkg)
     {
       // Read current joint positions from robot data
@@ -287,7 +240,7 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -302,7 +255,7 @@ int main(int argc, char* argv[])
 
   URCL_LOG_INFO("QUINTIC Movement done");
 
-  ret = g_my_driver->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+  ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -311,6 +264,6 @@ int main(int argc, char* argv[])
                    lastq.str().c_str());
     return 1;
   }
-  g_my_driver->stopControl();
+  g_my_robot->ur_driver_->stopControl();
   return 0;
 }

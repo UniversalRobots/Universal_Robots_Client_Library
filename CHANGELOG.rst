@@ -2,6 +2,26 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.6.0 (2025-01-23)
+------------------
+* Do not throw exception in DashboardClient::sendRequest (`#249 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/249>`_)
+* Add instruction executor for high-level robot control (`#242 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/242>`_)
+* Modernize cmake (`#244 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/244>`_)
+* Update links to dashboard server documentation (`#243 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/243>`_)
+* Trajectory point velocities and example (`#241 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/241>`_)
+* Updated documentation (`#228 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/228>`_)
+* Update ci (`#239 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/239>`_)
+* Enable force mode compatibility with various move types (`#230 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/230>`_)
+* Update package maintainers (`#238 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/238>`_)
+* Bump codecov/codecov-action from 3 to 5 (`#234 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/234>`_)
+* Remove the not regarding MIT license (`#237 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/237>`_)
+* Bump pre-commit/action from 3.0.0 to 3.0.1 (`#236 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/236>`_)
+* Bump actions/checkout from 1 to 4 (`#232 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/232>`_)
+* Bump actions/setup-python from 4 to 5 (`#235 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/235>`_)
+* Bump actions/upload-artifact from 3 to 4 (`#233 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/233>`_)
+* Add dependabot configuration to update actions (`#231 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/231>`_)
+* Contributors: Felix Exner, Rune Søe-Knudsen, dependabot[bot]
+
 1.5.0 (2024-11-25)
 ------------------
 * Adapt RTDE output recipe based on robot response (`#221 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/221>`_)

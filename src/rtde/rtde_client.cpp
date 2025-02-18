@@ -256,7 +256,6 @@ void RTDEClient::queryURControlVersion()
 
 void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
 {
-  prod_->teardownProducer();
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
@@ -332,10 +331,11 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
       if (!unavailable_variables.empty())
       {
         std::stringstream error_message;
-        error_message << "The following variables are not recognized by the robot: ";
-        std::for_each(unavailable_variables.begin(), unavailable_variables.end(),
-                      [&error_message](const std::string& variable_name) { error_message << variable_name << " "; });
-        error_message << ". Either your output recipe contains errors "
+        error_message << "The following variables are not recognized by the robot:";
+        std::for_each(
+            unavailable_variables.begin(), unavailable_variables.end(),
+            [&error_message](const std::string& variable_name) { error_message << "\n  - '" << variable_name << "'"; });
+        error_message << "\nEither your output recipe contains errors "
                          "or the urcontrol version does not support "
                          "them.";
 
@@ -346,6 +346,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
 
           // Some variables are not available so retry setting up the communication with a stripped-down output recipe
           resetOutputRecipe(available_variables);
+          return;
         }
         else
         {
@@ -445,10 +446,16 @@ void RTDEClient::setupInputs()
 void RTDEClient::disconnect()
 {
   // If communication is started it should be paused before disconnecting
+  if (client_state_ == ClientState::RUNNING)
+  {
+    pause();
+  }
+  if (client_state_ >= ClientState::INITIALIZING)
+  {
+    pipeline_->stop();
+  }
   if (client_state_ > ClientState::UNINITIALIZED)
   {
-    sendPause();
-    pipeline_->stop();
     stream_.disconnect();
   }
   client_state_ = ClientState::UNINITIALIZED;

@@ -52,6 +52,8 @@ enum class TrajectoryResult : int32_t
   TRAJECTORY_RESULT_FAILURE = 2    ///< Aborted due to error during execution
 };
 
+std::string trajectoryResultToString(const TrajectoryResult result);
+
 /*!
  * Spline types
  */

@@ -51,7 +51,7 @@ help()
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
   echo "    -i             IP address the container should get. Defaults to $IP_ADDRESS"
-  echo "    -d             Detached mode - start in backgound"
+  echo "    -d             Detached mode - start in background"
   echo "    -f             Specify port forwarding to use. Defaults to '$PORT_FORWARDING'. Set to empty string to disable port forwarding."
   echo "    -h             Print this Help."
   echo
