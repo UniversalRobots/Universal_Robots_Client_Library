@@ -269,6 +269,19 @@ TEST_F(UrDriverTest, read_error_code)
   EXPECT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
 }
 
+TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = "192.168.56.100";  // That IP address should not exist on the test network
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+
+  EXPECT_THROW(UrDriver ur_driver(config), UrException);
+}
+
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])

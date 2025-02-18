@@ -28,6 +28,7 @@
 #ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
+#include <chrono>
 #include <functional>
 
 #include "ur_client_library/rtde/rtde_client.h"
@@ -106,6 +107,30 @@ struct UrDriverConfiguration
    * \brief Time [S], range [0.03,0.2] smoothens servoj calls with this lookahead time
    */
   double servoj_lookahead_time = 0.03;
+
+  /*!
+   * \brief Number of attempts to reconnect to sockets such as the primary or RTDE interface.
+   *
+   * If set to 0, the driver will try to reconnect indefinitely.
+   */
+  size_t socket_reconnect_attempts = 0;
+
+  /*!
+   * \brief Time in between connection attempts to sockets such as the primary or RTDE interface.
+   */
+  std::chrono::milliseconds socket_reconnection_timeout = std::chrono::seconds(10);
+
+  /*!
+   * \brief Number of attempts to initialize (given a successful socket connection) the RTDE interface.
+   *
+   * If set to 0, the driver will try to initialize the RTDE interface indefinitely.
+   */
+  size_t rtde_initialization_attempts_ = 3;
+
+  /*!
+   * \brief Time in between initialization attempts of the RTDE interface.
+   */
+  std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::seconds(5);
 
   bool non_blocking_read = false;
 
@@ -880,6 +905,12 @@ protected:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
+
+  size_t socket_connection_attempts_ = 0;
+  std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
+
+  size_t rtde_initialization_attempts_ = 0;
+  std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::milliseconds(10000);
 
   double force_mode_gain_scale_factor_ = 0.5;
   double force_mode_damping_factor_ = 0.025;

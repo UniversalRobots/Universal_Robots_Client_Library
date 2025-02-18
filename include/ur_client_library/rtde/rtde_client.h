@@ -53,7 +53,6 @@ namespace rtde_interface
 {
 static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 2;
 static const unsigned MAX_REQUEST_RETRIES = 5;
-static const unsigned MAX_INITIALIZE_ATTEMPTS = 10;
 
 enum class UrRtdeRobotStatusBits
 {
@@ -131,14 +130,21 @@ public:
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
    * used protocol version and setting of input and output recipes.
    *
-   * \param max_num_tries Maximum number of connection attempts before counting the connection as
+   * \param max_connection_attempts Maximum number of (socket) connection attempts before counting the connection as
    * failed. Unlimited number of attempts when set to 0.
-   * \param reconnection_time time in between connection attempts to the server
+   * \param reconnection_timeout Time in between connection attempts to the socket
+   * \param max_initialization_attempts Maximum number of initialization attempts before counting
+   * the initialization as failed. Initialization can
+   * fail given an established socket connection e.g. when the connected socket does not implement
+   * an RTDE interface.
+   * \param initialization_timeout Time in between initialization attempts of the RTDE interface
    *
    * \returns Success of the handshake
    */
-  bool init(const size_t max_num_tries = 0,
-            const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
+  bool init(const size_t max_connection_attempts = 0,
+            const std::chrono::milliseconds reconnection_timeout = comm::TCPSocket::DEFAULT_RECONNECTION_TIME,
+            const size_t max_initialization_attempts = 3,
+            const std::chrono::milliseconds initialization_timeout = std::chrono::seconds(1));
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
