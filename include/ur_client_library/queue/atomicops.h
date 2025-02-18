@@ -19,23 +19,23 @@
 
 // Platform detection
 #if defined(__INTEL_COMPILER)
-#define AE_ICC
+#  define AE_ICC
 #elif defined(_MSC_VER)
-#define AE_VCPP
+#  define AE_VCPP
 #elif defined(__GNUC__)
-#define AE_GCC
+#  define AE_GCC
 #endif
 
 #if defined(_M_IA64) || defined(__ia64__)
-#define AE_ARCH_IA64
+#  define AE_ARCH_IA64
 #elif defined(_WIN64) || defined(__amd64__) || defined(_M_X64) || defined(__x86_64__)
-#define AE_ARCH_X64
+#  define AE_ARCH_X64
 #elif defined(_M_IX86) || defined(__i386__)
-#define AE_ARCH_X86
+#  define AE_ARCH_X86
 #elif defined(_M_PPC) || defined(__powerpc__)
-#define AE_ARCH_PPC
+#  define AE_ARCH_PPC
 #else
-#define AE_ARCH_UNKNOWN
+#  define AE_ARCH_UNKNOWN
 #endif
 
 // AE_UNUSED
@@ -43,22 +43,22 @@
 
 // AE_FORCEINLINE
 #if defined(AE_VCPP) || defined(AE_ICC)
-#define AE_FORCEINLINE __forceinline
+#  define AE_FORCEINLINE __forceinline
 #elif defined(AE_GCC)
 // #define AE_FORCEINLINE __attribute__((always_inline))
-#define AE_FORCEINLINE inline
+#  define AE_FORCEINLINE inline
 #else
-#define AE_FORCEINLINE inline
+#  define AE_FORCEINLINE inline
 #endif
 
 // AE_ALIGN
 #if defined(AE_VCPP) || defined(AE_ICC)
-#define AE_ALIGN(x) __declspec(align(x))
+#  define AE_ALIGN(x) __declspec(align(x))
 #elif defined(AE_GCC)
-#define AE_ALIGN(x) __attribute__((aligned(x)))
+#  define AE_ALIGN(x) __attribute__((aligned(x)))
 #else
 // Assume GCC compliant syntax...
-#define AE_ALIGN(x) __attribute__((aligned(x)))
+#  define AE_ALIGN(x) __attribute__((aligned(x)))
 #endif
 
 // Portable atomic fences implemented below:
@@ -83,28 +83,28 @@ enum memory_order
 #if (defined(AE_VCPP) && (_MSC_VER < 1700 || defined(__cplusplus_cli))) || defined(AE_ICC)
 // VS2010 and ICC13 don't support std::atomic_*_fence, implement our own fences
 
-#include <intrin.h>
+#  include <intrin.h>
 
-#if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
-#define AeFullSync _mm_mfence
-#define AeLiteSync _mm_mfence
-#elif defined(AE_ARCH_IA64)
-#define AeFullSync __mf
-#define AeLiteSync __mf
-#elif defined(AE_ARCH_PPC)
-#include <ppcintrinsics.h>
-#define AeFullSync __sync
-#define AeLiteSync __lwsync
-#endif
+#  if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
+#    define AeFullSync _mm_mfence
+#    define AeLiteSync _mm_mfence
+#  elif defined(AE_ARCH_IA64)
+#    define AeFullSync __mf
+#    define AeLiteSync __mf
+#  elif defined(AE_ARCH_PPC)
+#    include <ppcintrinsics.h>
+#    define AeFullSync __sync
+#    define AeLiteSync __lwsync
+#  endif
 
-#ifdef AE_VCPP
-#pragma warning(push)
-#pragma warning(disable : 4365)  // Disable erroneous 'conversion from long to unsigned int, signed/unsigned mismatch'
-                                 // error when using `assert`
-#ifdef __cplusplus_cli
-#pragma managed(push, off)
-#endif
-#endif
+#  ifdef AE_VCPP
+#    pragma warning(push)
+#    pragma warning(disable : 4365)  // Disable erroneous 'conversion from long to unsigned int, signed/unsigned
+                                     // mismatch' error when using `assert`
+#    ifdef __cplusplus_cli
+#      pragma managed(push, off)
+#    endif
+#  endif
 
 namespace moodycamel
 {
@@ -134,7 +134,7 @@ AE_FORCEINLINE void compilerFence(memory_order order)
 // x86/x64 have a strong memory model -- all loads and stores have
 // acquire and release semantics automatically (so only need compiler
 // barriers for those).
-#if defined(AE_ARCH_X86) || defined(AE_ARCH_X64)
+#  if defined(AE_ARCH_X86) || defined(AE_ARCH_X64)
 AE_FORCEINLINE void fence(memory_order order)
 {
   switch (order)
@@ -159,7 +159,7 @@ AE_FORCEINLINE void fence(memory_order order)
       assert(false);
   }
 }
-#else
+#  else
 AE_FORCEINLINE void fence(memory_order order)
 {
   // Non-specialized arch, use heavier memory barriers everywhere just in case :-(
@@ -191,11 +191,11 @@ AE_FORCEINLINE void fence(memory_order order)
       assert(false);
   }
 }
-#endif
+#  endif
 }  // end namespace moodycamel
 #else
 // Use standard library of atomics
-#include <atomic>
+#  include <atomic>
 
 namespace moodycamel
 {
@@ -250,11 +250,11 @@ AE_FORCEINLINE void fence(memory_order order)
 #endif
 
 #if !defined(AE_VCPP) || (_MSC_VER >= 1700 && !defined(__cplusplus_cli))
-#define AE_USE_STD_ATOMIC_FOR_WEAK_ATOMIC
+#  define AE_USE_STD_ATOMIC_FOR_WEAK_ATOMIC
 #endif
 
 #ifdef AE_USE_STD_ATOMIC_FOR_WEAK_ATOMIC
-#include <atomic>
+#  include <atomic>
 #endif
 #include <utility>
 
@@ -272,7 +272,7 @@ public:
   {
   }
 #ifdef AE_VCPP
-#pragma warning(disable : 4100)  // Get rid of (erroneous) 'unreferenced formal parameter' warning
+#  pragma warning(disable : 4100)  // Get rid of (erroneous) 'unreferenced formal parameter' warning
 #endif
   template <typename U>
   WeakAtomic(U&& x) : value_(std::forward<U>(x))
@@ -291,7 +291,7 @@ public:
   {
   }
 #ifdef AE_VCPP
-#pragma warning(default : 4100)
+#  pragma warning(default : 4100)
 #endif
 
   AE_FORCEINLINE operator T() const
@@ -319,32 +319,32 @@ public:
 
   AE_FORCEINLINE T fetchAddAcquire(T increment)
   {
-#if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
+#  if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
     if (sizeof(T) == 4)
       return _InterlockedExchangeAdd((long volatile*)&value_, (long)increment);
-#if defined(_M_AMD64)
+#    if defined(_M_AMD64)
     else if (sizeof(T) == 8)
       return _InterlockedExchangeAdd64((long long volatile*)&value_, (long long)increment);
-#endif
-#else
-#error Unsupported platform
-#endif
+#    endif
+#  else
+#    error Unsupported platform
+#  endif
     assert(false && "T must be either a 32 or 64 bit type");
     return value_;
   }
 
   AE_FORCEINLINE T fetchAddRelease(T increment)
   {
-#if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
+#  if defined(AE_ARCH_X64) || defined(AE_ARCH_X86)
     if (sizeof(T) == 4)
       return _InterlockedExchangeAdd((long volatile*)&value_, (long)increment);
-#if defined(_M_AMD64)
+#    if defined(_M_AMD64)
     else if (sizeof(T) == 8)
       return _InterlockedExchangeAdd64((long long volatile*)&value_, (long long)increment);
-#endif
-#else
-#error Unsupported platform
-#endif
+#    endif
+#  else
+#    error Unsupported platform
+#  endif
     assert(false && "T must be either a 32 or 64 bit type");
     return value_;
   }
@@ -407,9 +407,9 @@ __declspec(dllimport) unsigned long __stdcall WaitForSingleObject(void* hHandle,
 __declspec(dllimport) int __stdcall ReleaseSemaphore(void* hSemaphore, long lReleaseCount, long* lpPreviousCount);
 }
 #elif defined(__MACH__)
-#include <mach/mach.h>
+#  include <mach/mach.h>
 #elif defined(__unix__)
-#include <semaphore.h>
+#  include <semaphore.h>
 #endif
 
 namespace moodycamel
@@ -625,7 +625,7 @@ public:
   }
 };
 #else
-#error Unsupported platform! (No semaphore wrapper available)
+#  error Unsupported platform! (No semaphore wrapper available)
 #endif
 
 //---------------------------------------------------------
@@ -731,8 +731,8 @@ public:
 }  // end namespace moodycamel
 
 #if defined(AE_VCPP) && (_MSC_VER < 1700 || defined(__cplusplus_cli))
-#pragma warning(pop)
-#ifdef __cplusplus_cli
-#pragma managed(pop)
-#endif
+#  pragma warning(pop)
+#  ifdef __cplusplus_cli
+#    pragma managed(pop)
+#  endif
 #endif

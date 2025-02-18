@@ -27,8 +27,8 @@
 #include <thread>
 
 #ifndef _WIN32
-#include <arpa/inet.h>
-#include <netinet/tcp.h>
+#  include <arpa/inet.h>
+#  include <netinet/tcp.h>
 #endif
 
 #include "ur_client_library/log.h"
@@ -38,12 +38,13 @@ namespace urcl
 {
 namespace comm
 {
-TCPSocket::TCPSocket() : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
+TCPSocket::TCPSocket()
+  : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
 {
 #ifdef _WIN32
   WSAData data;
   ::WSAStartup(MAKEWORD(1, 1), &data);
-#endif // _WIN32
+#endif  // _WIN32
 }
 TCPSocket::~TCPSocket()
 {
@@ -121,25 +122,24 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
 
     freeaddrinfo(result);
 
-    if (max_num_tries > 0)
-    {
-      if (connect_counter++ >= max_num_tries)
-      {
-        URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
-        state_ = SocketState::Invalid;
-        return false;
-      }
-    }
-
     if (!connected)
     {
       state_ = SocketState::Invalid;
-      std::stringstream ss;
-      ss << "Failed to connect to robot on IP " << host_name
-         << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
-         << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count() << " seconds";
-      URCL_LOG_ERROR("%s", ss.str().c_str());
-      std::this_thread::sleep_for(reconnection_time_resolved);
+      if (++connect_counter >= max_num_tries && max_num_tries > 0)
+      {
+        URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
+        return false;
+      }
+      else
+      {
+        std::stringstream ss;
+        ss << "Failed to connect to robot on IP " << host_name << ":" << port
+           << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
+           << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count()
+           << " seconds.";
+        URCL_LOG_ERROR("%s", ss.str().c_str());
+        std::this_thread::sleep_for(reconnection_time_resolved);
+      }
     }
   }
   setupOptions();
@@ -191,7 +191,11 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   if (state_ != SocketState::Connected)
     return false;
 
+#ifdef _WIN32
   ssize_t res = ::recv(socket_fd_, reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
+#else
+  ssize_t res = ::recv(socket_fd_, buf, buf_len, 0);
+#endif
 
   if (res == 0)
   {
@@ -236,7 +240,8 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
+    ssize_t sent =
+        ::send(socket_fd_, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {

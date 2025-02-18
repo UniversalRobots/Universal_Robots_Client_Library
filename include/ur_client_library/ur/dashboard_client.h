@@ -89,7 +89,7 @@ public:
    * \brief Sends command and compare it with the expected answer
    *
    * \param command Command that will be sent to the server.
-   * \param expected Expected response
+   * \param expected Expected response as a regex string
    *
    * \return True if the reply to the command is as expected
    */
@@ -99,7 +99,7 @@ public:
    * \brief Sends command and compare it with the expected answer
    *
    * \param command Command that will be sent to the server.
-   * \param expected Expected response
+   * \param expected Expected response as a regex string
    *
    * \throws UrException if the received answer does not match the expected one.
    *

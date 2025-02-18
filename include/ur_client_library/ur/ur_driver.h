@@ -28,6 +28,7 @@
 #ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
+#include <chrono>
 #include <functional>
 
 #include "ur_client_library/rtde/rtde_client.h"
@@ -38,11 +39,111 @@
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
+#include "ur_client_library/primary/primary_client.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 namespace urcl
 {
+/*!
+ * \brief Structure for configuration parameters of a UrDriver object.
+ */
+struct UrDriverConfiguration
+{
+  std::string robot_ip;            //!< IP-address under which the robot is reachable.
+  std::string script_file;         //!< URScript file that should be sent to the robot.
+  std::string output_recipe_file;  //!< Filename where the output recipe is stored in.
+  std::string input_recipe_file;   //!< Filename where the input recipe is stored in.
+
+  /*!
+   * \brief Function handle to a callback on program state changes.
+   *
+   * For this to work, the URScript program will have to send keepalive signals to the \p
+   * reverse_port.
+   */
+  std::function<void(bool)> handle_program_state;
+  bool headless_mode;  //!< Parameter to control if the driver should be started in headless mode.
+
+  std::unique_ptr<ToolCommSetup> tool_comm_setup = nullptr;  //!< Configuration for using the tool communication.
+
+  /*!
+   * \brief Port that will be opened by the driver to allow direct communication between the driver
+   * and the robot controller.
+   */
+  uint32_t reverse_port = 50001;
+
+  /*! \brief The driver will offer an interface to receive the program's URScript on this port. If
+   * the robot cannot connect to this port, `External Control` will stop immediately.
+   */
+  uint32_t script_sender_port = 50002;
+
+  /*!
+   * \brief Port used for sending trajectory points to the robot in case of trajectory forwarding.
+   */
+  uint32_t trajectory_port = 50003;
+
+  /*!
+   * \brief Port used for forwarding script commands to the robot.
+   *
+   * This interface supports a set of predefined commands.
+   * The script commands will be executed locally on the robot.
+   */
+  uint32_t script_command_port = 50004;
+
+  /*!
+   * \brief IP address that the reverse_port will get bound to.
+   *
+   * If not specified, the IP address of the interface that is used for connecting to the robot's RTDE port will be
+   * used.
+   */
+  std::string reverse_ip = "";
+
+  /*!
+   * \brief Proportional gain for arm joints following target position, range [100,2000]
+   */
+  int servoj_gain = 2000;
+
+  /*!
+   * \brief Time [S], range [0.03,0.2] smoothens servoj calls with this lookahead time
+   */
+  double servoj_lookahead_time = 0.03;
+
+  /*!
+   * \brief Number of attempts to reconnect to sockets such as the primary or RTDE interface.
+   *
+   * If set to 0, the driver will try to reconnect indefinitely.
+   */
+  size_t socket_reconnect_attempts = 0;
+
+  /*!
+   * \brief Time in between connection attempts to sockets such as the primary or RTDE interface.
+   */
+  std::chrono::milliseconds socket_reconnection_timeout = std::chrono::seconds(10);
+
+  /*!
+   * \brief Number of attempts to initialize (given a successful socket connection) the RTDE interface.
+   *
+   * If set to 0, the driver will try to initialize the RTDE interface indefinitely.
+   */
+  size_t rtde_initialization_attempts_ = 3;
+
+  /*!
+   * \brief Time in between initialization attempts of the RTDE interface.
+   */
+  std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::seconds(5);
+
+  bool non_blocking_read = false;
+
+  // TODO: Remove on 2027-05
+  // The following parameters are considered deprecated and will be removed in May 2027.
+  /// @private
+  std::string calibration_checksum = "";
+  /// @private
+  double force_mode_damping = 0.025;
+  /// @private
+  double force_mode_gain_scaling = 0.5;
+};
+
 /*!
  * \brief This is the main class for interfacing the driver.
  *
@@ -55,6 +156,25 @@ class UrDriver
 public:
   /*!
    * \brief Constructs a new UrDriver object.
+   *
+   * An RTDE connection to the robot will be established using the given recipe files. However, RTDE
+   * communication will not be started automatically, as this requires an external structure to read
+   * data from the RTDE client using the getDataPackage() method periodically. Once this is setup,
+   * please use the startRTDECommunication() method to actually start RTDE communication.
+   *
+   * \param config Configuration struct for the UrDriver. See it's documentation for details.
+   */
+  explicit UrDriver(const UrDriverConfiguration& config)
+  {
+    init(config);
+  }
+
+  /*!
+   * \brief Constructs a new UrDriver object.
+   *
+   * \deprecated Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const
+   *             UrDriverConfiguration& config) instead. This function will be removed in May 2027.
+   *
    * Upon initialization this class will check the calibration checksum reported from the robot and
    * compare it to a checksum given by the user. If the checksums don't match, the driver will output
    * an error message. This is critical if you want to do forward or inverse kinematics based on the
@@ -93,15 +213,41 @@ public:
    * \param script_command_port Port used for forwarding script commands to the robot. The script commands will be
    * executed locally on the robot.
    */
+  // Called sigA in tests
+  [[deprecated("Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const "
+               "UrDriverConfiguration& config) instead. This function will be removed in May 2027.")]]
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port = 50001,
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
-           const uint32_t script_command_port = 50004);
+           const uint32_t script_command_port = 50004)
+  {
+    UrDriverConfiguration config;
+    config.robot_ip = robot_ip;
+    config.script_file = script_file;
+    config.output_recipe_file = output_recipe_file;
+    config.input_recipe_file = input_recipe_file;
+    config.handle_program_state = handle_program_state;
+    config.headless_mode = headless_mode;
+    config.tool_comm_setup = std::move(tool_comm_setup);
+    config.reverse_port = reverse_port;
+    config.script_sender_port = script_sender_port;
+    config.servoj_gain = servoj_gain;
+    config.servoj_lookahead_time = servoj_lookahead_time;
+    config.non_blocking_read = non_blocking_read;
+    config.reverse_ip = reverse_ip;
+    config.trajectory_port = trajectory_port;
+    config.script_command_port = script_command_port;
+    init(config);
+  }
 
   /*!
    * \brief Constructs a new UrDriver object.
+   *
+   * \deprecated Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const
+   *             UrDriverConfiguration& config) instead. This function will be removed in May 2027.
+   *
    * \param robot_ip IP-address under which the robot is reachable.
    * \param script_file URScript file that should be sent to the robot.
    * \param output_recipe_file Filename where the output recipe is stored in.
@@ -128,28 +274,43 @@ public:
    * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
    * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
-  [[deprecated(
-      "Specifying the force mode damping factor and the force mode gain scaling factor at driver creation has "
-      "been deprecated. Force mode parameters should be specified with each activiation of force mode, and "
-      "can be set in the function call to start force mode.")]] UrDriver(const std::string& robot_ip,
-                                                                         const std::string& script_file,
-                                                                         const std::string& output_recipe_file,
-                                                                         const std::string& input_recipe_file,
-                                                                         std::function<void(bool)> handle_program_state,
-                                                                         bool headless_mode,
-                                                                         std::unique_ptr<ToolCommSetup> tool_comm_setup,
-                                                                         const uint32_t reverse_port,
-                                                                         const uint32_t script_sender_port,
-                                                                         int servoj_gain, double servoj_lookahead_time,
-                                                                         bool non_blocking_read,
-                                                                         const std::string& reverse_ip,
-                                                                         const uint32_t trajectory_port,
-                                                                         const uint32_t script_command_port,
-                                                                         double force_mode_damping,
-                                                                         double force_mode_gain_scaling = 0.5);
+  // Called sigB in tests
+  [[deprecated("Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const "
+               "UrDriverConfiguration& config) instead. This function will be removed in May 2027.")]]
+  UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
+           const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
+           std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
+           const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time, bool non_blocking_read,
+           const std::string& reverse_ip, const uint32_t trajectory_port, const uint32_t script_command_port,
+           double force_mode_damping, double force_mode_gain_scaling = 0.5)
+  {
+    UrDriverConfiguration config;
+    config.robot_ip = robot_ip;
+    config.script_file = script_file;
+    config.output_recipe_file = output_recipe_file;
+    config.input_recipe_file = input_recipe_file;
+    config.handle_program_state = handle_program_state;
+    config.headless_mode = headless_mode;
+    config.tool_comm_setup = std::move(tool_comm_setup);
+    config.reverse_port = reverse_port;
+    config.script_sender_port = script_sender_port;
+    config.servoj_gain = servoj_gain;
+    config.servoj_lookahead_time = servoj_lookahead_time;
+    config.non_blocking_read = non_blocking_read;
+    config.reverse_ip = reverse_ip;
+    config.trajectory_port = trajectory_port;
+    config.script_command_port = script_command_port;
+    config.force_mode_damping = force_mode_damping;
+    config.force_mode_gain_scaling = force_mode_gain_scaling;
+    init(config);
+  }
 
   /*!
    * \brief Constructs a new UrDriver object.
+   *
+   * \deprecated Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const
+   *             UrDriverConfiguration& config) instead. This function will be removed in May 2027.
+   *
    * \param robot_ip IP-address under which the robot is reachable.
    * \param script_file URScript file that should be sent to the robot.
    * \param output_recipe_file Filename where the output recipe is stored in.
@@ -177,15 +338,43 @@ public:
    * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
    * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
+  // Called sigC in tests
+  [[deprecated("Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const "
+               "UrDriverConfiguration& config) instead. This function will be removed in May 2027.")]]
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            std::unique_ptr<ToolCommSetup> tool_comm_setup, const std::string& calibration_checksum,
            const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
            double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
            const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004,
-           double force_mode_damping = 0.025, double force_mode_gain_scaling = 0.5);
+           double force_mode_damping = 0.025, double force_mode_gain_scaling = 0.5)
+  {
+    UrDriverConfiguration config;
+    config.robot_ip = robot_ip;
+    config.script_file = script_file;
+    config.output_recipe_file = output_recipe_file;
+    config.input_recipe_file = input_recipe_file;
+    config.handle_program_state = handle_program_state;
+    config.headless_mode = headless_mode;
+    config.calibration_checksum = calibration_checksum;
+    config.tool_comm_setup = std::move(tool_comm_setup);
+    config.reverse_port = reverse_port;
+    config.script_sender_port = script_sender_port;
+    config.servoj_gain = servoj_gain;
+    config.servoj_lookahead_time = servoj_lookahead_time;
+    config.non_blocking_read = non_blocking_read;
+    config.reverse_ip = reverse_ip;
+    config.trajectory_port = trajectory_port;
+    config.script_command_port = script_command_port;
+    config.force_mode_damping = force_mode_damping;
+    config.force_mode_gain_scaling = force_mode_gain_scaling;
+    init(config);
+  }
   /*!
    * \brief Constructs a new UrDriver object.
+   *
+   * \deprecated Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const
+   *             UrDriverConfiguration& config) instead. This function will be removed in May 2027.
    *
    * \param robot_ip IP-address under which the robot is reachable.
    * \param script_file URScript file that should be sent to the robot.
@@ -213,6 +402,9 @@ public:
    * \param force_mode_damping The damping parameter used when the robot is in force mode, range [0,1]
    * \param force_mode_gain_scaling Scales the gain used when the robot is in force mode, range [0,2] (only e-series)
    */
+  // Called sigD in tests
+  [[deprecated("Initializing a UrDriver object with an argument list is deprecated. Please use UrDriver(const "
+               "UrDriverConfiguration& config) instead. This function will be removed in May 2027.")]]
   UrDriver(const std::string& robot_ip, const std::string& script_file, const std::string& output_recipe_file,
            const std::string& input_recipe_file, std::function<void(bool)> handle_program_state, bool headless_mode,
            const std::string& calibration_checksum = "", const uint32_t reverse_port = 50001,
@@ -220,11 +412,26 @@ public:
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
            const uint32_t script_command_port = 50004, double force_mode_damping = 0.025,
            double force_mode_gain_scaling = 0.5)
-    : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
-               std::unique_ptr<ToolCommSetup>{}, calibration_checksum, reverse_port, script_sender_port, servoj_gain,
-               servoj_lookahead_time, non_blocking_read, reverse_ip, trajectory_port, script_command_port,
-               force_mode_damping, force_mode_gain_scaling)
   {
+    UrDriverConfiguration config;
+    config.robot_ip = robot_ip;
+    config.script_file = script_file;
+    config.output_recipe_file = output_recipe_file;
+    config.input_recipe_file = input_recipe_file;
+    config.handle_program_state = handle_program_state;
+    config.headless_mode = headless_mode;
+    config.calibration_checksum = calibration_checksum;
+    config.reverse_port = reverse_port;
+    config.script_sender_port = script_sender_port;
+    config.servoj_gain = servoj_gain;
+    config.servoj_lookahead_time = servoj_lookahead_time;
+    config.non_blocking_read = non_blocking_read;
+    config.reverse_ip = reverse_ip;
+    config.trajectory_port = trajectory_port;
+    config.script_command_port = script_command_port;
+    config.force_mode_damping = force_mode_damping;
+    config.force_mode_gain_scaling = force_mode_gain_scaling;
+    init(config);
   }
 
   virtual ~UrDriver() = default;
@@ -535,6 +742,15 @@ public:
   bool checkCalibration(const std::string& checksum);
 
   /*!
+   *  \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
+   * deleted.
+   *
+   *  \returns list of error codes
+   *
+   */
+  std::deque<urcl::primary_interface::ErrorCode> getErrorCodes();
+
+  /*!
    * \brief Getter for the RTDE writer used to write to the robot's RTDE interface.
    *
    * \returns The active RTDE writer
@@ -647,13 +863,26 @@ public:
   void resetRTDEClient(const std::string& output_recipe_filename, const std::string& input_recipe_filename,
                        double target_frequency = 0.0, bool ignore_unavailable_outputs = false);
 
+  /*!
+   *  \brief Starts the primary client
+   */
+  void startPrimaryClientCommunication();
+
+  void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
+  {
+    trajectory_interface_->registerDisconnectionCallback(fun);
+  }
+
   static std::string readScriptFile(const std::string& filename);
 
-protected:
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+  void closeSecondaryStream()
+  {
+    secondary_stream_->close();
+  }
 
 private:
+  void init(const UrDriverConfiguration& config);
+
   /*!
    * \brief Reconnects the secondary stream used to send program to the robot.
    *
@@ -668,10 +897,19 @@ private:
 
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
+  std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
+  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
+  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
+
+  size_t socket_connection_attempts_ = 0;
+  std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
+
+  size_t rtde_initialization_attempts_ = 0;
+  std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::milliseconds(10000);
 
   double force_mode_gain_scale_factor_ = 0.5;
   double force_mode_damping_factor_ = 0.025;

@@ -26,6 +26,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <filesystem>
 #include <iostream>
 #include <regex>
 #include <thread>
@@ -34,9 +35,8 @@
 #include <ur_client_library/exceptions.h>
 
 #ifndef _WIN32
-#include <unistd.h>
+#  include <unistd.h>
 #endif  // !_WIN32
-
 
 using namespace std::chrono_literals;
 
@@ -164,7 +164,7 @@ bool DashboardClient::sendRequest(const std::string& command, const std::string&
   bool ret = std::regex_match(response, std::regex(expected));
   if (!ret)
   {
-    throw UrException("Expected: " + expected + ", but received: " + response);
+    URCL_LOG_WARN("Expected: \"%s\", but received: \"%s\"", expected.c_str(), response.c_str());
   }
   return ret;
 }
@@ -250,8 +250,12 @@ bool DashboardClient::commandBrakeRelease()
 bool DashboardClient::commandLoadProgram(const std::string& program_file_name)
 {
   assertVersion("5.0.0", "1.4", "load <program>");
+  // We load the program, which will fail if the program is not found or the requested file does
+  // not contain a valid program. Afterwards, we wait until the program state is stopped with a
+  // program named the same as the requested program. We cannot check the full file path here, but
+  // the important thing is that the program state is stopped.
   return sendRequest("load " + program_file_name + "", "(?:Loading program: ).*(?:" + program_file_name + ").*") &&
-         waitForReply("programState", "STOPPED " + program_file_name);
+         waitForReply("programState", "STOPPED " + std::filesystem::path{ program_file_name }.filename().string());
 }
 
 bool DashboardClient::commandLoadInstallation(const std::string& installation_file_name)

@@ -29,6 +29,8 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <mutex>
+#include <algorithm>
 
 namespace urcl
 {
@@ -83,7 +85,7 @@ public:
 
 /*!
  * \brief Consumer, that allows one product to be consumed by multiple arbitrary
- * conusmers.
+ * consumers.
  *
  * @tparam T Type of the consumed products
  */
@@ -91,7 +93,7 @@ template <typename T>
 class MultiConsumer : public IConsumer<T>
 {
 private:
-  std::vector<IConsumer<T>*> consumers_;
+  std::vector<std::shared_ptr<IConsumer<T>>> consumers_;
 
 public:
   /*!
@@ -99,8 +101,36 @@ public:
    *
    * \param consumers The list of consumers that should all consume given products
    */
-  MultiConsumer(std::vector<IConsumer<T>*> consumers) : consumers_(consumers)
+  MultiConsumer(std::vector<std::shared_ptr<IConsumer<T>>> consumers) : consumers_(consumers)
   {
+  }
+
+  /*!
+   * \brief Adds a new consumer to the list of consumers
+   *
+   * \param consumer Consumer that should be added to the list
+   */
+  void addConsumer(std::shared_ptr<IConsumer<T>> consumer)
+  {
+    std::lock_guard<std::mutex> lk(consumer_list_);
+    consumers_.push_back(consumer);
+  }
+
+  /*!
+   * \brief Remove a consumer from the list of consumers
+   *
+   * \param consumer Consumer that should be removed from the list
+   */
+  void removeConsumer(std::shared_ptr<IConsumer<T>> consumer)
+  {
+    std::lock_guard<std::mutex> lk(consumer_list_);
+    auto it = std::find(consumers_.begin(), consumers_.end(), consumer);
+    if (it == consumers_.end())
+    {
+      URCL_LOG_ERROR("Unable to remove consumer as it is not part of the consumer list");
+      return;
+    }
+    consumers_.erase(it);
   }
 
   /*!
@@ -153,6 +183,7 @@ public:
    */
   bool consume(std::shared_ptr<T> product)
   {
+    std::lock_guard<std::mutex> lk(consumer_list_);
     bool res = true;
     for (auto& con : consumers_)
     {
@@ -161,6 +192,9 @@ public:
     }
     return res;
   }
+
+private:
+  std::mutex consumer_list_;
 };
 
 /*!
@@ -234,7 +268,7 @@ public:
 };
 
 /*!
- * \brief The Pipepline manages the production and optionally consumption of packages. Cyclically
+ * \brief The Pipeline manages the production and optionally consumption of packages. Cyclically
  * the producer is called and returned packages are saved in a queue. This queue is then either also
  * cyclically utilized by the registered consumer or can be externally used.
  *

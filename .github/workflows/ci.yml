@@ -4,7 +4,9 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
+  schedule:
+    - cron: '38 2 * * *'
 
 jobs:
   build:
@@ -15,22 +17,13 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            CTEST_OUTPUT_ON_FAILURE: 1
-            ROBOT_MODEL: 'ur5'
+          - ROBOT_MODEL: 'ur5'
             URSIM_VERSION: '3.14.3'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
-          - DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            CTEST_OUTPUT_ON_FAILURE: 1
-            ROBOT_MODEL: 'ur5e'
+          - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '5.9.4'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          - DOCKER_RUN_OPTS: --network ursim_net
-            BEFORE_INIT: 'apt-get update -qq && apt-get install -y iproute2 iputils-ping && ip addr && ping -c5 192.168.56.101'
-            CTEST_OUTPUT_ON_FAILURE: 1
-            ROBOT_MODEL: 'ur20'
+          - ROBOT_MODEL: 'ur20'
             URSIM_VERSION: 'latest'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
@@ -39,7 +32,11 @@ jobs:
       - name: start ursim
         run: |
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
-        env: ${{matrix.env}}
+        env:
+          DOCKER_RUN_OPTS: --network ursim_net
+          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
@@ -51,7 +48,13 @@ jobs:
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts
       - name: test
-        run: cd build && ctest --output-on-failure
+        run: cd build && ctest --output-on-failure --output-junit junit.xml
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
@@ -63,6 +66,7 @@ jobs:
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
       - name: Generate URSim log files
         if: always()
         run: |
@@ -103,5 +107,5 @@ jobs:
         run: |
           .github/helpers/check_urls.sh \
             -d ".git build CMakeModules debian" \
-            -f "package.xml urcl_architecture.svg trajectory_interface.svg dataflow.graphml start_ursim.sh" \
+            -f "package.xml urcl_architecture.svg trajectory_interface.svg dataflow.graphml start_ursim.sh ursim_docker.rst" \
             -p "vnc\.html opensource\.org\/licenses\/BSD-3-Clause kernel\.org\/pub\/linux\/kernel"

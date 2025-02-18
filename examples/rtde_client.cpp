@@ -27,6 +27,7 @@
 
 #include <ur_client_library/rtde/rtde_client.h>
 
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <ctime>
@@ -39,6 +40,20 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const std::chrono::milliseconds READ_TIMEOUT{ 100 };
+
+void printFraction(const double fraction, const std::string& label, const size_t width = 20)
+{
+  std::cout << "\r" << label << ": [";
+  for (size_t i = 0; i < std::ceil(fraction * width); i++)
+  {
+    std::cout << "#";
+  }
+  for (size_t i = 0; i < std::floor((1.0 - fraction) * width); i++)
+  {
+    std::cout << "-";
+  }
+  std::cout << "]" << std::flush;
+}
 
 int main(int argc, char* argv[])
 {
@@ -56,13 +71,14 @@ int main(int argc, char* argv[])
     second_to_run = std::stoi(argv[2]);
   }
 
-  // TODO: Write good docstring for notifier
   comm::INotifier notifier;
-  rtde_interface::RTDEClient my_client(robot_ip, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
+  const double rtde_frequency = 50;  // Hz
+  rtde_interface::RTDEClient my_client(robot_ip, notifier, OUTPUT_RECIPE, INPUT_RECIPE, rtde_frequency);
   my_client.init();
 
   // We will use the speed_slider_fraction as an example how to write to RTDE
   double speed_slider_fraction = 1.0;
+  double target_speed_fraction = 1.0;
   double speed_slider_increment = 0.01;
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
@@ -70,8 +86,10 @@ int main(int argc, char* argv[])
   // loop.
   my_client.start();
 
-  unsigned long start_time = clock();
-  while (second_to_run < 0 || ((clock() - start_time) / CLOCKS_PER_SEC) < static_cast<unsigned int>(second_to_run))
+  auto start_time = std::chrono::steady_clock::now();
+  while (second_to_run <= 0 ||
+         std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
+             second_to_run)
   {
     // Read latest RTDE package. This will block for READ_TIMEOUT, so the
     // robot will effectively be in charge of setting the frequency of this loop unless RTDE
@@ -81,19 +99,16 @@ int main(int argc, char* argv[])
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
     if (data_pkg)
     {
-      std::cout << data_pkg->toString() << std::endl;
+      // Data fields in the data package are accessed by their name. Only names present in the
+      // output recipe can be accessed. Otherwise this function will return false.
+      data_pkg->getData("target_speed_fraction", target_speed_fraction);
+      printFraction(target_speed_fraction, "target_speed_fraction");
     }
     else
     {
+      // The client isn't connected properly anymore / doesn't receive any data anymore. Stop the
+      // program.
       std::cout << "Could not get fresh data package from robot" << std::endl;
-      return 1;
-    }
-
-    if (!my_client.getWriter().sendSpeedSlider(speed_slider_fraction))
-    {
-      // This will happen for example, when the required keys are not configured inside the input
-      // recipe.
-      std::cout << "\033[1;31mSending RTDE data failed." << "\033[0m\n" << std::endl;
       return 1;
     }
 
@@ -111,6 +126,14 @@ int main(int argc, char* argv[])
       speed_slider_increment *= -1;
     }
     speed_slider_fraction += speed_slider_increment;
+
+    if (!my_client.getWriter().sendSpeedSlider(speed_slider_fraction))
+    {
+      // This will happen for example, when the required keys are not configured inside the input
+      // recipe.
+      std::cout << "\033[1;31mSending RTDE data failed." << "\033[0m\n" << std::endl;
+      return 1;
+    }
   }
 
   // Resetting the speedslider back to 100%

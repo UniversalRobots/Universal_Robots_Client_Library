@@ -22,9 +22,11 @@ add_library(urcl
     src/control/trajectory_point_interface.cpp
     src/control/script_command_interface.cpp
     src/primary/primary_package.cpp
+    src/primary/primary_client.cpp
     src/primary/robot_message.cpp
     src/primary/robot_state.cpp
     src/primary/robot_message/version_message.cpp
+    src/primary/robot_message/error_code_message.cpp
     src/primary/robot_state/kinematics_info.cpp
     src/rtde/control_package_pause.cpp
     src/rtde/control_package_setup_inputs.cpp
@@ -39,11 +41,13 @@ add_library(urcl
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
     src/ur/dashboard_client.cpp
+    src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp
     src/ur/robot_receive_timeout.cpp
     src/ur/version_information.cpp
     src/rtde/rtde_writer.cpp
     src/default_log_handler.cpp
+    src/example_robot_wrapper.cpp
     src/log.cpp
     src/helpers.cpp
 )

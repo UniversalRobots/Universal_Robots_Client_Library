@@ -8,7 +8,7 @@ be used in conjunction with the :ref:`reverse_interface` during trajectory forwa
 
 Communication regarding trajectory point execution would usually look like this:
 
-.. figure:: /images/trajectory_interface.svg
+.. figure:: ../images/trajectory_interface.svg
    :width: 100%
    :alt: Trajectory interface
 
@@ -16,6 +16,15 @@ Basically, the ``TrajectoryPointInterface`` transfers the trajectory points from
 control PC to the robot for execution. Execution isn't started, before a start command is sent via
 the ``ReverseInterface``. Once trajectory execution is done (either successful, failed or canceled
 externally), the robot will send a response back to the control PC via the trajectory socket.
+
+.. note::
+   The ``TrajectoryPointInterface`` simply forwards the trajectory points to the robot. Execution
+   is done using respective URScript functions such as `movej
+   <https://www.universal-robots.com/manuals/EN/HTML/SW5_20/Content/prod-scriptmanual/G5/movej_qa14v105t0r.htm>`_
+   or `movel
+   <https://www.universal-robots.com/manuals/EN/HTML/SW5_20/Content/prod-scriptmanual/G5/movel_posea12v025t.htm>`_.
+   Therefore, all parameters and restrictions of these functions apply. For example, velocity and
+   acceleration parameters will be ignored if there is a time > 0 given.
 
 
 Communication protocol

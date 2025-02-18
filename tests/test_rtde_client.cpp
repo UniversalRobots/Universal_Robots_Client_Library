@@ -211,7 +211,7 @@ TEST_F(RTDEClientTest, set_target_frequency)
   data_pkg->getData("timestamp", second_time_stamp);
 
   // There should be 1 second between each timestamp
-  EXPECT_EQ(second_time_stamp - first_time_stamp, 1);
+  EXPECT_NEAR(second_time_stamp - first_time_stamp, 1, 1e-6);
 
   client_->pause();
 }
@@ -380,7 +380,7 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,
                                                input_recipe_file_, 0.0, true));
 
-  EXPECT_NO_THROW(client_->init());
+  EXPECT_TRUE(client_->init());
   client_->start();
 
   // Test that we can receive and parse the timestamp from the received package to prove the setup was successful

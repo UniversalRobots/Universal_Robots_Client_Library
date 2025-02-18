@@ -14,6 +14,7 @@ well as a couple of standalone modules to directly use subsets of the library's 
    architecture/script_sender
    architecture/trajectory_point_interface
    architecture/ur_driver
+   architecture/instruction_executor
 
 
 Dataflow overview with UrDriver

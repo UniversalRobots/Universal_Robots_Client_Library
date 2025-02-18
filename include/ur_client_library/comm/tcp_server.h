@@ -29,14 +29,12 @@
 #ifndef UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 
-
 #include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>
 
 #include "ur_client_library/comm/socket_t.h"
-
 
 namespace urcl
 {

@@ -37,7 +37,6 @@
 #include <algorithm>
 #include <system_error>
 
-
 namespace urcl
 {
 namespace comm

@@ -33,13 +33,19 @@
 #include <fstream>
 #include <iostream>
 
+// clang-format off
+// We want to keep the URL in one line to avoid formatting issues. This will make it easier to
+// extract the URL for an automatic check.
+const std::string RT_DOC_URL = "https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_client_library/doc/real_time.html";
+// clang-format on
+
 namespace urcl
 {
 bool setFiFoScheduling(pthread_t& thread, const int priority)
 {
 #ifdef _WIN32
   return ::SetThreadPriority(thread, priority);
-#else // _WIN32
+#else  // _WIN32
   struct sched_param params;
   params.sched_priority = priority;
   int ret = pthread_setschedparam(thread, SCHED_FIFO, &params);
@@ -51,8 +57,8 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
       {
         URCL_LOG_WARN("Your system/user seems not to be setup for FIFO scheduling. We recommend using a lowlatency "
                       "kernel with FIFO scheduling. See "
-                      "https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/"
-                      "doc/real_time.md for details.");
+                      "%s for details.",
+                      RT_DOC_URL.c_str());
         break;
       }
       default:

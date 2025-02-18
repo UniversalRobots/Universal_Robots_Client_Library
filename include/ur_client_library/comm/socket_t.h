@@ -18,18 +18,18 @@
 
 #ifdef _WIN32
 
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <WinSock2.h>
-#include <ws2tcpip.h>
+#  define NOMINMAX
+#  define WIN32_LEAN_AND_MEAN
+#  include <WinSock2.h>
+#  include <ws2tcpip.h>
 
-#ifndef TCP_QUICKACK
-#define TCP_QUICKACK 12
-#endif
+#  ifndef TCP_QUICKACK
+#    define TCP_QUICKACK 12
+#  endif
 
-#ifdef ERROR
-#undef ERROR
-#endif  // ERROR
+#  ifdef ERROR
+#    undef ERROR
+#  endif  // ERROR
 
 typedef SOCKET socket_t;
 typedef SSIZE_T ssize_t;
@@ -44,20 +44,20 @@ static inline int ur_close(socket_t s)
   return ::closesocket(s);
 }
 
-#else // _WIN32
+#else  // _WIN32
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#  include <netdb.h>
+#  include <sys/socket.h>
+#  include <sys/types.h>
+#  include <unistd.h>
 
 typedef int socket_t;
 
-#ifndef INVALID_SOCKET
-#define INVALID_SOCKET (-1)
-#endif
+#  ifndef INVALID_SOCKET
+#    define INVALID_SOCKET (-1)
+#  endif
 
-#define ur_setsockopt setsockopt
-#define ur_close close
+#  define ur_setsockopt setsockopt
+#  define ur_close close
 
 #endif  //  _WIN32

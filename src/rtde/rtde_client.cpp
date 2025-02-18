@@ -28,7 +28,9 @@
 
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/log.h"
 #include <algorithm>
+#include <chrono>
 
 namespace urcl
 {
@@ -74,26 +76,34 @@ RTDEClient::~RTDEClient()
   disconnect();
 }
 
-bool RTDEClient::init(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
+bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::milliseconds reconnection_timeout,
+                      const size_t max_initialization_attempts, const std::chrono::milliseconds initialization_timeout)
 {
+  if (max_initialization_attempts <= 0)
+  {
+    throw UrException("The number of initialization attempts has to be greater than 0.");
+  }
+
   if (client_state_ > ClientState::UNINITIALIZED)
   {
     return true;
   }
 
   unsigned int attempts = 0;
-  while (attempts < MAX_INITIALIZE_ATTEMPTS)
+  while (attempts < max_initialization_attempts)
   {
-    setupCommunication(max_num_tries, reconnection_time);
+    setupCommunication(max_connection_attempts, reconnection_timeout);
     if (client_state_ == ClientState::INITIALIZED)
       return true;
 
-    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in 10 seconds");
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    attempts++;
+    if (++attempts < max_initialization_attempts)
+    {
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
+      std::this_thread::sleep_for(initialization_timeout);
+    }
   }
   std::stringstream ss;
-  ss << "Failed to initialize RTDE client after " << MAX_INITIALIZE_ATTEMPTS << " attempts";
+  ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
   throw UrException(ss.str());
 }
 
@@ -241,7 +251,7 @@ void RTDEClient::queryURControlVersion()
     else
     {
       std::stringstream ss;
-      ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
+      ss << "Did not receive URControl version from robot. Message received instead: " << std::endl
          << package->toString() << ". Retrying...";
       num_retries++;
       URCL_LOG_WARN("%s", ss.str().c_str());
@@ -256,7 +266,6 @@ void RTDEClient::queryURControlVersion()
 
 void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
 {
-  prod_->teardownProducer();
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
@@ -332,10 +341,11 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
       if (!unavailable_variables.empty())
       {
         std::stringstream error_message;
-        error_message << "The following variables are not recognized by the robot: ";
-        std::for_each(unavailable_variables.begin(), unavailable_variables.end(),
-                      [&error_message](const std::string& variable_name) { error_message << variable_name << " "; });
-        error_message << ". Either your output recipe contains errors "
+        error_message << "The following variables are not recognized by the robot:";
+        std::for_each(
+            unavailable_variables.begin(), unavailable_variables.end(),
+            [&error_message](const std::string& variable_name) { error_message << "\n  - '" << variable_name << "'"; });
+        error_message << "\nEither your output recipe contains errors "
                          "or the urcontrol version does not support "
                          "them.";
 
@@ -346,6 +356,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
 
           // Some variables are not available so retry setting up the communication with a stripped-down output recipe
           resetOutputRecipe(available_variables);
+          return;
         }
         else
         {
@@ -445,10 +456,16 @@ void RTDEClient::setupInputs()
 void RTDEClient::disconnect()
 {
   // If communication is started it should be paused before disconnecting
+  if (client_state_ == ClientState::RUNNING)
+  {
+    pause();
+  }
+  if (client_state_ >= ClientState::INITIALIZING)
+  {
+    pipeline_->stop();
+  }
   if (client_state_ > ClientState::UNINITIALIZED)
   {
-    sendPause();
-    pipeline_->stop();
     stream_.disconnect();
   }
   client_state_ = ClientState::UNINITIALIZED;
