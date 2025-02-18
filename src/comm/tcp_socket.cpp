@@ -109,25 +109,24 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
 
     freeaddrinfo(result);
 
-    if (max_num_tries > 0)
-    {
-      if (connect_counter++ >= max_num_tries)
-      {
-        URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
-        state_ = SocketState::Invalid;
-        return false;
-      }
-    }
-
     if (!connected)
     {
       state_ = SocketState::Invalid;
-      std::stringstream ss;
-      ss << "Failed to connect to robot on IP " << host_name
-         << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
-         << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count() << " seconds";
-      URCL_LOG_ERROR("%s", ss.str().c_str());
-      std::this_thread::sleep_for(reconnection_time_resolved);
+      if (++connect_counter >= max_num_tries && max_num_tries > 0)
+      {
+        URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
+        return false;
+      }
+      else
+      {
+        std::stringstream ss;
+        ss << "Failed to connect to robot on IP " << host_name << ":" << port
+           << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
+           << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count()
+           << " seconds.";
+        URCL_LOG_ERROR("%s", ss.str().c_str());
+        std::this_thread::sleep_for(reconnection_time_resolved);
+      }
     }
   }
   setupOptions();

@@ -60,10 +60,10 @@ PrimaryClient::~PrimaryClient()
   pipeline_->stop();
 }
 
-void PrimaryClient::start()
+void PrimaryClient::start(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   URCL_LOG_INFO("Starting primary client pipeline");
-  pipeline_->init();
+  pipeline_->init(max_num_tries, reconnection_time);
   pipeline_->run();
 }
 

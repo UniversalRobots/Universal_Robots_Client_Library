@@ -60,6 +60,10 @@ void UrDriver::init(const UrDriverConfiguration& config)
   servoj_lookahead_time_ = config.servoj_lookahead_time;
   handle_program_state_ = config.handle_program_state;
   in_headless_mode_ = config.headless_mode;
+  socket_connection_attempts_ = config.socket_reconnect_attempts;
+  socket_reconnection_timeout_ = config.socket_reconnection_timeout;
+  rtde_initialization_attempts_ = config.rtde_initialization_attempts_;
+  rtde_initialization_timeout_ = config.rtde_initialization_timeout_;
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
@@ -70,7 +74,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
   secondary_stream_.reset(
       new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
-  secondary_stream_->connect();
+  secondary_stream_->connect(socket_connection_attempts_, socket_reconnection_timeout_);
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
@@ -691,7 +695,8 @@ void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const 
 
 void UrDriver::initRTDE()
 {
-  if (!rtde_client_->init())
+  if (!rtde_client_->init(socket_connection_attempts_, socket_reconnection_timeout_, rtde_initialization_attempts_,
+                          rtde_initialization_timeout_))
   {
     throw UrException("Initialization of RTDE client went wrong.");
   }
@@ -706,7 +711,7 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
 
 void UrDriver::startPrimaryClientCommunication()
 {
-  primary_client_->start();
+  primary_client_->start(socket_connection_attempts_, socket_reconnection_timeout_);
 }
 
 std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
