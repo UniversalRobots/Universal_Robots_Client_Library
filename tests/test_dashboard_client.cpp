@@ -242,6 +242,13 @@ TEST_F(DashboardClientTest, connecting_twice_returns_false)
   EXPECT_FALSE(dashboard_client_->connect());
 }
 
+TEST_F(DashboardClientTest, load_program_in_subdir_works)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+
+  ASSERT_TRUE(dashboard_client_->commandLoadProgram("/ursim/programs/wait_program.urp"));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
