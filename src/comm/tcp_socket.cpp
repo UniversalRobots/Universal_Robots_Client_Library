@@ -191,7 +191,11 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   if (state_ != SocketState::Connected)
     return false;
 
+#ifdef _WIN32
   ssize_t res = ::recv(socket_fd_, reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
+#else
+  ssize_t res = ::recv(socket_fd_, buf, buf_len, 0);
+#endif
 
   if (res == 0)
   {
