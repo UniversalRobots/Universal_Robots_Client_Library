@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.7.0 (2025-02-19)
+------------------
 * Make UrDriver tests run without ctest (`#270 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/270>`_)
 * UrDriver: Send program in headless mode after creating trajectory and script_command servers (`#271 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/271>`_)
 * Improve limit check (`#256 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/256>`_)
