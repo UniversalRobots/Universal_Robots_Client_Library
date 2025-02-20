@@ -99,16 +99,23 @@ def targetWithinLimits(step_start, step_end, time):
   while idx < 6:
     local velocity = norm(step_end[idx] - step_start[idx]) / time
     if velocity > JOINT_IGNORE_SPEED:
-      local str = str_cat(str_cat("Velocity ", velocity), str_cat(str_cat(" required to reach the received target ", step_end), str_cat(str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))
+      local str = str_cat(
+        str_cat("Velocity ", velocity), str_cat(
+          str_cat(" required in joint ", idx), str_cat(
+            str_cat(" to go from ", step_start[idx]), str_cat(
+              str_cat(" to ", step_end[idx]), str_cat(
+                str_cat(" within ", time), " seconds is exceeding the joint velocity limits. Ignoring commands until a valid command is received.")))))
       if violation_popup_counter == 0:
         # We want a popup when an invalid commant is sent. As long as we keep sending invalid
         # commands, we do not want to repeat the popup.
-        popup(str, title="External Control error", blocking=False, error=True)
+        popup(str, title="External Control speed limit", blocking=False, warning=True)
       end
       if violation_popup_counter * get_steptime() % 5.0 == 0:
         # We want to have a log printed regularly. We are receiving motion commands that are not
         # feasible. The user should have a chance to know about this.
         textmsg(str)
+        textmsg("start configuration: ", step_start)
+        textmsg("end   configuration: ", step_end)
       end
       violation_popup_counter = violation_popup_counter + 1
       return False
@@ -143,8 +150,10 @@ end
 
 def set_servo_setpoint(q):
   cmd_servo_state = SERVO_RUNNING
-  cmd_servo_q_last = cmd_servo_q
-  cmd_servo_q = q
+  if targetWithinLimits(cmd_servo_q, q, steptime):
+    cmd_servo_q_last = cmd_servo_q
+    cmd_servo_q = q
+  end
 end
 
 def extrapolate():
@@ -156,7 +165,6 @@ end
 thread servoThread():
   textmsg("ExternalControl: Starting servo thread")
   state = SERVO_IDLE
-  local q_last = get_joint_positions()
   while control_mode == MODE_SERVOJ:
     enter_critical
     q = cmd_servo_q
@@ -176,17 +184,11 @@ thread servoThread():
       end
 
       q = extrapolate()
-      if targetWithinLimits(q_last, q, steptime):
-        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-        q_last = q
-      end
+      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      if targetWithinLimits(q_last, q, steptime):
-        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-        q_last = q
-      end
+      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
     else:
       extrapolate_count = 0
       sync()
@@ -555,7 +557,6 @@ end
 thread servoThreadP():
   textmsg("Starting pose servo thread")
   state = SERVO_IDLE
-  local q_last = get_joint_positions()
   while control_mode == MODE_POSE:
     enter_critical
     q = cmd_servo_q
@@ -575,15 +576,11 @@ thread servoThreadP():
       end
 
       q = extrapolate()
-      if targetWithinLimits(q_last, q, steptime):
-        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-      end
+      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
 
     elif state == SERVO_RUNNING:
       extrapolate_count = 0
-      if targetWithinLimits(q_last, q, steptime):
-        servoj(q, t=steptime, {{SERVO_J_REPLACE}})
-      end
+      servoj(q, t=steptime, {{SERVO_J_REPLACE}})
     else:
       extrapolate_count = 0
       sync()
@@ -592,12 +589,6 @@ thread servoThreadP():
   end
   textmsg("pose servo thread ended")
   stopj(STOPJ_ACCELERATION)
-end
-
-def set_servo_pose(pose):
-  cmd_servo_state = SERVO_RUNNING
-  cmd_servo_q_last = cmd_servo_q
-  cmd_servo_q = get_inverse_kin(pose, cmd_servo_q)
 end
 
 def tool_contact_detection():
@@ -718,6 +709,7 @@ while control_mode > MODE_STOPPED:
         join thread_move
       end
       if control_mode == MODE_SERVOJ:
+        cmd_servo_q = get_joint_positions()
         thread_move = run servoThread()
       elif control_mode == MODE_SPEEDJ:
         thread_move = run speedThread()
@@ -727,6 +719,7 @@ while control_mode > MODE_STOPPED:
       elif control_mode == MODE_SPEEDL:
         thread_move = run speedlThread()
       elif control_mode == MODE_POSE:
+        cmd_servo_q = get_joint_positions()
         thread_move = run servoThreadP()
       end
     end
@@ -756,7 +749,7 @@ while control_mode > MODE_STOPPED:
       set_speedl(twist)
     elif control_mode == MODE_POSE:
       pose = p[params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
-      set_servo_pose(pose)
+      set_servo_setpoint(get_inverse_kin(pose, cmd_servo_q))
     elif control_mode == MODE_FREEDRIVE:
       if params_mult[2] == FREEDRIVE_MODE_START:
         textmsg("Entering freedrive mode")

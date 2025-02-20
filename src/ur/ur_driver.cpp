@@ -148,6 +148,9 @@ void UrDriver::init(const UrDriverConfiguration& config)
   }
   prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
 
+  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
+  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";
@@ -166,9 +169,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
     script_sender_.reset(new control::ScriptSender(config.script_sender_port, prog));
     URCL_LOG_DEBUG("Created script sender");
   }
-
-  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
-  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
 
   if (!std::empty(config.calibration_checksum))
   {

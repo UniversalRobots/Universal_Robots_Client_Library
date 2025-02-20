@@ -59,7 +59,17 @@ protected:
 
   void SetUp()
   {
-    ASSERT_TRUE(g_my_robot->isHealthy());
+    if (!g_my_robot->isHealthy())
+    {
+      ASSERT_TRUE(g_my_robot->resendRobotProgram());
+      ASSERT_TRUE(g_my_robot->waitForProgramRunning(500));
+    }
+  }
+
+  void TearDown()
+  {
+    g_my_robot->ur_driver_->stopControl();
+    g_my_robot->waitForProgramNotRunning(1000);
   }
 };
 
@@ -224,13 +234,16 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 {
   // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
   // switching from Remote to Local and back to Remote mode for example.
-  g_my_robot->ur_driver_->closeSecondaryStream();
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // To be able to re-send the robot program we'll have to make sure it isn't running
+  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->waitForProgramNotRunning();
+
+  g_my_robot->ur_driver_->closeSecondaryStream();
 
   EXPECT_TRUE(g_my_robot->resendRobotProgram());
 
-  EXPECT_TRUE(g_my_robot->waitForProgramRunning());
+  EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
 }
 
 TEST_F(UrDriverTest, reset_rtde_client)
