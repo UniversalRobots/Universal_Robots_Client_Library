@@ -153,6 +153,14 @@ def set_servo_setpoint(q):
   if targetWithinLimits(cmd_servo_q, q, steptime):
     cmd_servo_q_last = cmd_servo_q
     cmd_servo_q = q
+  # If the target has been interpolating too far away from the robot, so it would trigger the limit
+  # check, but the target is close to where the robot currently is, also accept the command.
+  # This can, for example, happen if a command series was too fast for the robot to follow, which
+  # triggers a path deviation on the commanding side and that is mitigated by a hold-position
+  # command.
+  elif targetWithinLimits(get_target_joint_positions(), q, steptime):
+    cmd_servo_q_last = cmd_servo_q
+    cmd_servo_q = q
   end
 end
 
