@@ -81,12 +81,15 @@ TEST_F(UrDriverTest, read_non_existing_script_file)
 
 TEST_F(UrDriverTest, read_existing_script_file)
 {
+  int fd = 0;
+  char existing_script_file[] = "urscript.XXXXXX";
 #ifdef _WIN32
 #  define mkstemp _mktemp_s
 #endif
-  char existing_script_file[] = "urscript.XXXXXX";
-  int fd = mkstemp(existing_script_file);
-  if (fd == -1)
+  mkstemp(existing_script_file);
+
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
   {
     std::cout << "Failed to create temporary files" << std::endl;
     GTEST_FAIL();
@@ -94,8 +97,8 @@ TEST_F(UrDriverTest, read_existing_script_file)
   EXPECT_NO_THROW(UrDriver::readScriptFile(existing_script_file));
 
   // clean up
-  close(fd);
-  unlink(existing_script_file);
+  ofs.close();
+  std::remove(existing_script_file);
 }
 
 TEST_F(UrDriverTest, robot_receive_timeout)
