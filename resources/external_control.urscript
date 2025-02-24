@@ -698,9 +698,11 @@ while control_mode > MODE_STOPPED:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
         kill thread_trajectory
-        clear_remaining_trajectory_points()
-        stopj(STOPJ_ACCELERATION)
-        socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+        if trajectory_points_left > 0:
+          clear_remaining_trajectory_points()
+          stopj(STOPJ_ACCELERATION)
+          socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+        end
         # Stop freedrive
       elif control_mode == MODE_FREEDRIVE:
         textmsg("Leaving freedrive mode")
