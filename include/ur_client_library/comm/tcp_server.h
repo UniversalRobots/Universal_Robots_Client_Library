@@ -29,15 +29,12 @@
 #ifndef UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>
+
+#include "ur_client_library/comm/socket_t.h"
 
 namespace urcl
 {
@@ -80,7 +77,7 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    */
-  void setConnectCallback(std::function<void(const int)> func)
+  void setConnectCallback(std::function<void(const socket_t)> func)
   {
     new_connection_callback_ = func;
   }
@@ -91,7 +88,7 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    */
-  void setDisconnectCallback(std::function<void(const int)> func)
+  void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
     disconnect_callback_ = func;
   }
@@ -102,7 +99,7 @@ public:
    * \param func Function handling the event information. The file client's file_descriptor will be
    * passed to the function as well as the actual message received from the client.
    */
-  void setMessageCallback(std::function<void(const int, char*, int)> func)
+  void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
     message_callback_ = func;
   }
@@ -133,7 +130,7 @@ public:
    *
    * \returns True on success, false otherwise
    */
-  bool write(const int fd, const uint8_t* buf, const size_t buf_len, size_t& written);
+  bool write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
    * \brief Get the maximum number of clients allowed to connect to this server
@@ -164,10 +161,10 @@ private:
   //! Handles connection events
   void handleConnect();
 
-  void handleDisconnect(const int fd);
+  void handleDisconnect(const socket_t fd);
 
   //! read data from socket
-  void readData(const int fd);
+  void readData(const socket_t fd);
 
   //! Event handler. Blocks until activity on any client or connection attempt
   void spin();
@@ -178,25 +175,22 @@ private:
   std::atomic<bool> keep_running_;
   std::thread worker_thread_;
 
-  std::atomic<int> listen_fd_;
+  std::atomic<socket_t> listen_fd_;
   int port_;
 
-  int maxfd_;
+  socket_t maxfd_;
   fd_set masterfds_;
   fd_set tempfds_;
 
   uint32_t max_clients_allowed_;
-  std::vector<int> client_fds_;
-
-  // Pipe for the self-pipe trick (https://cr.yp.to/docs/selfpipe.html)
-  int self_pipe_[2];
+  std::vector<socket_t> client_fds_;
 
   static const int INPUT_BUFFER_SIZE = 100;
   char input_buffer_[INPUT_BUFFER_SIZE];
 
-  std::function<void(const int)> new_connection_callback_;
-  std::function<void(const int)> disconnect_callback_;
-  std::function<void(const int, char* buffer, int nbytesrecv)> message_callback_;
+  std::function<void(const socket_t)> new_connection_callback_;
+  std::function<void(const socket_t)> disconnect_callback_;
+  std::function<void(const socket_t, char* buffer, int nbytesrecv)> message_callback_;
 };
 
 }  // namespace comm

@@ -43,6 +43,9 @@ namespace urcl
 {
 bool setFiFoScheduling(pthread_t& thread, const int priority)
 {
+#ifdef _WIN32
+  return ::SetThreadPriority(thread, priority);
+#else  // _WIN32
   struct sched_param params;
   params.sched_priority = priority;
   int ret = pthread_setschedparam(thread, SCHED_FIFO, &params);
@@ -94,5 +97,6 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
     }
   }
   return true;
+#endif
 }
 }  // namespace urcl

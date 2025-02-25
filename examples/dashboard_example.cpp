@@ -33,10 +33,8 @@
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
 
-#include <iostream>
 #include <memory>
 #include <thread>
-#include <unistd.h>
 
 using namespace urcl;
 
@@ -100,7 +98,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  sleep(1);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   // Play loaded program
   if (!my_dashboard->commandPlay())

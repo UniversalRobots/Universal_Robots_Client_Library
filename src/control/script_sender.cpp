@@ -41,17 +41,17 @@ ScriptSender::ScriptSender(uint32_t port, const std::string& program)
   server_.start();
 }
 
-void ScriptSender::connectionCallback(const int filedescriptor)
+void ScriptSender::connectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_DEBUG("New client connected at FD %d.", filedescriptor);
 }
 
-void ScriptSender::disconnectionCallback(const int filedescriptor)
+void ScriptSender::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_DEBUG("Client at FD %d disconnected.", filedescriptor);
 }
 
-void ScriptSender::messageCallback(const int filedescriptor, char* buffer)
+void ScriptSender::messageCallback(const socket_t filedescriptor, char* buffer)
 {
   if (std::string(buffer) == PROGRAM_REQUEST_)
   {
@@ -60,7 +60,7 @@ void ScriptSender::messageCallback(const int filedescriptor, char* buffer)
   }
 }
 
-void ScriptSender::sendProgram(const int filedescriptor)
+void ScriptSender::sendProgram(const socket_t filedescriptor)
 {
   size_t len = program_.size();
   const uint8_t* data = reinterpret_cast<const uint8_t*>(program_.c_str());

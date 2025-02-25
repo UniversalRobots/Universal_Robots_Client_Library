@@ -7,8 +7,14 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(WITH_ASAN "Compile with address sanitizer support" OFF)
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
-add_library(urcl SHARED
+if(MSVC)
+set(BUILD_SHARED_LIBS OFF)
+endif()
+
+
+add_library(urcl
     src/comm/tcp_socket.cpp
     src/comm/tcp_server.cpp
     src/control/reverse_interface.cpp
@@ -46,12 +52,21 @@ add_library(urcl SHARED
     src/helpers.cpp
 )
 add_library(ur_client_library::urcl ALIAS urcl)
-target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
 target_compile_features(urcl PUBLIC cxx_std_17)
-if(WITH_ASAN)
-  target_compile_options(urcl PUBLIC -fsanitize=address)
-  target_link_options(urcl PUBLIC -fsanitize=address)
+
+if(MSVC)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian)
+  target_link_libraries(urcl ws2_32)
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
+  target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
+
+  if(WITH_ASAN)
+    target_compile_options(urcl PUBLIC -fsanitize=address)
+    target_link_options(urcl PUBLIC -fsanitize=address)
+  endif()
 endif()
+
 target_include_directories( urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>

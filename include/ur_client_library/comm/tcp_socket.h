@@ -19,14 +19,13 @@
  */
 
 #pragma once
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <atomic>
 #include <chrono>
 #include <mutex>
 #include <string>
 #include <memory>
+
+#include "ur_client_library/comm/socket_t.h"
 
 namespace urcl
 {
@@ -49,7 +48,7 @@ enum class SocketState
 class TCPSocket
 {
 private:
-  std::atomic<int> socket_fd_;
+  std::atomic<socket_t> socket_fd_;
   std::atomic<SocketState> state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
@@ -57,9 +56,9 @@ private:
   void setupOptions();
 
 protected:
-  static bool open(int socket_fd, struct sockaddr* address, size_t address_len)
+  static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
   {
-    return ::connect(socket_fd, address, address_len) == 0;
+    return ::connect(socket_fd, address, static_cast<socklen_t>(address_len)) == 0;
   }
 
   bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
@@ -90,7 +89,7 @@ public:
    *
    * \returns The file descriptor of the socket
    */
-  int getSocketFD()
+  socket_t getSocketFD()
   {
     return socket_fd_;
   }

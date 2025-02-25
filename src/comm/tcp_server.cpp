@@ -32,7 +32,6 @@
 #include <iostream>
 
 #include <sstream>
-#include <strings.h>
 #include <cstring>
 #include <fcntl.h>
 #include <algorithm>
@@ -45,6 +44,11 @@ namespace comm
 TCPServer::TCPServer(const int port, const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
   : port_(port), maxfd_(0), max_clients_allowed_(0)
 {
+#ifdef _WIN32
+  WSAData data;
+  ::WSAStartup(MAKEWORD(1, 1), &data);
+#endif  // _WIN32
+
   init();
   bind(max_num_tries, reconnection_time);
   startListen();
@@ -54,68 +58,56 @@ TCPServer::~TCPServer()
 {
   URCL_LOG_DEBUG("Destroying TCPServer object.");
   shutdown();
-  close(listen_fd_);
+  ur_close(listen_fd_);
 }
 
 void TCPServer::init()
 {
-  int err = (listen_fd_ = socket(AF_INET, SOCK_STREAM, 0));
-  if (err == -1)
+  socket_t err = (listen_fd_ = socket(AF_INET, SOCK_STREAM, 0));
+  if (err < 0)
   {
     throw std::system_error(std::error_code(errno, std::generic_category()), "Failed to create socket endpoint");
   }
   int flag = 1;
-  setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
-  setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
+#ifndef _WIN32
+  ur_setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
+#endif
+  ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
 
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
 
   FD_ZERO(&masterfds_);
   FD_ZERO(&tempfds_);
-
-  // Create self-pipe for interrupting the worker loop
-  if (pipe(self_pipe_) == -1)
-  {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "Error creating self-pipe");
-  }
-  URCL_LOG_DEBUG("Created read pipe at FD %d", self_pipe_[0]);
-  FD_SET(self_pipe_[0], &masterfds_);
-
-  // Make read and write ends of pipe nonblocking
-  int flags;
-  flags = fcntl(self_pipe_[0], F_GETFL);
-  if (flags == -1)
-  {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "fcntl-F_GETFL");
-  }
-  flags |= O_NONBLOCK;  // Make read end nonblocking
-  if (fcntl(self_pipe_[0], F_SETFL, flags) == -1)
-  {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "fcntl-F_SETFL");
-  }
-
-  flags = fcntl(self_pipe_[1], F_GETFL);
-  if (flags == -1)
-  {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "fcntl-F_GETFL");
-  }
-  flags |= O_NONBLOCK;  // Make write end nonblocking
-  if (fcntl(self_pipe_[1], F_SETFL, flags) == -1)
-  {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "fcntl-F_SETFL");
-  }
 }
 
 void TCPServer::shutdown()
 {
   keep_running_ = false;
 
-  // This is basically the self-pipe trick. Writing to the pipe will trigger an event for the event
-  // handler which will stop the select() call from blocking.
-  if (::write(self_pipe_[1], "x", 1) == -1 && errno != EAGAIN)
+  socket_t shutdown_socket = ::socket(AF_INET, SOCK_STREAM, 0);
+  if (shutdown_socket == INVALID_SOCKET)
   {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "Writing to self-pipe failed.");
+    throw std::system_error(std::error_code(errno, std::generic_category()), "Unable to create shutdown socket.");
   }
+
+#ifdef _WIN32
+  unsigned long mode = 1;
+  ::ioctlsocket(shutdown_socket, FIONBIO, &mode);
+#else
+  int flags = ::fcntl(shutdown_socket, F_GETFL, 0);
+  if (flags >= 0)
+  {
+    ::fcntl(shutdown_socket, F_SETFL, flags | O_NONBLOCK);
+  }
+#endif
+
+  struct sockaddr_in address;
+  memset(&address, 0, sizeof(address));
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = htons(port_);
+
+  ::connect(shutdown_socket, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
 
   // After the event loop has finished the thread will be joinable.
   if (worker_thread_.joinable())
@@ -160,7 +152,7 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
   URCL_LOG_DEBUG("Bound %d:%d to FD %d", server_addr.sin_addr.s_addr, port_, (int)listen_fd_);
 
   FD_SET(listen_fd_, &masterfds_);
-  maxfd_ = std::max((int)listen_fd_, self_pipe_[0]);
+  maxfd_ = listen_fd_;
 }
 
 void TCPServer::startListen()
@@ -179,8 +171,8 @@ void TCPServer::handleConnect()
 {
   struct sockaddr_storage client_addr;
   socklen_t addrlen = sizeof(client_addr);
-  int client_fd = accept(listen_fd_, (struct sockaddr*)&client_addr, &addrlen);
-  if (client_fd < 0)
+  socket_t client_fd = accept(listen_fd_, (struct sockaddr*)&client_addr, &addrlen);
+  if (client_fd == INVALID_SOCKET)
   {
     std::ostringstream ss;
     ss << "Failed to accept connection request on port  " << port_;
@@ -193,7 +185,7 @@ void TCPServer::handleConnect()
     FD_SET(client_fd, &masterfds_);
     if (client_fd > maxfd_)
     {
-      maxfd_ = std::max(client_fd, self_pipe_[0]);
+      maxfd_ = client_fd;
     }
     if (new_connection_callback_)
     {
@@ -205,7 +197,7 @@ void TCPServer::handleConnect()
     URCL_LOG_WARN("Connection attempt on port %d while maximum number of clients (%d) is already connected. Closing "
                   "connection.",
                   port_, max_clients_allowed_);
-    close(client_fd);
+    ur_close(client_fd);
   }
 }
 
@@ -214,7 +206,7 @@ void TCPServer::spin()
   tempfds_ = masterfds_;
 
   // blocks until activity on any socket from tempfds
-  int sel = select(maxfd_ + 1, &tempfds_, NULL, NULL, NULL);
+  int sel = select(static_cast<int>(maxfd_ + 1), &tempfds_, NULL, NULL, NULL);
   if (sel < 0)
   {
     URCL_LOG_ERROR("select() failed. Shutting down socket event handler.");
@@ -222,30 +214,13 @@ void TCPServer::spin()
     return;
   }
 
-  // Read part if pipe-trick. This will help interrupting the event handler thread.
-  if (FD_ISSET(self_pipe_[0], &masterfds_))
+  if (!keep_running_)
   {
-    URCL_LOG_DEBUG("Activity on self-pipe");
-    char buffer;
-    if (read(self_pipe_[0], &buffer, 1) == -1)
-    {
-      while (true)
-      {
-        if (errno == EAGAIN)
-          break;
-        else
-          URCL_LOG_ERROR("read failed");
-      }
-    }
-    else
-    {
-      URCL_LOG_DEBUG("Self-pipe triggered");
-      return;
-    }
+    return;
   }
 
   // Check which fd has an activity
-  for (int i = 0; i <= maxfd_; i++)
+  for (socket_t i = 0; i <= maxfd_; i++)
   {
     if (FD_ISSET(i, &tempfds_))
     {
@@ -263,10 +238,10 @@ void TCPServer::spin()
   }
 }
 
-void TCPServer::handleDisconnect(const int fd)
+void TCPServer::handleDisconnect(const socket_t fd)
 {
   URCL_LOG_DEBUG("%d disconnected.", fd);
-  close(fd);
+  ur_close(fd);
   if (disconnect_callback_)
   {
     disconnect_callback_(fd);
@@ -283,9 +258,9 @@ void TCPServer::handleDisconnect(const int fd)
   }
 }
 
-void TCPServer::readData(const int fd)
+void TCPServer::readData(const socket_t fd)
 {
-  bzero(&input_buffer_, INPUT_BUFFER_SIZE);  // clear input buffer
+  memset(input_buffer_, 0, INPUT_BUFFER_SIZE);  // clear input buffer
   int nbytesrecv = recv(fd, input_buffer_, INPUT_BUFFER_SIZE, 0);
   if (nbytesrecv > 0)
   {
@@ -331,7 +306,7 @@ void TCPServer::start()
   worker_thread_ = std::thread(&TCPServer::worker, this);
 }
 
-bool TCPServer::write(const int fd, const uint8_t* buf, const size_t buf_len, size_t& written)
+bool TCPServer::write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written)
 {
   written = 0;
 
@@ -340,7 +315,7 @@ bool TCPServer::write(const int fd, const uint8_t* buf, const size_t buf_len, si
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(fd, buf + written, remaining, 0);
+    ssize_t sent = ::send(fd, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {

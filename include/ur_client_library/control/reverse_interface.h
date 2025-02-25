@@ -147,15 +147,14 @@ public:
   }
 
 protected:
-  virtual void connectionCallback(const int filedescriptor);
+  virtual void connectionCallback(const socket_t filedescriptor);
 
-  virtual void disconnectionCallback(const int filedescriptor);
+  virtual void disconnectionCallback(const socket_t filedescriptor);
 
-  virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv);
+  virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
   std::function<void(const int)> disconnection_callback_ = nullptr;
-
-  int client_fd_;
+  socket_t client_fd_;
   comm::TCPServer server_;
 
   template <typename T>

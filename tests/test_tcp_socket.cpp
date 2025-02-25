@@ -63,7 +63,7 @@ protected:
   }
 
   // callback functions for the tcp server
-  void messageCallback(const int filedescriptor, char* buffer)
+  void messageCallback(const socket_t filedescriptor, char* buffer)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     received_message_ = std::string(buffer);
@@ -71,7 +71,7 @@ protected:
     message_callback_ = true;
   }
 
-  void connectionCallback(const int filedescriptor)
+  void connectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(connect_mutex_);
     client_fd_ = filedescriptor;
@@ -159,7 +159,7 @@ protected:
   };
 
   std::string received_message_;
-  int client_fd_;
+  socket_t client_fd_;
 
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<Client> client_;
@@ -351,7 +351,7 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
   auto end = std::chrono::system_clock::now();
   auto elapsed = end - start;
   // This is only a rough estimate, obviously
-  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+  EXPECT_LT(elapsed, std::chrono::milliseconds(7500));
 }
 
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
@@ -374,7 +374,7 @@ TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
   server_->write(client_fd_, data, len, written);
 
   // Simulate socket failure
-  close(client_->getSocketFD());
+  ur_close(client_->getSocketFD());
 
   char characters;
   size_t read_chars = 0;

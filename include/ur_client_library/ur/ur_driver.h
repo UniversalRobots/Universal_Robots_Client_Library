@@ -873,9 +873,16 @@ public:
     trajectory_interface_->registerDisconnectionCallback(fun);
   }
 
-private:
   static std::string readScriptFile(const std::string& filename);
+
+  void closeSecondaryStream()
+  {
+    secondary_stream_->close();
+  }
+
+private:
   void init(const UrDriverConfiguration& config);
+
   /*!
    * \brief Reconnects the secondary stream used to send program to the robot.
    *

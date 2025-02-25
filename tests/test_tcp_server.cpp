@@ -77,7 +77,7 @@ protected:
   };
 
   // callback functions
-  void connectionCallback(const int filedescriptor)
+  void connectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(connect_mutex_);
     client_fd_ = filedescriptor;
@@ -85,15 +85,15 @@ protected:
     connection_callback_ = true;
   }
 
-  void disconnectionCallback(const int filedescriptor)
+  void disconnectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(disconnect_mutex_);
-    client_fd_ = -1;
+    client_fd_ = INVALID_SOCKET;
     disconnect_cv_.notify_one();
     disconnection_callback_ = true;
   }
 
-  void messageCallback(const int filedescriptor, char* buffer)
+  void messageCallback(const socket_t filedescriptor, char* buffer)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     message_ = std::string(buffer);
@@ -148,7 +148,7 @@ protected:
 
   int port_ = 50001;
   std::string message_ = "";
-  int client_fd_ = -1;
+  socket_t client_fd_ = INVALID_SOCKET;
 
 private:
   std::condition_variable connect_cv_;

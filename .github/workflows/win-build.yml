@@ -1,0 +1,22 @@
+name: Windows build and tests
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  win-build:
+    timeout-minutes: 30
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: configure
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1
+        #run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
+      - name: build
+        run: cmake --build build --config Debug
+      - name: test
+        run: cd build && ctest --output-on-failure -C Debug

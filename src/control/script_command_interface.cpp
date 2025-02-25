@@ -227,9 +227,9 @@ bool ScriptCommandInterface::clientConnected()
   return client_connected_;
 }
 
-void ScriptCommandInterface::connectionCallback(const int filedescriptor)
+void ScriptCommandInterface::connectionCallback(const socket_t filedescriptor)
 {
-  if (client_fd_ < 0)
+  if (client_fd_ == INVALID_SOCKET)
   {
     URCL_LOG_DEBUG("Robot connected to ScriptCommandInterface.");
     client_fd_ = filedescriptor;
@@ -242,14 +242,14 @@ void ScriptCommandInterface::connectionCallback(const int filedescriptor)
   }
 }
 
-void ScriptCommandInterface::disconnectionCallback(const int filedescriptor)
+void ScriptCommandInterface::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_DEBUG("Connection to ScriptCommandInterface dropped.", filedescriptor);
-  client_fd_ = -1;
+  client_fd_ = INVALID_SOCKET;
   client_connected_ = false;
 }
 
-void ScriptCommandInterface::messageCallback(const int filedescriptor, char* buffer, int nbytesrecv)
+void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
 {
   if (nbytesrecv == 4)
   {

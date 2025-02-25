@@ -63,13 +63,13 @@ private:
 
   const std::string PROGRAM_REQUEST_ = std::string("request_program\n");
 
-  void connectionCallback(const int filedescriptor);
+  void connectionCallback(const socket_t filedescriptor);
 
-  void disconnectionCallback(const int filedescriptor);
+  void disconnectionCallback(const socket_t filedescriptor);
 
-  void messageCallback(const int filedescriptor, char* buffer);
+  void messageCallback(const socket_t filedescriptor, char* buffer);
 
-  void sendProgram(const int filedescriptor);
+  void sendProgram(const socket_t filedescriptor);
 };
 
 }  // namespace control

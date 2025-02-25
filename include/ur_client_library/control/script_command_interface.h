@@ -164,11 +164,11 @@ public:
   }
 
 protected:
-  virtual void connectionCallback(const int filedescriptor) override;
+  virtual void connectionCallback(const socket_t filedescriptor) override;
 
-  virtual void disconnectionCallback(const int filedescriptor) override;
+  virtual void disconnectionCallback(const socket_t filedescriptor) override;
 
-  virtual void messageCallback(const int filedescriptor, char* buffer, int nbytesrecv) override;
+  virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv) override;
 
 private:
   /*!

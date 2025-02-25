@@ -30,10 +30,13 @@
 #include <iostream>
 #include <regex>
 #include <thread>
-#include <unistd.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/exceptions.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#endif  // !_WIN32
 
 using namespace std::chrono_literals;
 
@@ -60,7 +63,7 @@ bool DashboardClient::connect(const size_t max_num_tries, const std::chrono::mil
   timeval configured_tv = getConfiguredReceiveTimeout();
   timeval tv;
 
-  while (not ret_val)
+  while (!ret_val)
   {
     // The first read after connection can take more time.
     tv.tv_sec = 10;

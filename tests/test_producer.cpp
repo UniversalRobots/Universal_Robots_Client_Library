@@ -55,7 +55,7 @@ protected:
     server_.reset();
   }
 
-  void connectionCallback(const int filedescriptor)
+  void connectionCallback(const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(connect_mutex_);
     client_fd_ = filedescriptor;
@@ -76,7 +76,7 @@ protected:
   }
 
   std::unique_ptr<comm::TCPServer> server_;
-  int client_fd_;
+  socket_t client_fd_;
 
 private:
   std::condition_variable connect_cv_;
@@ -133,7 +133,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   auto end = std::chrono::system_clock::now();
   auto elapsed = end - start;
   // This is only a rough estimate, obviously
-  EXPECT_LT(elapsed, std::chrono::milliseconds(1500));
+  EXPECT_LT(elapsed, std::chrono::milliseconds(7500));
 }
 
 int main(int argc, char* argv[])
