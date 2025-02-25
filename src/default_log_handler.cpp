@@ -30,29 +30,34 @@
 
 #include "ur_client_library/default_log_handler.h"
 #include <stdio.h>
+#include <chrono>
+#include <string>
 
 namespace urcl
 {
+
 DefaultLogHandler::DefaultLogHandler() = default;
 
 void DefaultLogHandler::log(const char* file, int line, LogLevel loglevel, const char* log)
 {
+  auto timestamp = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch());
+
   switch (loglevel)
   {
     case LogLevel::INFO:
-      printf("%s%s %i: %s \n", "INFO ", file, line, log);
+      printf("[%f] %s%s %i: %s \n", timestamp.count(), "INFO ", file, line, log);
       break;
     case LogLevel::DEBUG:
-      printf("%s%s %i: %s \n", "DEBUG ", file, line, log);
+      printf("\033[36m[%f] %s%s %i: %s \033[0m\n", timestamp.count(), "DEBUG ", file, line, log);
       break;
     case LogLevel::WARN:
-      printf("%s%s %i: %s \n", "WARN ", file, line, log);
+      printf("\033[33m[%f] %s%s %i: %s \033[0m\n", timestamp.count(), "WARN ", file, line, log);
       break;
     case LogLevel::ERROR:
-      printf("%s%s %i: %s \n", "ERROR ", file, line, log);
+      printf("\033[31m[%f] %s%s %i: %s \033[0m\n", timestamp.count(), "ERROR ", file, line, log);
       break;
     case LogLevel::FATAL:
-      printf("%s%s %i: %s \n", "FATAL ", file, line, log);
+      printf("\033[31m[%f] %s%s %i: %s \033[0m\n", timestamp.count(), "FATAL ", file, line, log);
       break;
     default:
       break;

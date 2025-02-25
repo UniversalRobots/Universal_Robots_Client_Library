@@ -2,6 +2,43 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2025-02-19)
+------------------
+* Make UrDriver tests run without ctest (`#270 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/270>`_)
+* UrDriver: Send program in headless mode after creating trajectory and script_command servers (`#271 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/271>`_)
+* Improve limit check (`#256 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/256>`_)
+* Use colored log output and timestamps in default log handler (`#267 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/267>`_)
+* Parametrize reconnection time for UrDriver (`#266 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/266>`_)
+  Co-authored-by: Dominic Reber <71256590+domire8@users.noreply.github.com>
+* Fix DashboardClient load program from subdir (`#269 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/269>`_)
+* Increase dashboard timeout in ExampleRobotWrapper to 10s
+* Disable internal deprecation warning
+* Use a config struct for initializing UrDriver (`#264 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/264>`_)
+* Use ExampleRobotWrapper for initialization in all examples (`#265 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/265>`_)
+* Enable nightly CI jobs (`#263 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/263>`_)
+* Expose diagnostic error codes (`#225 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/225>`_)
+* RTDEClient: pause and stop in destructor only if running (`#257 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/257>`_)
+* Use coverage flags to distinguish between runs (`#261 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/261>`_)
+* Fix branch name for integration tests run on push (`#262 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/262>`_)
+* Add codecov/test-results-action (`#260 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/260>`_)
+* Fix GH edit URL for trajectory_point_interface example (`#259 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/259>`_)
+* Update URL check
+* Show which example is running in run_examples.sh
+* Add documentation for all examples (`#258 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/258>`_)
+* Update RT setup documentation to point to urcl docs
+* Use EXPECT_NEAR vs EXPECT_EQ
+* Fix typo in start_ursim.sh help
+* Make CI capable to run with urcap
+* Use ExampleRobotWrapper in integration tests (`#252 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/252>`_)
+* Add a wrapper to handle all robot setup (`#252 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/252>`_)
+* Allow clang-format to indent preprocessor directives (`#246 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/246>`_)
+* docs: Clarify that the motion functions use script functions for execution (`#255 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/255>`_)
+* Update link to sphinx-doc.org using https (`#247 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/247>`_)
+* Use joint speed for extrapolation rather than differences (`#254 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/254>`_)
+* Move setup instructions to ur_client_library (`#248 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/248>`_)
+* Add more information about acceleration/velocity parametrization in trajectory examples (`#251 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/251>`_)
+* Contributors: Felix Exner, Rune Søe-Knudsen, jessica-chen-ocado, Dominic Reber
+
 1.6.0 (2025-01-23)
 ------------------
 * Do not throw exception in DashboardClient::sendRequest (`#249 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/249>`_)
