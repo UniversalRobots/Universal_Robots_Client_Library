@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.7.1 (2025-02-25)
+------------------
 * Fix trajectory result in trajectory forward mode when no trajectory is running (`#276 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/276>`_)
 * Remove sending an idle command in quintic spline test (`#275 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/275>`_)
 * In servo mode always allow targets close to current pose (`#273 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/273>`_)
