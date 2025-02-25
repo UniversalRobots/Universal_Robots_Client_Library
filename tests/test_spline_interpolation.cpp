@@ -36,6 +36,7 @@
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/types.h>
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <math.h>
@@ -56,10 +57,15 @@ bool g_HEADLESS = true;
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
 bool g_trajectory_running;
+std::condition_variable g_trajectory_result_cv;
+std::mutex g_trajectory_result_mutex;
 control::TrajectoryResult g_trajectory_result;
 void handleTrajectoryState(control::TrajectoryResult state)
 {
+  std::lock_guard<std::mutex> lk(g_trajectory_result_mutex);
+  g_trajectory_result_cv.notify_one();
   g_trajectory_result = state;
+  URCL_LOG_INFO("Received trajectory result %s", control::trajectoryResultToString(state).c_str());
   g_trajectory_running = false;
 }
 
@@ -72,6 +78,12 @@ bool nearlyEqual(double a, double b, double eps = 1e-15)
 {
   const double c(a - b);
   return c < eps || -c < eps;
+}
+
+bool waitForTrajectoryResult(std::chrono::milliseconds timeout)
+{
+  std::unique_lock<std::mutex> lk(g_trajectory_result_mutex);
+  return g_trajectory_result_cv.wait_for(lk, timeout) == std::cv_status::no_timeout;
 }
 
 class SplineInterpolationTest : public ::testing::Test
@@ -1083,6 +1095,52 @@ TEST_F(SplineInterpolationTest, physically_unfeasible_trajectory_quintic_spline)
   {
     EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions_after[i]);
   }
+}
+
+TEST_F(SplineInterpolationTest, switching_control_mode_without_trajectory_produces_no_result)
+{
+  // We start by putting the robot into trajectory control mode
+  ASSERT_TRUE(
+      g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
+
+  // Then we switch to idle
+  ASSERT_TRUE(g_my_robot->ur_driver_->writeKeepalive(RobotReceiveTimeout::sec(2)));
+
+  EXPECT_FALSE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
+}
+
+TEST_F(SplineInterpolationTest, switching_control_mode_with_trajectory_produces_result)
+{
+  g_my_robot->stopConsumingRTDEData();
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  g_my_robot->readDataPackage(data_pkg);
+
+  urcl::vector6d_t joint_positions_before;
+  ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
+
+  // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly
+  g_my_robot->startConsumingRTDEData();
+  // Create a trajectory that cannot be executed within the robots limits
+  std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
+  urcl::vector6d_t first_point = {
+    joint_positions_before[0], joint_positions_before[1], joint_positions_before[2],
+    joint_positions_before[3], joint_positions_before[4], joint_positions_before[5] + 0.5
+  };
+  s_pos.push_back(first_point);
+
+  urcl::vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  s_vel.push_back(zeros);
+  s_acc.push_back(zeros);
+
+  std::vector<double> s_time = { 0.02 };
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                                        RobotReceiveTimeout::off());
+
+  // Then we switch to idle
+  ASSERT_TRUE(g_my_robot->ur_driver_->writeKeepalive(RobotReceiveTimeout::sec(2)));
+
+  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
 }
 
 int main(int argc, char* argv[])
