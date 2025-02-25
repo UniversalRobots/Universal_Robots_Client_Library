@@ -141,11 +141,6 @@ protected:
     ASSERT_TRUE(g_my_robot->isHealthy());
   }
 
-  void sendIdle()
-  {
-    ASSERT_TRUE(g_my_robot->ur_driver_->writeKeepalive(RobotReceiveTimeout::sec()));
-  }
-
   void sendTrajectory(const std::vector<urcl::vector6d_t>& s_pos, const std::vector<urcl::vector6d_t>& s_vel,
                       const std::vector<urcl::vector6d_t>& s_acc, const std::vector<double>& s_time)
   {
@@ -456,10 +451,6 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
   g_my_robot->ur_driver_->getRTDEWriter().sendSpeedSlider(1.0 / reduse_factor);
 
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  g_my_robot->readDataPackage(data_pkg);
-
-  // Align timestep
-  sendIdle();
   g_my_robot->readDataPackage(data_pkg);
 
   urcl::vector6d_t joint_positions, joint_velocities, joint_acc;
