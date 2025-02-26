@@ -487,8 +487,8 @@ thread trajectoryThread():
       end
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
-        acceleration = raw_point[7] / MULT_jointstate
-        velocity = raw_point[13] / MULT_jointstate
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
@@ -497,8 +497,8 @@ thread trajectoryThread():
 
         # Movel point
       elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
-        acceleration = raw_point[7] / MULT_jointstate
-        velocity = raw_point[13] / MULT_jointstate
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
