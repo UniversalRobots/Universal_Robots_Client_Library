@@ -29,10 +29,13 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include "ur_client_library/ur/instruction_executor.h"
+#include <mutex>
 #include "ur_client_library/control/trajectory_point_interface.h"
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
+  URCL_LOG_DEBUG("Trajectory result received: %s", control::trajectoryResultToString(result).c_str());
   std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+  trajectory_done_cv_.notify_all();
   trajectory_result_ = result;
   trajectory_running_ = false;
 }
@@ -40,6 +43,7 @@ void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
 {
   URCL_LOG_INFO("Trajectory disconnect");
   std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+  trajectory_done_cv_.notify_all();
   if (trajectory_running_)
   {
     trajectory_result_ = urcl::control::TrajectoryResult::TRAJECTORY_RESULT_FAILURE;
@@ -86,17 +90,20 @@ bool urcl::InstructionExecutor::executeMotion(
     }
   }
   trajectory_running_ = true;
+  cancel_requested_ = false;
 
-  while (trajectory_running_)
+  while (trajectory_running_ && !cancel_requested_)
   {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+  if (!cancel_requested_)
   {
     std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
     URCL_LOG_INFO("Trajectory done with result %s", control::trajectoryResultToString(trajectory_result_).c_str());
     return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
   }
+  return false;
 }
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
@@ -109,4 +116,20 @@ bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acc
 {
   return executeMotion({ std::make_shared<control::MoveLPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::cancelMotion()
+{
+  cancel_requested_ = true;
+  if (trajectory_running_)
+  {
+    URCL_LOG_INFO("Cancel motion");
+    driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL);
+    std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    if (trajectory_done_cv_.wait_for(lock, std::chrono::milliseconds(1000)) == std::cv_status::no_timeout)
+    {
+      return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED;
+    }
+  }
+  return false;
 }

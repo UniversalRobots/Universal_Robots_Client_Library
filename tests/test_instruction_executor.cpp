@@ -219,6 +219,27 @@ TEST_F(InstructionExecutorTest, unfeasible_movej_target_results_in_failure)
   ASSERT_FALSE(executor_->moveJ({ -123, 0, 0, 0, 0, 0 }));
 }
 
+TEST_F(InstructionExecutorTest, canceling_without_running_trajectory_returns_false)
+{
+  ASSERT_FALSE(executor_->isTrajectoryRunning());
+  ASSERT_FALSE(executor_->cancelMotion());
+}
+
+TEST_F(InstructionExecutorTest, canceling_with_running_trajectory_succeeds)
+{
+  ASSERT_TRUE(executor_->moveJ({ -1.59, -1.72, -2.2, -0.8, 1.6, 0.2 }, 2.0, 2.0));
+  std::thread move_thread([this]() { executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 2.7 }); });
+  bool is_trajectory_running = false;
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  while (!is_trajectory_running || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
+  {
+    is_trajectory_running = executor_->isTrajectoryRunning();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_TRUE(executor_->cancelMotion());
+  move_thread.join();
+}
+
 TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
 {
   // move to a feasible starting pose
