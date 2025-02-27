@@ -222,10 +222,25 @@ TEST_F(InstructionExecutorTest, unfeasible_movej_target_results_in_failure)
 TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
 {
   // move to a feasible starting pose
-  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+  ASSERT_TRUE(executor_->moveJ({ -1.59, -1.72, -2.2, -0.8, 1.6, 0.2 }, 2.0, 2.0));
 
   // move to an unfeasible pose
-  ASSERT_FALSE(executor_->moveL({ -10.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.4, 1.04, 0.1));
+  std::thread move_thread([this]() { executor_->moveL({ -10.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5); });
+
+  std::string safety_status;
+  bool is_protective_stopped = false;
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  while (!is_protective_stopped || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
+  {
+    g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
+    is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_TRUE(is_protective_stopped);
+  ASSERT_TRUE(g_my_robot->clearProtectiveStop());
+  ASSERT_TRUE(g_my_robot->dashboard_client_->commandStop());
+
+  move_thread.join();
 }
 
 TEST_F(InstructionExecutorTest, unfeasible_sequence_targets_results_in_failure)
