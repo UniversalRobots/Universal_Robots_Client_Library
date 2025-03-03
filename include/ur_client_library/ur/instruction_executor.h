@@ -48,6 +48,12 @@ public:
         std::bind(&InstructionExecutor::trajDisconnectCallback, this, std::placeholders::_1));
   }
 
+  ~InstructionExecutor()
+  {
+    driver_->registerTrajectoryDoneCallback(nullptr);
+    driver_->registerTrajectoryInterfaceDisconnectedCallback(nullptr);
+  }
+
   /**
    * \brief Execute a sequence of motion primitives.
    *
