@@ -31,7 +31,6 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <iostream>
-#include <regex>
 #include <thread>
 #include "ur_client_library/ur/instruction_executor.h"
 #include "ur_client_library/control/motion_primitives.h"
@@ -250,11 +249,10 @@ TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_retur
   out_file.open(test_script_file);
 
   std::string line;
-  std::regex delete_me("socket_send_int\\(TRAJECTORY_RESULT_CANCELED,\\s*\"trajectory_socket\"\\)");
+  std::string pattern = "socket_send_int(TRAJECTORY_RESULT_CANCELED, \"trajectory_socket\")";
   while (std::getline(in_file, line))
   {
-    std::smatch delete_match;
-    if (!std::regex_search(line, delete_match, delete_me))
+    if (line.find(pattern) == std::string::npos)
     {
       out_file << line << std::endl;
     }
