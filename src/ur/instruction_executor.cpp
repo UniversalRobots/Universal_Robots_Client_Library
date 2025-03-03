@@ -31,6 +31,8 @@
 #include "ur_client_library/ur/instruction_executor.h"
 #include <mutex>
 #include "ur_client_library/control/trajectory_point_interface.h"
+#include "ur_client_library/log.h"
+#include "ur_client_library/ur/robot_receive_timeout.h"
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
   URCL_LOG_DEBUG("Trajectory result received: %s", control::trajectoryResultToString(result).c_str());
@@ -124,12 +126,19 @@ bool urcl::InstructionExecutor::cancelMotion()
   if (trajectory_running_)
   {
     URCL_LOG_INFO("Cancel motion");
-    driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL);
+    driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL, -1,
+                                           RobotReceiveTimeout::millisec(2000));
     std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
-    if (trajectory_done_cv_.wait_for(lock, std::chrono::milliseconds(1000)) == std::cv_status::no_timeout)
+    if (trajectory_done_cv_.wait_for(lock, std::chrono::milliseconds(200)) == std::cv_status::no_timeout)
     {
       return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED;
     }
+    else
+    {
+      URCL_LOG_ERROR("Sent a canceling request to the robot but waiting for the answer timed out.");
+      return false;
+    }
   }
+  URCL_LOG_WARN("Canceling motion requested without a motion running.");
   return false;
 }
