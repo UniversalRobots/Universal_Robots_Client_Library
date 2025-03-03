@@ -72,10 +72,15 @@ protected:
       ASSERT_TRUE(g_my_robot->waitForProgramRunning());
     }
   }
-  void TearDown()
+  void TearDown() override
   {
     g_my_robot->ur_driver_->stopControl();
     g_my_robot->waitForProgramNotRunning(1000);
+    while (g_my_robot->ur_driver_->isTrajectoryInterfaceConnected())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    URCL_LOG_INFO("Stopped robot control.");
   }
 
   static void TearDownTestSuite()

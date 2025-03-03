@@ -880,6 +880,16 @@ public:
     secondary_stream_->close();
   }
 
+  bool isReverseInterfaceConnected() const
+  {
+    return reverse_interface_->isConnected();
+  }
+
+  bool isTrajectoryInterfaceConnected() const
+  {
+    return trajectory_interface_->isConnected();
+  }
+
 private:
   void init(const UrDriverConfiguration& config);
 
