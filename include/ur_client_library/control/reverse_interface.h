@@ -146,6 +146,16 @@ public:
     disconnection_callback_ = disconnection_fun;
   }
 
+  /*!
+   * \brief Checks if the reverse interface is connected to the robot.
+   *
+   * \returns True, if the interface is connected, false otherwise.
+   */
+  bool isConnected() const
+  {
+    return client_fd_ != INVALID_SOCKET;
+  }
+
 protected:
   virtual void connectionCallback(const socket_t filedescriptor);
 

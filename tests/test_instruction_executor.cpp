@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <iostream>
 #include <thread>
 #include "ur_client_library/ur/instruction_executor.h"
@@ -69,6 +70,21 @@ protected:
       g_my_robot->resendRobotProgram();
       ASSERT_TRUE(g_my_robot->waitForProgramRunning());
     }
+  }
+  void TearDown() override
+  {
+    g_my_robot->ur_driver_->stopControl();
+    g_my_robot->waitForProgramNotRunning(1000);
+    while (g_my_robot->ur_driver_->isTrajectoryInterfaceConnected())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    URCL_LOG_INFO("Stopped robot control.");
+  }
+
+  static void TearDownTestSuite()
+  {
+    g_my_robot.reset();
   }
 };
 
@@ -217,6 +233,69 @@ TEST_F(InstructionExecutorTest, unfeasible_movej_target_results_in_failure)
 
   // move to an unfeasible pose
   ASSERT_FALSE(executor_->moveJ({ -123, 0, 0, 0, 0, 0 }));
+}
+
+TEST_F(InstructionExecutorTest, canceling_without_running_trajectory_returns_false)
+{
+  ASSERT_FALSE(executor_->isTrajectoryRunning());
+  ASSERT_FALSE(executor_->cancelMotion());
+}
+
+TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_returns_false)
+{
+  std::ifstream in_file(SCRIPT_FILE);
+  std::ofstream out_file;
+  const std::string test_script_file = "test_script.urscript";
+  out_file.open(test_script_file);
+
+  std::string line;
+  std::string pattern = "socket_send_int(TRAJECTORY_RESULT_CANCELED, \"trajectory_socket\")";
+  while (std::getline(in_file, line))
+  {
+    if (line.find(pattern) == std::string::npos)
+    {
+      out_file << line << std::endl;
+    }
+  }
+  out_file.close();
+  auto my_robot = std::make_unique<ExampleRobotWrapper>(ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
+                                                        "external_control.urp", test_script_file);
+  auto executor = std::make_unique<InstructionExecutor>(my_robot->ur_driver_);
+  my_robot->clearProtectiveStop();
+  // Make sure script is running on the robot
+  if (!my_robot->waitForProgramRunning())
+  {
+    my_robot->resendRobotProgram();
+    ASSERT_TRUE(my_robot->waitForProgramRunning());
+  }
+  ASSERT_TRUE(executor->moveJ({ -1.59, -1.72, -2.2, -0.8, 1.6, 0.2 }, 2.0, 2.0));
+  std::thread move_thread([&executor]() { executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 2.7 }, 0.1, 0.1); });
+  bool is_trajectory_running = false;
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  while (!is_trajectory_running || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
+  {
+    is_trajectory_running = executor->isTrajectoryRunning();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_TRUE(executor->isTrajectoryRunning());
+  ASSERT_FALSE(executor->cancelMotion());
+  move_thread.join();
+  std::remove(test_script_file.c_str());
+}
+
+TEST_F(InstructionExecutorTest, canceling_with_running_trajectory_succeeds)
+{
+  ASSERT_TRUE(executor_->moveJ({ -1.59, -1.72, -2.2, -0.8, 1.6, 0.2 }, 2.0, 2.0));
+  std::thread move_thread([this]() { executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 2.7 }); });
+  bool is_trajectory_running = false;
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  while (!is_trajectory_running || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
+  {
+    is_trajectory_running = executor_->isTrajectoryRunning();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_TRUE(executor_->cancelMotion());
+  move_thread.join();
 }
 
 TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)

@@ -48,6 +48,12 @@ public:
         std::bind(&InstructionExecutor::trajDisconnectCallback, this, std::placeholders::_1));
   }
 
+  ~InstructionExecutor()
+  {
+    driver_->registerTrajectoryDoneCallback(nullptr);
+    driver_->registerTrajectoryInterfaceDisconnectedCallback(nullptr);
+  }
+
   /**
    * \brief Execute a sequence of motion primitives.
    *
@@ -92,12 +98,33 @@ public:
   bool moveL(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double time = 0, const double blend_radius = 0);
 
+  /**
+   * \brief Cancel the current motion.
+   *
+   * If no motion is running, false will be returned.
+   * If a motion is running, it will be canceled and it will wait for a TRAJECTORY_CANCELED result
+   * with a timeout of one second.
+   *
+   * If another result or no result is received, false will be returned.
+   */
+  bool cancelMotion();
+
+  /**
+   * \brief Check if a trajectory is currently running.
+   */
+  bool isTrajectoryRunning() const
+  {
+    return trajectory_running_;
+  }
+
 private:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
   void trajDisconnectCallback(const int filedescriptor);
   std::shared_ptr<urcl::UrDriver> driver_;
   std::atomic<bool> trajectory_running_ = false;
+  std::atomic<bool> cancel_requested_ = false;
   std::mutex trajectory_result_mutex_;
+  std::condition_variable trajectory_done_cv_;
   urcl::control::TrajectoryResult trajectory_result_;
 };
 }  // namespace urcl
