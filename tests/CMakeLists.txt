@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
+option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
 # Build Tests
 if (INTEGRATION_TESTS)
   # Integration tests require a robot reachable at 192.168.56.101. Therefore, they have to be
