@@ -70,9 +70,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
   rtde_client_.reset(
       new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -559,27 +556,7 @@ std::string UrDriver::readScriptFile(const std::string& filename)
 
 bool UrDriver::checkCalibration(const std::string& checksum)
 {
-  if (primary_stream_ == nullptr)
-  {
-    throw std::runtime_error("checkCalibration() called without a primary interface connection being established.");
-  }
-  primary_interface::PrimaryParser parser;
-  comm::URProducer<primary_interface::PrimaryPackage> prod(*primary_stream_, parser);
-  prod.setupProducer();
-
-  CalibrationChecker consumer(checksum);
-
-  comm::INotifier notifier;
-
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, &consumer, "Pipeline", notifier);
-  pipeline.run();
-
-  while (!consumer.isChecked())
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  URCL_LOG_DEBUG("Got calibration information from robot.");
-  return consumer.checkSuccessful();
+  return primary_client_->checkCalibration(checksum);
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()

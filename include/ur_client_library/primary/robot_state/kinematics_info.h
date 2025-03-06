@@ -43,14 +43,26 @@ namespace primary_interface
 class KinematicsInfo : public RobotState
 {
 public:
-  KinematicsInfo() = delete;
+  KinematicsInfo() : RobotState(RobotStateType::KINEMATICS_INFO)
+  {
+  }
   /*!
    * \brief Creates a new KinematicsInfo object.
    *
    * \param type The type of RobotState message received
    */
-  KinematicsInfo(const RobotStateType type) : RobotState(type)
+  explicit KinematicsInfo(const RobotStateType type) : RobotState(type)
   {
+  }
+
+  KinematicsInfo(const KinematicsInfo& other) : RobotState(RobotStateType::KINEMATICS_INFO)
+  {
+    checksum_ = other.checksum_;
+    dh_theta_ = other.dh_theta_;
+    dh_a_ = other.dh_a_;
+    dh_d_ = other.dh_d_;
+    dh_alpha_ = other.dh_alpha_;
+    calibration_status_ = other.calibration_status_;
   }
   virtual ~KinematicsInfo() = default;
 
