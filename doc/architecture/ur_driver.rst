@@ -14,7 +14,7 @@ When creating an instance of the ``UrDriver`` class, the created object will con
 - a :ref:`ScriptCommandInterface <script_command_interface>`
 - a :ref:`ScriptSender <script_sender>`
 - a :ref:`TrajectoryPointInterface <trajectory_point_interface>`.
-- a rudimentary client to the robot's secondary interface
+- a rudimentary client to the robot's primary interface
 - a couple of helper functions
 
 As this page is not meant to be a full-blown API documentation, not every public method will be
@@ -42,7 +42,7 @@ given to this function. Connection to the primary interface is dropped afterward
 ``sendScript(const std::string& program)``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This function sends given URScript code directly to the secondary interface. The
+This function sends given URScript code directly to the primary interface. The
 ``sendRobotProgram()`` function is a special case that will send the script code given in the
 ``RTDEClient`` constructor.
 

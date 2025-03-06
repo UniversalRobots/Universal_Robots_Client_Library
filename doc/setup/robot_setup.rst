@@ -37,7 +37,7 @@ The robot needs to be prepared before it can be used with the client library.
       #. Go to the hamburger menu -> settings.
       #. Go to Security -> Services.
       #. Unlock the menu using the admin password.
-      #. Enable the Dashboard Server, Primary Client Interface, Secondary Client Interface and Real-Time Data Exchange (RTDE) interfaces.
+      #. Enable the Dashboard Server, Primary Client Interface and Real-Time Data Exchange (RTDE) interfaces.
       #. Lock the menu and press exit.
 
       .. image:: ../images/initial_setup_images/services_polyscope5.png
@@ -52,7 +52,7 @@ The robot needs to be prepared before it can be used with the client library.
       #. Go to the hamburger menu -> settings.
       #. Go to Security -> Services.
       #. Unlock the menu using the admin password.
-      #. Enable the Primary Client Interface, Secondary Client Interface and Real-Time Data Exchange (RTDE) interfaces.
+      #. Enable the Primary Client Interface and Real-Time Data Exchange (RTDE) interfaces.
       #. Lock the menu and press exit.
 
       .. image:: ../images/initial_setup_images/services_polyscopex.png
