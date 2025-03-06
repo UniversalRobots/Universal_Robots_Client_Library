@@ -235,14 +235,14 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
 TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 {
-  // Check that sendRobotProgram is robust to the secondary stream being disconnected. This is what happens when
+  // Check that sendRobotProgram is robust to the primary stream being disconnected. This is what happens when
   // switching from Remote to Local and back to Remote mode for example.
 
   // To be able to re-send the robot program we'll have to make sure it isn't running
   g_my_robot->ur_driver_->stopControl();
   g_my_robot->waitForProgramNotRunning();
 
-  g_my_robot->ur_driver_->closeSecondaryStream();
+  g_my_robot->ur_driver_->stopPrimaryClientCommunication();
 
   EXPECT_TRUE(g_my_robot->resendRobotProgram());
 
@@ -259,7 +259,6 @@ TEST_F(UrDriverTest, reset_rtde_client)
 
 TEST_F(UrDriverTest, read_error_code)
 {
-  g_my_robot->ur_driver_->startPrimaryClientCommunication();
   // Wait until we actually received a package
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   std::stringstream cmd;

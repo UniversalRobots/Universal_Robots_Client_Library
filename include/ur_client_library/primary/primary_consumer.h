@@ -97,6 +97,8 @@ public:
    */
   virtual bool consume(KinematicsInfo& pkg) override
   {
+    URCL_LOG_DEBUG("%s", pkg.toString().c_str());
+    kinematics_info_ = std::make_shared<KinematicsInfo>(pkg);
     return true;
   }
 
@@ -162,8 +164,19 @@ public:
     error_code_message_callback_ = callback_function;
   }
 
+  /*!
+   * \brief Get the kinematics info
+   *
+   * \returns Shared pointer to the kinematics info
+   */
+  std::shared_ptr<KinematicsInfo> getKinematicsInfo()
+  {
+    return kinematics_info_;
+  }
+
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
+  std::shared_ptr<KinematicsInfo> kinematics_info_;
 };
 
 }  // namespace primary_interface

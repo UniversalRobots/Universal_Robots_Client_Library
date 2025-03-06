@@ -68,6 +68,7 @@ public:
   void removePrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer);
   void start(const size_t max_connection_attempts = 0,
              const std::chrono::milliseconds reconnection_timeout = urcl::comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
+  void stop();
 
   /*!
    * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
@@ -75,7 +76,29 @@ public:
    */
   std::deque<ErrorCode> getErrorCodes();
 
+  /*!
+   * \brief Sends a custom script program to the robot.
+   *
+   * The given code must be valid according the UR Scripting Manual.
+   *
+   * \param program URScript code that shall be executed by the robot.
+   *
+   * \returns true on successful upload, false otherwise.
+   */
+  bool sendScript(const std::string& program);
+
+  bool checkCalibration(const std::string& checksum);
+
 private:
+  /*!
+   * \brief Reconnects the primary stream used to send program to the robot.
+   *
+   * Only for use in headless mode, as it replaces the use of the URCaps program.
+   *
+   * \returns true of on successful reconnection, false otherwise
+   */
+  bool reconnectStream();
+
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
 
