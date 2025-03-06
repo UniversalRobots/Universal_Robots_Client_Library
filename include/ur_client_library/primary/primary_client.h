@@ -87,6 +87,8 @@ public:
    */
   bool sendScript(const std::string& program);
 
+  bool checkCalibration(const std::string& checksum);
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.

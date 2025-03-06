@@ -146,5 +146,19 @@ bool PrimaryClient::reconnectStream()
   URCL_LOG_ERROR("Failed to reconnect primary stream!");
   return false;
 }
+
+bool PrimaryClient::checkCalibration(const std::string& checksum)
+{
+  std::shared_ptr<primary_interface::KinematicsInfo> kin_info;
+  while (kin_info == nullptr)
+  {
+    kin_info = consumer_->getKinematicsInfo();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  URCL_LOG_DEBUG("Got calibration information from robot.");
+
+  return kin_info->toHash() == checksum;
+}
+
 }  // namespace primary_interface
 }  // namespace urcl
