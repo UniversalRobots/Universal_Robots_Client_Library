@@ -868,17 +868,17 @@ public:
    */
   void startPrimaryClientCommunication();
 
+  void stopPrimaryClientCommunication()
+  {
+    primary_client_->stop();
+  }
+
   void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
   {
     trajectory_interface_->registerDisconnectionCallback(fun);
   }
 
   static std::string readScriptFile(const std::string& filename);
-
-  void closeSecondaryStream()
-  {
-    secondary_stream_->close();
-  }
 
   bool isReverseInterfaceConnected() const
   {
@@ -893,15 +893,6 @@ public:
 private:
   void init(const UrDriverConfiguration& config);
 
-  /*!
-   * \brief Reconnects the secondary stream used to send program to the robot.
-   *
-   * Only for use in headless mode, as it replaces the use of the URCaps program.
-   *
-   * \returns true of on successful reconnection, false otherwise
-   */
-  bool reconnectSecondaryStream();
-
   void initRTDE();
   void setupReverseInterface(const uint32_t reverse_port);
 
@@ -913,7 +904,6 @@ private:
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> primary_stream_;
-  std::unique_ptr<comm::URStream<primary_interface::PrimaryPackage>> secondary_stream_;
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
