@@ -60,7 +60,7 @@ jobs:
       - name: install gcovr
         run: sudo apt-get install -y gcovr
       - name: gcovr
-        run: cd build && gcovr -r ..
+        run: cd build && gcovr -r .. --gcov-ignore-parse-errors negative_hits.warn_once_per_file
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
