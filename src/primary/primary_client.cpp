@@ -149,11 +149,11 @@ bool PrimaryClient::reconnectStream()
 
 bool PrimaryClient::checkCalibration(const std::string& checksum)
 {
-  std::shared_ptr<primary_interface::KinematicsInfo> kin_info;
+  std::shared_ptr<primary_interface::KinematicsInfo> kin_info = consumer_->getKinematicsInfo();
   while (kin_info == nullptr)
   {
-    kin_info = consumer_->getKinematicsInfo();
     std::this_thread::sleep_for(std::chrono::seconds(1));
+    kin_info = consumer_->getKinematicsInfo();
   }
   URCL_LOG_DEBUG("Got calibration information from robot.");
 
