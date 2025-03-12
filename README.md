@@ -87,8 +87,8 @@ See [Architecture documentation](doc/architecture.rst)
 
 Currently, this library doesn't support the primary interface very well, as the [Universal Robots
 ROS driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) was built mainly upon
-the RTDE interface. Therefore, there is also no `PrimaryClient` for directly accessing the primary
-interface. This may change in future, though.
+the RTDE interface. The `PrimaryClient` for directly accessing the primary
+interface doesn't support all features of the primary interface.
 
 The `comm::URStream` class can be used to open a connection to the primary / secondary interface
 and send data to it. The [producer/consumer](#producer--consumer-architecture) pipeline structure

@@ -70,12 +70,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
   rtde_client_.reset(
       new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
-  primary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_PRIMARY_PORT));
-  secondary_stream_.reset(
-      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
-  secondary_stream_->connect(socket_connection_attempts_, socket_reconnection_timeout_);
-
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -151,6 +145,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
   script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
 
+  startPrimaryClientCommunication();
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";
@@ -561,27 +556,7 @@ std::string UrDriver::readScriptFile(const std::string& filename)
 
 bool UrDriver::checkCalibration(const std::string& checksum)
 {
-  if (primary_stream_ == nullptr)
-  {
-    throw std::runtime_error("checkCalibration() called without a primary interface connection being established.");
-  }
-  primary_interface::PrimaryParser parser;
-  comm::URProducer<primary_interface::PrimaryPackage> prod(*primary_stream_, parser);
-  prod.setupProducer();
-
-  CalibrationChecker consumer(checksum);
-
-  comm::INotifier notifier;
-
-  comm::Pipeline<primary_interface::PrimaryPackage> pipeline(prod, &consumer, "Pipeline", notifier);
-  pipeline.run();
-
-  while (!consumer.isChecked())
-  {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  URCL_LOG_DEBUG("Got calibration information from robot.");
-  return consumer.checkSuccessful();
+  return primary_client_->checkCalibration(checksum);
 }
 
 rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
@@ -591,44 +566,12 @@ rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
 
 bool UrDriver::sendScript(const std::string& program)
 {
-  if (secondary_stream_ == nullptr)
+  if (primary_client_ == nullptr)
   {
-    throw std::runtime_error("Sending script to robot requested while there is no secondary interface established. "
+    throw std::runtime_error("Sending script to robot requested while there is no primary client initialized. "
                              "This should not happen.");
   }
-
-  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
-  // not execute them. To avoid problems, we always just append a newline here, even if
-  // there may already be one.
-  auto program_with_newline = program + '\n';
-
-  size_t len = program_with_newline.size();
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
-  size_t written;
-
-  const auto send_script_contents = [this, program_with_newline, data, len,
-                                     &written](const std::string&& description) -> bool {
-    if (secondary_stream_->write(data, len, written))
-    {
-      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
-      return true;
-    }
-    const std::string error_message = "Could not send program to robot: " + description;
-    URCL_LOG_ERROR(error_message.c_str());
-    return false;
-  };
-
-  if (send_script_contents("initial attempt"))
-  {
-    return true;
-  }
-
-  if (reconnectSecondaryStream())
-  {
-    return send_script_contents("after reconnecting secondary stream");
-  }
-
-  return false;
+  return primary_client_->sendScript(program);
 }
 
 bool UrDriver::sendRobotProgram()
@@ -642,19 +585,6 @@ bool UrDriver::sendRobotProgram()
     URCL_LOG_ERROR("Tried to send robot program directly while not in headless mode");
     return false;
   }
-}
-
-bool UrDriver::reconnectSecondaryStream()
-{
-  URCL_LOG_DEBUG("Closing secondary stream...");
-  secondary_stream_->close();
-  if (secondary_stream_->connect())
-  {
-    URCL_LOG_DEBUG("Secondary stream connected");
-    return true;
-  }
-  URCL_LOG_ERROR("Failed to reconnect secondary stream!");
-  return false;
 }
 
 std::vector<std::string> UrDriver::getRTDEOutputRecipe()

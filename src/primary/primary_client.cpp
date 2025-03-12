@@ -67,6 +67,12 @@ void PrimaryClient::start(const size_t max_num_tries, const std::chrono::millise
   pipeline_->run();
 }
 
+void PrimaryClient::stop()
+{
+  pipeline_->stop();
+  stream_.close();
+}
+
 void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
 {
   multi_consumer_->addConsumer(primary_consumer);
@@ -91,5 +97,68 @@ std::deque<ErrorCode> PrimaryClient::getErrorCodes()
   error_code_queue_.clear();
   return error_codes;
 }
+
+bool PrimaryClient::sendScript(const std::string& program)
+{
+  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
+  // not execute them. To avoid problems, we always just append a newline here, even if
+  // there may already be one.
+  auto program_with_newline = program + '\n';
+
+  size_t len = program_with_newline.size();
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
+  size_t written;
+
+  const auto send_script_contents = [this, program_with_newline, data, len,
+                                     &written](const std::string&& description) -> bool {
+    if (stream_.write(data, len, written))
+    {
+      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+      return true;
+    }
+    const std::string error_message = "Could not send program to robot: " + description;
+    URCL_LOG_ERROR(error_message.c_str());
+    return false;
+  };
+
+  if (send_script_contents("initial attempt"))
+  {
+    return true;
+  }
+
+  if (reconnectStream())
+  {
+    return send_script_contents("after reconnecting primary stream");
+  }
+
+  return false;
+}
+
+bool PrimaryClient::reconnectStream()
+{
+  URCL_LOG_DEBUG("Closing primary stream...");
+  stream_.close();
+  if (stream_.connect())
+  {
+    URCL_LOG_DEBUG("Primary stream connected");
+    return true;
+  }
+  URCL_LOG_ERROR("Failed to reconnect primary stream!");
+  return false;
+}
+
+bool PrimaryClient::checkCalibration(const std::string& checksum)
+{
+  std::shared_ptr<primary_interface::KinematicsInfo> kin_info = consumer_->getKinematicsInfo();
+  while (kin_info == nullptr)
+  {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    kin_info = consumer_->getKinematicsInfo();
+  }
+  URCL_LOG_DEBUG("Got calibration information from robot.");
+
+  return kin_info->toHash() == checksum;
+}
+
 }  // namespace primary_interface
 }  // namespace urcl

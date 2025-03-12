@@ -39,7 +39,9 @@ namespace urcl
  * packages. These are then checked against the used kinematics to see if the correct calibration
  * is used.
  */
-class CalibrationChecker : public comm::IConsumer<primary_interface::PrimaryPackage>
+class [[deprecated("Using the standalone CalibrationChecker consumer to compare the kinematics hash is deprecated. "
+                   "Please use the PrimaryClient instead.")]] CalibrationChecker
+  : public comm::IConsumer<primary_interface::PrimaryPackage>
 {
 public:
   /*!
