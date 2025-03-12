@@ -568,7 +568,8 @@ bool UrDriver::sendScript(const std::string& program)
 {
   if (primary_client_ == nullptr)
   {
-    return false;
+    throw std::runtime_error("Sending script to robot requested while there is no primary client initialized. "
+                             "This should not happen.");
   }
   return primary_client_->sendScript(program);
 }
