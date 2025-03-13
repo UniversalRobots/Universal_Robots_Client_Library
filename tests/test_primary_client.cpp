@@ -103,6 +103,12 @@ TEST_F(PrimaryClientTest, test_power_cycle_commands)
   EXPECT_EQ(client_->getRobotMode(), RobotMode::POWER_OFF);
 }
 
+TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
+{
+  // The client is not started yet, so the robot mode should be UNKNOWN
+  ASSERT_EQ(client_->getRobotMode(), RobotMode::UNKNOWN);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
