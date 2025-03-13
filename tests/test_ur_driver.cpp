@@ -81,12 +81,11 @@ TEST_F(UrDriverTest, read_non_existing_script_file)
 
 TEST_F(UrDriverTest, read_existing_script_file)
 {
-  int fd = 0;
   char existing_script_file[] = "urscript.XXXXXX";
 #ifdef _WIN32
 #  define mkstemp _mktemp_s
 #endif
-  mkstemp(existing_script_file);
+  std::ignore = mkstemp(existing_script_file);
 
   std::ofstream ofs(existing_script_file);
   if (ofs.bad())
