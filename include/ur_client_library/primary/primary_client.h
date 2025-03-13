@@ -31,6 +31,7 @@
 #ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 
+#include <chrono>
 #include <memory>
 #include <deque>
 
@@ -89,6 +90,58 @@ public:
 
   bool checkCalibration(const std::string& checksum);
 
+  /*!
+   * \brief Commands the robot to power on.
+   *
+   * \param validate If true, the function will block until the robot is powered on or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm the power on command.
+   *
+   * \returns true on successful power on, false otherwise.
+   */
+  bool commandPowerOn(const bool validate = true,
+                      const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+
+  /*!
+   * \brief Commands the robot to power off.
+   *
+   * \param validate If true, the function will block until the robot is powered off or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm the power off command.
+   *
+   * \returns true on successful power off, false otherwise.
+   */
+  bool commandPowerOff(const bool validate = true,
+                       const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+
+  /*!
+   * \brief Commands the robot to release the brakes
+   *
+   * \param validate If true, the function will block until the robot is running or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm it is running.
+   *
+   * \returns true on successful brake release, false otherwise.
+   */
+  bool commandBrakeRelease(const bool validate = true,
+                           const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+
+  /*!
+   * \brief Get the latest robot mode.
+   *
+   * The robot mode will be updated in the background. This will always show the latest received
+   * robot mode independent of the time that has passed since receiving it.
+   */
+  RobotMode getRobotMode()
+  {
+    std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
+    if (robot_mode_data == nullptr)
+    {
+      return RobotMode::UNKNOWN;
+    }
+    return static_cast<RobotMode>(consumer_->getRobotModeData()->robot_mode_);
+  }
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.
@@ -98,6 +151,9 @@ private:
    * \returns true of on successful reconnection, false otherwise
    */
   bool reconnectStream();
+
+  bool waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
+               const std::chrono::milliseconds check_interval = std::chrono::milliseconds(50));
 
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);

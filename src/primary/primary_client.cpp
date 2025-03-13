@@ -160,5 +160,60 @@ bool PrimaryClient::checkCalibration(const std::string& checksum)
   return kin_info->toHash() == checksum;
 }
 
+bool PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power on"))
+  {
+    return false;
+  }
+
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+  }
+  return true;
+}
+
+bool PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power off"))
+  {
+    return false;
+  }
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+  }
+  return true;
+}
+
+bool PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("set robotmode run"))
+  {
+    return false;
+  }
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
+  }
+  return true;
+}
+
+bool PrimaryClient::waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
+                            const std::chrono::milliseconds check_interval)
+{
+  auto start_time = std::chrono::system_clock::now();
+  while (std::chrono::system_clock::now() - start_time < timeout)
+  {
+    if (condition())
+    {
+      return true;
+    }
+    URCL_LOG_DEBUG("Waiting for condition to be met...");
+    std::this_thread::sleep_for(check_interval);
+  }
+  return false;
+}
 }  // namespace primary_interface
 }  // namespace urcl

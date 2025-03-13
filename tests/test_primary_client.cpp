@@ -32,7 +32,10 @@
 
 #include <ur_client_library/primary/primary_client.h>
 #include <ur_client_library/ur/calibration_checker.h>
+#include <chrono>
 #include <memory>
+#include <thread>
+#include "ur_client_library/helpers.h"
 
 using namespace urcl;
 
@@ -77,9 +80,33 @@ TEST_F(PrimaryClientTest, add_and_remove_consumer)
   client_->removePrimaryConsumer(calibration_consumer);
 }
 
+TEST_F(PrimaryClientTest, test_power_cycle_commands)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_TRUE(client_->commandPowerOff());
+  EXPECT_TRUE(client_->commandPowerOn());
+  EXPECT_TRUE(client_->commandBrakeRelease());
+  EXPECT_TRUE(client_->commandPowerOff());
+  EXPECT_TRUE(client_->commandBrakeRelease());
+  EXPECT_TRUE(client_->commandPowerOff());
+
+  // provoke a timeout
+  EXPECT_FALSE(client_->commandBrakeRelease(true, std::chrono::milliseconds(1)));
+
+  auto timeout = std::chrono::milliseconds(1000);
+  waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout);
+  EXPECT_EQ(client_->getRobotMode(), RobotMode::RUNNING);
+
+  EXPECT_TRUE(client_->commandPowerOff(false));
+  waitFor([this]() { return client_->getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+
+  EXPECT_EQ(client_->getRobotMode(), RobotMode::POWER_OFF);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
+  urcl::setLogLevel(urcl::LogLevel::DEBUG);
 
   return RUN_ALL_TESTS();
 }
