@@ -89,7 +89,9 @@ TEST_F(DashboardClientTest, run_program)
   EXPECT_TRUE(dashboard_client_->commandPlay());
   EXPECT_TRUE(dashboard_client_->commandPause());
   EXPECT_TRUE(dashboard_client_->commandPlay());
+  EXPECT_TRUE(dashboard_client_->commandRunning());
   EXPECT_TRUE(dashboard_client_->commandStop());
+  EXPECT_FALSE(dashboard_client_->commandRunning());
   EXPECT_TRUE(dashboard_client_->commandPowerOff());
   dashboard_client_->commandClosePopup();  // Necessary for CB3 test
 }
