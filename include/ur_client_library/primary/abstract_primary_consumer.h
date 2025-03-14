@@ -34,6 +34,7 @@
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
 
 namespace urcl
 {
@@ -75,6 +76,7 @@ public:
   virtual bool consume(VersionMessage& pkg) = 0;
   virtual bool consume(KinematicsInfo& pkg) = 0;
   virtual bool consume(ErrorCodeMessage& pkg) = 0;
+  virtual bool consume(RobotModeData& pkg) = 0;
 
 private:
   /* data */

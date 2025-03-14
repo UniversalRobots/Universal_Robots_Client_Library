@@ -29,6 +29,7 @@
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
 
 namespace urcl
 {
@@ -150,12 +151,12 @@ private:
   {
     switch (type)
     {
-      /*case robot_state_type::ROBOT_MODE_DATA:
-        // SharedRobotModeData* rmd = new SharedRobotModeData();
+      case RobotStateType::ROBOT_MODE_DATA:
+        return new RobotModeData(type);
 
-        //return new rmd;
-      case robot_state_type::MASTERBOARD_DATA:
-        return new MBD;*/
+        // return new rmd;
+      // case robot_state_type::MASTERBOARD_DATA:
+      // return new MBD;*/
       case RobotStateType::KINEMATICS_INFO:
         return new KinematicsInfo(type);
       default:

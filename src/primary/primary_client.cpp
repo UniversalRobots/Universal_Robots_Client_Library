@@ -160,5 +160,45 @@ bool PrimaryClient::checkCalibration(const std::string& checksum)
   return kin_info->toHash() == checksum;
 }
 
+bool PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power on"))
+  {
+    return false;
+  }
+
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+  }
+  return true;
+}
+
+bool PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power off"))
+  {
+    return false;
+  }
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+  }
+  return true;
+}
+
+bool PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("set robotmode run"))
+  {
+    return false;
+  }
+  if (validate)
+  {
+    return waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
+  }
+  return true;
+}
+
 }  // namespace primary_interface
 }  // namespace urcl

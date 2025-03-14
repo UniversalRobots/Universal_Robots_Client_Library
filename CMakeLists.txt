@@ -28,6 +28,7 @@ add_library(urcl
     src/primary/robot_message/version_message.cpp
     src/primary/robot_message/error_code_message.cpp
     src/primary/robot_state/kinematics_info.cpp
+    src/primary/robot_state/robot_mode_data.cpp
     src/rtde/control_package_pause.cpp
     src/rtde/control_package_setup_inputs.cpp
     src/rtde/control_package_setup_outputs.cpp

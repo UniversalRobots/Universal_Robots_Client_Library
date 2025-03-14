@@ -32,6 +32,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <thread>
 
 // clang-format off
 // We want to keep the URL in one line to avoid formatting issues. This will make it easier to
@@ -98,5 +99,21 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
   }
   return true;
 #endif
+}
+
+bool waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
+             const std::chrono::milliseconds check_interval)
+{
+  auto start_time = std::chrono::system_clock::now();
+  while (std::chrono::system_clock::now() - start_time < timeout)
+  {
+    if (condition())
+    {
+      return true;
+    }
+    URCL_LOG_DEBUG("Waiting for condition to be met...");
+    std::this_thread::sleep_for(check_interval);
+  }
+  return false;
 }
 }  // namespace urcl
