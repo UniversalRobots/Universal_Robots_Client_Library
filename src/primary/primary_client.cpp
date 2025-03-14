@@ -193,7 +193,7 @@ void PrimaryClient::commandPowerOff(const bool validate, const std::chrono::mill
     {
       waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
     }
-    catch (const std::exception&)
+    catch (const TimeoutException&)
     {
       throw TimeoutException("Robot did not power off within the given timeout", timeout);
     }
@@ -212,9 +212,72 @@ void PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::
     {
       waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
     }
-    catch (const std::exception&)
+    catch (const TimeoutException&)
     {
       throw TimeoutException("Robot did not release the brakes within the given timeout", timeout);
+    }
+  }
+}
+
+void PrimaryClient::commandUnlockProtectiveStop(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("set unlock protective stop"))
+  {
+    throw UrException("Failed to send unlock protective stop command to robot");
+  }
+  if (validate)
+  {
+    try
+    {
+      waitFor([this]() { return consumer_->getRobotModeData()->is_protective_stopped_ == false; }, timeout);
+    }
+    catch (const TimeoutException&)
+    {
+      throw TimeoutException("Robot did not unlock the protective stop within the given timeout", timeout);
+    }
+  }
+}
+
+void PrimaryClient::commandStop(const bool already_stopped_ok, const bool validate,
+                                const std::chrono::milliseconds timeout)
+{
+  std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
+  if (robot_mode_data == nullptr)
+  {
+    throw UrException("Stopping a program while robot state is unknown. This should not happen");
+  }
+
+  if (!(robot_mode_data->is_program_running_ || robot_mode_data->is_program_paused_))
+  {
+    if (already_stopped_ok)
+    {
+      URCL_LOG_DEBUG("Program halt requested, but program is already stopped, skipping.");
+      return;
+    }
+    else
+    {
+      throw InvalidStateForCommand("Cannot halt program execution, as no program is running or paused on the robot.");
+    }
+  }
+
+  if (!sendScript("stop program"))
+  {
+    throw UrException("Failed to send the command `stop program` to robot");
+  }
+  if (validate)
+  {
+    try
+    {
+      waitFor(
+          [this]() {
+            return !consumer_->getRobotModeData()->is_program_running_ &&
+                   !consumer_->getRobotModeData()->is_program_paused_;
+          },
+          timeout);
+    }
+    catch (const TimeoutException&)
+    {
+      throw TimeoutException("Robot did not stop the program within the given timeout", timeout);
     }
   }
 }
