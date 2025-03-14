@@ -99,8 +99,7 @@ public:
    *
    * \returns true on successful power on, false otherwise.
    */
-  bool commandPowerOn(const bool validate = true,
-                      const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+  bool commandPowerOn(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
    * \brief Commands the robot to power off.
@@ -111,8 +110,7 @@ public:
    *
    * \returns true on successful power off, false otherwise.
    */
-  bool commandPowerOff(const bool validate = true,
-                       const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+  bool commandPowerOff(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
    * \brief Commands the robot to release the brakes
@@ -124,7 +122,7 @@ public:
    * \returns true on successful brake release, false otherwise.
    */
   bool commandBrakeRelease(const bool validate = true,
-                           const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+                           const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
    * \brief Get the latest robot mode.
