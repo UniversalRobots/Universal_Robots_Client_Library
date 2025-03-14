@@ -19,6 +19,7 @@
  */
 
 #pragma once
+#include <sys/time.h>
 #include <atomic>
 #include <chrono>
 #include <mutex>

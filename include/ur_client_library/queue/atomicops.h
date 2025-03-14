@@ -408,7 +408,7 @@ __declspec(dllimport) int __stdcall ReleaseSemaphore(void* hSemaphore, long lRel
 }
 #elif defined(__MACH__)
 #  include <mach/mach.h>
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(__VXWORKS__)
 #  include <semaphore.h>
 #endif
 
@@ -543,7 +543,7 @@ public:
     }
   }
 };
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(__VXWORKS__)
 //---------------------------------------------------------
 // Semaphore (POSIX, Linux)
 //---------------------------------------------------------
