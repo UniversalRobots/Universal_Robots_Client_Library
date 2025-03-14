@@ -152,9 +152,6 @@ private:
    */
   bool reconnectStream();
 
-  bool waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
-               const std::chrono::milliseconds check_interval = std::chrono::milliseconds(50));
-
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
 
