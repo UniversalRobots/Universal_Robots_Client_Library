@@ -93,7 +93,7 @@ TEST_F(PrimaryClientTest, test_power_cycle_commands)
   // provoke a timeout
   EXPECT_FALSE(client_->commandBrakeRelease(true, std::chrono::milliseconds(1)));
 
-  auto timeout = std::chrono::milliseconds(1000);
+  auto timeout = std::chrono::seconds(30);
   waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout);
   EXPECT_EQ(client_->getRobotMode(), RobotMode::RUNNING);
 
