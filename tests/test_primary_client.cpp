@@ -112,7 +112,6 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
-  urcl::setLogLevel(urcl::LogLevel::DEBUG);
 
   return RUN_ALL_TESTS();
 }
