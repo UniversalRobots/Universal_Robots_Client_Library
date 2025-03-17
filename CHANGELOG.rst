@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Remove unused variables (`#288 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/288>`_)
+* Remove direct primary and secondary stream from UrDriver (`#283 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/283>`_)
+* Configure gcovr to ignore negative hits as errors (`#284 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/284>`_)
+* Add an explicit CMake option to turn on/off integration tests (`#282 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/282>`_)
+* instruction_executor: Allow canceling an instruction (`#281 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/281>`_)
+* instruction_executor: fix movel test (`#280 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/280>`_)
+* Fix buffer order of acceleration and velocity (`#279 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/279>`_)
+* Support compilation on Windows (`#229 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/229>`_)
+* Contributors: Felix Exner, VDm
+
 1.7.1 (2025-02-25)
 ------------------
 * Fix trajectory result in trajectory forward mode when no trajectory is running (`#276 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/276>`_)
