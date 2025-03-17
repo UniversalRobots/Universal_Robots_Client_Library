@@ -322,7 +322,8 @@ bool DashboardClient::commandQuit()
 bool DashboardClient::commandRunning()
 {
   assertVersion("5.0.0", "1.6", "running");
-  return sendRequest("running", "Program running: true");
+  std::string const response = sendAndReceive("running");
+  return std::regex_match(response, std::regex("Program running: true"));
 }
 
 bool DashboardClient::commandIsProgramSaved()
