@@ -31,6 +31,7 @@
 #include <ur_client_library/primary/primary_client.h>
 #include <ur_client_library/primary/robot_message.h>
 #include <ur_client_library/primary/robot_state.h>
+#include "ur_client_library/exceptions.h"
 
 namespace urcl
 {
@@ -160,44 +161,62 @@ bool PrimaryClient::checkCalibration(const std::string& checksum)
   return kin_info->toHash() == checksum;
 }
 
-bool PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
+void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
 {
   if (!sendScript("power on"))
   {
-    return false;
+    throw UrException("Failed to send power on command to robot");
   }
 
   if (validate)
   {
-    return waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+    }
+    catch (const TimeoutException& ex)
+    {
+      throw TimeoutException("Robot did not power on within the given timeout", timeout);
+    }
   }
-  return true;
 }
 
-bool PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
+void PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
 {
   if (!sendScript("power off"))
   {
-    return false;
+    throw UrException("Failed to send power off command to robot");
   }
   if (validate)
   {
-    return waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+    }
+    catch (const std::exception&)
+    {
+      throw TimeoutException("Robot did not power off within the given timeout", timeout);
+    }
   }
-  return true;
 }
 
-bool PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
+void PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
 {
   if (!sendScript("set robotmode run"))
   {
-    return false;
+    throw UrException("Failed to send brake release command to robot");
   }
   if (validate)
   {
-    return waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
+    }
+    catch (const std::exception&)
+    {
+      throw TimeoutException("Robot did not release the brakes within the given timeout", timeout);
+    }
   }
-  return true;
 }
 
 }  // namespace primary_interface

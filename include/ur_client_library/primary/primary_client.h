@@ -97,9 +97,10 @@ public:
    * passed by.
    * \param timeout The maximum time to wait for the robot to confirm the power on command.
    *
-   * \returns true on successful power on, false otherwise.
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't power on within the given timeout.
    */
-  bool commandPowerOn(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
+  void commandPowerOn(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
    * \brief Commands the robot to power off.
@@ -108,9 +109,10 @@ public:
    * passed by.
    * \param timeout The maximum time to wait for the robot to confirm the power off command.
    *
-   * \returns true on successful power off, false otherwise.
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't power off within the given timeout.
    */
-  bool commandPowerOff(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
+  void commandPowerOff(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
    * \brief Commands the robot to release the brakes
@@ -119,9 +121,11 @@ public:
    * passed by.
    * \param timeout The maximum time to wait for the robot to confirm it is running.
    *
-   * \returns true on successful brake release, false otherwise.
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't release the brakes within the given
+   * timeout.
    */
-  bool commandBrakeRelease(const bool validate = true,
+  void commandBrakeRelease(const bool validate = true,
                            const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!

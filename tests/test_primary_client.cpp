@@ -35,6 +35,7 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 
 using namespace urcl;
@@ -83,24 +84,21 @@ TEST_F(PrimaryClientTest, add_and_remove_consumer)
 TEST_F(PrimaryClientTest, test_power_cycle_commands)
 {
   EXPECT_NO_THROW(client_->start());
-  EXPECT_TRUE(client_->commandPowerOff());
-  EXPECT_TRUE(client_->commandPowerOn());
-  EXPECT_TRUE(client_->commandBrakeRelease());
-  EXPECT_TRUE(client_->commandPowerOff());
-  EXPECT_TRUE(client_->commandBrakeRelease());
-  EXPECT_TRUE(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandPowerOn());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  EXPECT_NO_THROW(client_->commandPowerOff());
 
   // provoke a timeout
-  EXPECT_FALSE(client_->commandBrakeRelease(true, std::chrono::milliseconds(1)));
+  EXPECT_THROW(client_->commandBrakeRelease(true, std::chrono::milliseconds(1)), urcl::TimeoutException);
 
   auto timeout = std::chrono::seconds(30);
-  waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout);
-  EXPECT_EQ(client_->getRobotMode(), RobotMode::RUNNING);
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout));
 
-  EXPECT_TRUE(client_->commandPowerOff(false));
-  waitFor([this]() { return client_->getRobotMode() == RobotMode::POWER_OFF; }, timeout);
-
-  EXPECT_EQ(client_->getRobotMode(), RobotMode::POWER_OFF);
+  EXPECT_NO_THROW(client_->commandPowerOff(false));
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::POWER_OFF; }, timeout));
 }
 
 TEST_F(PrimaryClientTest, test_uninitialized_primary_client)

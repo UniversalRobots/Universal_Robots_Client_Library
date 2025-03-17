@@ -26,6 +26,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <ur_client_library/exceptions.h>
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 
@@ -101,7 +102,7 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
 #endif
 }
 
-bool waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
+void waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
              const std::chrono::milliseconds check_interval)
 {
   auto start_time = std::chrono::system_clock::now();
@@ -109,11 +110,11 @@ bool waitFor(std::function<bool()> condition, const std::chrono::milliseconds ti
   {
     if (condition())
     {
-      return true;
+      return;
     }
     URCL_LOG_DEBUG("Waiting for condition to be met...");
     std::this_thread::sleep_for(check_interval);
   }
-  return false;
+  throw urcl::TimeoutException("Timeout while waiting for condition to be met", timeout);
 }
 }  // namespace urcl
