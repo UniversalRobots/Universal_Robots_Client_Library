@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.8.0 (2025-03-17)
+------------------
 * Remove unused variables (`#288 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/288>`_)
 * Remove direct primary and secondary stream from UrDriver (`#283 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/283>`_)
 * Configure gcovr to ignore negative hits as errors (`#284 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/284>`_)
