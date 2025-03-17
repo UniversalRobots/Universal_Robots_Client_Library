@@ -32,7 +32,7 @@
 #include <ur_client_library/primary/robot_message.h>
 #include <ur_client_library/primary/robot_state.h>
 #include "ur_client_library/exceptions.h"
-
+#include <ur_client_library/helpers.h>
 namespace urcl
 {
 namespace primary_interface
