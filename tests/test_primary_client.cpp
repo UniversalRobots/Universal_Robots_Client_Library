@@ -91,14 +91,23 @@ TEST_F(PrimaryClientTest, test_power_cycle_commands)
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   EXPECT_NO_THROW(client_->commandPowerOff());
 
+  auto timeout = std::chrono::seconds(30);
   // provoke a timeout
   EXPECT_THROW(client_->commandBrakeRelease(true, std::chrono::milliseconds(1)), urcl::TimeoutException);
-
-  auto timeout = std::chrono::seconds(30);
   EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout));
+  EXPECT_THROW(client_->commandPowerOff(true, std::chrono::milliseconds(1)), urcl::TimeoutException);
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::POWER_OFF; }, timeout));
+  EXPECT_THROW(client_->commandPowerOn(true, std::chrono::milliseconds(1)), urcl::TimeoutException);
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::IDLE; }, timeout));
 
+  // Without a verification the calls should succeed, the robot ending up in the desired state
+  // eventually.
   EXPECT_NO_THROW(client_->commandPowerOff(false));
   EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::POWER_OFF; }, timeout));
+  EXPECT_NO_THROW(client_->commandPowerOn(false));
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::IDLE; }, timeout));
+  EXPECT_NO_THROW(client_->commandBrakeRelease(false));
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout));
 }
 
 TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
