@@ -29,6 +29,8 @@
 #define UR_CLIENT_LIBRARY_PRIMARY_CONSUMER_H_INCLUDED
 
 #include "ur_client_library/primary/abstract_primary_consumer.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/ur/datatypes.h"
 
 #include <functional>
 #include <mutex>
@@ -153,6 +155,14 @@ public:
     return true;
   }
 
+  virtual bool consume(RobotModeData& pkg) override
+  {
+    URCL_LOG_DEBUG("Robot mode is now %s", robotModeString(static_cast<RobotMode>(pkg.robot_mode_)).c_str());
+    std::scoped_lock lock(robot_mode_mutex_);
+    robot_mode_ = std::make_shared<RobotModeData>(pkg);
+    return true;
+  }
+
   /*!
    * \brief Set callback function which will be triggered whenever error code messages are received
    *
@@ -174,9 +184,23 @@ public:
     return kinematics_info_;
   }
 
+  /*!
+   * \brief Get the latest robot mode.
+   *
+   * The robot mode will be updated in the background. This will always show the latest received
+   * robot mode independent of the time that has passed since receiving it.
+   */
+  std::shared_ptr<RobotModeData> getRobotModeData()
+  {
+    std::scoped_lock lock(robot_mode_mutex_);
+    return robot_mode_;
+  }
+
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
   std::shared_ptr<KinematicsInfo> kinematics_info_;
+  std::mutex robot_mode_mutex_;
+  std::shared_ptr<RobotModeData> robot_mode_;
 };
 
 }  // namespace primary_interface

@@ -29,6 +29,8 @@
 #ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 
+#include <chrono>
+#include <functional>
 #ifdef _WIN32
 
 #  define NOMINMAX
@@ -63,5 +65,18 @@ static inline int sched_get_priority_max(int policy)
 namespace urcl
 {
 bool setFiFoScheduling(pthread_t& thread, const int priority);
-}
+
+/*!
+ * \brief Wait for a condition to be true.
+ *
+ * This function will wait for a condition to be true. The condition is checked in intervals of \p check_interval.
+ * If the condition is not met after \p timeout, the function will throw a urcl::TimeoutException.
+ *
+ * \param condition The condition to be checked.
+ * \param timeout The maximum time to wait for the condition to be true.
+ * \param check_interval The interval in which the condition is checked.
+ */
+void waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
+             const std::chrono::milliseconds check_interval = std::chrono::milliseconds(50));
+}  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

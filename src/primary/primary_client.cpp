@@ -31,7 +31,8 @@
 #include <ur_client_library/primary/primary_client.h>
 #include <ur_client_library/primary/robot_message.h>
 #include <ur_client_library/primary/robot_state.h>
-
+#include "ur_client_library/exceptions.h"
+#include <ur_client_library/helpers.h>
 namespace urcl
 {
 namespace primary_interface
@@ -158,6 +159,64 @@ bool PrimaryClient::checkCalibration(const std::string& checksum)
   URCL_LOG_DEBUG("Got calibration information from robot.");
 
   return kin_info->toHash() == checksum;
+}
+
+void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power on"))
+  {
+    throw UrException("Failed to send power on command to robot");
+  }
+
+  if (validate)
+  {
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+    }
+    catch (const TimeoutException& ex)
+    {
+      throw TimeoutException("Robot did not power on within the given timeout", timeout);
+    }
+  }
+}
+
+void PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("power off"))
+  {
+    throw UrException("Failed to send power off command to robot");
+  }
+  if (validate)
+  {
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::POWER_OFF; }, timeout);
+    }
+    catch (const std::exception&)
+    {
+      throw TimeoutException("Robot did not power off within the given timeout", timeout);
+    }
+  }
+}
+
+void PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
+{
+  if (!sendScript("set robotmode run"))
+  {
+    throw UrException("Failed to send brake release command to robot");
+  }
+  if (validate)
+  {
+    try
+    {
+      waitFor([this]() { return getRobotMode() == RobotMode::RUNNING; }, timeout);
+    }
+    catch (const std::exception&)
+    {
+      throw TimeoutException("Robot did not release the brakes within the given timeout", timeout);
+    }
+  }
 }
 
 }  // namespace primary_interface

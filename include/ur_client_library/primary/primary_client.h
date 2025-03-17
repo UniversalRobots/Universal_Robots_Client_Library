@@ -31,6 +31,7 @@
 #ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 
+#include <chrono>
 #include <memory>
 #include <deque>
 
@@ -88,6 +89,60 @@ public:
   bool sendScript(const std::string& program);
 
   bool checkCalibration(const std::string& checksum);
+
+  /*!
+   * \brief Commands the robot to power on.
+   *
+   * \param validate If true, the function will block until the robot is powered on or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm the power on command.
+   *
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't power on within the given timeout.
+   */
+  void commandPowerOn(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
+
+  /*!
+   * \brief Commands the robot to power off.
+   *
+   * \param validate If true, the function will block until the robot is powered off or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm the power off command.
+   *
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't power off within the given timeout.
+   */
+  void commandPowerOff(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(30));
+
+  /*!
+   * \brief Commands the robot to release the brakes
+   *
+   * \param validate If true, the function will block until the robot is running or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to confirm it is running.
+   *
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't release the brakes within the given
+   * timeout.
+   */
+  void commandBrakeRelease(const bool validate = true,
+                           const std::chrono::milliseconds timeout = std::chrono::seconds(30));
+
+  /*!
+   * \brief Get the latest robot mode.
+   *
+   * The robot mode will be updated in the background. This will always show the latest received
+   * robot mode independent of the time that has passed since receiving it.
+   */
+  RobotMode getRobotMode()
+  {
+    std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
+    if (robot_mode_data == nullptr)
+    {
+      return RobotMode::UNKNOWN;
+    }
+    return static_cast<RobotMode>(consumer_->getRobotModeData()->robot_mode_);
+  }
 
 private:
   /*!
