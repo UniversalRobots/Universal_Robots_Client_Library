@@ -29,7 +29,6 @@
 #ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
 
-#include <sys/time.h>
 #include <chrono>
 #include <stdexcept>
 #include <sstream>
@@ -42,6 +41,8 @@
 #  ifdef ERROR
 #    undef ERROR
 #  endif  // ERROR
+#else
+#  include <sys/time.h>
 #endif
 
 namespace urcl
