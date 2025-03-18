@@ -31,8 +31,8 @@
 
 #ifndef _WIN32
 #include <sys/select.h>
-#endif
 #include <arpa/inet.h>
+#endif
 #include <atomic>
 #include <chrono>
 #include <functional>
