@@ -62,6 +62,12 @@ protected:
   void SetUp()
   {
     dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
+    // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
+    // here.
+    timeval tv;
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    dashboard_client_->setReceiveTimeout(tv);
   }
 
   void TearDown()
