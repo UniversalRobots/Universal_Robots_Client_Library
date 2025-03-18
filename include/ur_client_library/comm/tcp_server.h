@@ -29,10 +29,6 @@
 #ifndef UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TCP_SERVER_H_INCLUDED
 
-#ifndef _WIN32
-#include <sys/select.h>
-#include <arpa/inet.h>
-#endif
 #include <atomic>
 #include <chrono>
 #include <functional>
