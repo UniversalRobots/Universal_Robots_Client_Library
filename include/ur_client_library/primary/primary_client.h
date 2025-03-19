@@ -188,13 +188,15 @@ public:
    *
    * The robot's protective_stop state will be updated in the background. This will always show the latest received
    * state independent of the time that has passed since receiving it.
+   *
+   * \throws UrException when no robot mode data has been received, yet.
    */
   bool isRobotProtectiveStopped()
   {
     std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
     if (robot_mode_data == nullptr)
     {
-      return false;
+      throw UrException("Robot mode data is a nullptr. Probably it hasn't been received, yet.");
     }
     return robot_mode_data->is_protective_stopped_;
   }

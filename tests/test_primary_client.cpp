@@ -128,6 +128,7 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
 {
   // The client is not started yet, so the robot mode should be UNKNOWN
   ASSERT_EQ(client_->getRobotMode(), RobotMode::UNKNOWN);
+  ASSERT_THROW(client_->isRobotProtectiveStopped(), UrException);
 }
 
 TEST_F(PrimaryClientTest, test_stop_command)
