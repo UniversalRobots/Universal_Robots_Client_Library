@@ -32,7 +32,6 @@
 
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/example_robot_wrapper.h>
-#include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/types.h>
 
@@ -43,6 +42,7 @@
 #include <fstream>
 #include <ostream>
 #include <thread>
+#include "test_utils.h"
 
 using namespace urcl;
 
@@ -108,6 +108,11 @@ protected:
     out_file << prog;
     out_file.close();
 
+    if (!(robotVersionLessThan(g_ROBOT_IP, "10.0.0") || g_HEADLESS))
+    {
+      GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
+    }
+
     // Setup driver
     g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SPLINE_SCRIPT_FILE);
@@ -119,8 +124,11 @@ protected:
 
   static void TearDownTestSuite()
   {
-    // Set target speed scaling to 100% as one test change this value
-    g_my_robot->ur_driver_->getRTDEWriter().sendSpeedSlider(1);
+    if (g_my_robot != nullptr)
+    {
+      // Set target speed scaling to 100% as one test change this value
+      g_my_robot->ur_driver_->getRTDEWriter().sendSpeedSlider(1);
+    }
 
     // Remove temporary file again
     std::remove(SPLINE_SCRIPT_FILE.c_str());
@@ -139,16 +147,17 @@ protected:
     {
       step_time_ = 0.008;
     }
-    std::string safety_status;
-    g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
-    bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
-    if (is_protective_stopped)
+
+    if (g_my_robot->primary_client_->isRobotProtectiveStopped())
     {
       // We forced a protective stop above. Some versions require waiting 5 seconds before releasing
       // the protective stop.
+      if (g_my_robot->dashboard_client_ != nullptr)
+      {
+        g_my_robot->dashboard_client_->commandClosePopup();
+      }
       std::this_thread::sleep_for(std::chrono::seconds(5));
-      g_my_robot->dashboard_client_->commandCloseSafetyPopup();
-      ASSERT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
+      ASSERT_NO_THROW(g_my_robot->primary_client_->commandUnlockProtectiveStop());
     }
     ASSERT_TRUE(g_my_robot->isHealthy());
   }
@@ -1115,7 +1124,7 @@ TEST_F(SplineInterpolationTest, switching_control_mode_with_trajectory_produces_
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
   g_my_robot->readDataPackage(data_pkg);
 
-  urcl::vector6d_t joint_positions_before;
+  urcl::vector6d_t joint_positions_before{ 0, 0, 0, 0, 0, 0 };
   ASSERT_TRUE(data_pkg->getData("target_q", joint_positions_before));
 
   // Start consuming rtde packages to avoid pipeline overflows while testing that the control script aborts correctly

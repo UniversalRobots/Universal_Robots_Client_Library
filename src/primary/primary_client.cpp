@@ -33,6 +33,7 @@
 #include <ur_client_library/primary/robot_state.h>
 #include "ur_client_library/exceptions.h"
 #include <ur_client_library/helpers.h>
+#include <chrono>
 namespace urcl
 {
 namespace primary_interface
@@ -266,6 +267,16 @@ void PrimaryClient::commandStop(const bool validate, const std::chrono::millisec
       throw TimeoutException("Robot did not stop the program within the given timeout", timeout);
     }
   }
+}
+std::shared_ptr<VersionInformation> PrimaryClient::getRobotVersion(bool blocking,
+                                                                   const std::chrono::milliseconds timeout)
+{
+  if (blocking)
+  {
+    waitFor([this]() { return consumer_->getVersionInformation() != nullptr; }, timeout);
+  }
+
+  return consumer_->getVersionInformation();
 }
 
 }  // namespace primary_interface
