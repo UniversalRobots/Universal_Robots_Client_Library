@@ -890,6 +890,11 @@ public:
     return trajectory_interface_->isConnected();
   }
 
+  std::shared_ptr<urcl::primary_interface::PrimaryClient> getPrimaryClient()
+  {
+    return primary_client_;
+  }
+
 private:
   void init(const UrDriverConfiguration& config);
 
@@ -898,7 +903,7 @@ private:
 
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> rtde_client_;
-  std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
+  std::shared_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::unique_ptr<control::ReverseInterface> reverse_interface_;
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;

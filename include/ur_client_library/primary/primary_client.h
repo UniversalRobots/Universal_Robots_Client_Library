@@ -172,6 +172,23 @@ public:
   }
 
   /*!
+   * \brief Get the robot's software version as Major.Minor.Bugfix
+   *
+   * This function by default blocks until a VersionMessage has been received and returns that
+   * version information. If there is an older version message that has been received, this is
+   * returned directly.
+   *
+   * \param blocking If true, the function will block until there is a valid version information
+   * received by the client or the timeout passed by.
+   * \param timeout The maximum time to wait for a valid version message.
+   *
+   * \throws urcl::TimeoutException if no message was received until the given timeout passed by.
+   *
+   */
+  std::shared_ptr<VersionInformation>
+  getRobotVersion(bool wait_for_message = true, const std::chrono::milliseconds timeout = std::chrono::seconds(2));
+
+  /*!
    * \brief Get the latest robot mode data.
    *
    * The robot's mode data will be updated in the background. This will always show the latest received
