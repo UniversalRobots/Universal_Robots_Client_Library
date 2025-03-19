@@ -32,7 +32,6 @@
 #include <chrono>
 #include <stdexcept>
 #include <sstream>
-#include <string>
 #include "ur/version_information.h"
 
 #ifdef _WIN32
@@ -198,23 +197,6 @@ public:
        << ". \nArgument missing: " << argument_name
        << ". \nSet to default value if not important, default value is: " << default_value;
     text_ = ss.str();
-  }
-  virtual const char* what() const noexcept override
-  {
-    return text_.c_str();
-  }
-};
-
-class InvalidStateForCommand : public UrException
-{
-private:
-  std::string text_;
-
-public:
-  explicit InvalidStateForCommand() = delete;
-  explicit InvalidStateForCommand(std::string text) : std::runtime_error(text)
-  {
-    text_ = text;
   }
   virtual const char* what() const noexcept override
   {

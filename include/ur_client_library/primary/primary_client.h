@@ -146,11 +146,6 @@ public:
   /*!
    * /brief Stop execution of a running or paused program
    *
-   * Blocks until the robot has come to a standstill (while following
-   * the program path) and stopped program execution.
-   *
-   * \param already_stopped_ok If true, the function will return true if the robot is already
-   * stopped.
    * \param validate If true, the function will block until the robot has stopped or the timeout
    * passed by.
    * \param timeout The maximum time to wait for the robot to stop the program.
@@ -158,8 +153,7 @@ public:
    * \throws urcl::UrException if the command cannot be sent to the robot.
    * \throws urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
    */
-  void commandStop(const bool already_stopped_ok = false, const bool validate = true,
-                   const std::chrono::milliseconds timeout = std::chrono::seconds(2));
+  void commandStop(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(2));
 
   /*!
    * \brief Get the latest robot mode.

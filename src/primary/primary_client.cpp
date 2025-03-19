@@ -238,26 +238,12 @@ void PrimaryClient::commandUnlockProtectiveStop(const bool validate, const std::
   }
 }
 
-void PrimaryClient::commandStop(const bool already_stopped_ok, const bool validate,
-                                const std::chrono::milliseconds timeout)
+void PrimaryClient::commandStop(const bool validate, const std::chrono::milliseconds timeout)
 {
   std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
   if (robot_mode_data == nullptr)
   {
     throw UrException("Stopping a program while robot state is unknown. This should not happen");
-  }
-
-  if (!(robot_mode_data->is_program_running_ || robot_mode_data->is_program_paused_))
-  {
-    if (already_stopped_ok)
-    {
-      URCL_LOG_DEBUG("Program halt requested, but program is already stopped, skipping.");
-      return;
-    }
-    else
-    {
-      throw InvalidStateForCommand("Cannot halt program execution, as no program is running or paused on the robot.");
-    }
   }
 
   if (!sendScript("stop program"))
