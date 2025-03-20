@@ -129,6 +129,33 @@ public:
                            const std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
   /*!
+   * \brief Commands the robot to unlock the protective stop
+   *
+   * \param validate If true, the function will block until the protective stop is released or the
+   * timeout passed by.
+   * \param timeout The maximum time to wait for the robot to confirm it is no longer protective
+   * stopped.
+   *
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't unlock the protective stop within the
+   * given timeout.
+   */
+  void commandUnlockProtectiveStop(const bool validate = true,
+                                   const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+
+  /*!
+   * /brief Stop execution of a running or paused program
+   *
+   * \param validate If true, the function will block until the robot has stopped or the timeout
+   * passed by.
+   * \param timeout The maximum time to wait for the robot to stop the program.
+   *
+   * \throws urcl::UrException if the command cannot be sent to the robot.
+   * \throws urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
+   */
+  void commandStop(const bool validate = true, const std::chrono::milliseconds timeout = std::chrono::seconds(2));
+
+  /*!
    * \brief Get the latest robot mode.
    *
    * The robot mode will be updated in the background. This will always show the latest received
@@ -142,6 +169,36 @@ public:
       return RobotMode::UNKNOWN;
     }
     return static_cast<RobotMode>(consumer_->getRobotModeData()->robot_mode_);
+  }
+
+  /*!
+   * \brief Get the latest robot mode data.
+   *
+   * The robot's mode data will be updated in the background. This will always show the latest received
+   * state independent of the time that has passed since receiving it. The return value of this
+   * will be a nullptr if no data has been received yet.
+   */
+  std::shared_ptr<RobotModeData> getRobotModeData()
+  {
+    return consumer_->getRobotModeData();
+  }
+
+  /*!
+   * \brief Query if the robot is protective stopped.
+   *
+   * The robot's protective_stop state will be updated in the background. This will always show the latest received
+   * state independent of the time that has passed since receiving it.
+   *
+   * \throws UrException when no robot mode data has been received, yet.
+   */
+  bool isRobotProtectiveStopped()
+  {
+    std::shared_ptr<RobotModeData> robot_mode_data = consumer_->getRobotModeData();
+    if (robot_mode_data == nullptr)
+    {
+      throw UrException("Robot mode data is a nullptr. Probably it hasn't been received, yet.");
+    }
+    return robot_mode_data->is_protective_stopped_;
   }
 
 private:

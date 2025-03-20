@@ -110,10 +110,71 @@ TEST_F(PrimaryClientTest, test_power_cycle_commands)
   EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout));
 }
 
+TEST_F(PrimaryClientTest, test_unlock_protective_stop)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandBrakeRelease(true, std::chrono::milliseconds(20000)));
+  client_->sendScript("protective_stop()");
+  EXPECT_NO_THROW(waitFor([this]() { return client_->isRobotProtectiveStopped(); }, std::chrono::milliseconds(1000)));
+  // This will not happen immediately
+  EXPECT_THROW(client_->commandUnlockProtectiveStop(true, std::chrono::milliseconds(1)), TimeoutException);
+
+  // It is not allowed to unlock the protective stop immediately
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
+}
+
 TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
 {
   // The client is not started yet, so the robot mode should be UNKNOWN
   ASSERT_EQ(client_->getRobotMode(), RobotMode::UNKNOWN);
+  ASSERT_THROW(client_->isRobotProtectiveStopped(), UrException);
+}
+
+TEST_F(PrimaryClientTest, test_stop_command)
+{
+  // Without started communication the latest robot mode data is a nullptr
+  EXPECT_THROW(client_->commandStop(), UrException);
+
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  const std::string script_code = "def test_fun():\n"
+                                  "  while True:\n"
+                                  "     textmsg(\"still running\")\n"
+                                  "     sleep(1.0)\n"
+                                  "     sync()\n"
+                                  "  end\n"
+                                  "end";
+
+  EXPECT_TRUE(client_->sendScript(script_code));
+  waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
+
+  EXPECT_NO_THROW(client_->commandStop());
+  EXPECT_FALSE(client_->getRobotModeData()->is_program_running_);
+
+  // Without a program running it should not throw an exception
+  EXPECT_NO_THROW(client_->commandStop());
+
+  EXPECT_TRUE(client_->sendScript(script_code));
+  waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
+  EXPECT_THROW(client_->commandStop(true, std::chrono::milliseconds(1)), TimeoutException);
+  EXPECT_NO_THROW(waitFor(
+      [this]() {
+        return !client_->getRobotModeData()->is_program_running_ && !client_->getRobotModeData()->is_program_paused_;
+      },
+      std::chrono::seconds(5)));
+
+  // without validation
+  EXPECT_TRUE(client_->sendScript(script_code));
+  waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
+  EXPECT_NO_THROW(client_->commandStop(false));
+  EXPECT_NO_THROW(waitFor(
+      [this]() {
+        return !client_->getRobotModeData()->is_program_running_ && !client_->getRobotModeData()->is_program_paused_;
+      },
+      std::chrono::seconds(5)));
 }
 
 int main(int argc, char* argv[])
