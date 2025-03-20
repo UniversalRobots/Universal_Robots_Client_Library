@@ -32,6 +32,8 @@
 #include <ur_client_library/exceptions.h>
 #include <chrono>
 #include <thread>
+#include "gtest/gtest.h"
+#include "test_utils.h"
 #include "ur_client_library/comm/tcp_socket.h"
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/ur/dashboard_client.h>
@@ -61,6 +63,12 @@ class DashboardClientTest : public ::testing::Test
 protected:
   void SetUp()
   {
+    if (!robotVersionLessThan(g_ROBOT_IP, "10.0.0"))
+    {
+      GTEST_SKIP_("Running DashboardClient tests for PolyScope X is not supported as it doesn't have a dashboard "
+                  "server.");
+    }
+
     dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
     // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
     // here.

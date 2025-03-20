@@ -33,8 +33,12 @@
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
 
+#include <iostream>
 #include <memory>
+#include <sstream>
 #include <thread>
+#include "ur_client_library/comm/pipeline.h"
+#include "ur_client_library/primary/primary_client.h"
 
 using namespace urcl;
 
@@ -53,6 +57,18 @@ int main(int argc, char* argv[])
   if (argc > 1)
   {
     robot_ip = std::string(argv[1]);
+  }
+
+  urcl::comm::INotifier notifier;
+  urcl::primary_interface::PrimaryClient primary_client(robot_ip, notifier);
+  primary_client.start();
+  auto version_information = primary_client.getRobotVersion();
+  if (version_information->major >= 10)
+  {
+    std::stringstream ss;
+    ss << "Robot has version " << *version_information << ". This example is not compatible with PolyScope X";
+    URCL_LOG_ERROR(ss.str().c_str());
+    return 0;
   }
 
   // Connect to the robot Dashboard Server
