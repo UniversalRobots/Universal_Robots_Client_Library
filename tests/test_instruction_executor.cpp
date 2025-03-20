@@ -35,6 +35,8 @@
 #include "ur_client_library/ur/instruction_executor.h"
 #include "ur_client_library/control/motion_primitives.h"
 
+#include "test_utils.h"
+
 #include <ur_client_library/example_robot_wrapper.h>
 
 using namespace urcl;
@@ -56,6 +58,10 @@ protected:
 
   static void SetUpTestSuite()
   {
+    if (!(robotVersionLessThan(ROBOT_IP, "10.0.0") || g_HEADLESS))
+    {
+      GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
+    }
     // Setup driver
     g_my_robot = std::make_unique<ExampleRobotWrapper>(ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
@@ -185,7 +191,7 @@ TEST_F(InstructionExecutorTest, execute_movel_success)
 
 TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_connected_fails)
 {
-  g_my_robot->dashboard_client_->commandStop();
+  g_my_robot->primary_client_->commandStop();
   ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
 
   ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
@@ -213,7 +219,7 @@ TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_conne
   auto motion_thread = std::thread([&]() { ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 })); });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  g_my_robot->dashboard_client_->commandStop();
+  g_my_robot->primary_client_->commandStop();
   ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
   motion_thread.join();
 }
@@ -243,6 +249,11 @@ TEST_F(InstructionExecutorTest, canceling_without_running_trajectory_returns_fal
 
 TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_returns_false)
 {
+  if (!(robotVersionLessThan(ROBOT_IP, "10.0.0") || g_HEADLESS))
+  {
+    GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
+  }
+
   std::ifstream in_file(SCRIPT_FILE);
   std::ofstream out_file;
   const std::string test_script_file = "test_script.urscript";
@@ -311,13 +322,12 @@ TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   while (!is_protective_stopped || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
   {
-    g_my_robot->dashboard_client_->commandSafetyStatus(safety_status);
-    is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
+    is_protective_stopped = g_my_robot->primary_client_->isRobotProtectiveStopped();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   ASSERT_TRUE(is_protective_stopped);
   ASSERT_TRUE(g_my_robot->clearProtectiveStop());
-  ASSERT_TRUE(g_my_robot->dashboard_client_->commandStop());
+  ASSERT_NO_THROW(g_my_robot->primary_client_->commandStop());
 
   move_thread.join();
 }

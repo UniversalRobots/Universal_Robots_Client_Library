@@ -33,6 +33,7 @@
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
+#include "test_utils.h"
 
 using namespace urcl;
 
@@ -50,6 +51,10 @@ class UrDriverTest : public ::testing::Test
 protected:
   static void SetUpTestSuite()
   {
+    if (!(robotVersionLessThan(g_ROBOT_IP, "10.0.0") || g_HEADLESS))
+    {
+      GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
+    }
     // Setup driver
     g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
@@ -279,8 +284,11 @@ TEST_F(UrDriverTest, read_error_code)
   // Wait for after PSTOP before clearing it
   std::this_thread::sleep_for(std::chrono::seconds(6));
 
-  EXPECT_TRUE(g_my_robot->dashboard_client_->commandCloseSafetyPopup());
-  EXPECT_TRUE(g_my_robot->dashboard_client_->commandUnlockProtectiveStop());
+  if (g_my_robot->dashboard_client_ != nullptr)
+  {
+    EXPECT_TRUE(g_my_robot->dashboard_client_->commandCloseSafetyPopup());
+  }
+  EXPECT_NO_THROW(g_my_robot->primary_client_->commandUnlockProtectiveStop());
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)

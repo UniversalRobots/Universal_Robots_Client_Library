@@ -85,6 +85,8 @@ public:
    */
   bool initializeRobotWithDashboard();
 
+  bool initializeRobotWithPrimaryClient();
+
   /**
    * @brief Starts RTDE communication with the robot.
    *
@@ -167,11 +169,19 @@ public:
 
   bool isHealthy() const;
 
-  std::shared_ptr<urcl::DashboardClient> dashboard_client_; /*!< Dashboard client to interact with the robot */
-  std::shared_ptr<urcl::UrDriver> ur_driver_;               /*!< UR driver to interact with the robot */
+  //! Dashboard client to interact with the robot
+  std::shared_ptr<urcl::DashboardClient> dashboard_client_;
+
+  //! primary client to interact with the robot
+  std::shared_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
+
+  //! UR driver to interact with the robot
+  std::shared_ptr<urcl::UrDriver> ur_driver_;
 
 private:
   void handleRobotProgramState(bool program_running);
+
+  comm::INotifier notifier_;
 
   std::atomic<bool> rtde_communication_started_ = false;
   std::atomic<bool> consume_rtde_packages_ = false;
