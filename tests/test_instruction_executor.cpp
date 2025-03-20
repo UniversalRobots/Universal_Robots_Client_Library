@@ -249,7 +249,7 @@ TEST_F(InstructionExecutorTest, canceling_without_running_trajectory_returns_fal
 
 TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_returns_false)
 {
-  if (!(robotVersionLessThan(ROBOT_IP, "10.0.0") || !g_HEADLESS))
+  if (!(robotVersionLessThan(ROBOT_IP, "10.0.0") || g_HEADLESS))
   {
     GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
   }
