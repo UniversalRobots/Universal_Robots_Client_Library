@@ -17,15 +17,15 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          #- ROBOT_MODEL: 'ur5'
-            #URSIM_VERSION: '3.14.3'
-            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
-          #- ROBOT_MODEL: 'ur5e'
-            #URSIM_VERSION: '5.9.4'
-            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          #- ROBOT_MODEL: 'ur20'
-            #URSIM_VERSION: 'latest'
-            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur5'
+            URSIM_VERSION: '3.14.3'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.9.4'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur20'
+            URSIM_VERSION: 'latest'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.7.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
@@ -40,36 +40,36 @@ jobs:
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
-      #- name: configure
-        #run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
-        #env:
-          #CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
-          #CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
-          #LDFLAGS: -fprofile-arcs -ftest-coverage
-      #- name: build
-        #run: cmake --build build --config Debug
-      #- name: Create folder for test artifacts
-        #run: mkdir -p test_artifacts
-      #- name: test
-        #run: cd build && ctest --output-on-failure --output-junit junit.xml
-      #- name: Upload test results to Codecov
-        #if: ${{ !cancelled() }}
-        #uses: codecov/test-results-action@v1
-        #with:
-          #token: ${{ secrets.CODECOV_TOKEN }}
-          #fail_ci_if_error: true
-      #- name: run examples
-        #run: ./run_examples.sh "192.168.56.101" 1
-      #- name: install gcovr
-        #run: sudo apt-get install -y gcovr
-      #- name: gcovr
-        #run: cd build && gcovr -r .. --gcov-ignore-parse-errors negative_hits.warn_once_per_file
-      #- name: Upload coverage to Codecov
-        #uses: codecov/codecov-action@v5
-        #with:
-          #fail_ci_if_error: true
-          #token: ${{ secrets.CODECOV_TOKEN }}
-          #flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+      - name: configure
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
+        env:
+          CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
+          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          LDFLAGS: -fprofile-arcs -ftest-coverage
+      - name: build
+        run: cmake --build build --config Debug
+      - name: Create folder for test artifacts
+        run: mkdir -p test_artifacts
+      - name: test
+        run: cd build && ctest --output-on-failure --output-junit junit.xml
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+      - name: run examples
+        run: ./run_examples.sh "192.168.56.101" 1
+      - name: install gcovr
+        run: sudo apt-get install -y gcovr
+      - name: gcovr
+        run: cd build && gcovr -r .. --gcov-ignore-parse-errors negative_hits.warn_once_per_file
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
       - name: Generate URSim log files
         if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         run: |
@@ -81,13 +81,13 @@ jobs:
           docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
           docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
       - name: Copy flight reports
-        if: failure() && ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
+        if: failure() && matrix.env.URSIM_VERSION != '10.7.0'
         run: |
           mkdir -p ursim_logs/flightreports
           docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
         uses: actions/upload-artifact@v4
-        if: always() && ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
+        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: ursim_logs
@@ -95,7 +95,7 @@ jobs:
           retention-days: 10
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
-        if: always() && ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
+        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
           path: test_artifacts
