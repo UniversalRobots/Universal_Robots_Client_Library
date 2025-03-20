@@ -71,7 +71,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
       - name: Generate URSim log files
-        if: always()
+        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         run: |
           nc -q 1 192.168.56.101 29999 <<END
           saveLog
@@ -81,13 +81,13 @@ jobs:
           docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
           docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
       - name: Copy flight reports
-        if: failure()
+        if: failure() && matrix.env.URSIM_VERSION != '10.7.0'
         run: |
           mkdir -p ursim_logs/flightreports
           docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: ursim_logs
@@ -95,7 +95,7 @@ jobs:
           retention-days: 10
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
           path: test_artifacts
