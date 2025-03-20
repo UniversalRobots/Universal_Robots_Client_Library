@@ -34,6 +34,13 @@ IP_ADDRESS="192.168.56.101"
 PORT_FORWARDING="-p 30001-30004:30001-30004 -p 29999:29999"
 CONTAINER_NAME="ursim"
 
+# TODO: Add support for more URSim PolyScopeX versions once released
+# The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
+# versions
+#declare -A POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
+                             #["10.8.0"]="not.there.yet")
+declare -A POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159")
+
 help()
 {
   # Display Help
@@ -84,8 +91,6 @@ validate_model()
       exit
       ;;
   esac
-  URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
-  PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
 }
 
 verlte()
@@ -136,6 +141,43 @@ validate_ursim_version()
   exit
 }
 
+post_setup_cb3()
+{
+  echo "Docker URSim is running"
+  echo -e "\nTo access PolyScope, open the following URL in a web browser."
+  printf "\n\n\thttp://%s:6080/vnc.html\n\n" "$IP_ADDRESS"
+}
+post_setup_e-series()
+{
+  post_setup_cb3
+}
+
+post_setup_polyscopex()
+{
+
+  echo -ne "Starting URSim. Waiting for UrService to be up..."
+  curl_cmd="curl --retry-connrefused -f --write-out %{http_code} --silent --output /dev/null $IP_ADDRESS/universal-robots/urservice/api/v1/urcaps"
+  status_code=$(eval "$curl_cmd")
+
+  until [ "$status_code" == "200" ]
+  do
+    sleep 1
+    #echo "still waiting for UrService..."
+    echo -ne "."
+    status_code=$(eval "$curl_cmd")
+  done
+
+  echo ""; echo "UrService is up"
+
+  # TODO: Once we have a downloadable URCapX, we can use the following code to install it
+  #urcapx_file="${HOME}/Downloads/external-control-0.1.0.urcapx"
+  #echo "Installing URCapX $urcapx_file"
+  #curl --location --request POST  --silent --output /dev/null "$IP_ADDRESS/universal-robots/urservice/api/v1/urcaps" --form urcapxFile=@"${urcapx_file}"
+  #echo "";
+
+  echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
+  printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
+}
 
 while getopts ":hm:v:p:u:i:f:n:d" option; do
   case $option in
@@ -175,6 +217,23 @@ done
 validate_model
 validate_ursim_version
 
+if [ "$URSIM_VERSION" != "latest" ]; then
+  verlte "10.0.0" "$URSIM_VERSION" && ROBOT_SERIES=polyscopex
+fi
+URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
+PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+
+DOCKER_ARGS=""
+
+if [ "$ROBOT_SERIES" == "polyscopex" ]; then
+  if [ -z "${POLYSCOPE_X_MAP[$URSIM_VERSION]}" ]; then
+    echo "URSim version $URSIM_VERSION is not supported"
+    exit
+  fi
+  URSIM_VERSION=${POLYSCOPE_X_MAP[$URSIM_VERSION]}
+  DOCKER_ARGS="$DOCKER_ARGS --privileged"
+fi
+
 if [ -n "$PROGRAM_STORAGE_ARG" ]; then
   PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
 fi
@@ -182,37 +241,46 @@ if [ -n "$URCAP_STORAGE_ARG" ]; then
   URCAP_STORAGE="$URCAP_STORAGE_ARG"
 fi
 
-# Create local storage for programs and URCaps
-mkdir -p "${URCAP_STORAGE}"
-mkdir -p "${PROGRAM_STORAGE}"
-URCAP_STORAGE=$(realpath "$URCAP_STORAGE")
-PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
-
-# Download external_control URCap
-if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
-  curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" \
-    "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v${URCAP_VERSION}/externalcontrol-${URCAP_VERSION}.jar"
-fi
-
-
 # Check whether network already exists
-docker network inspect ursim_net > /dev/null
-if [ $? -eq 0 ]; then
-  echo "ursim_net already exists"
-else
+if ! docker network inspect ursim_net &> /dev/null; then
+#if [ $? -ne 0 ]; then
   echo "Creating ursim_net"
   docker network create --subnet=192.168.56.0/24 ursim_net
 fi
+if [ "$ROBOT_SERIES" == "polyscopex" ]; then
+  mkdir -p "${PROGRAM_STORAGE}"
+  PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
-docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
-  -v ${URCAP_STORAGE}:/urcaps \
-  -v ${PROGRAM_STORAGE}:/ursim/programs \
-  -e ROBOT_MODEL=${ROBOT_MODEL} \
-  $PORT_FORWARDING \
-  --name $CONTAINER_NAME \
-  universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION || exit"
+  docker_cmd="docker run --rm -d \
+    --net ursim_net --ip $IP_ADDRESS \
+    -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
+    -e ROBOT_TYPE=${ROBOT_MODEL} \
+    $PORT_FORWARDING \
+    $DOCKER_ARGS \
+    --name $CONTAINER_NAME \
+    universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+else
+  # Create local storage for programs and URCaps
+  mkdir -p "${URCAP_STORAGE}"
+  mkdir -p "${PROGRAM_STORAGE}"
+  URCAP_STORAGE=$(realpath "$URCAP_STORAGE")
+  PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
-#echo $docker_cmd
+  # Download external_control URCap
+  if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
+    curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" \
+      "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v${URCAP_VERSION}/externalcontrol-${URCAP_VERSION}.jar"
+  fi
+  docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
+    -v ${URCAP_STORAGE}:/urcaps \
+    -v ${PROGRAM_STORAGE}:/ursim/programs \
+    -e ROBOT_MODEL=${ROBOT_MODEL} \
+    $PORT_FORWARDING \
+    --name $CONTAINER_NAME \
+    universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+fi
+
+#echo "$docker_cmd"
 $docker_cmd
 
 # Stop container when interrupted
@@ -225,8 +293,8 @@ exit
 "
 trap "$TRAP_CMD" SIGINT SIGTERM
 
-echo "Docker URSim is running"
-printf "\nTo access Polyscope, open the following URL in a web browser.\n\thttp://$IP_ADDRESS:6080/vnc.html\n\n"
+
+eval "post_setup_${ROBOT_SERIES}"
 
 if [ "$DETACHED" = false ]; then
 echo "To exit, press CTRL+C"
