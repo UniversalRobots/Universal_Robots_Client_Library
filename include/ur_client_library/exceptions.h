@@ -41,6 +41,8 @@
 #  ifdef ERROR
 #    undef ERROR
 #  endif  // ERROR
+#else
+#  include <sys/time.h>
 #endif
 
 namespace urcl

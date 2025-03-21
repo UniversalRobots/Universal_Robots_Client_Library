@@ -33,6 +33,7 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <vector>
 
 #include "ur_client_library/comm/socket_t.h"
 

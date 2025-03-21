@@ -46,8 +46,11 @@ static inline int ur_close(socket_t s)
 
 #else  // _WIN32
 
+#  include <arpa/inet.h>
 #  include <netdb.h>
+#  include <sys/select.h>
 #  include <sys/socket.h>
+#  include <sys/time.h>
 #  include <sys/types.h>
 #  include <unistd.h>
 
