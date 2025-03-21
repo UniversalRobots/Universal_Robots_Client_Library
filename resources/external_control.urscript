@@ -33,6 +33,8 @@ TRAJECTORY_MODE_CANCEL = -1
 
 MOTION_TYPE_MOVEJ = 0
 MOTION_TYPE_MOVEL = 1
+MOTION_TYPE_MOVEP = 2
+MOTION_TYPE_MOVEC = 3
 MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
@@ -500,6 +502,16 @@ thread trajectoryThread():
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
+
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+        
+      # MoveP point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP:
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
+        movep(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
