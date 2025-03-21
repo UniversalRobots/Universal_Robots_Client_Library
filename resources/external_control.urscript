@@ -31,9 +31,9 @@ REVERSE_INTERFACE_DATA_DIMENSION = 8
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
 
-TRAJECTORY_POINT_JOINT = 0
-TRAJECTORY_POINT_CARTESIAN = 1
-TRAJECTORY_POINT_JOINT_SPLINE = 2
+MOTION_TYPE_MOVEJ = 0
+MOTION_TYPE_MOVEL = 1
+MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
 TRAJECTORY_RESULT_SUCCESS = 0
@@ -486,7 +486,7 @@ thread trajectoryThread():
         is_last_point = True
       end
       # MoveJ point
-      if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
+      if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -496,7 +496,7 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
 
         # Movel point
-      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -506,7 +506,7 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
 
         # Joint spline point
-      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_SPLINE:
 
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:

@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/control/motion_primitives.h>
 
 using namespace urcl;
 
@@ -283,7 +284,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
             received_data.blend_radius_or_spline_type);
 
   // Motion type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+  EXPECT_EQ(static_cast<int32_t>(control::MotionType::SPLINE), received_data.motion_type);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
@@ -327,7 +328,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
             received_data.blend_radius_or_spline_type);
 
   // Motion type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+  EXPECT_EQ(static_cast<int32_t>(control::MotionType::SPLINE), received_data.motion_type);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)

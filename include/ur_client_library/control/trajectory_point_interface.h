@@ -64,16 +64,6 @@ enum class TrajectorySplineType : int32_t
 };
 
 /*!
- * Motion Types
- */
-enum class TrajectoryMotionType : int32_t
-{
-  JOINT_POINT = 0,
-  CARTESIAN_POINT = 1,
-  JOINT_POINT_SPLINE = 2
-};
-
-/*!
  * \brief The TrajectoryPointInterface class handles trajectory forwarding to the robot. Full
  * trajectories are forwarded to the robot controller and are executed there.
  */

@@ -31,6 +31,7 @@
 #include <math.h>
 #include <stdexcept>
 #include "ur_client_library/comm/socket_t.h"
+#include "ur_client_library/control/motion_primitives.h"
 
 namespace urcl
 {
@@ -105,11 +106,11 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 
   if (cartesian)
   {
-    val = static_cast<int32_t>(control::TrajectoryMotionType::CARTESIAN_POINT);
+    val = static_cast<int32_t>(control::MotionType::MOVEL);
   }
   else
   {
-    val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT);
+    val = static_cast<int32_t>(control::MotionType::MOVEJ);
   }
 
   val = htobe32(val);
@@ -193,7 +194,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE);
+  val = static_cast<int32_t>(control::MotionType::SPLINE);
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
