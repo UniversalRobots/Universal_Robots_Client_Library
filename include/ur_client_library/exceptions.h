@@ -205,5 +205,13 @@ public:
     return text_.c_str();
   }
 };
+
+class UnsupportedMotionType : public UrException
+{
+public:
+  explicit UnsupportedMotionType() : std::runtime_error("Unsupported motion type")
+  {
+  }
+};
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

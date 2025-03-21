@@ -31,6 +31,7 @@
 
 #include <optional>
 
+#include "ur_client_library/control/motion_primitives.h"
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
@@ -130,6 +131,8 @@ public:
    */
   bool writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
                                   const vector6d_t* accelerations, const float goal_time);
+
+  bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
   {

@@ -46,6 +46,11 @@ struct Pose
   double rx;
   double ry;
   double rz;
+
+  bool operator==(const Pose& other) const
+  {
+    return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
+  }
 };
 
 template <class T, std::size_t N>
