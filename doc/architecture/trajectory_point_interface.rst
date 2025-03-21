@@ -42,10 +42,10 @@ representations in 21 datafields. The data fields have the following meaning:
    0-5    trajectory point positions (floating point)
    6-11   trajectory point velocities (floating point)
    12-17  trajectory point accelerations (floating point)
-   18     trajectory point type (0: JOINT, 1: CARTESIAN, 2: JOINT_SPLINE)
+   18     trajectory point type (0: MOVEJ, 1: MOVEL, 51: SPLINE)
    19     trajectory point time (in seconds, floating point)
    20     depending on trajectory point type
 
-          - JOINT, CARTESIAN: point blend radius (in meters, floating point)
-          - JOINT_SPLINE: spline type (1: CUBIC, 2: QUINTIC)
+          - MOVEJ, MOVEL: point blend radius (in meters, floating point)
+          - SPLINE: spline type (1: CUBIC, 2: QUINTIC)
    =====  =====
