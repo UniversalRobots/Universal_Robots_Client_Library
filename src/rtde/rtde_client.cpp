@@ -90,12 +90,19 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   }
 
   unsigned int attempts = 0;
+  std::stringstream ss;
   while (attempts < max_initialization_attempts)
   {
-    try {
+    try
+    {
       setupCommunication(max_connection_attempts, reconnection_timeout);
-    } catch (const UrException&) {}
-    if (client_state_ == ClientState::INITIALIZED) {
+    }
+    catch (const UrException& exc)
+    {
+      ss << exc.what() << std::endl;
+    }
+    if (client_state_ == ClientState::INITIALIZED)
+    {
       return true;
     }
     if (++attempts < max_initialization_attempts)
@@ -104,7 +111,6 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
       std::this_thread::sleep_for(initialization_timeout);
     }
   }
-  std::stringstream ss;
   ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
   throw UrException(ss.str());
 }
