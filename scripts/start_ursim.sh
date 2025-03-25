@@ -162,7 +162,6 @@ post_setup_polyscopex()
   until [ "$status_code" == "200" ]
   do
     sleep 1
-    #echo "still waiting for UrService..."
     echo -ne "."
     status_code=$(eval "$curl_cmd")
   done
