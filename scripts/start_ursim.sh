@@ -34,6 +34,7 @@ IP_ADDRESS="192.168.56.101"
 PORT_FORWARDING_WITH_DASHBOARD="-p 30001-30004:30001-30004 -p 29999:29999"
 PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004"
 CONTAINER_NAME="ursim"
+TEST_RUN=false
 
 # TODO: Add support for more URSim PolyScopeX versions once released
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
@@ -65,26 +66,32 @@ help()
   echo
 }
 
-ROBOT_MODEL=ur5e
-ROBOT_SERIES=e-series
+#ROBOT_MODEL=ur5e
+#ROBOT_SERIES=e-series
 URSIM_VERSION=latest
 DETACHED=false
 
-
-validate_model()
+verlte()
 {
-  case $ROBOT_MODEL in
+  [  "$1" = $(printf  "$1\n$2" | sort -V | head -n1) ]
+}
+
+# Infer the robot series from a model name, e.g. ur3 -> cb3, ur5e -> e-series
+# For Robots potentially bein e-series or polyscopex, this defaults to e-series
+# $1 robot model e.g. ur5e
+# sets ROBOT_SERIES
+get_series_from_model()
+{
+  echo "Infering robot series from model"
+  local robot_model=$1
+  case $robot_model in
     ur3|ur5|ur10)
-      ROBOT_MODEL=${ROBOT_MODEL^^}
       ROBOT_SERIES=cb3
       ;;
     ur3e|ur5e|ur10e|ur16e)
-      ROBOT_MODEL=${ROBOT_MODEL^^}
-      ROBOT_MODEL=$(echo ${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))})
       ROBOT_SERIES=e-series
       ;;
     ur20|ur30)
-      ROBOT_MODEL=${ROBOT_MODEL^^}
       ROBOT_SERIES=e-series
       ;;
     *)
@@ -94,12 +101,46 @@ validate_model()
   esac
 }
 
-verlte()
+# Infer the robot series based on the URSim version
+# uses $URSIM_VERSION
+# sets ROBOT_SERIES
+get_series_from_version()
 {
-  [  "$1" = $(printf  "$1\n$2" | sort -V | head -n1) ]
+  echo "Infering robot series from version"
+  if [[ "$URSIM_VERSION" == "latest" ]]; then
+    ROBOT_SERIES=e-series
+  else
+    verlte "10.0.0" "$URSIM_VERSION" && ROBOT_SERIES=polyscopex && return
+    verlte "5.0.0" "$URSIM_VERSION" && ROBOT_SERIES=e-series && return
+  fi
+  # If nothing above matched
+  ROBOT_SERIES=cb3
 }
 
-validate_ursim_version()
+# Bring the model into a format that is used internally by URSim
+# $1 robot model e.g. ur5e
+# $2 robot series e.g. e-series
+# sets ROBOT_MODEL
+strip_robot_model()
+{
+  local robot_model=$1
+  local robot_series=$2
+  if [[ "$robot_series" == "cb3" ]]; then
+    ROBOT_MODEL=${ROBOT_MODEL^^}
+  else
+    ROBOT_MODEL=${ROBOT_MODEL^^}
+    # UR20 and UR30 need no further adjustment
+    if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
+      ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
+    fi
+  fi
+}
+
+# Make sure that all parameters match together. This checks
+# - URSIM_VERSION
+# - ROBOT_MODEL
+# - ROBOT_SERIES
+validate_parameters()
 {
   local IMAGE_URSIM_VERSION
   # Inspect the image's URSim version if the image is locally available. This is especially
@@ -117,7 +158,6 @@ validate_ursim_version()
 
   local MIN_VERSION="0.0"
 
-
   case $ROBOT_SERIES in
     cb3)
       verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit
@@ -125,18 +165,27 @@ validate_ursim_version()
       MIN_VERSION=$MIN_CB3
       ;;
     e-series)
-      if [[ $ROBOT_MODEL == "UR20" ]]; then
-          verlte "$MIN_UR20" "$IMAGE_URSIM_VERSION" && return 0
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+        echo "$ROBOT_MODEL is no valid e-series model!" && exit
+      fi
+      if [[ $ROBOT_MODEL == "ur20" ]]; then
           MIN_VERSION=$MIN_UR20
-      elif [[ $ROBOT_MODEL == "UR30" ]]; then
-          verlte "$MIN_UR30" "$IMAGE_URSIM_VERSION" && return 0
+      elif [[ $ROBOT_MODEL == "ur30" ]]; then
           MIN_VERSION=$MIN_UR30
       else
-          verlte "$MIN_E_SERIES" "$URSIM_VERSION" && return 0
           MIN_VERSION=$MIN_E_SERIES
       fi
       ;;
+    polyscopex)
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+        echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit
+      else
+        return 0
+      fi
+      ;;
   esac
+
+  verlte "$MIN_VERSION" "$URSIM_VERSION" && return 0
 
   echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $IMAGE_URSIM_VERSION."
   exit
@@ -179,7 +228,7 @@ post_setup_polyscopex()
   printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
 }
 
-while getopts ":hm:v:p:u:i:f:n:d" option; do
+while getopts ":hm:v:p:u:i:f:n:dt" option; do
   case $option in
     h) # display Help
       help
@@ -208,18 +257,49 @@ while getopts ":hm:v:p:u:i:f:n:d" option; do
     d) # detached mode
       DETACHED=true
       ;;
+    t) # test run
+      TEST_RUN=true
+      ;;
     \?) # invalid option
       echo "Error: Invalid option"
       help
       exit;;
   esac
 done
-validate_model
-validate_ursim_version
 
-if [ "$URSIM_VERSION" != "latest" ]; then
-  verlte "10.0.0" "$URSIM_VERSION" && ROBOT_SERIES=polyscopex
+# If no robot model is given, set a ur5 based on the series
+if [ -z "$ROBOT_MODEL" ]; then 
+  echo "No robot model given. Inferring from series"
+  if [ -z "$ROBOT_SERIES" ]; then
+    ROBOT_MODEL=ur5e
+    ROBOT_SERIES=e-series
+  elif [[ "$ROBOT_SERIES" == "cb3" ]]; then
+    ROBOT_MODEL=ur5
+  else
+    ROBOT_MODEL=ur5e
+  fi
+elif [ "$URSIM_VERSION" == "latest" ]; then
+  get_series_from_model "$ROBOT_MODEL"
+else
+  get_series_from_version
 fi
+
+
+echo "Parsed parameters:"
+echo "ROBOT_MODEL: $ROBOT_MODEL"
+echo "ROBOT_SERIES: $ROBOT_SERIES"
+echo "URSIM_VERSION: $URSIM_VERSION"
+
+validate_parameters
+
+if [ "$TEST_RUN" = true ]; then
+  echo "Running in test mode"
+  export ROBOT_MODEL=$ROBOT_MODEL
+  export ROBOT_SERIES=$ROBOT_SERIES
+  export URSIM_VERSION=$URSIM_VERSION
+  exit
+fi
+
 URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
 PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
 
@@ -288,7 +368,7 @@ else
     universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
 fi
 
-#echo "$docker_cmd"
+echo "$docker_cmd"
 $docker_cmd
 
 # Stop container when interrupted
