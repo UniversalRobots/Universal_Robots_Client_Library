@@ -123,7 +123,7 @@ bool ExampleRobotWrapper::clearProtectiveStop()
       }
       catch (const TimeoutException&)
       {
-        URCL_LOG_ERROR("Robot did not unlock the protective stop within the given timeout");
+        URCL_LOG_ERROR("Robot could not unlock the protective stop");
         return false;
       }
     }
