@@ -39,9 +39,9 @@ TEST_RUN=false
 # TODO: Add support for more URSim PolyScopeX versions once released
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
 # versions
-#declare -A POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
+#declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
                              #["10.8.0"]="not.there.yet")
-declare -A POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159")
+declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159" )
 
 help()
 {
@@ -82,7 +82,6 @@ verlte()
 # sets ROBOT_SERIES
 get_series_from_model()
 {
-  echo "Infering robot series from model"
   local robot_model=$1
   case $robot_model in
     ur3|ur5|ur10)
@@ -95,8 +94,8 @@ get_series_from_model()
       ROBOT_SERIES=e-series
       ;;
     *)
-      echo "Not a valid robot model: $ROBOT_MODEL"
-      exit
+      echo "Not a valid robot model: $robot_model"
+      exit 1
       ;;
   esac
 }
@@ -106,7 +105,6 @@ get_series_from_model()
 # sets ROBOT_SERIES
 get_series_from_version()
 {
-  echo "Infering robot series from version"
   if [[ "$URSIM_VERSION" == "latest" ]]; then
     ROBOT_SERIES=e-series
   else
@@ -126,14 +124,15 @@ strip_robot_model()
   local robot_model=$1
   local robot_series=$2
   if [[ "$robot_series" == "cb3" ]]; then
-    ROBOT_MODEL=${ROBOT_MODEL^^}
+    ROBOT_MODEL=${robot_model^^}
   else
-    ROBOT_MODEL=${ROBOT_MODEL^^}
+    ROBOT_MODEL=${robot_model^^}
     # UR20 and UR30 need no further adjustment
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     fi
   fi
+  echo "ROBOT_MODEL: $ROBOT_MODEL"
 }
 
 # Make sure that all parameters match together. This checks
@@ -160,13 +159,13 @@ validate_parameters()
 
   case $ROBOT_SERIES in
     cb3)
-      verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit
+      verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit 1
       verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
       MIN_VERSION=$MIN_CB3
       ;;
     e-series)
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
-        echo "$ROBOT_MODEL is no valid e-series model!" && exit
+        echo "$ROBOT_MODEL is no valid e-series model!" && exit 1
       fi
       if [[ $ROBOT_MODEL == "ur20" ]]; then
           MIN_VERSION=$MIN_UR20
@@ -177,8 +176,12 @@ validate_parameters()
       fi
       ;;
     polyscopex)
+      if [[ -z "${POLYSCOPE_X_MAP[${URSIM_VERSION}]}" ]]; then
+        echo "URSim version $URSIM_VERSION is not supported"
+        exit 1
+      fi
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
-        echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit
+        echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit 1
       else
         return 0
       fi
@@ -188,7 +191,7 @@ validate_parameters()
   verlte "$MIN_VERSION" "$URSIM_VERSION" && return 0
 
   echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $IMAGE_URSIM_VERSION."
-  exit
+  exit 1
 }
 
 post_setup_cb3()
@@ -228,168 +231,193 @@ post_setup_polyscopex()
   printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
 }
 
-while getopts ":hm:v:p:u:i:f:n:dt" option; do
-  case $option in
-    h) # display Help
-      help
-      exit;;
-    m) # robot model
-      ROBOT_MODEL=${OPTARG}
-      ;;
-    v) # ursim_version
-      URSIM_VERSION=${OPTARG}
-      ;;
-    p) # program_folder
-      PROGRAM_STORAGE_ARG=${OPTARG}
-      ;;
-    u) # urcaps_folder
-      URCAP_STORAGE_ARG=${OPTARG}
-      ;;
-    i) # IP address
-      IP_ADDRESS=${OPTARG}
-      ;;
-    f) # forward ports
-      PORT_FORWARDING=${OPTARG}
-      ;;
-    n) # container_name
-      CONTAINER_NAME=${OPTARG}
-      ;;
-    d) # detached mode
-      DETACHED=true
-      ;;
-    t) # test run
-      TEST_RUN=true
-      ;;
-    \?) # invalid option
-      echo "Error: Invalid option"
-      help
-      exit;;
-  esac
-done
+parse_arguments(){
+  while getopts ":hm:v:p:u:i:f:n:dt" option; do
+    case $option in
+      h) # display Help
+        help
+        exit;;
+      m) # robot model
+        ROBOT_MODEL=${OPTARG}
+        ;;
+      v) # ursim_version
+        URSIM_VERSION=${OPTARG}
+        ;;
+      p) # program_folder
+        PROGRAM_STORAGE_ARG=${OPTARG}
+        ;;
+      u) # urcaps_folder
+        URCAP_STORAGE_ARG=${OPTARG}
+        ;;
+      i) # IP address
+        IP_ADDRESS=${OPTARG}
+        ;;
+      f) # forward ports
+        PORT_FORWARDING=${OPTARG}
+        ;;
+      n) # container_name
+        CONTAINER_NAME=${OPTARG}
+        ;;
+      d) # detached mode
+        DETACHED=true
+        ;;
+      t) # test run
+        TEST_RUN=true
+        ;;
+      \?) # invalid option
+        echo "Error: Invalid option"
+        help
+        exit;;
+    esac
+  done
+}
 
-# If no robot model is given, set a ur5 based on the series
-if [ -z "$ROBOT_MODEL" ]; then 
-  echo "No robot model given. Inferring from series"
-  if [ -z "$ROBOT_SERIES" ]; then
-    ROBOT_MODEL=ur5e
-    ROBOT_SERIES=e-series
-  elif [[ "$ROBOT_SERIES" == "cb3" ]]; then
-    ROBOT_MODEL=ur5
+# As users can specify the model and / or URSim version, we can infer the rest of the parameters
+# based on that. If no model is specified it should default to a ur5 / ur5e.
+fill_information() {
+  # If no robot model is given, set a ur5 based on the series
+  if [ -z "$ROBOT_MODEL" ]; then 
+    echo "No robot model given. Inferring from series"
+    if [ -z "$ROBOT_SERIES" ]; then
+      if [ "$URSIM_VERSION" != "latest" ]; then
+        get_series_from_version
+      else
+        ROBOT_SERIES=e-series
+      fi
+    fi
+    if [[ "$ROBOT_SERIES" == "cb3" ]]; then
+      ROBOT_MODEL=ur5
+    else
+      ROBOT_MODEL=ur5e
+    fi
+  elif [ "$URSIM_VERSION" == "latest" ]; then
+    get_series_from_model "$ROBOT_MODEL"
   else
-    ROBOT_MODEL=ur5e
+    get_series_from_version
   fi
-elif [ "$URSIM_VERSION" == "latest" ]; then
-  get_series_from_model "$ROBOT_MODEL"
-else
-  get_series_from_version
-fi
+}
 
+test_input_handling() {
+  parse_arguments "$@"
+  fill_information
 
-echo "Parsed parameters:"
-echo "ROBOT_MODEL: $ROBOT_MODEL"
-echo "ROBOT_SERIES: $ROBOT_SERIES"
-echo "URSIM_VERSION: $URSIM_VERSION"
-
-validate_parameters
-
-if [ "$TEST_RUN" = true ]; then
   echo "Running in test mode"
-  export ROBOT_MODEL=$ROBOT_MODEL
-  export ROBOT_SERIES=$ROBOT_SERIES
-  export URSIM_VERSION=$URSIM_VERSION
-  exit
-fi
+  echo "ROBOT_MODEL: $ROBOT_MODEL"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  echo "URSIM_VERSION: $URSIM_VERSION"
 
-URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
-PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+  validate_parameters
+}
 
-if [ -z "$PORT_FORWARDING" ]; then
-  if [ "$ROBOT_SERIES" == "polyscopex" ]; then
-    PORT_FORWARDING=$PORT_FORWARDING_WITHOUT_DASHBOARD
-  else
-    PORT_FORWARDING=$PORT_FORWARDING_WITH_DASHBOARD
+main() {
+  parse_arguments "$@"
+  
+
+  fill_information
+
+  echo "ROBOT_MODEL: $ROBOT_MODEL"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  echo "URSIM_VERSION: $URSIM_VERSION"
+
+  validate_parameters
+
+  strip_robot_model "$ROBOT_MODEL" "$ROBOT_SERIES"
+
+  URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
+  PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+
+  if [ -z "$PORT_FORWARDING" ]; then
+    if [ "$ROBOT_SERIES" == "polyscopex" ]; then
+      PORT_FORWARDING=$PORT_FORWARDING_WITHOUT_DASHBOARD
+    else
+      PORT_FORWARDING=$PORT_FORWARDING_WITH_DASHBOARD
+    fi
   fi
-fi
 
-DOCKER_ARGS=""
+  DOCKER_ARGS=""
 
-if [ "$ROBOT_SERIES" == "polyscopex" ]; then
-  if [ -z "${POLYSCOPE_X_MAP[$URSIM_VERSION]}" ]; then
-    echo "URSim version $URSIM_VERSION is not supported"
+  if [ "$ROBOT_SERIES" == "polyscopex" ]; then
+    URSIM_VERSION=${POLYSCOPE_X_MAP[$URSIM_VERSION]}
+    DOCKER_ARGS="$DOCKER_ARGS --privileged"
+  fi
+
+  if [ -n "$PROGRAM_STORAGE_ARG" ]; then
+    PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
+  fi
+  if [ -n "$URCAP_STORAGE_ARG" ]; then
+    URCAP_STORAGE="$URCAP_STORAGE_ARG"
+  fi
+
+  # Check whether network already exists
+  if ! docker network inspect ursim_net &> /dev/null; then
+  #if [ $? -ne 0 ]; then
+    echo "Creating ursim_net"
+    docker network create --subnet=192.168.56.0/24 ursim_net
+  fi
+  if [ "$ROBOT_SERIES" == "polyscopex" ]; then
+    mkdir -p "${PROGRAM_STORAGE}"
+    PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
+
+    docker_cmd="docker run --rm -d \
+      --net ursim_net --ip $IP_ADDRESS \
+      -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
+      -e ROBOT_TYPE=${ROBOT_MODEL} \
+      $PORT_FORWARDING \
+      $DOCKER_ARGS \
+      --name $CONTAINER_NAME \
+      universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+  else
+    # Create local storage for programs and URCaps
+    mkdir -p "${URCAP_STORAGE}"
+    mkdir -p "${PROGRAM_STORAGE}"
+    URCAP_STORAGE=$(realpath "$URCAP_STORAGE")
+    PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
+
+    # Download external_control URCap
+    if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
+      curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" \
+        "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v${URCAP_VERSION}/externalcontrol-${URCAP_VERSION}.jar"
+    fi
+    docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
+      -v ${URCAP_STORAGE}:/urcaps \
+      -v ${PROGRAM_STORAGE}:/ursim/programs \
+      -e ROBOT_MODEL=${ROBOT_MODEL} \
+      $PORT_FORWARDING \
+      --name $CONTAINER_NAME \
+      universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+  fi
+
+  if [ "$TEST_RUN" = true ]; then
+    echo "$docker_cmd" | tr -s ' '
     exit
   fi
-  URSIM_VERSION=${POLYSCOPE_X_MAP[$URSIM_VERSION]}
-  DOCKER_ARGS="$DOCKER_ARGS --privileged"
-fi
+  $docker_cmd || exit 2
 
-if [ -n "$PROGRAM_STORAGE_ARG" ]; then
-  PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
-fi
-if [ -n "$URCAP_STORAGE_ARG" ]; then
-  URCAP_STORAGE="$URCAP_STORAGE_ARG"
-fi
+  # Stop container when interrupted
+  TRAP_CMD="
+  echo \"killing ursim\";
+  docker container kill $CONTAINER_NAME >> /dev/null;
+  docker container wait $CONTAINER_NAME >> /dev/null;
+  echo \"done\";
+  exit
+  "
+  trap "$TRAP_CMD" SIGINT SIGTERM
 
-# Check whether network already exists
-if ! docker network inspect ursim_net &> /dev/null; then
-#if [ $? -ne 0 ]; then
-  echo "Creating ursim_net"
-  docker network create --subnet=192.168.56.0/24 ursim_net
-fi
-if [ "$ROBOT_SERIES" == "polyscopex" ]; then
-  mkdir -p "${PROGRAM_STORAGE}"
-  PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
-  docker_cmd="docker run --rm -d \
-    --net ursim_net --ip $IP_ADDRESS \
-    -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
-    -e ROBOT_TYPE=${ROBOT_MODEL} \
-    $PORT_FORWARDING \
-    $DOCKER_ARGS \
-    --name $CONTAINER_NAME \
-    universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
-else
-  # Create local storage for programs and URCaps
-  mkdir -p "${URCAP_STORAGE}"
-  mkdir -p "${PROGRAM_STORAGE}"
-  URCAP_STORAGE=$(realpath "$URCAP_STORAGE")
-  PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
+  eval "post_setup_${ROBOT_SERIES}"
 
-  # Download external_control URCap
-  if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
-    curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" \
-      "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v${URCAP_VERSION}/externalcontrol-${URCAP_VERSION}.jar"
+  if [ "$DETACHED" = false ]; then
+  echo "To exit, press CTRL+C"
+    while :
+    do
+      sleep 1
+    done
+  else
+    echo "To kill it, please execute 'docker stop $CONTAINER_NAME'"
   fi
-  docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
-    -v ${URCAP_STORAGE}:/urcaps \
-    -v ${PROGRAM_STORAGE}:/ursim/programs \
-    -e ROBOT_MODEL=${ROBOT_MODEL} \
-    $PORT_FORWARDING \
-    --name $CONTAINER_NAME \
-    universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
-fi
+}
 
-echo "$docker_cmd"
-$docker_cmd
-
-# Stop container when interrupted
-TRAP_CMD="
-echo \"killing ursim\";
-docker container kill $CONTAINER_NAME >> /dev/null;
-docker container wait $CONTAINER_NAME >> /dev/null;
-echo \"done\";
-exit
-"
-trap "$TRAP_CMD" SIGINT SIGTERM
-
-
-eval "post_setup_${ROBOT_SERIES}"
-
-if [ "$DETACHED" = false ]; then
-echo "To exit, press CTRL+C"
-  while :
-  do
-    sleep 1
-  done
-else
-  echo "To kill it, please execute 'docker stop $CONTAINER_NAME'"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  main "$@"
 fi

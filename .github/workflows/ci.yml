@@ -99,6 +99,20 @@ jobs:
           if-no-files-found: error
           retention-days: 10
 
+  test_start_ursim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bats and bats libs
+        id: setup-bats
+        uses: bats-core/bats-action@3.0.0
+      - name: run unittests
+        shell: bash
+        env:
+          BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
+          TERM: xterm
+        run: bats tests/test_start_ursim.bats
+
   check_links:
     runs-on: ubuntu-latest
     steps:
