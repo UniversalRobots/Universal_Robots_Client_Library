@@ -31,6 +31,7 @@
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
 #include "ur_client_library/ur/datatypes.h"
+#include "ur_client_library/ur/version_information.h"
 
 #include <functional>
 #include <mutex>
@@ -87,6 +88,12 @@ public:
    */
   virtual bool consume(VersionMessage& pkg) override
   {
+    std::scoped_lock lock(version_information_mutex_);
+    version_information_ = std::make_shared<VersionInformation>();
+    version_information_->major = pkg.major_version_;
+    version_information_->minor = pkg.minor_version_;
+    version_information_->bugfix = pkg.svn_version_;
+    version_information_->build = pkg.build_number_;
     return true;
   }
 
@@ -196,11 +203,26 @@ public:
     return robot_mode_;
   }
 
+  /*!
+   * \brief Get the latest version information.
+   *
+   * The version information will be updated in the background. This will always show the latest
+   * received version information independent of the time that has passed since receiving it. If no
+   * version information has been received yet, this will return a nullptr.
+   */
+  std::shared_ptr<VersionInformation> getVersionInformation()
+  {
+    std::scoped_lock lock(version_information_mutex_);
+    return version_information_;
+  }
+
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
   std::shared_ptr<KinematicsInfo> kinematics_info_;
   std::mutex robot_mode_mutex_;
   std::shared_ptr<RobotModeData> robot_mode_;
+  std::mutex version_information_mutex_;
+  std::shared_ptr<VersionInformation> version_information_;
 };
 
 }  // namespace primary_interface

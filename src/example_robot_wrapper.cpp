@@ -32,6 +32,7 @@
 #include <iostream>
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
+#include "ur_client_library/ur/version_information.h"
 
 namespace urcl
 {
@@ -40,24 +41,31 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
                                          const std::string& autostart_program, const std::string& script_file)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
-  dashboard_client_ = std::make_shared<DashboardClient>(robot_ip);
+  primary_client_ = std::make_shared<urcl::primary_interface::PrimaryClient>(robot_ip, notifier_);
 
-  // Connect the robot Dashboard
-  if (!dashboard_client_->connect())
+  primary_client_->start();
+
+  auto robot_version = primary_client_->getRobotVersion();
+  if (*robot_version < VersionInformation::fromString("10.0.0"))
   {
-    URCL_LOG_ERROR("Could not connect to dashboard");
+    dashboard_client_ = std::make_shared<DashboardClient>(robot_ip);
+    // Connect the robot Dashboard
+    if (!dashboard_client_->connect())
+    {
+      URCL_LOG_ERROR("Could not connect to dashboard");
+    }
+
+    // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
+    // here.
+    timeval tv;
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    dashboard_client_->setReceiveTimeout(tv);
   }
 
-  // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
-  // here.
-  timeval tv;
-  tv.tv_sec = 10;
-  tv.tv_usec = 0;
-  dashboard_client_->setReceiveTimeout(tv);
-
-  if (!initializeRobotWithDashboard())
+  if (!initializeRobotWithPrimaryClient())
   {
-    throw UrException("Could not initialize robot with dashboard");
+    throw UrException("Could not initialize robot with primary client");
   }
 
   UrDriverConfiguration driver_config;
@@ -75,7 +83,7 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
     startRobotProgram(autostart_program);
   }
 
-  if (headless_mode | !std::empty(autostart_program))
+  if (headless_mode || !std::empty(autostart_program))
   {
     if (!waitForProgramRunning(500))
     {
@@ -94,20 +102,28 @@ ExampleRobotWrapper::~ExampleRobotWrapper()
 
 bool ExampleRobotWrapper::clearProtectiveStop()
 {
-  std::string safety_status;
-  dashboard_client_->commandSafetyStatus(safety_status);
-  bool is_protective_stopped = safety_status.find("PROTECTIVE_STOP") != std::string::npos;
-  if (is_protective_stopped)
+  if (primary_client_->isRobotProtectiveStopped())
   {
     URCL_LOG_INFO("Robot is in protective stop, trying to release it");
-    dashboard_client_->commandClosePopup();
-    dashboard_client_->commandCloseSafetyPopup();
-    if (!dashboard_client_->commandUnlockProtectiveStop())
+    if (dashboard_client_ != nullptr)
+    {
+      dashboard_client_->commandClosePopup();
+      dashboard_client_->commandCloseSafetyPopup();
+    }
+    try
+    {
+      primary_client_->commandUnlockProtectiveStop();
+    }
+    catch (const TimeoutException&)
     {
       std::this_thread::sleep_for(std::chrono::seconds(5));
-      if (!dashboard_client_->commandUnlockProtectiveStop())
+      try
       {
-        URCL_LOG_ERROR("Could not unlock protective stop");
+        primary_client_->commandUnlockProtectiveStop();
+      }
+      catch (const TimeoutException&)
+      {
+        URCL_LOG_ERROR("Robot could not unlock the protective stop");
         return false;
       }
     }
@@ -148,6 +164,36 @@ bool ExampleRobotWrapper::initializeRobotWithDashboard()
   if (!dashboard_client_->commandBrakeRelease())
   {
     URCL_LOG_ERROR("Could not send BrakeRelease command");
+    return false;
+  }
+
+  // Now the robot is ready to receive a program
+  URCL_LOG_INFO("Robot ready to start a program");
+  robot_initialized_ = true;
+  return true;
+}
+
+bool ExampleRobotWrapper::initializeRobotWithPrimaryClient()
+{
+  try
+  {
+    waitFor([&]() { return primary_client_->getRobotModeData() != nullptr; }, std::chrono::seconds(5));
+    clearProtectiveStop();
+  }
+  catch (const std::exception& exc)
+  {
+    URCL_LOG_ERROR("Could not clear protective stop (%s)", exc.what());
+    return false;
+  }
+
+  try
+  {
+    primary_client_->commandStop();
+    primary_client_->commandBrakeRelease();
+  }
+  catch (const TimeoutException& exc)
+  {
+    URCL_LOG_ERROR(exc.what());
     return false;
   }
 
@@ -254,13 +300,20 @@ bool ExampleRobotWrapper::waitForProgramNotRunning(int milliseconds)
 
 bool ExampleRobotWrapper::startRobotProgram(const std::string& program_file_name)
 {
-  if (!dashboard_client_->commandLoadProgram(program_file_name))
+  if (dashboard_client_ != nullptr)
   {
-    URCL_LOG_ERROR("Could not load program '%s'", program_file_name.c_str());
-    return false;
-  }
+    if (!dashboard_client_->commandLoadProgram(program_file_name))
+    {
+      URCL_LOG_ERROR("Could not load program '%s'", program_file_name.c_str());
+      return false;
+    }
 
-  return dashboard_client_->commandPlay();
+    return dashboard_client_->commandPlay();
+  }
+  URCL_LOG_ERROR("Dashboard client is not initialized. If you are running a PolyScope X robot, the dashboard server is "
+                 "not available. Loading and running polyscope programs isn't possible. Please use the headless mode "
+                 "or the teach pendant instead.");
+  return false;
 }
 bool ExampleRobotWrapper::resendRobotProgram()
 {
