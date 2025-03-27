@@ -137,7 +137,6 @@ strip_robot_model()
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     fi
   fi
-  echo "ROBOT_MODEL: $ROBOT_MODEL"
 }
 
 # Make sure that all parameters match together. This checks
