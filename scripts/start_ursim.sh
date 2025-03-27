@@ -66,9 +66,12 @@ help()
   echo
 }
 
-#ROBOT_MODEL=ur5e
-#ROBOT_SERIES=e-series
+ROBOT_MODEL=""
+ROBOT_SERIES=""
 URSIM_VERSION=latest
+PORT_FORWARDING=""
+PROGRAM_STORAGE_ARG=""
+URCAP_STORAGE_ARG=""
 DETACHED=false
 
 verlte()
@@ -106,13 +109,15 @@ get_series_from_model()
 get_series_from_version()
 {
   if [[ "$URSIM_VERSION" == "latest" ]]; then
-    ROBOT_SERIES=e-series
+    ROBOT_SERIES=e-series && return
   else
-    verlte "10.0.0" "$URSIM_VERSION" && ROBOT_SERIES=polyscopex && return
-    verlte "5.0.0" "$URSIM_VERSION" && ROBOT_SERIES=e-series && return
+    verlte "10.0.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "11.0.0" && ROBOT_SERIES=polyscopex && return
+    verlte "5.0.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "6.0.0" && ROBOT_SERIES=e-series && return
+    verlte "3.0.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "4.0.0" && ROBOT_SERIES=cb3 && return
   fi
   # If nothing above matched
-  ROBOT_SERIES=cb3
+  echo "URSim version $URSIM_VERSION is not supported"
+  exit 1
 }
 
 # Bring the model into a format that is used internally by URSim
@@ -159,9 +164,12 @@ validate_parameters()
 
   case $ROBOT_SERIES in
     cb3)
+      MIN_VERSION=$MIN_CB3
+      if [[ $ROBOT_MODEL != @(ur3|ur5|ur10) ]]; then
+        echo "$ROBOT_MODEL is no valid CB3 model!" && exit 1
+      fi
       verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit 1
       verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
-      MIN_VERSION=$MIN_CB3
       ;;
     e-series)
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
@@ -279,11 +287,7 @@ fill_information() {
   if [ -z "$ROBOT_MODEL" ]; then 
     echo "No robot model given. Inferring from series"
     if [ -z "$ROBOT_SERIES" ]; then
-      if [ "$URSIM_VERSION" != "latest" ]; then
-        get_series_from_version
-      else
-        ROBOT_SERIES=e-series
-      fi
+      get_series_from_version
     fi
     if [[ "$ROBOT_SERIES" == "cb3" ]]; then
       ROBOT_MODEL=ur5
