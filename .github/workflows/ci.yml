@@ -99,6 +99,31 @@ jobs:
           if-no-files-found: error
           retention-days: 10
 
+  test_start_ursim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'  # Not needed with a .ruby-version, .tool-versions or mise.toml
+          bundler-cache: true  # runs 'bundle install' and caches installed gems automatically
+      - name: Setup Bats and bats libs
+        id: setup-bats
+        uses: bats-core/bats-action@3.0.0
+      - name: Install Ruby dependencies
+        run: bundle update --bundler && bundle install
+      - name: Run unittests
+        shell: bash
+        env:
+          BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
+        run: bundle exec bashcov --skip-uncovered bats tests/test_start_ursim.bats
+      - name: Upload reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: start_ursim
+
   check_links:
     runs-on: ubuntu-latest
     steps:
