@@ -325,10 +325,10 @@ main() {
 
   validate_parameters
 
-  strip_robot_model "$ROBOT_MODEL" "$ROBOT_SERIES"
-
   URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+
+  strip_robot_model "$ROBOT_MODEL" "$ROBOT_SERIES"
 
   if [ -z "$PORT_FORWARDING" ]; then
     if [ "$ROBOT_SERIES" == "polyscopex" ]; then
