@@ -119,6 +119,58 @@ setup() {
   [ "$ROBOT_SERIES" = "polyscopex" ]
 }
 
+@test "no arguments results in e-series ur5e" {
+  test_input_handling
+  [ "$ROBOT_MODEL" = "ur5e" ]
+  [ "$ROBOT_SERIES" = "e-series" ]
+  [ "$URSIM_VERSION" = "latest" ]  
+}
+
+@test "test ur20 min version" {
+  run test_input_handling -m ur20 -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur20 -v 5.13.9
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur20 -v 5.14.0
+  echo "$output"
+  [ $status -eq 0 ]
+  run test_input_handling -m ur20 -v 10.7.0
+  echo "$output"
+  [ $status -eq 0 ]
+}
+
+@test "test ur30 min version" {
+  run test_input_handling -m ur30 -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur30 -v 5.14.9
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur30 -v 5.15.0
+  echo "$output"
+  [ $status -eq 0 ]
+  run test_input_handling -m ur30 -v 10.7.0
+  echo "$output"
+  [ $status -eq 0 ]
+}
+
+@test "unsupported versions raise error" {
+  run main -v 1.2.3 -t
+  echo "$output"
+  [ $status -eq 1 ]
+  run main -v 2.0.0 -t
+  echo "$output"
+  [ $status -eq 1 ]
+  run main -v 10.1.0 -t
+  echo "$output"
+  [ $status -eq 1 ]
+  run main -v 6.99.123 -t
+  echo "$output"
+  [ $status -eq 1 ]
+}
+
 @test "docker image polyscopex" {
   run main -v 10.7.0 -t
   echo "$output"
