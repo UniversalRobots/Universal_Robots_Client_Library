@@ -338,6 +338,14 @@ setup() {
   strip_robot_model ur30 polyscopex
   echo "Robot model is: $ROBOT_MODEL"
   [ "$ROBOT_MODEL" = "UR30" ]
+
+  strip_robot_model ur7e e-series
+  echo "Robot model is: $ROBOT_MODEL"
+  [ "$ROBOT_MODEL" = "UR7e" ]
+
+  strip_robot_model ur12e e-series
+  echo "Robot model is: $ROBOT_MODEL"
+  [ "$ROBOT_MODEL" = "UR12e" ]
 }
 
 @test "help_prints_fine" {
