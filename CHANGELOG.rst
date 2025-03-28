@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make start_ursim.sh support polyscopex (`#294 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/294>`_)
+* Reduce usage of dashboard client in tests and examples (`#296 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/296>`_)
+* Try catch RTDE setup (`#285 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/285>`_)
+* add missing headers (`#290 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/290>`_)
+* PrimaryClient: Add methods to unlock protective stop and stop the program (`#292 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/292>`_)
+* Set increased timeout in dashboard client test (`#293 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/293>`_)
+* Do not print a warning when querying the dashboard server for a running program (`#287 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/287>`_)
+* Primary client power on (`#289 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/289>`_)
+* Contributors: Andrei Kholodnyi, Dominic Reber, Felix Exner
+
 1.8.0 (2025-03-17)
 ------------------
 * Remove unused variables (`#288 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/288>`_)
