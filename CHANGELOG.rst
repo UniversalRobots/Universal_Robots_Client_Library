@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.9.0 (2025-03-28)
+------------------
 * Make start_ursim.sh support polyscopex (`#294 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/294>`_)
 * Reduce usage of dashboard client in tests and examples (`#296 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/296>`_)
 * Try catch RTDE setup (`#285 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/285>`_)
