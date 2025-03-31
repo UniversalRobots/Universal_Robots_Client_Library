@@ -205,7 +205,7 @@ application.
 
    .. group-tab:: PolyScope X
 
-      The latest release can be downloaded from `its own repository
+      The latest release can be downloaded from `GitHub (URCapX)
       <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases>`_.
 
       To install it you first have to copy it to a USB stick and plug that into the robot's teach
