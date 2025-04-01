@@ -274,7 +274,7 @@ parse_arguments(){
       \?) # invalid option
         echo "Error: Invalid option"
         help
-        exit;;
+        exit 1
     esac
   done
 }
@@ -392,7 +392,7 @@ main() {
 
   if [ "$TEST_RUN" = true ]; then
     echo "$docker_cmd" | tr -s ' '
-    exit
+    exit 0
   fi
   $docker_cmd || exit 2
 
