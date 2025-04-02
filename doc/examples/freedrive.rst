@@ -56,10 +56,10 @@ section will keep freedrive mode active for a period of time defined in ``second
    :start-at: std::chrono::duration<double> time_done(0);
    :end-before: sendFreedriveMessageOrDie(control::FreedriveControlMessage::FREEDRIVE_STOP);
 
-Stop force Mode
----------------
+Stop freedrive Mode
+-------------------
 
-To stop force mode either stop sending keepalive signals or request deactivating it explicitly:
+To stop freedrive mode either stop sending keepalive signals or request deactivating it explicitly:
 
 .. literalinclude:: ../../examples/freedrive_example.cpp
    :language: c++
