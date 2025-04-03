@@ -30,6 +30,7 @@
 
 #include <chrono>
 #include <functional>
+#include <memory>
 
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/reverse_interface.h"
@@ -530,6 +531,8 @@ public:
    * \returns True on successful write.
    */
   bool writeTrajectorySplinePoint(const vector6d_t& positions, const float goal_time = 0.0);
+
+  bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> motion_instruction);
 
   /*!
    * \brief Writes a control message in trajectory forward mode.
