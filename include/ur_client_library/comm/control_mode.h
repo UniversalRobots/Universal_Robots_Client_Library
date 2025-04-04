@@ -83,7 +83,7 @@ public:
    *
    * \returns true if the control mode is realtime, false otherwise
    */
-  static bool is_control_mode_realtime(ControlMode control_mode)
+  static bool isControlModeRealtime(ControlMode control_mode)
   {
     return (std::find(ControlModeTypes::REALTIME_CONTROL_MODES.begin(), ControlModeTypes::REALTIME_CONTROL_MODES.end(),
                       control_mode) != ControlModeTypes::REALTIME_CONTROL_MODES.end());
@@ -96,7 +96,7 @@ public:
    *
    * \returns true if the control mode is non realtime, false otherwise
    */
-  static bool is_control_mode_non_realtime(ControlMode control_mode)
+  static bool isControlModeNonRealtime(ControlMode control_mode)
   {
     return (std::find(ControlModeTypes::NON_REALTIME_CONTROL_MODES.begin(),
                       ControlModeTypes::NON_REALTIME_CONTROL_MODES.end(),

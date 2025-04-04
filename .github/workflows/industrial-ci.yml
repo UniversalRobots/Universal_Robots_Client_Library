@@ -35,5 +35,5 @@ jobs:
           DOWNSTREAM_WORKSPACE: ${{matrix.ROS_DISTRO.DOWNSTREAM_WORKSPACE}}
           ROS_DISTRO: ${{matrix.ROS_DISTRO.NAME}}
           ROS_REPO: ${{matrix.ROS_REPO}}
-          CLANG_TIDY: true
+          CLANG_TIDY: pedantic
           CLANG_TIDY_ARGS: '--extra-arg=-std=c++17'  # needed for Humble

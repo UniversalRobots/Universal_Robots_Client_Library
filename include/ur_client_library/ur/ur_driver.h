@@ -125,12 +125,12 @@ struct UrDriverConfiguration
    *
    * If set to 0, the driver will try to initialize the RTDE interface indefinitely.
    */
-  size_t rtde_initialization_attempts_ = 3;
+  size_t rtde_initialization_attempts = 3;
 
   /*!
    * \brief Time in between initialization attempts of the RTDE interface.
    */
-  std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::seconds(5);
+  std::chrono::milliseconds rtde_initialization_timeout = std::chrono::seconds(5);
 
   bool non_blocking_read = false;
 

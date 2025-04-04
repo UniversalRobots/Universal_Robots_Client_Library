@@ -106,11 +106,11 @@ protected:
 
     bool waitForConsumer(int milliseconds = 100)
     {
-      std::unique_lock<std::mutex> lk(consumed_mutex_);
-      if (consumed_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-          consumed_callback_ == true)
+      std::unique_lock<std::mutex> lk(consumed_mutex);
+      if (consumed_cv.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
+          consumed_callback == true)
       {
-        consumed_callback_ = true;
+        consumed_callback = true;
         return true;
       }
       return false;
@@ -119,20 +119,20 @@ protected:
     // Consume a package
     virtual bool consume(std::shared_ptr<rtde_interface::RTDEPackage> product)
     {
-      std::lock_guard<std::mutex> lk(consumed_mutex_);
+      std::lock_guard<std::mutex> lk(consumed_mutex);
       if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get()))
       {
-        data->getData("timestamp", timestamp_);
+        data->getData("timestamp", timestamp);
       }
-      consumed_cv_.notify_one();
-      consumed_callback_ = true;
+      consumed_cv.notify_one();
+      consumed_callback = true;
       return true;
     }
 
-    double timestamp_ = 0.0;
-    std::condition_variable consumed_cv_;
-    std::mutex consumed_mutex_;
-    bool consumed_callback_ = false;
+    double timestamp = 0.0;
+    std::condition_variable consumed_cv;
+    std::mutex consumed_mutex;
+    bool consumed_callback = false;
   };
 
 private:
@@ -229,7 +229,7 @@ TEST_F(PipelineTest, consumer_pipeline)
 
   // Test that the package was consumed
   double expected_timestamp = 7103.8579;
-  EXPECT_FLOAT_EQ(consumer.timestamp_, expected_timestamp);
+  EXPECT_FLOAT_EQ(consumer.timestamp, expected_timestamp);
 
   pipeline_->stop();
 }
