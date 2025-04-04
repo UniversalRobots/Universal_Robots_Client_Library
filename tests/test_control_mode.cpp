@@ -39,7 +39,7 @@ TEST(control_mode, is_control_mode_realtime_with_realtime_control_modes)
 {
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    EXPECT_TRUE(comm::ControlModeTypes::is_control_mode_realtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));
+    EXPECT_TRUE(comm::ControlModeTypes::isControlModeRealtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));
   }
 }
 
@@ -47,13 +47,12 @@ TEST(control_mode, is_control_mode_realtime_with_non_realtime_control_modes)
 {
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
-    EXPECT_FALSE(
-        comm::ControlModeTypes::is_control_mode_realtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
+    EXPECT_FALSE(comm::ControlModeTypes::isControlModeRealtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
   }
 
   for (unsigned int i = 0; i < comm::ControlModeTypes::STATIONARY_CONTROL_MODES.size(); ++i)
   {
-    EXPECT_FALSE(comm::ControlModeTypes::is_control_mode_realtime(comm::ControlModeTypes::STATIONARY_CONTROL_MODES[i]));
+    EXPECT_FALSE(comm::ControlModeTypes::isControlModeRealtime(comm::ControlModeTypes::STATIONARY_CONTROL_MODES[i]));
   }
 }
 
@@ -62,7 +61,7 @@ TEST(control_mode, is_control_mode_non_realtime_with_non_realtime_control_modes)
   for (unsigned int i = 0; i < comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size(); ++i)
   {
     EXPECT_TRUE(
-        comm::ControlModeTypes::is_control_mode_non_realtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
+        comm::ControlModeTypes::isControlModeNonRealtime(comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES[i]));
   }
 }
 
@@ -70,13 +69,11 @@ TEST(control_mode, is_control_mode_non_realtime_with_realtime_control_modes)
 {
   for (unsigned int i = 0; i < comm::ControlModeTypes::REALTIME_CONTROL_MODES.size(); ++i)
   {
-    EXPECT_FALSE(
-        comm::ControlModeTypes::is_control_mode_non_realtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));
+    EXPECT_FALSE(comm::ControlModeTypes::isControlModeNonRealtime(comm::ControlModeTypes::REALTIME_CONTROL_MODES[i]));
   }
   for (unsigned int i = 0; i < comm::ControlModeTypes::STATIONARY_CONTROL_MODES.size(); ++i)
   {
-    EXPECT_FALSE(
-        comm::ControlModeTypes::is_control_mode_non_realtime(comm::ControlModeTypes::STATIONARY_CONTROL_MODES[i]));
+    EXPECT_FALSE(comm::ControlModeTypes::isControlModeNonRealtime(comm::ControlModeTypes::STATIONARY_CONTROL_MODES[i]));
   }
 }
 
