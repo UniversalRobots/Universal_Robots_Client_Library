@@ -6,9 +6,11 @@ Instruction Executor
 The Instruction Executor is a convenience wrapper to make common robot instructions such as point
 to point motions easily accessible. Currently, it supports the following instructions:
 
-* Excecute MoveJ point to point motions
+* Execute MoveJ point to point motions
 * Execute MoveL point to point motions
-* Execute sequences consisting of MoveJ and MoveL instructions
+* Execute MoveP point to point motions
+* Execute MoveC circular motions
+* Execute sequences consisting of the motion primitives above
 
 The Instruction Executor uses the :ref:`trajectory_point_interface` and the
 :ref:`reverse_interface`
