@@ -132,6 +132,14 @@ public:
   bool writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
                                   const vector6d_t* accelerations, const float goal_time);
 
+  /*!
+   * \brief Writes a motion primitive to the robot to be read by the URScript program.
+   *
+   * \param primitive A shared pointer to a motion primitive object. This can contain any motion
+   * primitive type that is supported. Currently, that is MoveJ, MoveL, MoveP and MoveC.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
   bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)

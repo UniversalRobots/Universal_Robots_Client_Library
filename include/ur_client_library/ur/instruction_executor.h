@@ -82,10 +82,10 @@ public:
              const double time = 0, const double blend_radius = 0);
 
   /**
-   * \brief Move the robot to a pose target.
+   * \brief Move the robot to a pose target using movel
    *
    * This function will move the robot to the given pose target. The robot will move with the given acceleration and
-   * velocity. The function will return once the robot has reached the target.
+   * velocity or a motion time. The function will return once the robot has reached the target.
    *
    * \param target The pose target to move to.
    * \param acceleration Tool acceleration [m/s^2]
@@ -98,6 +98,18 @@ public:
   bool moveL(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double time = 0, const double blend_radius = 0);
 
+  /**
+   * \brief Move the robot to a pose target using movep
+   *
+   * This function will move the robot to the given pose target. The robot will move with the given acceleration and
+   * velocity. The function will return once the robot has reached the target.
+   *
+   * \param target The pose target to move to.
+   * \param acceleration Tool acceleration [m/s^2]
+   * \param velocity Tool speed [m/s]
+   * \param blend_radius The blend radius to use for the motion.
+   * \return True if the robot has reached the target, false otherwise.
+   */
   bool moveP(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double blend_radius = 0.0);
 
