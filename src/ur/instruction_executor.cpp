@@ -112,6 +112,13 @@ bool urcl::InstructionExecutor::moveP(const urcl::Pose& target, const double acc
   return executeMotion({ std::make_shared<control::MovePPrimitive>(target, blend_radius, acceleration, velocity) });
 }
 
+bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& target, const double acceleration,
+                                      const double velocity, const double blend_radius, const int32_t mode)
+{
+  return executeMotion(
+      { std::make_shared<control::MoveCPrimitive>(via, target, blend_radius, acceleration, velocity, mode) });
+}
+
 bool urcl::InstructionExecutor::cancelMotion()
 {
   cancel_requested_ = true;

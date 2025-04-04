@@ -113,6 +113,9 @@ public:
   bool moveP(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double blend_radius = 0.0);
 
+  bool moveC(const urcl::Pose& via, const urcl::Pose& target, const double acceleration = 1.4,
+             const double velocity = 1.04, const double blend_radius = 0.0, const int32_t mode = 0);
+
   /**
    * \brief Cancel the current motion.
    *

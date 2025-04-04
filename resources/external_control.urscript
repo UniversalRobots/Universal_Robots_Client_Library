@@ -517,7 +517,16 @@ thread trajectoryThread():
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
 
-        # Joint spline point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC:
+        local v = [raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
+        via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
+        target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[14] / MULT_jointstate
+        mode = raw_point[15]
+        movec(via, target, acceleration, velocity, blend_radius, mode)
+
+      # Joint spline point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_SPLINE:
 
         # Cubic spline

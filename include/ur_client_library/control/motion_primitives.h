@@ -109,7 +109,7 @@ struct MovePPrimitive : public MotionPrimitive
 struct MoveCPrimitive : public MotionPrimitive
 {
   MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& target, const double blend_radius = 0,
-                 const double acceleration = 1.4, const double velocity = 1.04)
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
   {
     type = MotionType::MOVEC;
     via_point_pose = via_point;
@@ -117,9 +117,11 @@ struct MoveCPrimitive : public MotionPrimitive
     this->acceleration = acceleration;
     this->velocity = velocity;
     this->blend_radius = blend_radius;
+    this->mode = mode;
   }
   urcl::Pose via_point_pose;
   urcl::Pose target_pose;
+  int32_t mode = 0;
 };
 }  // namespace control
 }  // namespace urcl
