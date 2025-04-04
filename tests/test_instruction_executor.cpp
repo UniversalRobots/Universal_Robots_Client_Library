@@ -368,7 +368,7 @@ TEST_F(InstructionExecutorTest, movep_succeeds)
   // move to a feasible starting pose
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
 
-  ASSERT_TRUE(executor_->moveP({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 2.0, 2.0));
+  ASSERT_TRUE(executor_->moveP({ -0.203, 0.363, 0.759, 0.68, -1.083, -2.076 }, 1.0, 1.0));
 }
 
 TEST_F(InstructionExecutorTest, movec_succeeds)
