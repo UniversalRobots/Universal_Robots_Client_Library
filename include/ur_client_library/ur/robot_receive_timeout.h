@@ -87,7 +87,7 @@ public:
    */
   int verifyRobotReceiveTimeout(const comm::ControlMode control_mode, const std::chrono::milliseconds step_time) const;
 
-  std::chrono::milliseconds timeout_;
+  std::chrono::milliseconds timeout;
 
 private:
   RobotReceiveTimeout(std::chrono::milliseconds timeout);
