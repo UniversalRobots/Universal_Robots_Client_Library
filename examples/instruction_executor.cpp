@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
-  instruction_executor->moveP({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  instruction_executor->moveP({ -0.203, 0.463, 0.759, 0.68, -1.083, -2.076 }, 1.5, 1.5);
 
   g_my_robot->ur_driver_->stopControl();
   return 0;
