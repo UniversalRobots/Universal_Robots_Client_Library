@@ -29,6 +29,7 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
 #include <math.h>
+#include <cstdint>
 #include <stdexcept>
 #include "ur_client_library/comm/socket_t.h"
 #include "ur_client_library/control/motion_primitives.h"
@@ -91,6 +92,13 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
                     movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz };
       break;
     }
+    case MotionType::MOVEC:
+    {
+      auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
+      positions = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
+                    movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+      break;
+    }
     default:
       throw UnsupportedMotionType();
   }
@@ -102,17 +110,49 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     buffer[index] = htobe32(val);
     index++;
   }
-  for (size_t i = 0; i < positions.size(); ++i)
+
+  if (primitive->type == MotionType::MOVEC)
   {
+    auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
+    auto via = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
+                 movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
+                 movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+    for (auto const& pos : via)
+    {
+      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
+      buffer[index] = htobe32(val);
+      index++;
+    }
     int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
     buffer[index] = htobe32(val);
     index++;
-  }
-  for (size_t i = 0; i < positions.size(); ++i)
-  {
-    int32_t val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
+    val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
     buffer[index] = htobe32(val);
     index++;
+    val = static_cast<int32_t>(round(movec_primitive->mode));
+    buffer[index] = htobe32(val);
+    index++;
+    for (size_t i = 0; i < positions.size() - 3; ++i)
+    {
+      val = 0;
+      buffer[index] = htobe32(val);
+      index++;
+    }
+  }
+  else
+  {
+    for (size_t i = 0; i < positions.size(); ++i)
+    {
+      int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
+      buffer[index] = htobe32(val);
+      index++;
+    }
+    for (size_t i = 0; i < positions.size(); ++i)
+    {
+      int32_t val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
+      buffer[index] = htobe32(val);
+      index++;
+    }
   }
 
   int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
