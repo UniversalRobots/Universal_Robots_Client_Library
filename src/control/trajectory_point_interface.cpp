@@ -65,8 +65,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH];
-  uint8_t* b_pos = buffer;
+  std::array<int32_t, MESSAGE_LENGTH> buffer;
 
   vector6d_t positions;
 
@@ -85,7 +84,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
                     movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
       break;
     }
-    case urcl::control::MotionType::MOVEP:
+    case MotionType::MOVEP:
     {
       auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
       positions = { movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
@@ -96,41 +95,42 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       throw UnsupportedMotionType();
   }
 
+  size_t index = 0;
   for (auto const& pos : positions)
   {
     int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-    val = htobe32(val);
-    b_pos += append(b_pos, val);
+    buffer[index] = htobe32(val);
+    index++;
   }
   for (size_t i = 0; i < positions.size(); ++i)
   {
     int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
-    val = htobe32(val);
-    b_pos += append(b_pos, val);
+    buffer[index] = htobe32(val);
+    index++;
   }
   for (size_t i = 0; i < positions.size(); ++i)
   {
     int32_t val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
-    val = htobe32(val);
-    b_pos += append(b_pos, val);
+    buffer[index] = htobe32(val);
+    index++;
   }
 
   int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  buffer[index] = htobe32(val);
+  index++;
 
   val = static_cast<int32_t>(round(primitive->blend_radius * MULT_TIME));
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  buffer[index] = htobe32(val);
+  index++;
 
   val = static_cast<int32_t>(primitive->type);
-
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  buffer[index] = htobe32(val);
+  index++;
 
   size_t written;
 
-  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+  // We stored the data in a int32_t vector, but write needs a uint8_t buffer
+  return server_.write(client_fd_, (uint8_t*)buffer.data(), buffer.size() * sizeof(int32_t), written);
 }
 
 bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float acceleration,
