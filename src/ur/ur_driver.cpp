@@ -240,6 +240,11 @@ bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMes
   return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
 }
 
+bool UrDriver::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> motion_instruction)
+{
+  return trajectory_interface_->writeMotionPrimitive(motion_instruction);
+}
+
 bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
                                             const RobotReceiveTimeout& robot_receive_timeout)
 {

@@ -363,6 +363,24 @@ TEST_F(InstructionExecutorTest, empty_sequence_succeeds)
   ASSERT_TRUE(executor_->executeMotion(motion_sequence));
 }
 
+TEST_F(InstructionExecutorTest, movep_succeeds)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->moveP({ -0.203, 0.363, 0.759, 0.68, -1.083, -2.076 }, 1.0, 1.0));
+}
+
+TEST_F(InstructionExecutorTest, movec_succeeds)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->moveP({ -0.209, 0.492, 0.5522, 0.928, -1.134, -2.168 }, 1.2, 0.25, 0.025));
+  ASSERT_TRUE(executor_->moveC({ -0.209, 0.487, 0.671, 1.026, -0.891, -2.337 },
+                               { -0.209, 0.425, 0.841, 1.16, -0.477, -2.553 }, 0.1, 0.25, 0.025, 0));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

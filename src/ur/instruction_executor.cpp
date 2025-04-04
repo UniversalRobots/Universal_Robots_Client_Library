@@ -66,29 +66,15 @@ bool urcl::InstructionExecutor::executeMotion(
 
   for (const auto& primitive : motion_sequence)
   {
-    switch (primitive->type)
+    try
     {
-      case control::MotionType::MOVEJ:
-      {
-        auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
-        driver_->writeTrajectoryPoint(movej_primitive->target_joint_configuration, primitive->acceleration,
-                                      primitive->velocity, false, primitive->duration.count(), primitive->blend_radius);
-        break;
-      }
-      case control::MotionType::MOVEL:
-      {
-        auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
-        urcl::vector6d_t pose_vec = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,
-                                      movel_primitive->target_pose.z,  movel_primitive->target_pose.rx,
-                                      movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
-        driver_->writeTrajectoryPoint(pose_vec, primitive->acceleration, primitive->velocity, true,
-                                      primitive->duration.count(), primitive->blend_radius);
-        break;
-      }
-      default:
-        URCL_LOG_ERROR("Unsupported motion type");
-        // The hardware will complain about missing trajectory points and return a failure for
-        // trajectory execution. Hence, we need to step into the running loop below.
+      driver_->writeMotionPrimitive(primitive);
+    }
+    catch (const UnsupportedMotionType&)
+    {
+      URCL_LOG_ERROR("Unsupported motion type");
+      // The hardware will complain about missing trajectory points and return a failure for
+      // trajectory execution. Hence, we need to step into the running loop below.
     }
   }
   trajectory_running_ = true;
@@ -118,6 +104,19 @@ bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acc
 {
   return executeMotion({ std::make_shared<control::MoveLPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::moveP(const urcl::Pose& target, const double acceleration, const double velocity,
+                                      const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::MovePPrimitive>(target, blend_radius, acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& target, const double acceleration,
+                                      const double velocity, const double blend_radius, const int32_t mode)
+{
+  return executeMotion(
+      { std::make_shared<control::MoveCPrimitive>(via, target, blend_radius, acceleration, velocity, mode) });
 }
 
 bool urcl::InstructionExecutor::cancelMotion()

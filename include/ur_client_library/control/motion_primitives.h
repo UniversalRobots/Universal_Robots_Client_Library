@@ -48,9 +48,10 @@ enum class MotionType : uint8_t
   SPLINE = 51,
   UNKNOWN = 255
 };
+
 struct MotionPrimitive
 {
-  MotionType type;
+  MotionType type = MotionType::UNKNOWN;
   std::chrono::duration<double> duration;
   double acceleration;
   double velocity;
@@ -89,6 +90,38 @@ struct MoveLPrimitive : public MotionPrimitive
   }
 
   urcl::Pose target_pose;
+};
+
+struct MovePPrimitive : public MotionPrimitive
+{
+  MovePPrimitive(const urcl::Pose& target, const double blend_radius = 0, const double acceleration = 1.4,
+                 const double velocity = 1.04)
+  {
+    type = MotionType::MOVEP;
+    target_pose = target;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+  }
+  urcl::Pose target_pose;
+};
+
+struct MoveCPrimitive : public MotionPrimitive
+{
+  MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& target, const double blend_radius = 0,
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
+  {
+    type = MotionType::MOVEC;
+    via_point_pose = via_point;
+    target_pose = target;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+    this->mode = mode;
+  }
+  urcl::Pose via_point_pose;
+  urcl::Pose target_pose;
+  int32_t mode = 0;
 };
 }  // namespace control
 }  // namespace urcl

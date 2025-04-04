@@ -29,8 +29,10 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
 #include <math.h>
+#include <cstdint>
 #include <stdexcept>
 #include "ur_client_library/comm/socket_t.h"
+#include "ur_client_library/control/motion_primitives.h"
 
 namespace urcl
 {
@@ -58,66 +60,139 @@ TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInter
 {
 }
 
-bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float acceleration,
-                                                    const float velocity, const float goal_time,
-                                                    const float blend_radius, const bool cartesian)
+bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive)
 {
   if (client_fd_ == -1)
   {
     return false;
   }
-  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH];
-  uint8_t* b_pos = buffer;
+  std::array<int32_t, MESSAGE_LENGTH> buffer;
 
-  if (positions != nullptr)
+  vector6d_t positions;
+
+  switch (primitive->type)
   {
-    for (auto const& pos : *positions)
+    case MotionType::MOVEJ:
+    {
+      auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
+      positions = movej_primitive->target_joint_configuration;
+      break;
+    }
+    case MotionType::MOVEL:
+    {
+      auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
+      positions = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
+                    movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
+      break;
+    }
+    case MotionType::MOVEP:
+    {
+      auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
+      positions = { movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
+                    movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz };
+      break;
+    }
+    case MotionType::MOVEC:
+    {
+      auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
+      positions = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
+                    movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+      break;
+    }
+    default:
+      throw UnsupportedMotionType();
+  }
+
+  size_t index = 0;
+  for (auto const& pos : positions)
+  {
+    int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
+    buffer[index] = htobe32(val);
+    index++;
+  }
+
+  if (primitive->type == MotionType::MOVEC)
+  {
+    auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
+    auto via = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
+                 movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
+                 movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+    for (auto const& pos : via)
     {
       int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
+      buffer[index] = htobe32(val);
+      index++;
     }
-    for (size_t i = 0; i < positions->size(); ++i)
+    int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
+    buffer[index] = htobe32(val);
+    index++;
+    val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
+    buffer[index] = htobe32(val);
+    index++;
+    val = static_cast<int32_t>(round(movec_primitive->mode));
+    buffer[index] = htobe32(val);
+    index++;
+    for (size_t i = 0; i < positions.size() - 3; ++i)
     {
-      int32_t val = static_cast<int32_t>(round(velocity * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
-    }
-    for (size_t i = 0; i < positions->size(); ++i)
-    {
-      int32_t val = static_cast<int32_t>(round(acceleration * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
+      val = 0;
+      buffer[index] = htobe32(val);
+      index++;
     }
   }
   else
   {
-    b_pos += 6 * sizeof(int32_t);
+    for (size_t i = 0; i < positions.size(); ++i)
+    {
+      int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
+      buffer[index] = htobe32(val);
+      index++;
+    }
+    for (size_t i = 0; i < positions.size(); ++i)
+    {
+      int32_t val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
+      buffer[index] = htobe32(val);
+      index++;
+    }
   }
 
-  int32_t val = static_cast<int32_t>(round(goal_time * MULT_TIME));
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
+  buffer[index] = htobe32(val);
+  index++;
 
-  val = static_cast<int32_t>(round(blend_radius * MULT_TIME));
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  val = static_cast<int32_t>(round(primitive->blend_radius * MULT_TIME));
+  buffer[index] = htobe32(val);
+  index++;
 
-  if (cartesian)
-  {
-    val = static_cast<int32_t>(control::TrajectoryMotionType::CARTESIAN_POINT);
-  }
-  else
-  {
-    val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT);
-  }
-
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
+  val = static_cast<int32_t>(primitive->type);
+  buffer[index] = htobe32(val);
+  index++;
 
   size_t written;
 
-  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+  // We stored the data in a int32_t vector, but write needs a uint8_t buffer
+  return server_.write(client_fd_, (uint8_t*)buffer.data(), buffer.size() * sizeof(int32_t), written);
+}
+
+bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float acceleration,
+                                                    const float velocity, const float goal_time,
+                                                    const float blend_radius, const bool cartesian)
+{
+  std::shared_ptr<MotionPrimitive> primitive;
+  if (cartesian)
+  {
+    primitive = std::make_shared<MoveLPrimitive>(
+        urcl::Pose{ (*positions)[0], (*positions)[1], (*positions)[2], (*positions)[3], (*positions)[4],
+                    (*positions)[5] },
+        blend_radius, std::chrono::milliseconds(static_cast<int>(goal_time * 1000)), acceleration, velocity);
+  }
+  else
+  {
+    primitive = std::make_shared<MoveJPrimitive>(*positions, blend_radius,
+                                                 std::chrono::milliseconds(static_cast<int>(goal_time * 1000)),
+                                                 acceleration, velocity);
+  }
+
+  return writeMotionPrimitive(primitive);
 }
 
 bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float goal_time,
@@ -193,7 +268,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
-  val = static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE);
+  val = static_cast<int32_t>(control::MotionType::SPLINE);
   val = htobe32(val);
   b_pos += append(b_pos, val);
 
