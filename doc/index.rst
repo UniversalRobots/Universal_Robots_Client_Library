@@ -1,3 +1,5 @@
+.. _ur_client_library:
+
 ur_client_library
 =================
 
