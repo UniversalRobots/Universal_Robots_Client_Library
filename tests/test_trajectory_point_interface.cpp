@@ -32,6 +32,7 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/control/motion_primitives.h>
+#include <cmath>
 #include "ur_client_library/exceptions.h"
 
 using namespace urcl;
@@ -245,7 +246,7 @@ protected:
             (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
             (double)spl.acc[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
-            (double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
+            round((double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE));
       }
       else
       {
