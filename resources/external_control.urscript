@@ -526,6 +526,10 @@ thread trajectoryThread():
         mode = raw_point[15]
         movec(via, target, acceleration, velocity, blend_radius, mode)
 
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+
       # Joint spline point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_SPLINE:
 
