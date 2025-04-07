@@ -68,7 +68,7 @@ protected:
   }
   void SetUp() override
   {
-    executor_ = std::make_unique<InstructionExecutor>(g_my_robot->ur_driver);
+    executor_ = std::make_unique<InstructionExecutor>(g_my_robot->getUrDriver());
     g_my_robot->clearProtectiveStop();
     // Make sure script is running on the robot
     if (!g_my_robot->waitForProgramRunning())
@@ -79,9 +79,9 @@ protected:
   }
   void TearDown() override
   {
-    g_my_robot->ur_driver->stopControl();
+    g_my_robot->getUrDriver()->stopControl();
     g_my_robot->waitForProgramNotRunning(1000);
-    while (g_my_robot->ur_driver->isTrajectoryInterfaceConnected())
+    while (g_my_robot->getUrDriver()->isTrajectoryInterfaceConnected())
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -191,7 +191,7 @@ TEST_F(InstructionExecutorTest, execute_movel_success)
 
 TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_connected_fails)
 {
-  g_my_robot->primary_client->commandStop();
+  g_my_robot->getPrimaryClient()->commandStop();
   ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
 
   ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
@@ -219,7 +219,7 @@ TEST_F(InstructionExecutorTest, sending_commands_without_reverse_interface_conne
   auto motion_thread = std::thread([&]() { ASSERT_FALSE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 })); });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  g_my_robot->primary_client->commandStop();
+  g_my_robot->getPrimaryClient()->commandStop();
   ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
   motion_thread.join();
 }
@@ -271,7 +271,7 @@ TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_retur
   out_file.close();
   auto my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                         "external_control.urp", test_script_file);
-  auto executor = std::make_unique<InstructionExecutor>(my_robot->ur_driver);
+  auto executor = std::make_unique<InstructionExecutor>(my_robot->getUrDriver());
   my_robot->clearProtectiveStop();
   // Make sure script is running on the robot
   if (!my_robot->waitForProgramRunning())
@@ -322,12 +322,12 @@ TEST_F(InstructionExecutorTest, unfeasible_movel_target_results_in_failure)
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   while (!is_protective_stopped || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
   {
-    is_protective_stopped = g_my_robot->primary_client->isRobotProtectiveStopped();
+    is_protective_stopped = g_my_robot->getPrimaryClient()->isRobotProtectiveStopped();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   ASSERT_TRUE(is_protective_stopped);
   ASSERT_TRUE(g_my_robot->clearProtectiveStop());
-  ASSERT_NO_THROW(g_my_robot->primary_client->commandStop());
+  ASSERT_NO_THROW(g_my_robot->getPrimaryClient()->commandStop());
 
   move_thread.join();
 }

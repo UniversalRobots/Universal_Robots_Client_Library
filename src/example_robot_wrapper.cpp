@@ -41,16 +41,16 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
                                          const std::string& autostart_program, const std::string& script_file)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
-  primary_client = std::make_shared<urcl::primary_interface::PrimaryClient>(robot_ip, notifier_);
+  primary_client_ = std::make_shared<urcl::primary_interface::PrimaryClient>(robot_ip, notifier_);
 
-  primary_client->start();
+  primary_client_->start();
 
-  auto robot_version = primary_client->getRobotVersion();
+  auto robot_version = primary_client_->getRobotVersion();
   if (*robot_version < VersionInformation::fromString("10.0.0"))
   {
-    dashboard_client = std::make_shared<DashboardClient>(robot_ip);
+    dashboard_client_ = std::make_shared<DashboardClient>(robot_ip);
     // Connect the robot Dashboard
-    if (!dashboard_client->connect())
+    if (!dashboard_client_->connect())
     {
       URCL_LOG_ERROR("Could not connect to dashboard");
     }
@@ -60,7 +60,7 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
     timeval tv;
     tv.tv_sec = 10;
     tv.tv_usec = 0;
-    dashboard_client->setReceiveTimeout(tv);
+    dashboard_client_->setReceiveTimeout(tv);
   }
 
   if (!initializeRobotWithPrimaryClient())
@@ -76,7 +76,7 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   driver_config.handle_program_state =
       std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1);
   driver_config.headless_mode = headless_mode;
-  ur_driver = std::make_shared<UrDriver>(driver_config);
+  ur_driver_ = std::make_shared<UrDriver>(driver_config);
 
   if (!headless_mode && !std::empty(autostart_program))
   {
@@ -102,24 +102,24 @@ ExampleRobotWrapper::~ExampleRobotWrapper()
 
 bool ExampleRobotWrapper::clearProtectiveStop()
 {
-  if (primary_client->isRobotProtectiveStopped())
+  if (primary_client_->isRobotProtectiveStopped())
   {
     URCL_LOG_INFO("Robot is in protective stop, trying to release it");
-    if (dashboard_client != nullptr)
+    if (dashboard_client_ != nullptr)
     {
-      dashboard_client->commandClosePopup();
-      dashboard_client->commandCloseSafetyPopup();
+      dashboard_client_->commandClosePopup();
+      dashboard_client_->commandCloseSafetyPopup();
     }
     try
     {
-      primary_client->commandUnlockProtectiveStop();
+      primary_client_->commandUnlockProtectiveStop();
     }
     catch (const TimeoutException&)
     {
       std::this_thread::sleep_for(std::chrono::seconds(5));
       try
       {
-        primary_client->commandUnlockProtectiveStop();
+        primary_client_->commandUnlockProtectiveStop();
       }
       catch (const TimeoutException&)
       {
@@ -140,28 +140,28 @@ bool ExampleRobotWrapper::initializeRobotWithDashboard()
   }
 
   // Stop program, if there is one running
-  if (!dashboard_client->commandStop())
+  if (!dashboard_client_->commandStop())
   {
     URCL_LOG_ERROR("Could not send stop program command");
     return false;
   }
 
   // Power it off
-  if (!dashboard_client->commandPowerOff())
+  if (!dashboard_client_->commandPowerOff())
   {
     URCL_LOG_ERROR("Could not send Power off command");
     return false;
   }
 
   // Power it on
-  if (!dashboard_client->commandPowerOn())
+  if (!dashboard_client_->commandPowerOn())
   {
     URCL_LOG_ERROR("Could not send Power on command");
     return false;
   }
 
   // Release the brakes
-  if (!dashboard_client->commandBrakeRelease())
+  if (!dashboard_client_->commandBrakeRelease())
   {
     URCL_LOG_ERROR("Could not send BrakeRelease command");
     return false;
@@ -177,7 +177,7 @@ bool ExampleRobotWrapper::initializeRobotWithPrimaryClient()
 {
   try
   {
-    waitFor([&]() { return primary_client->getRobotModeData() != nullptr; }, std::chrono::seconds(5));
+    waitFor([&]() { return primary_client_->getRobotModeData() != nullptr; }, std::chrono::seconds(5));
     clearProtectiveStop();
   }
   catch (const std::exception& exc)
@@ -188,8 +188,8 @@ bool ExampleRobotWrapper::initializeRobotWithPrimaryClient()
 
   try
   {
-    primary_client->commandStop();
-    primary_client->commandBrakeRelease();
+    primary_client_->commandStop();
+    primary_client_->commandBrakeRelease();
   }
   catch (const TimeoutException& exc)
   {
@@ -225,7 +225,7 @@ void ExampleRobotWrapper::startRTDECommununication(const bool consume_data)
 {
   if (!rtde_communication_started_)
   {
-    ur_driver->startRTDECommunication();
+    ur_driver_->startRTDECommunication();
     rtde_communication_started_ = true;
   }
   if (consume_data)
@@ -242,7 +242,7 @@ void ExampleRobotWrapper::startConsumingRTDEData()
     {
       // Consume package to prevent pipeline overflow
       std::lock_guard<std::mutex> lk(read_package_mutex_);
-      data_pkg_ = ur_driver->getDataPackage();
+      data_pkg_ = ur_driver_->getDataPackage();
     }
   });
 }
@@ -267,7 +267,7 @@ bool ExampleRobotWrapper::readDataPackage(std::unique_ptr<rtde_interface::DataPa
     return false;
   }
   std::lock_guard<std::mutex> lk(read_package_mutex_);
-  data_pkg = ur_driver->getDataPackage();
+  data_pkg = ur_driver_->getDataPackage();
   if (data_pkg == nullptr)
   {
     URCL_LOG_ERROR("Timed out waiting for a new package from the robot");
@@ -300,15 +300,15 @@ bool ExampleRobotWrapper::waitForProgramNotRunning(int milliseconds)
 
 bool ExampleRobotWrapper::startRobotProgram(const std::string& program_file_name)
 {
-  if (dashboard_client != nullptr)
+  if (dashboard_client_ != nullptr)
   {
-    if (!dashboard_client->commandLoadProgram(program_file_name))
+    if (!dashboard_client_->commandLoadProgram(program_file_name))
     {
       URCL_LOG_ERROR("Could not load program '%s'", program_file_name.c_str());
       return false;
     }
 
-    return dashboard_client->commandPlay();
+    return dashboard_client_->commandPlay();
   }
   URCL_LOG_ERROR("Dashboard client is not initialized. If you are running a PolyScope X robot, the dashboard server is "
                  "not available. Loading and running polyscope programs isn't possible. Please use the headless mode "
@@ -319,7 +319,7 @@ bool ExampleRobotWrapper::resendRobotProgram()
 {
   if (headless_mode_)
   {
-    return ur_driver->sendRobotProgram();
+    return ur_driver_->sendRobotProgram();
   }
   return startRobotProgram(autostart_program_);
 }
