@@ -69,9 +69,9 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   std::array<int32_t, MESSAGE_LENGTH> buffer;
 
   // We write three blocks of 6 doubles and some additional data
-  vector6d_t first_block;
-  vector6d_t second_block;
-  vector6d_t third_block;
+  vector6d_t first_block = { 0, 0, 0, 0, 0, 0 };
+  vector6d_t second_block = { 0, 0, 0, 0, 0, 0 };
+  vector6d_t third_block = { 0, 0, 0, 0, 0, 0 };
 
   switch (primitive->type)
   {
