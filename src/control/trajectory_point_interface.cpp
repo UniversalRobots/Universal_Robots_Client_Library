@@ -68,7 +68,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   }
   std::array<int32_t, MESSAGE_LENGTH> buffer;
 
-  vector6d_t positions;
+  // We write three blocks of 6 doubles and some additional data
+  vector6d_t first_block;
   vector6d_t second_block;
   vector6d_t third_block;
 
@@ -77,7 +78,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::MOVEJ:
     {
       auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
-      positions = movej_primitive->target_joint_configuration;
+      first_block = movej_primitive->target_joint_configuration;
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -85,8 +86,10 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::MOVEL:
     {
       auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
-      positions = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
-                    movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
+      first_block = {
+        movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
+        movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz
+      };
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -94,8 +97,10 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::MOVEP:
     {
       auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
-      positions = { movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
-                    movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz };
+      first_block = {
+        movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
+        movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz
+      };
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -103,8 +108,10 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::MOVEC:
     {
       auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
-      positions = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
-                    movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+      first_block = {
+        movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
+        movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz
+      };
       second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
                        movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
                        movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
@@ -116,7 +123,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case control::MotionType::SPLINE:
     {
       auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
-      positions = spline_primitive->target_positions;
+      first_block = spline_primitive->target_positions;
       second_block = spline_primitive->target_velocities;
       if (spline_primitive->target_accelerations.has_value())
       {
@@ -129,7 +136,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   }
 
   size_t index = 0;
-  for (auto const& pos : positions)
+  for (auto const& pos : first_block)
   {
     int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
     buffer[index] = htobe32(val);
