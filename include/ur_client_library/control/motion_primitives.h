@@ -32,6 +32,7 @@
 #define UR_CLIENT_LIBRARY_MOTION_PRIMITIVES_H_INCLUDED
 
 #include <chrono>
+#include <optional>
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -47,6 +48,15 @@ enum class MotionType : uint8_t
   MOVEC = 3,
   SPLINE = 51,
   UNKNOWN = 255
+};
+
+/*!
+ * Spline types
+ */
+enum class TrajectorySplineType : int32_t
+{
+  SPLINE_CUBIC = 1,
+  SPLINE_QUINTIC = 2
 };
 
 struct MotionPrimitive
@@ -122,6 +132,35 @@ struct MoveCPrimitive : public MotionPrimitive
   urcl::Pose via_point_pose;
   urcl::Pose target_pose;
   int32_t mode = 0;
+};
+
+struct SplinePrimitive : public MotionPrimitive
+{
+  SplinePrimitive(const urcl::vector6d_t& target_positions, const vector6d_t& target_velocities,
+                  const std::optional<vector6d_t>& target_accelerations,
+                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0))
+  {
+    type = MotionType::SPLINE;
+    this->target_positions = target_positions;
+    this->target_velocities = target_velocities;
+    this->target_accelerations = target_accelerations;
+    this->duration = duration;
+  }
+
+  control::TrajectorySplineType getSplineType() const
+  {
+    if (target_accelerations.has_value())
+    {
+      return control::TrajectorySplineType::SPLINE_QUINTIC;
+    }
+    else
+    {
+      return control::TrajectorySplineType::SPLINE_CUBIC;
+    }
+  }
+  vector6d_t target_positions;
+  vector6d_t target_velocities;
+  std::optional<vector6d_t> target_accelerations;
 };
 }  // namespace control
 }  // namespace urcl

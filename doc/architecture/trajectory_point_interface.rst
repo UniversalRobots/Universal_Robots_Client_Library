@@ -47,7 +47,7 @@ representations in 21 datafields. The data fields have the following meaning:
 
           - 12: velocity (Multiplied by ``MULT_JOINTSTATE``)
           - 13: acceleration (Multiplied by ``MULT_JOINTSTATE``)
-          - 14: mode
+          - 14: mode (Multiplied by ``MULT_JOINTSTATE``)
 
    18     trajectory point type
 

@@ -69,6 +69,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   std::array<int32_t, MESSAGE_LENGTH> buffer;
 
   vector6d_t positions;
+  vector6d_t second_block;
+  vector6d_t third_block;
 
   switch (primitive->type)
   {
@@ -76,6 +78,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     {
       auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
       positions = movej_primitive->target_joint_configuration;
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
       break;
     }
     case MotionType::MOVEL:
@@ -83,6 +87,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
       positions = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
                     movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
       break;
     }
     case MotionType::MOVEP:
@@ -90,6 +96,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
       positions = { movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
                     movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz };
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
       break;
     }
     case MotionType::MOVEC:
@@ -97,6 +105,23 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
       positions = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
                     movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+      second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
+                       movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
+                       movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+      third_block = {
+        primitive->velocity, primitive->acceleration, static_cast<double>(movec_primitive->mode), 0, 0, 0
+      };
+      break;
+    }
+    case control::MotionType::SPLINE:
+    {
+      auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
+      positions = spline_primitive->target_positions;
+      second_block = spline_primitive->target_velocities;
+      if (spline_primitive->target_accelerations.has_value())
+      {
+        third_block = spline_primitive->target_accelerations.value();
+      }
       break;
     }
     default:
@@ -110,56 +135,31 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     buffer[index] = htobe32(val);
     index++;
   }
-
-  if (primitive->type == MotionType::MOVEC)
+  for (auto const& item : second_block)
   {
-    auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
-    auto via = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
-                 movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
-                 movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
-    for (auto const& pos : via)
-    {
-      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-      buffer[index] = htobe32(val);
-      index++;
-    }
-    int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
+    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
     buffer[index] = htobe32(val);
     index++;
-    val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
-    buffer[index] = htobe32(val);
-    index++;
-    val = static_cast<int32_t>(round(movec_primitive->mode));
-    buffer[index] = htobe32(val);
-    index++;
-    for (size_t i = 0; i < positions.size() - 3; ++i)
-    {
-      val = 0;
-      buffer[index] = htobe32(val);
-      index++;
-    }
   }
-  else
+  for (auto const& item : third_block)
   {
-    for (size_t i = 0; i < positions.size(); ++i)
-    {
-      int32_t val = static_cast<int32_t>(round(primitive->velocity * MULT_JOINTSTATE));
-      buffer[index] = htobe32(val);
-      index++;
-    }
-    for (size_t i = 0; i < positions.size(); ++i)
-    {
-      int32_t val = static_cast<int32_t>(round(primitive->acceleration * MULT_JOINTSTATE));
-      buffer[index] = htobe32(val);
-      index++;
-    }
+    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
+    buffer[index] = htobe32(val);
+    index++;
   }
 
   int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
   buffer[index] = htobe32(val);
   index++;
 
-  val = static_cast<int32_t>(round(primitive->blend_radius * MULT_TIME));
+  if (primitive->type == MotionType::SPLINE)
+  {
+    val = static_cast<int32_t>(std::static_pointer_cast<control::SplinePrimitive>(primitive)->getSplineType());
+  }
+  else
+  {
+    val = static_cast<int32_t>(round(primitive->blend_radius * MULT_TIME));
+  }
   buffer[index] = htobe32(val);
   index++;
 
@@ -204,76 +204,26 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
                                                           const vector6d_t* accelerations, const float goal_time)
 {
-  if (client_fd_ == -1)
-  {
-    return false;
-  }
-
-  control::TrajectorySplineType spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
-
-  // 6 positions, 6 velocities, 6 accelerations, 1 goal time, spline type, 1 point type
-  uint8_t buffer[sizeof(int32_t) * MESSAGE_LENGTH] = { 0 };
-  uint8_t* b_pos = buffer;
-  if (positions != nullptr)
-  {
-    for (auto const& pos : *positions)
-    {
-      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
-    }
-  }
-  else
+  if (positions == nullptr)
   {
     throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
                             "positions\n");
   }
 
-  if (velocities != nullptr)
-  {
-    spline_type = control::TrajectorySplineType::SPLINE_CUBIC;
-    for (auto const& vel : *velocities)
-    {
-      int32_t val = static_cast<int32_t>(round(vel * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
-    }
-  }
-  else
+  if (velocities == nullptr)
   {
     throw urcl::UrException("TrajectoryPointInterface::writeTrajectorySplinePoint is only getting a nullptr for "
                             "velocities\n");
   }
 
+  std::optional<vector6d_t> target_accelerations;
   if (accelerations != nullptr)
   {
-    spline_type = control::TrajectorySplineType::SPLINE_QUINTIC;
-    for (auto const& acc : *accelerations)
-    {
-      int32_t val = static_cast<int32_t>(round(acc * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
-    }
-  }
-  else
-  {
-    b_pos += 6 * sizeof(int32_t);
+    target_accelerations = *accelerations;
   }
 
-  int32_t val = static_cast<int32_t>(round(goal_time * MULT_TIME));
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
-
-  val = static_cast<int32_t>(spline_type);
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
-
-  val = static_cast<int32_t>(control::MotionType::SPLINE);
-  val = htobe32(val);
-  b_pos += append(b_pos, val);
-
-  size_t written;
-  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+  return writeMotionPrimitive(std::make_shared<SplinePrimitive>(
+      *positions, *velocities, target_accelerations, std::chrono::milliseconds(static_cast<int>(goal_time * 1000))));
 }
 
 void TrajectoryPointInterface::connectionCallback(const socket_t filedescriptor)

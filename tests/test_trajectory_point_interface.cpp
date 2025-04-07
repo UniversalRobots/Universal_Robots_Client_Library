@@ -244,7 +244,8 @@ protected:
                         ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
             (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
             (double)spl.acc[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
-            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE, (double)spl.acc[2]);
+            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            (double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
       }
       else
       {

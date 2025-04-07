@@ -56,15 +56,6 @@ enum class TrajectoryResult : int32_t
 std::string trajectoryResultToString(const TrajectoryResult result);
 
 /*!
- * Spline types
- */
-enum class TrajectorySplineType : int32_t
-{
-  SPLINE_CUBIC = 1,
-  SPLINE_QUINTIC = 2
-};
-
-/*!
  * \brief The TrajectoryPointInterface class handles trajectory forwarding to the robot. Full
  * trajectories are forwarded to the robot controller and are executed there.
  */

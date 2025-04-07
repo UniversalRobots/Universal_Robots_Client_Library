@@ -523,7 +523,7 @@ thread trajectoryThread():
         target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[14] / MULT_jointstate
-        mode = raw_point[15]
+        mode = raw_point[15] / MULT_jointstate
         movec(via, target, acceleration, velocity, blend_radius, mode)
 
         # reset old acceleration
