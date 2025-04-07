@@ -37,7 +37,7 @@
 
 namespace urcl
 {
-RobotReceiveTimeout::RobotReceiveTimeout(std::chrono::milliseconds timeout) : timeout(timeout)
+RobotReceiveTimeout::RobotReceiveTimeout(std::chrono::milliseconds timeout) : timeout_(timeout)
 {
 }
 
@@ -66,33 +66,33 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
 {
   if (comm::ControlModeTypes::isControlModeNonRealtime(control_mode))
   {
-    if (timeout < step_time && timeout > std::chrono::milliseconds(0))
+    if (timeout_ < step_time && timeout_ > std::chrono::milliseconds(0))
     {
       std::stringstream ss;
-      ss << "Robot receive timeout " << timeout.count() << "ms is below the step time " << step_time.count()
+      ss << "Robot receive timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
          << "ms. It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
       return step_time.count();
     }
     else
     {
-      return timeout.count();
+      return timeout_.count();
     }
   }
   else if (comm::ControlModeTypes::isControlModeRealtime(control_mode))
   {
-    if (timeout < step_time)
+    if (timeout_ < step_time)
     {
       std::stringstream ss;
-      ss << "Realtime read timeout " << timeout.count() << "ms is below the step time " << step_time.count()
+      ss << "Realtime read timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
       return step_time.count();
     }
-    else if (timeout > MAX_RT_RECEIVE_TIMEOUT_MS)
+    else if (timeout_ > MAX_RT_RECEIVE_TIMEOUT_MS)
     {
       std::stringstream ss;
-      ss << "Robot receive timeout " << timeout.count()
+      ss << "Robot receive timeout " << timeout_.count()
          << "ms is above the maximum allowed timeout for realtime commands " << MAX_RT_RECEIVE_TIMEOUT_MS.count()
          << ". It will be reset to the maximum allowed timeout.";
       URCL_LOG_ERROR(ss.str().c_str());
@@ -100,7 +100,7 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
     }
     else
     {
-      return timeout.count();
+      return timeout_.count();
     }
   }
   else
