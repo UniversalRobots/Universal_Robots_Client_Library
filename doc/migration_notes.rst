@@ -1,5 +1,5 @@
-ur_client_library
-=================
+Migration notes
+===============
 
 This document contains notes on the migration of the ur_client_library between major versions.
 
