@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 PERSISTENT_BASE="${HOME}/.ursim"
-URCAP_VERSION="" # If not set, the latest version will be downloaded
+URCAP_VERSION="latest"
 IP_ADDRESS="192.168.56.101"
 PORT_FORWARDING_WITH_DASHBOARD="-p 30001-30004:30001-30004 -p 29999:29999"
 PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004"
@@ -212,15 +212,58 @@ post_setup_e-series()
   post_setup_cb3
 }
 
+get_effective_url()
+{
+  curl -Ls -o /dev/null -w %\{url_effective\} "$1"
+}
+
+get_version_from_release_url()
+{
+  echo "$effective_url" | grep -oP '\d+\.\d+\.\d+' | head -n 1
+}
+
+# Get the latest tag from a GitHub release page. Provide a link to its latest release e.g.
+# https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/latest
+get_latest_release_tag()
+{
+  effective_url=$(get_effective_url "$1")
+  get_version_from_release_url "$effective_url"
+}
+
+# Get the URCAPX download URL for a given version
+#
+# Specify the desired version or "latest" as the first argument
+# 
+# sets URCAPX_VERSION
+# sets URCAPX_DOWNLOAD_URL
+get_download_url_urcapx()
+{
+  release_url="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/$1"
+  URCAPX_VERSION=$(get_latest_release_tag "$release_url")
+  URCAPX_DOWNLOAD_URL="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/download/$URCAPX_VERSION/external-control-$URCAPX_VERSION.urcapx"
+}
+
+# Get the URCAPX download URL for a given version
+#
+# Specify the desired version or "latest" as the first argument
+#
+# sets URCAPX_VERSION
+# sets URCAPX_DOWNLOAD_URL
+get_download_url_urcap()
+{
+  release_url="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/$1"
+  URCAP_VERSION=$(get_latest_release_tag "$release_url")
+  URCAP_DOWNLOAD_URL="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v$URCAP_VERSION/externalcontrol-$URCAP_VERSION.jar"
+}
+
 post_setup_polyscopex()
 {
-  urcapx_download_url=$(curl -s https://api.github.com/repos/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/latest | grep "browser_download_url.*urcapx" | cut -d ":" -f 2,3 | tr -d "\"[:space:]")
-  URCAPX_VERSION=$(echo "$urcapx_download_url" | grep -oP '\d+\.\d+\.\d+' | head -n 1)
+  get_download_url_urcapx latest
   mkdir -p "${URCAP_STORAGE}"
-  urcapx_file="${URCAP_STORAGE}/external_control-$URCAPX_VERSION.urcapx"
+  urcapx_file="${URCAP_STORAGE}/external-control-$URCAPX_VERSION.urcapx"
   if [[ ! -f "$urcapx_file" ]]; then
     echo "Downloading External Control URCapX version ${URCAPX_VERSION}"
-    curl -L -o "$urcapx_file" "$urcapx_download_url"
+    curl -L -o "$urcapx_file" "$URCAPX_DOWNLOAD_URL"
   fi
 
   echo -ne "Starting URSim. Waiting for UrService to be up..."
@@ -383,13 +426,10 @@ main() {
     PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
     # Download external_control URCap
-    if [[ -z "$URCAP_VERSION" ]]; then
-      urcap_download_url=$(curl -s https://api.github.com/repos/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/latest | grep "browser_download_url.*jar" | cut -d ":" -f 2,3 | tr -d "\"[:space:]")
-      URCAP_VERSION=$(echo "$urcap_download_url" | grep -oP '\d+\.\d+\.\d+' | head -n 1)
-    fi
+    get_download_url_urcap $URCAP_VERSION
     if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
       echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
-      curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$urcap_download_url"
+      curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
     fi
     docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
       -v ${URCAP_STORAGE}:/urcaps \
