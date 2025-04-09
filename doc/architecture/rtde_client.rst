@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/architecture/rtde_client.rst
+
 .. _rtde_client:
 
 RTDEClient

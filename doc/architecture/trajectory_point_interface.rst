@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/architecture/trajectory_point_interface.rst
+
 .. _trajectory_point_interface:
 
 Trajectory Point Interface
