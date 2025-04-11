@@ -73,7 +73,7 @@ protected:
 
   void TearDown()
   {
-    g_my_robot->ur_driver_->stopControl();
+    g_my_robot->getUrDriver()->stopControl();
     g_my_robot->waitForProgramNotRunning(1000);
   }
 };
@@ -109,7 +109,7 @@ TEST_F(UrDriverTest, robot_receive_timeout)
 {
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_my_robot->ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 
   // Start robot program
@@ -117,8 +117,8 @@ TEST_F(UrDriverTest, robot_receive_timeout)
   EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_my_robot->ur_driver_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
-                                                       RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+                                                          RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 
   // Start robot program
@@ -126,8 +126,8 @@ TEST_F(UrDriverTest, robot_receive_timeout)
   EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
-                                                        RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                                           RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 
   // Start robot program
@@ -135,39 +135,39 @@ TEST_F(UrDriverTest, robot_receive_timeout)
   EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
 
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  g_my_robot->ur_driver_->writeKeepalive(RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeKeepalive(RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 }
 
 TEST_F(UrDriverTest, robot_receive_timeout_off)
 {
   // Program should keep running when setting receive timeout off
-  g_my_robot->ur_driver_->writeKeepalive(RobotReceiveTimeout::off());
+  g_my_robot->getUrDriver()->writeKeepalive(RobotReceiveTimeout::off());
   EXPECT_FALSE(g_my_robot->waitForProgramNotRunning(1000));
 
   // Program should keep running when setting receive timeout off
-  g_my_robot->ur_driver_->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
-                                                       RobotReceiveTimeout::off());
+  g_my_robot->getUrDriver()->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+                                                          RobotReceiveTimeout::off());
   EXPECT_FALSE(g_my_robot->waitForProgramNotRunning(1000));
 
   // Program should keep running when setting receive timeout off
-  g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
-                                                        RobotReceiveTimeout::off());
+  g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP, -1,
+                                                           RobotReceiveTimeout::off());
   EXPECT_FALSE(g_my_robot->waitForProgramNotRunning(1000));
 
   // It shouldn't be possible to set robot receive timeout off, when dealing with realtime commands
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_my_robot->ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_SPEEDJ, RobotReceiveTimeout::off());
+  g_my_robot->getUrDriver()->writeJointCommand(zeros, comm::ControlMode::MODE_SPEEDJ, RobotReceiveTimeout::off());
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 }
 
 TEST_F(UrDriverTest, stop_robot_control)
 {
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_my_robot->ur_driver_->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::off());
+  g_my_robot->getUrDriver()->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::off());
 
   // Make sure that we can stop the robot control, when robot receive timeout has been set off
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 }
 
@@ -186,8 +186,8 @@ TEST_F(UrDriverTest, target_outside_limits_servoj)
 
   // Send unfeasible targets to the robot
   g_my_robot->readDataPackage(data_pkg);
-  g_my_robot->ur_driver_->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
-                                            RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
+                                               RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
   g_my_robot->readDataPackage(data_pkg);
@@ -200,7 +200,7 @@ TEST_F(UrDriverTest, target_outside_limits_servoj)
 
   // Make sure the program is stopped
   g_my_robot->startConsumingRTDEData();
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
 
@@ -219,8 +219,8 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
   // Send unfeasible targets to the robot
   g_my_robot->readDataPackage(data_pkg);
-  g_my_robot->ur_driver_->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE,
-                                            RobotReceiveTimeout::millisec(200));
+  g_my_robot->getUrDriver()->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE,
+                                               RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
   g_my_robot->readDataPackage(data_pkg);
@@ -233,7 +233,7 @@ TEST_F(UrDriverTest, target_outside_limits_pose)
 
   // Make sure the program is stopped
   g_my_robot->startConsumingRTDEData();
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
 
@@ -243,10 +243,10 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
   // switching from Remote to Local and back to Remote mode for example.
 
   // To be able to re-send the robot program we'll have to make sure it isn't running
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning();
 
-  g_my_robot->ur_driver_->stopPrimaryClientCommunication();
+  g_my_robot->getUrDriver()->stopPrimaryClientCommunication();
 
   EXPECT_TRUE(g_my_robot->resendRobotProgram());
 
@@ -257,8 +257,8 @@ TEST_F(UrDriverTest, reset_rtde_client)
 {
   g_my_robot->stopConsumingRTDEData();
   double target_frequency = 50;
-  g_my_robot->ur_driver_->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
-  ASSERT_EQ(g_my_robot->ur_driver_->getControlFrequency(), target_frequency);
+  g_my_robot->getUrDriver()->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
+  ASSERT_EQ(g_my_robot->getUrDriver()->getControlFrequency(), target_frequency);
 }
 
 TEST_F(UrDriverTest, read_error_code)
@@ -267,12 +267,12 @@ TEST_F(UrDriverTest, read_error_code)
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   std::stringstream cmd;
   cmd << "sec setup():" << std::endl << " protective_stop()" << std::endl << "end";
-  EXPECT_TRUE(g_my_robot->ur_driver_->sendScript(cmd.str()));
+  EXPECT_TRUE(g_my_robot->getUrDriver()->sendScript(cmd.str()));
 
-  auto error_codes = g_my_robot->ur_driver_->getErrorCodes();
+  auto error_codes = g_my_robot->getUrDriver()->getErrorCodes();
   while (error_codes.size() == 0)
   {
-    error_codes = g_my_robot->ur_driver_->getErrorCodes();
+    error_codes = g_my_robot->getUrDriver()->getErrorCodes();
   }
 
   ASSERT_EQ(error_codes.size(), 1);
@@ -284,11 +284,11 @@ TEST_F(UrDriverTest, read_error_code)
   // Wait for after PSTOP before clearing it
   std::this_thread::sleep_for(std::chrono::seconds(6));
 
-  if (g_my_robot->dashboard_client_ != nullptr)
+  if (g_my_robot->getDashboardClient() != nullptr)
   {
-    EXPECT_TRUE(g_my_robot->dashboard_client_->commandCloseSafetyPopup());
+    EXPECT_TRUE(g_my_robot->getDashboardClient()->commandCloseSafetyPopup());
   }
-  EXPECT_NO_THROW(g_my_robot->primary_client_->commandUnlockProtectiveStop());
+  EXPECT_NO_THROW(g_my_robot->getPrimaryClient()->commandUnlockProtectiveStop());
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)

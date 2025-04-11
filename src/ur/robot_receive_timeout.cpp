@@ -64,7 +64,7 @@ RobotReceiveTimeout RobotReceiveTimeout::off()
 int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode control_mode,
                                                    const std::chrono::milliseconds step_time) const
 {
-  if (comm::ControlModeTypes::is_control_mode_non_realtime(control_mode))
+  if (comm::ControlModeTypes::isControlModeNonRealtime(control_mode))
   {
     if (timeout_ < step_time && timeout_ > std::chrono::milliseconds(0))
     {
@@ -79,7 +79,7 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
       return timeout_.count();
     }
   }
-  else if (comm::ControlModeTypes::is_control_mode_realtime(control_mode))
+  else if (comm::ControlModeTypes::isControlModeRealtime(control_mode))
   {
     if (timeout_ < step_time)
     {

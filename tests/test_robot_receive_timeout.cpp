@@ -41,14 +41,14 @@ TEST(RobotReceiveTimeout, milliseconds_configuration)
 {
   const int expected_timeout = 100;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::millisec(expected_timeout);
-  EXPECT_EQ(robot_receive_timeout.timeout_.count(), expected_timeout);
+  EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 
 TEST(RobotReceiveTimeout, empty_milliseconds_configuration)
 {
   const int expected_timeout = 20;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::millisec();
-  EXPECT_EQ(robot_receive_timeout.timeout_.count(), expected_timeout);
+  EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 
 TEST(RobotReceiveTimeout, seconds_configuration)
@@ -56,21 +56,21 @@ TEST(RobotReceiveTimeout, seconds_configuration)
   float timeout = 0.1;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::sec(timeout);
   const int expected_timeout = timeout * 1000;  // Convert to milliseconds
-  EXPECT_EQ(robot_receive_timeout.timeout_.count(), expected_timeout);
+  EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 
 TEST(RobotReceiveTimeout, empty_seconds_configuration)
 {
   const int expected_timeout = 20;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::sec();
-  EXPECT_EQ(robot_receive_timeout.timeout_.count(), expected_timeout);
+  EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 
 TEST(RobotReceiveTimeout, off_configuration)
 {
   const int expected_timeout = 0;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::off();
-  EXPECT_EQ(robot_receive_timeout.timeout_.count(), expected_timeout);
+  EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 
 TEST(RobotReceiveTimeout, off_realtime_control_modes)

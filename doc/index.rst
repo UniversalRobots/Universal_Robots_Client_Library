@@ -15,3 +15,4 @@ can be found on `GitHub <https://github.com/UniversalRobots/Universal_Robots_Cli
    architecture
    examples
    real_time
+   migration_notes

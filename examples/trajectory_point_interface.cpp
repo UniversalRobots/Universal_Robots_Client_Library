@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
   }
   // --------------- INITIALIZATION END -------------------
 
-  g_my_robot->ur_driver_->registerTrajectoryDoneCallback(&trajDoneCallback);
+  g_my_robot->getUrDriver()->registerTrajectoryDoneCallback(&trajDoneCallback);
 
   URCL_LOG_INFO("Running MoveJ motion");
   // --------------- MOVEJ TRAJECTORY -------------------
@@ -87,25 +87,26 @@ int main(int argc, char* argv[])
     std::vector<double> blend_radii{ 0.1, 0.1 };
 
     // Trajectory execution
-    g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                          points.size() * 2);
+    g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                             points.size() * 2);
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->ur_driver_->writeTrajectoryPoint(points[i], false, motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], false, motion_durations[i], blend_radii[i]);
     }
 
     // Same motion, but parametrized with acceleration and velocity
     motion_durations = { 0.0, 0.0 };
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->ur_driver_->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], false,
-                                                   motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], false,
+                                                      motion_durations[i], blend_radii[i]);
     }
 
     while (!g_trajectory_done)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+          urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
     }
   }
   // --------------- END MOVEJ TRAJECTORY -------------------
@@ -123,26 +124,27 @@ int main(int argc, char* argv[])
     std::vector<double> blend_radii{ 0.0, 0.0 };
 
     // Trajectory execution of the path that goes through the points twice.
-    g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                          points.size() * 2);
+    g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                             points.size() * 2);
     for (size_t i = 0; i < points.size(); i++)
     {
       // setting the cartesian parameter makes it interpret the 6d vector as a pose and use movel
-      g_my_robot->ur_driver_->writeTrajectoryPoint(points[i], true, motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], true, motion_durations[i], blend_radii[i]);
     }
 
     // Same motion, but parametrized with acceleration and velocity
     motion_durations = { 0.0, 0.0 };
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->ur_driver_->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], true,
-                                                   motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], true,
+                                                      motion_durations[i], blend_radii[i]);
     }
 
     while (!g_trajectory_done)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+          urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
     }
   }
   // --------------- END MOVEL TRAJECTORY -------------------
@@ -162,21 +164,22 @@ int main(int argc, char* argv[])
     std::vector<double> motion_durations{ 3.0, 3.0, 3.0, 3.0 };
 
     // Trajectory execution
-    g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                          positions.size());
+    g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                             positions.size());
     for (size_t i = 0; i < positions.size(); i++)
     {
-      g_my_robot->ur_driver_->writeTrajectorySplinePoint(positions[i], velocities[i], motion_durations[i]);
+      g_my_robot->getUrDriver()->writeTrajectorySplinePoint(positions[i], velocities[i], motion_durations[i]);
     }
 
     while (!g_trajectory_done)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+          urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
     }
   }
   // --------------- END SPLINE TRAJECTORY -------------------
 
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   return 0;
 }

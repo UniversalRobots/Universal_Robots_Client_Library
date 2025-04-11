@@ -57,31 +57,31 @@ void sendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector
   assert(p_p.size() == time.size());
 
   URCL_LOG_INFO("Starting joint-based trajectory forward");
-  g_my_robot->ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                        p_p.size());
+  g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                           p_p.size());
 
   for (size_t i = 0; i < p_p.size() && p_p.size() == time.size() && p_p[i].size() == 6; i++)
   {
     // MoveJ
     if (!use_spline_interpolation_)
     {
-      g_my_robot->ur_driver_->writeTrajectoryPoint(p_p[i], false, time[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(p_p[i], false, time[i]);
     }
     else  // Use spline interpolation
     {
       // QUINTIC
       if (p_v.size() == time.size() && p_a.size() == time.size() && p_v[i].size() == 6 && p_a[i].size() == 6)
       {
-        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], time[i]);
       }
       // CUBIC
       else if (p_v.size() == time.size() && p_v[i].size() == 6)
       {
-        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], p_v[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], time[i]);
       }
       else
       {
-        g_my_robot->ur_driver_->writeTrajectorySplinePoint(p_p[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], time[i]);
       }
     }
   }
@@ -131,15 +131,15 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  g_my_robot->ur_driver_->registerTrajectoryDoneCallback(&handleTrajectoryState);
+  g_my_robot->getUrDriver()->registerTrajectoryDoneCallback(&handleTrajectoryState);
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefore, do this directly before starting your main
   // loop.
 
-  g_my_robot->ur_driver_->startRTDECommunication();
+  g_my_robot->getUrDriver()->startRTDECommunication();
 
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
 
   if (data_pkg)
   {
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
                                             4.00000000e+00 };
 
   bool ret = false;
-  ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+  ret = g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
     if (data_pkg)
     {
       // Read current joint positions from robot data
@@ -209,7 +209,8 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      ret =
+          g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -230,7 +231,7 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
     if (data_pkg)
     {
       // Read current joint positions from robot data
@@ -240,7 +241,8 @@ int main(int argc, char* argv[])
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
         throw std::runtime_error(error_msg);
       }
-      ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      ret =
+          g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
 
       if (!ret)
       {
@@ -255,7 +257,7 @@ int main(int argc, char* argv[])
 
   URCL_LOG_INFO("QUINTIC Movement done");
 
-  ret = g_my_robot->ur_driver_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+  ret = g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   if (!ret)
   {
     std::stringstream lastq;
@@ -264,6 +266,6 @@ int main(int argc, char* argv[])
                    lastq.str().c_str());
     return 1;
   }
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   return 0;
 }
