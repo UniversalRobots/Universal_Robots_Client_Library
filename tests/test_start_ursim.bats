@@ -7,6 +7,28 @@ setup() {
     source $DIR/../scripts/start_ursim.sh
 }
 
+@test "test_get_version_from_release_url" {
+  effective_url="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/0.1.0"
+
+  VERSION=$(get_version_from_release_url "$effective_url")
+
+  [ "$VERSION" = "0.1.0" ]
+}
+
+@test "test_get_download_url_urcapx" {
+  get_download_url_urcapx "0.1.0"
+  echo "Download URL: $URCAPX_DOWNLOAD_URL"
+  echo "URCAPX_VERSION: $URCAPX_VERSION"
+  [ "$URCAPX_DOWNLOAD_URL" = "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/download/0.1.0/external-control-0.1.0.urcapx" ]
+}
+
+@test "test_get_download_url_urcap" {
+  get_download_url_urcap "1.0.5"
+  echo "Download URL: $URCAP_DOWNLOAD_URL"
+  echo "URCAP_VERSION: $URCAP_VERSION"
+  [ "$URCAP_DOWNLOAD_URL" = "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v1.0.5/externalcontrol-1.0.5.jar" ]
+}
+
 @test "test get_series_from_model" {
   get_series_from_model "ur10e"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
