@@ -21,7 +21,7 @@ The `instruction_executor.cpp <https://github.com/UniversalRobots/Universal_Robo
    :linenos:
    :lineno-match:
    :start-at: bool headless_mode = true;
-   :end-at: auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->ur_driver_);
+   :end-at: auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->getUrDriver());
 
 At first, a ``InstructionExecutor`` object is created with the URDriver object as it needs that
 for communication with the robot.
@@ -63,6 +63,6 @@ To run a single motion, the ``InstructionExecutor`` provides the methods ``moveJ
    :linenos:
    :lineno-match:
    :start-at: double goal_time_sec = 2.0;
-   :end-before: g_my_robot->ur_driver_->stopControl();
+   :end-before: g_my_robot->getUrDriver()->stopControl();
 
 Again, time parametrization has priority over acceleration / velocity parameters.

@@ -55,7 +55,7 @@ std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
 void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_action)
 {
-  bool ret = g_my_robot->ur_driver_->writeFreedriveControlMessage(freedrive_action);
+  bool ret = g_my_robot->getUrDriver()->writeFreedriveControlMessage(freedrive_action);
   if (!ret)
   {
     URCL_LOG_ERROR("Could not send joint command. Is there an external_control program running on the robot?");

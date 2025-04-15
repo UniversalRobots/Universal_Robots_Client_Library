@@ -85,8 +85,8 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
-  g_my_robot->ur_driver_->registerToolContactResultCallback(&handleToolContactResult);
-  g_my_robot->ur_driver_->startToolContact();
+  g_my_robot->getUrDriver()->registerToolContactResultCallback(&handleToolContactResult);
+  g_my_robot->getUrDriver()->startToolContact();
 
   // This will move the robot downward in the z direction of the base until a tool contact is detected or seconds_to_run
   // is reached
@@ -96,8 +96,8 @@ int main(int argc, char* argv[])
   {
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications.
-    bool ret = g_my_robot->ur_driver_->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL,
-                                                         RobotReceiveTimeout::millisec(100));
+    bool ret = g_my_robot->getUrDriver()->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL,
+                                                            RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
       URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
@@ -111,6 +111,6 @@ int main(int argc, char* argv[])
     }
   }
   URCL_LOG_INFO("Timed out before reaching tool contact.");
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   return 0;
 }

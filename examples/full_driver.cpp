@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 
   // Increment depends on robot version
   double increment_constant = 0.0005;
-  if (g_my_robot->ur_driver_->getVersion().major < 5)
+  if (g_my_robot->getUrDriver()->getVersion().major < 5)
   {
     increment_constant = 0.002;
   }
@@ -86,14 +86,14 @@ int main(int argc, char* argv[])
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
-  g_my_robot->ur_driver_->startRTDECommunication();
+  g_my_robot->getUrDriver()->startRTDECommunication();
   while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
     // robot will effectively be in charge of setting the frequency of this loop.
     // In a real-world application this thread should be scheduled with real-time priority in order
     // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->ur_driver_->getDataPackage();
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
     if (!data_pkg)
     {
       URCL_LOG_WARN("Could not get fresh data package from robot");
@@ -133,8 +133,8 @@ int main(int argc, char* argv[])
     joint_target[5] += increment;
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications.
-    bool ret = g_my_robot->ur_driver_->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
-                                                         RobotReceiveTimeout::millisec(100));
+    bool ret = g_my_robot->getUrDriver()->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
+                                                            RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
       URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
   }
-  g_my_robot->ur_driver_->stopControl();
+  g_my_robot->getUrDriver()->stopControl();
   URCL_LOG_INFO("Movement done");
   return 0;
 }

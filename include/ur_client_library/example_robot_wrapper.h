@@ -169,6 +169,22 @@ public:
 
   bool isHealthy() const;
 
+  std::shared_ptr<DashboardClient> getDashboardClient() const
+  {
+    return dashboard_client_;
+  };
+  std::shared_ptr<primary_interface::PrimaryClient> getPrimaryClient() const
+  {
+    return primary_client_;
+  };
+  std::shared_ptr<UrDriver> getUrDriver() const
+  {
+    return ur_driver_;
+  };
+
+private:
+  void handleRobotProgramState(bool program_running);
+
   //! Dashboard client to interact with the robot
   std::shared_ptr<urcl::DashboardClient> dashboard_client_;
 
@@ -177,9 +193,6 @@ public:
 
   //! UR driver to interact with the robot
   std::shared_ptr<urcl::UrDriver> ur_driver_;
-
-private:
-  void handleRobotProgramState(bool program_running);
 
   comm::INotifier notifier_;
 

@@ -7,6 +7,28 @@ setup() {
     source $DIR/../scripts/start_ursim.sh
 }
 
+@test "test_get_version_from_release_url" {
+  effective_url="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/0.1.0"
+
+  VERSION=$(get_version_from_release_url "$effective_url")
+
+  [ "$VERSION" = "0.1.0" ]
+}
+
+@test "test_get_download_url_urcapx" {
+  get_download_url_urcapx "0.1.0"
+  echo "Download URL: $URCAPX_DOWNLOAD_URL"
+  echo "URCAPX_VERSION: $URCAPX_VERSION"
+  [ "$URCAPX_DOWNLOAD_URL" = "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX/releases/download/0.1.0/external-control-0.1.0.urcapx" ]
+}
+
+@test "test_get_download_url_urcap" {
+  get_download_url_urcap "1.0.5"
+  echo "Download URL: $URCAP_DOWNLOAD_URL"
+  echo "URCAP_VERSION: $URCAP_VERSION"
+  [ "$URCAP_DOWNLOAD_URL" = "https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v1.0.5/externalcontrol-1.0.5.jar" ]
+}
+
 @test "test get_series_from_model" {
   get_series_from_model "ur10e"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
@@ -294,3 +316,146 @@ setup() {
   echo "Robot model is: $ROBOT_MODEL"
   [ "$ROBOT_MODEL" = "UR30" ]
 }
+
+@test "help_prints_fine" {
+  run main -h
+  [ $status -eq 0 ]
+}
+
+@test "setting_urcap_storage" {
+  run main -t
+  echo "$output"
+  [ $status -eq 0 ]
+  urcap_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/urcaps" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$urcap_mount" = "$HOME/.ursim/e-series/urcaps" ]
+
+  run main -t -v 3.14.3
+  echo "$output"
+  [ $status -eq 0 ]
+  urcap_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/urcaps" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$urcap_mount" = "$HOME/.ursim/cb3/urcaps" ]
+
+  target_dir=$(mktemp -d)
+  run main -u "$target_dir" -t
+  echo "$output"
+  [ $status -eq 0 ]
+  urcap_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/urcaps" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$urcap_mount" = "$target_dir" ]
+
+}
+
+@test "setting_program_storage" {
+  run main -t
+  echo "$output"
+  [ $status -eq 0 ]
+  program_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/ursim\/programs" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$program_mount" = "$HOME/.ursim/e-series/ur5e/programs" ]
+
+  run main -t -v 3.14.3
+  echo "$output"
+  [ $status -eq 0 ]
+  program_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/ursim\/programs" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$program_mount" = "$HOME/.ursim/cb3/ur5/programs" ]
+
+  run main -t -v 10.7.0
+  echo "$output"
+  [ $status -eq 0 ]
+  program_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/ur\/bin\/backend\/applications" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$program_mount" = "$HOME/.ursim/polyscopex/ur5e/programs" ]
+
+  target_dir=$(mktemp -d)
+  run main -p "$target_dir" -t
+  echo "$output"
+  [ $status -eq 0 ]
+  program_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/ursim\/programs" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$program_mount" = "$target_dir" ]
+}
+
+@test "setting_ip_addresss" {
+  run main -t -i 123.123.123.123
+  echo "$output"
+  [ $status -eq 0 ]
+  ip_address=$(echo "$output" | tail -n1 | grep -o -E "\-\-ip ([0-9]+\.?)+" | cut -d " " -f2)
+  [ "$ip_address" = "123.123.123.123" ]
+}
+
+@test "default_port_forwarding_cb3" {
+  run main -t -v 3.14.3
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
+}
+
+@test "default_port_forwarding_e-series" {
+  run main -t -v 5.21.0
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s+)+" | awk '{$1=$1};1')
+  [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
+}
+
+@test "default_port_forwarding_polyscopex" {
+  run main -t -v 10.7.0
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  [ "$port_forwarding" = "$PORT_FORWARDING_WITHOUT_DASHBOARD" ]
+}
+
+@test "setting_port_forwarding" {
+  run main -t -f "-p 1234:1234 -p 50001-50004:60001-60004"
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  [ "$port_forwarding" = "-p 1234:1234 -p 50001-50004:60001-60004" ]
+}
+
+@test "default_container_name" {
+  run main -t
+  echo "$output"
+  [ $status -eq 0 ]
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  [ "$container_name" = "ursim" ]
+}
+
+@test "setting_container_name_cb3" {
+  run main -t -n "ursim_test" -v 3.14.3
+  echo "$output"
+  [ $status -eq 0 ]
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  [ "$container_name" = "ursim_test" ]
+}
+
+@test "setting_container_name_e-series" {
+  run main -t -n "ursim_test" -v 5.21.0
+  echo "$output"
+  [ $status -eq 0 ]
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  [ "$container_name" = "ursim_test" ]
+}
+
+@test "setting_container_name_polyscopex" {
+  run main -t -n "ursim_test" -v 10.7.0
+  echo "$output"
+  [ $status -eq 0 ]
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  [ "$container_name" = "ursim_test" ]
+}
+
+@test "catch_unknown_parameters" {
+  run main -t -x
+  echo "$output"
+  [ $status -eq 1 ]
+}
+
+@test "not_detached_by_default" {
+  test_input_handling
+  [ "$DETACHED" = "false" ]
+}
+
+@test "setting_detached_argument" {
+  test_input_handling -d
+  [ "$DETACHED" = "true" ]
+}
+

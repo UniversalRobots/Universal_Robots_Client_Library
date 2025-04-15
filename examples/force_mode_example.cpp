@@ -57,7 +57,7 @@ std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
 void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_action)
 {
-  bool ret = g_my_robot->ur_driver_->writeFreedriveControlMessage(freedrive_action);
+  bool ret = g_my_robot->getUrDriver()->writeFreedriveControlMessage(freedrive_action);
   if (!ret)
   {
     URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
-  if (!g_my_robot->ur_driver_->checkCalibration(CALIBRATION_CHECKSUM))
+  if (!g_my_robot->getUrDriver()->checkCalibration(CALIBRATION_CHECKSUM))
   {
     URCL_LOG_ERROR("Calibration checksum does not match actual robot.");
     URCL_LOG_ERROR("Use the ur_calibration tool to extract the correct calibration from the robot and pass that into "
@@ -107,24 +107,24 @@ int main(int argc, char* argv[])
   // Task frame at the robot's base with limits being large enough to cover the whole workspace
   // Compliance in z axis and rotation around z axis
   bool success;
-  if (g_my_robot->ur_driver_->getVersion().major < 5)
-    success =
-        g_my_robot->ur_driver_->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
-                                               { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
-                                               { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
-                                               2,                      // do not transform the force frame at all
-                                               { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
-                                               0.005);  // damping_factor. See ScriptManual for details.
+  if (g_my_robot->getUrDriver()->getVersion().major < 5)
+    success = g_my_robot->getUrDriver()->startForceMode({ 0, 0, 0, 0, 0, 0 },   // Task frame at the robot's base
+                                                        { 0, 0, 1, 0, 0, 1 },   // Compliance in z axis and rotation
+                                                                                // around z axis
+                                                        { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
+                                                        2,  // do not transform the force frame at all
+                                                        { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
+                                                        0.005);  // damping_factor. See ScriptManual for details.
   else
   {
-    success =
-        g_my_robot->ur_driver_->startForceMode({ 0, 0, 0, 0, 0, 0 },  // Task frame at the robot's base
-                                               { 0, 0, 1, 0, 0, 1 },  // Compliance in z axis and rotation around z axis
-                                               { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
-                                               2,                      // do not transform the force frame at all
-                                               { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
-                                               0.005,                               // damping_factor
-                                               1.0);  // gain_scaling. See ScriptManual for details.
+    success = g_my_robot->getUrDriver()->startForceMode({ 0, 0, 0, 0, 0, 0 },   // Task frame at the robot's base
+                                                        { 0, 0, 1, 0, 0, 1 },   // Compliance in z axis and rotation
+                                                                                // around z axis
+                                                        { 0, 0, -2, 0, 0, 0 },  // Press in -z direction
+                                                        2,  // do not transform the force frame at all
+                                                        { 0.1, 0.1, 1.5, 3.14, 3.14, 0.5 },  // limits
+                                                        0.005,                               // damping_factor
+                                                        1.0);  // gain_scaling. See ScriptManual for details.
   }
   if (!success)
   {
@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
   auto stopwatch_now = stopwatch_last;
   while (time_done < timeout || second_to_run.count() == 0)
   {
-    g_my_robot->ur_driver_->writeKeepalive();
+    g_my_robot->getUrDriver()->writeKeepalive();
 
     stopwatch_now = std::chrono::steady_clock::now();
     time_done += stopwatch_now - stopwatch_last;
@@ -146,5 +146,5 @@ int main(int argc, char* argv[])
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
   URCL_LOG_INFO("Timeout reached.");
-  g_my_robot->ur_driver_->endForceMode();
+  g_my_robot->getUrDriver()->endForceMode();
 }
