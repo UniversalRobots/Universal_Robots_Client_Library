@@ -39,13 +39,32 @@ representations in 21 datafields. The data fields have the following meaning:
    =====  =====
    index  meaning
    =====  =====
-   0-5    trajectory point positions (floating point)
-   6-11   trajectory point velocities (floating point)
-   12-17  trajectory point accelerations (floating point)
-   18     trajectory point type (0: JOINT, 1: CARTESIAN, 2: JOINT_SPLINE)
-   19     trajectory point time (in seconds, floating point)
+   0-5    trajectory point positions (Multiplied by ``MULT_JOINTSTATE``)
+   6-11   trajectory point velocities (Multiplied by ``MULT_JOINTSTATE``). For MOVEC, this contains the "via pose".
+   12-17  trajectory point accelerations (Multiplied by ``MULT_JOINTSTATE``).
+
+          For MOVEC:
+
+          - 12: velocity (Multiplied by ``MULT_JOINTSTATE``)
+          - 13: acceleration (Multiplied by ``MULT_JOINTSTATE``)
+          - 14: mode (Multiplied by ``MULT_JOINTSTATE``)
+
+   18     trajectory point type
+
+          - 0: MOVEJ
+          - 1: MOVEL
+          - 2: MOVEP
+          - 3: MOVEC
+          - 51: SPLINE)
+
+   19     trajectory point time (in seconds, multiplied by ``MULT_TIME``)
    20     depending on trajectory point type
 
-          - JOINT, CARTESIAN: point blend radius (in meters, floating point)
-          - JOINT_SPLINE: spline type (1: CUBIC, 2: QUINTIC)
+          - MOVEJ, MOVEL, MOVEP and MOVEC: point blend radius (in meters, multiplied by ``MULT_TIME``)
+          - SPLINE: spline type (1: CUBIC, 2: QUINTIC)
    =====  =====
+
+where
+
+- ``MULT_JOINTSTATE``: 1000000
+- ``MULT_TIME``: 1000

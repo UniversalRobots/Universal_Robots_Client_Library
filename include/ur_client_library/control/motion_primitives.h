@@ -32,6 +32,7 @@
 #define UR_CLIENT_LIBRARY_MOTION_PRIMITIVES_H_INCLUDED
 
 #include <chrono>
+#include <optional>
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -48,9 +49,19 @@ enum class MotionType : uint8_t
   SPLINE = 51,
   UNKNOWN = 255
 };
+
+/*!
+ * Spline types
+ */
+enum class TrajectorySplineType : int32_t
+{
+  SPLINE_CUBIC = 1,
+  SPLINE_QUINTIC = 2
+};
+
 struct MotionPrimitive
 {
-  MotionType type;
+  MotionType type = MotionType::UNKNOWN;
   std::chrono::duration<double> duration;
   double acceleration;
   double velocity;
@@ -89,6 +100,67 @@ struct MoveLPrimitive : public MotionPrimitive
   }
 
   urcl::Pose target_pose;
+};
+
+struct MovePPrimitive : public MotionPrimitive
+{
+  MovePPrimitive(const urcl::Pose& target, const double blend_radius = 0, const double acceleration = 1.4,
+                 const double velocity = 1.04)
+  {
+    type = MotionType::MOVEP;
+    target_pose = target;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+  }
+  urcl::Pose target_pose;
+};
+
+struct MoveCPrimitive : public MotionPrimitive
+{
+  MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& target, const double blend_radius = 0,
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
+  {
+    type = MotionType::MOVEC;
+    via_point_pose = via_point;
+    target_pose = target;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+    this->mode = mode;
+  }
+  urcl::Pose via_point_pose;
+  urcl::Pose target_pose;
+  int32_t mode = 0;
+};
+
+struct SplinePrimitive : public MotionPrimitive
+{
+  SplinePrimitive(const urcl::vector6d_t& target_positions, const vector6d_t& target_velocities,
+                  const std::optional<vector6d_t>& target_accelerations,
+                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0))
+  {
+    type = MotionType::SPLINE;
+    this->target_positions = target_positions;
+    this->target_velocities = target_velocities;
+    this->target_accelerations = target_accelerations;
+    this->duration = duration;
+  }
+
+  control::TrajectorySplineType getSplineType() const
+  {
+    if (target_accelerations.has_value())
+    {
+      return control::TrajectorySplineType::SPLINE_QUINTIC;
+    }
+    else
+    {
+      return control::TrajectorySplineType::SPLINE_CUBIC;
+    }
+  }
+  vector6d_t target_positions;
+  vector6d_t target_velocities;
+  std::optional<vector6d_t> target_accelerations;
 };
 }  // namespace control
 }  // namespace urcl

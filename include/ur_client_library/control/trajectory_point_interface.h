@@ -31,6 +31,7 @@
 
 #include <optional>
 
+#include "ur_client_library/control/motion_primitives.h"
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/comm/control_mode.h"
 #include "ur_client_library/types.h"
@@ -53,25 +54,6 @@ enum class TrajectoryResult : int32_t
 };
 
 std::string trajectoryResultToString(const TrajectoryResult result);
-
-/*!
- * Spline types
- */
-enum class TrajectorySplineType : int32_t
-{
-  SPLINE_CUBIC = 1,
-  SPLINE_QUINTIC = 2
-};
-
-/*!
- * Motion Types
- */
-enum class TrajectoryMotionType : int32_t
-{
-  JOINT_POINT = 0,
-  CARTESIAN_POINT = 1,
-  JOINT_POINT_SPLINE = 2
-};
 
 /*!
  * \brief The TrajectoryPointInterface class handles trajectory forwarding to the robot. Full
@@ -140,6 +122,16 @@ public:
    */
   bool writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
                                   const vector6d_t* accelerations, const float goal_time);
+
+  /*!
+   * \brief Writes a motion primitive to the robot to be read by the URScript program.
+   *
+   * \param primitive A shared pointer to a motion primitive object. This can contain any motion
+   * primitive type that is supported. Currently, that is MoveJ, MoveL, MoveP and MoveC.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
   {

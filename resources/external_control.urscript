@@ -31,9 +31,11 @@ REVERSE_INTERFACE_DATA_DIMENSION = 8
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
 
-TRAJECTORY_POINT_JOINT = 0
-TRAJECTORY_POINT_CARTESIAN = 1
-TRAJECTORY_POINT_JOINT_SPLINE = 2
+MOTION_TYPE_MOVEJ = 0
+MOTION_TYPE_MOVEL = 1
+MOTION_TYPE_MOVEP = 2
+MOTION_TYPE_MOVEC = 3
+MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
 TRAJECTORY_RESULT_SUCCESS = 0
@@ -486,7 +488,7 @@ thread trajectoryThread():
         is_last_point = True
       end
       # MoveJ point
-      if raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT:
+      if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -496,7 +498,7 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
 
         # Movel point
-      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_CARTESIAN:
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -504,9 +506,32 @@ thread trajectoryThread():
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
+        
+      # MoveP point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP:
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
+        movep(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
 
-        # Joint spline point
-      elif raw_point[INDEX_POINT_TYPE] == TRAJECTORY_POINT_JOINT_SPLINE:
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC:
+        local v = [raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
+        via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
+        target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[14] / MULT_jointstate
+        mode = raw_point[15] / MULT_jointstate
+        movec(via, target, acceleration, velocity, blend_radius, mode)
+
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+
+      # Joint spline point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_SPLINE:
 
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:

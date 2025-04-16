@@ -31,6 +31,9 @@
 #include <gtest/gtest.h>
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/control/motion_primitives.h>
+#include <cmath>
+#include "ur_client_library/exceptions.h"
 
 using namespace urcl;
 
@@ -178,6 +181,78 @@ protected:
       readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type);
       return spl;
     }
+
+    std::shared_ptr<control::MotionPrimitive> getMotionPrimitive()
+    {
+      TrajData spl = getData();
+      if (spl.motion_type == static_cast<int32_t>(control::MotionType::MOVEJ))
+      {
+        return std::make_shared<control::MoveJPrimitive>(
+            vector6d_t{
+                (double)spl.pos[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                (double)spl.pos[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                (double)spl.pos[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                (double)spl.pos[3] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                (double)spl.pos[4] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                (double)spl.pos[5] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            },
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            std::chrono::milliseconds(spl.goal_time),
+            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
+      }
+      else if (spl.motion_type == static_cast<int32_t>(control::MotionType::MOVEL))
+      {
+        return std::make_shared<control::MoveLPrimitive>(
+            urcl::Pose{ ((double)spl.pos[0]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[1]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[2]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            std::chrono::milliseconds(spl.goal_time),
+            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
+      }
+      else if (spl.motion_type == static_cast<int32_t>(control::MotionType::MOVEP))
+      {
+        return std::make_shared<control::MovePPrimitive>(
+            urcl::Pose{ ((double)spl.pos[0]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[1]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[2]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
+      }
+      else if (spl.motion_type == static_cast<int32_t>(control::MotionType::MOVEC))
+      {
+        return std::make_shared<control::MoveCPrimitive>(
+            urcl::Pose{ ((double)spl.vel[0]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.vel[1]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.vel[2]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.vel[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.vel[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.vel[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
+            urcl::Pose{ ((double)spl.pos[0]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[1]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[2]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+                        ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            (double)spl.acc[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            round((double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE));
+      }
+      else
+      {
+        throw std::runtime_error("Unknown motion type");
+      }
+    }
   };
 
   void SetUp()
@@ -283,7 +358,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
             received_data.blend_radius_or_spline_type);
 
   // Motion type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+  EXPECT_EQ(static_cast<int32_t>(control::MotionType::SPLINE), received_data.motion_type);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
@@ -327,7 +402,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
             received_data.blend_radius_or_spline_type);
 
   // Motion type
-  EXPECT_EQ(static_cast<int32_t>(control::TrajectoryMotionType::JOINT_POINT_SPLINE), received_data.motion_type);
+  EXPECT_EQ(static_cast<int32_t>(control::MotionType::SPLINE), received_data.motion_type);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)
@@ -436,6 +511,92 @@ TEST_F(TrajectoryPointInterfaceTest, trajectory_result)
 
   client_->send(toUnderlying(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS));
   EXPECT_TRUE(waitTrajectoryEnd(1000, control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS));
+}
+
+TEST_F(TrajectoryPointInterfaceTest, send_movej)
+{
+  urcl::vector6d_t send_positions = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
+  double blend_radius = 0.5;
+  double velocity = 0.6;
+  double acceleration = 0.7;
+  auto duration = std::chrono::milliseconds(434);
+  auto primitive =
+      std::make_shared<control::MoveJPrimitive>(send_positions, blend_radius, duration, acceleration, velocity);
+
+  traj_point_interface_->writeMotionPrimitive(primitive);
+  auto received_primitive = client_->getMotionPrimitive();
+  EXPECT_EQ(received_primitive->type, control::MotionType::MOVEJ);
+  EXPECT_EQ(std::static_pointer_cast<control::MoveJPrimitive>(received_primitive)->target_joint_configuration,
+            send_positions);
+  EXPECT_EQ(received_primitive->blend_radius, blend_radius);
+  EXPECT_EQ(received_primitive->velocity, velocity);
+  EXPECT_EQ(received_primitive->acceleration, acceleration);
+  EXPECT_EQ(received_primitive->duration, duration);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, send_movel)
+{
+  urcl::Pose send_positions = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
+  double blend_radius = 0.5;
+  double velocity = 0.6;
+  double acceleration = 0.7;
+  auto duration = std::chrono::milliseconds(434);
+  auto primitive =
+      std::make_shared<control::MoveLPrimitive>(send_positions, blend_radius, duration, acceleration, velocity);
+
+  traj_point_interface_->writeMotionPrimitive(primitive);
+  auto received_primitive = client_->getMotionPrimitive();
+  EXPECT_EQ(received_primitive->type, control::MotionType::MOVEL);
+  EXPECT_EQ(std::static_pointer_cast<control::MoveLPrimitive>(received_primitive)->target_pose, send_positions);
+  EXPECT_EQ(received_primitive->blend_radius, blend_radius);
+  EXPECT_EQ(received_primitive->velocity, velocity);
+  EXPECT_EQ(received_primitive->acceleration, acceleration);
+  EXPECT_EQ(received_primitive->duration, duration);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, send_movep)
+{
+  urcl::Pose send_positions = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
+  double blend_radius = 0.5;
+  double velocity = 0.6;
+  double acceleration = 0.7;
+  auto primitive = std::make_shared<control::MovePPrimitive>(send_positions, blend_radius, acceleration, velocity);
+
+  traj_point_interface_->writeMotionPrimitive(primitive);
+  auto received_primitive = client_->getMotionPrimitive();
+  EXPECT_EQ(received_primitive->type, control::MotionType::MOVEP);
+  EXPECT_EQ(std::static_pointer_cast<control::MovePPrimitive>(received_primitive)->target_pose, send_positions);
+  EXPECT_EQ(received_primitive->blend_radius, blend_radius);
+  EXPECT_EQ(received_primitive->velocity, velocity);
+  EXPECT_EQ(received_primitive->acceleration, acceleration);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, send_movec)
+{
+  urcl::Pose send_target = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
+  urcl::Pose send_via = { 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
+  double blend_radius = 0.5;
+  double acceleration = 0.7;
+  double velocity = 0.7;
+  double mode = 1;
+  auto primitive =
+      std::make_shared<control::MoveCPrimitive>(send_via, send_target, blend_radius, acceleration, velocity, mode);
+
+  traj_point_interface_->writeMotionPrimitive(primitive);
+  auto received_primitive = client_->getMotionPrimitive();
+  EXPECT_EQ(received_primitive->type, control::MotionType::MOVEC);
+  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->target_pose, send_target);
+  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->via_point_pose, send_via);
+  EXPECT_EQ(received_primitive->blend_radius, blend_radius);
+  EXPECT_EQ(received_primitive->acceleration, acceleration);
+  EXPECT_EQ(received_primitive->acceleration, velocity);
+  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->mode, mode);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, unsupported_motion_type_throws)
+{
+  auto primitive = std::make_shared<control::MotionPrimitive>();
+  EXPECT_THROW(traj_point_interface_->writeMotionPrimitive(primitive), urcl::UnsupportedMotionType);
 }
 
 int main(int argc, char* argv[])
