@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/setup/ursim_docker.rst
+
 .. _ursim_docker:
 
 Setup URSim with Docker

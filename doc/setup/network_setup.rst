@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/setup/network_setup.rst
+
 .. _network_setup:
 
 Network setup
