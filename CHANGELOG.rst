@@ -2,6 +2,19 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2025-04-16)
+------------------
+* Add functionality to send MoveP and MoveC instructions to the robot (`#303 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/303>`_)
+* Fix naming issues (`#307 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/307>`_)
+* Add more tests for start_ursim.sh (`#305 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/305>`_)
+* [start_ursim.sh] Use direct web pages instead of GitHub API to download URCap (`#308 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/308>`_)
+* Fix typo in freedrive example document (`#304 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/304>`_)
+* Always download and install the latest URCap(X) if not present (`#301 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/301>`_)
+* Document robot setup for PolyScope X (`#302 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/302>`_)
+* Bump bats-core/bats-action from 3.0.0 to 3.0.1 (`#300 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/300>`_)
+* Polyscope x integration tests (`#295 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/295>`_)
+* Contributors: Felix Exner, dependabot[bot], xndcn
+
 1.9.0 (2025-03-28)
 ------------------
 * Make start_ursim.sh support polyscopex (`#294 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/294>`_)
