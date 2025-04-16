@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.0 (2025-04-16)
+------------------
 * Add functionality to send MoveP and MoveC instructions to the robot (`#303 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/303>`_)
 * Fix naming issues (`#307 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/307>`_)
 * Add more tests for start_ursim.sh (`#305 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/305>`_)
