@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/architecture/instruction_executor.rst
+
 .. _instruction_executor:
 
 Instruction Executor

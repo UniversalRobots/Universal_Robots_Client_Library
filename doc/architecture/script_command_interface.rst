@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/architecture/script_command_interface.rst
+
 .. _script_command_interface:
 
 Script Command Interface

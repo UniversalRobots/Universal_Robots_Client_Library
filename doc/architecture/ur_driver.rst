@@ -1,3 +1,5 @@
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/architecture/ur_driver.rst
+
 .. _ur_driver:
 
 UrDriver
