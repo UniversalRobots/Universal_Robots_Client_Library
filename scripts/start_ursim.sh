@@ -49,7 +49,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20, ur30]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur15, ur20, ur30]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -92,7 +92,7 @@ get_series_from_model()
     ur3e|ur5e|ur10e|ur16e)
       ROBOT_SERIES=e-series
       ;;
-    ur20|ur30)
+    ur15|ur20|ur30)
       ROBOT_SERIES=e-series
       ;;
     *)
@@ -131,7 +131,7 @@ strip_robot_model()
     ROBOT_MODEL=${robot_model^^}
   else
     ROBOT_MODEL=${robot_model^^}
-    # UR20 and UR30 need no further adjustment
+    # UR15, UR20 and UR30 need no further adjustment
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     fi
@@ -155,6 +155,8 @@ validate_parameters()
   [ "$IMAGE_URSIM_VERSION" == "latest" ] && return 0
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
+  local MIN_UR15="5.22.0"
+  local MIN_UR15_X="10.8.0"
   local MIN_UR20="5.14.0"
   local MIN_UR30="5.15.0"
 
@@ -170,10 +172,12 @@ validate_parameters()
       verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
       ;;
     e-series)
-      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur15|ur20|ur30) ]]; then
         echo "$ROBOT_MODEL is no valid e-series model!" && exit 1
       fi
-      if [[ $ROBOT_MODEL == "ur20" ]]; then
+      if [[ $ROBOT_MODEL == "ur15" ]]; then
+          MIN_VERSION=$MIN_UR15
+      elif [[ $ROBOT_MODEL == "ur20" ]]; then
           MIN_VERSION=$MIN_UR20
       elif [[ $ROBOT_MODEL == "ur30" ]]; then
           MIN_VERSION=$MIN_UR30
@@ -186,10 +190,11 @@ validate_parameters()
         echo "URSim version $URSIM_VERSION is unfortunately not supported"
         exit 1
       fi
-      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur15|ur20|ur30) ]]; then
         echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit 1
-      else
-        return 0
+      fi
+      if [[ $ROBOT_MODEL == "ur15" ]]; then
+          MIN_VERSION=$MIN_UR15_X
       fi
       ;;
   esac

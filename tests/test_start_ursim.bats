@@ -38,6 +38,10 @@ setup() {
   echo "ROBOT_SERIES: $ROBOT_SERIES"
   [ "$ROBOT_SERIES" = "cb3" ]
 
+  get_series_from_model "ur15"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  [ "$ROBOT_SERIES" = "e-series" ]
+
   get_series_from_model "ur20"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
   [ "$ROBOT_SERIES" = "e-series" ]
@@ -146,6 +150,25 @@ setup() {
   [ "$ROBOT_MODEL" = "ur5e" ]
   [ "$ROBOT_SERIES" = "e-series" ]
   [ "$URSIM_VERSION" = "latest" ]  
+}
+
+@test "test ur15 min version" {
+  run test_input_handling -m ur15 -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur15 -v 5.21.0
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur15 -v 10.7.0
+  echo "$output"
+  [ $status -eq 1 ]
+
+  run test_input_handling -m ur15 -v 5.22.0
+  echo "$output"
+  [ $status -eq 0 ]
+  run test_input_handling -m ur15 -v 10.8.0
+  echo "$output"
+  [ $status -eq 0 ]
 }
 
 @test "test ur20 min version" {
