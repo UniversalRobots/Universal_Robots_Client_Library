@@ -39,9 +39,8 @@ TEST_RUN=false
 # TODO: Add support for more URSim PolyScopeX versions once released
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
 # versions
-#declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
-                             #["10.8.0"]="not.there.yet")
-declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159" )
+declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
+                              ["10.8.0"]="0.13.124")
 
 help()
 {
