@@ -39,9 +39,8 @@ TEST_RUN=false
 # TODO: Add support for more URSim PolyScopeX versions once released
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
 # versions
-#declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
-                             #["10.8.0"]="not.there.yet")
-declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159" )
+declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
+                              ["10.8.0"]="0.13.124")
 
 help()
 {
@@ -183,8 +182,8 @@ validate_parameters()
       fi
       ;;
     polyscopex)
-      if [[ -z "${POLYSCOPE_X_MAP[${URSIM_VERSION}]}" ]]; then
-        echo "URSim version $URSIM_VERSION is not supported"
+      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION}]+_}" ]]; then
+        echo "URSim version $URSIM_VERSION is unfortunately not supported"
         exit 1
       fi
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
