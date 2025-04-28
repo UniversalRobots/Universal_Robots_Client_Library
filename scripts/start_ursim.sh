@@ -182,8 +182,8 @@ validate_parameters()
       fi
       ;;
     polyscopex)
-      if [[ -z "${POLYSCOPE_X_MAP[${URSIM_VERSION}]}" ]]; then
-        echo "URSim version $URSIM_VERSION is not supported"
+      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION}]+_}" ]]; then
+        echo "URSim version $URSIM_VERSION is unfortunately not supported"
         exit 1
       fi
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
