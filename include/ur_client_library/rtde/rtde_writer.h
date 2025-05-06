@@ -67,6 +67,15 @@ public:
       writer_thread_.join();
     }
   }
+
+  /*!
+   * \brief Sets a new input recipe. This can be used to change the input recipe on the fly, if
+   * needed.
+   *
+   * \param recipe The new recipe to use
+   */
+  void setInputRecipe(const std::vector<std::string>& recipe);
+
   /*!
    * \brief Starts the writer thread, which periodically clears the queue to write packages to the
    * robot.
@@ -162,7 +171,7 @@ private:
   uint8_t pinToMask(uint8_t pin);
   comm::URStream<RTDEPackage>* stream_;
   std::vector<std::string> recipe_;
-  uint8_t recipe_id_;
+  uint8_t recipe_id_ = 0;
   moodycamel::BlockingReaderWriterQueue<std::unique_ptr<DataPackage>> queue_;
   std::thread writer_thread_;
   bool running_;
