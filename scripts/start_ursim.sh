@@ -163,7 +163,7 @@ validate_parameters()
   local MIN_UR20="5.14.0"
   local MIN_UR30="5.15.0"
   local MIN_UR7e="5.22.0" # and UR12e
-  local MIN_UR7e_X="10.8.0" # and UR12e
+  local MIN_UR7e_X="10.9.0" # and UR12e
 
   local MIN_VERSION="0.0"
 
@@ -424,10 +424,14 @@ main() {
     mkdir -p "${PROGRAM_STORAGE}"
     PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
+    ROBOT_MODEL_CONTROLLER_FLAG=""
+    verlte "${POLYSCOPE_X_MAP[10.7.0]}" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "${POLYSCOPE_X_MAP[10.8.0]}" && ROBOT_MODEL_CONTROLLER_FLAG="-e ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}"
+
     docker_cmd="docker run --rm -d \
       --net ursim_net --ip $IP_ADDRESS \
       -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
       -e ROBOT_TYPE=${ROBOT_MODEL} \
+      $ROBOT_MODEL_CONTROLLER_FLAG \
       $PORT_FORWARDING \
       $DOCKER_ARGS \
       --name $CONTAINER_NAME \
