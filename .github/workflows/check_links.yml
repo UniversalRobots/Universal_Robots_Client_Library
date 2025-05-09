@@ -27,7 +27,7 @@ jobs:
             --verbose
             --no-progress
             --cache
-            --cache-exclude-status 429
+            --cache-exclude-status '429, 403, 404, 502'
             --max-cache-age 2d
             './**/*.md' './**/*.html' './**/*.rst' './**/*.cpp' './**/*.h' './**/*.py'
             --exclude '^http://192\.168\.56\.101'
