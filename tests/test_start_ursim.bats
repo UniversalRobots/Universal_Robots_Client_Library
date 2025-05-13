@@ -149,7 +149,45 @@ setup() {
   test_input_handling
   [ "$ROBOT_MODEL" = "ur5e" ]
   [ "$ROBOT_SERIES" = "e-series" ]
-  [ "$URSIM_VERSION" = "latest" ]  
+  [ "$URSIM_VERSION" = "latest" ]
+}
+
+@test "test ur7e min version" {
+  run test_input_handling -m ur7e -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur7e -v 5.21.0
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur7e -v 10.8.0
+  echo "$output"
+  [ $status -eq 1 ]
+
+  run test_input_handling -m ur7e -v 5.22.0
+  echo "$output"
+  [ $status -eq 0 ]
+  #run test_input_handling -m ur7e -v 10.9.0
+  #echo "$output"
+  #[ $status -eq 0 ]
+}
+
+@test "test ur12e min version" {
+  run test_input_handling -m ur12e -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur12e -v 5.21.0
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur12e -v 10.8.0
+  echo "$output"
+  [ $status -eq 1 ]
+
+  run test_input_handling -m ur12e -v 5.22.0
+  echo "$output"
+  [ $status -eq 0 ]
+  #run test_input_handling -m ur12e -v 10.9.0
+  #echo "$output"
+  #[ $status -eq 0 ]
 }
 
 @test "test ur15 min version" {
@@ -229,7 +267,7 @@ setup() {
   echo "$output"
   image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
   [ $status -eq 0 ]
-  [ "$image" == "universalrobots/ursim_cb3:latest" ]
+  [[ "$image" =~ universalrobots/ursim_cb3:[0-9]+\.[0-9]+\.[0-9]+ ]]
 }
 
 @test "docker image e-series latest" {
@@ -237,7 +275,7 @@ setup() {
   echo "$output"
   image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
   [ $status -eq 0 ]
-  [ "$image" == "universalrobots/ursim_e-series:latest" ]
+  [[ "$image" =~ universalrobots/ursim_e-series:[0-9]+\.[0-9]+\.[0-9]+ ]]
 }
 
 @test "docker image cb3 specific" {
@@ -488,5 +526,66 @@ setup() {
 @test "setting_detached_argument" {
   test_input_handling -d
   [ "$DETACHED" = "true" ]
+}
+
+@test "successful_validate_parameters" {
+  URSIM_VERSION="5.21.0"
+  ROBOT_MODEL="ur10e"
+  ROBOT_SERIES="e-series"
+
+  validate_parameters
+}
+
+@test "successful_validate_parameters_latest_e" {
+  URSIM_VERSION="latest"
+  ROBOT_MODEL="ur10e"
+  ROBOT_SERIES="e-series"
+
+  validate_parameters
+}
+
+@test "validate_parameters_on_invalid_model_fails_e" {
+  URSIM_VERSION="latest"
+  ROBOT_MODEL="ur10"
+  ROBOT_SERIES="e-series"
+
+  run validate_parameters
+  [ $status -eq 1 ]
+}
+
+@test "successful_validate_parameters_latest_cb3" {
+  URSIM_VERSION="latest"
+  ROBOT_MODEL="ur10"
+  ROBOT_SERIES="cb3"
+
+  validate_parameters
+}
+
+@test "validate_parameters_on_invalid_model_fails_cb3" {
+  URSIM_VERSION="latest"
+  ROBOT_MODEL="ur103"
+  ROBOT_SERIES="cb3"
+
+  run validate_parameters
+  [ $status -eq 1 ]
+}
+
+@test "validate_parameters_on_invalid_version_fails" {
+  URSIM_VERSION="foobar"
+  ROBOT_MODEL="ur10e"
+  ROBOT_SERIES="e-series"
+
+  run validate_parameters
+  [ $status -eq 1 ]
+}
+
+@test "validate_parameters_on_invalid_model_fails" {
+
+  URSIM_VERSION="5.21.0"
+  ROBOT_MODEL="ur10"
+  ROBOT_SERIES="e-series"
+  run validate_parameters
+  [ $status -eq 1 ]
+
 }
 

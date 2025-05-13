@@ -146,15 +146,6 @@ strip_robot_model()
 # - ROBOT_SERIES
 validate_parameters()
 {
-  local IMAGE_URSIM_VERSION
-  # Inspect the image's URSim version if the image is locally available. This is especially
-  # important when we use the "latest" tag, as we don't know the version hiding behind this and it
-  # could be potentially older.
-  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
-  if [ -z "$IMAGE_URSIM_VERSION" ]; then
-    IMAGE_URSIM_VERSION="$URSIM_VERSION"
-  fi
-  [ "$IMAGE_URSIM_VERSION" == "latest" ] && return 0
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
   local MIN_UR15="5.22.0"
@@ -165,6 +156,22 @@ validate_parameters()
   local MIN_UR7e="5.22.0" # and UR12e
   local MIN_UR7e_X="10.9.0" # and UR12e
 
+  local URSIM_VERSION_CHECK="$URSIM_VERSION"
+  if [[ "$URSIM_VERSION" == "latest" ]]; then
+    if [[ "$ROBOT_SERIES" == "cb3" ]]; then
+      URSIM_VERSION_CHECK="$MIN_CB3"
+    elif [[ "$ROBOT_SERIES" == "e-series" ]]; then
+      URSIM_VERSION_CHECK="$MIN_UR15"
+    elif [[ "$ROBOT_SERIES" == "polyscopex" ]]; then
+      URSIM_VERSION_CHECK="MIN_UR15_X"
+    fi
+  fi
+
+  if ! [[ "$URSIM_VERSION_CHECK" =~ [0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Invalid URSim version given. Must be in the format X.Y.Z. Given: $URSIM_VERSION_CHECK"
+    exit 1
+  fi
+
   local MIN_VERSION="0.0"
 
   case $ROBOT_SERIES in
@@ -173,8 +180,8 @@ validate_parameters()
       if [[ $ROBOT_MODEL != @(ur3|ur5|ur10) ]]; then
         echo "$ROBOT_MODEL is no valid CB3 model!" && exit 1
       fi
-      verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit 1
-      verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
+      verlte "4.0.0" "$URSIM_VERSION_CHECK" && echo "$URSIM_VERSION_CHECK is no valid CB3 version!" && exit 1
+      verlte "$MIN_CB3" "$URSIM_VERSION_CHECK" && return 0
       ;;
     e-series)
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur10e|ur12e|ur16e|ur15|ur20|ur30) ]]; then
@@ -193,8 +200,8 @@ validate_parameters()
       fi
       ;;
     polyscopex)
-      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION}]+_}" ]]; then
-        echo "URSim version $URSIM_VERSION is unfortunately not supported"
+      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION_CHECK}]+_}" ]]; then
+        echo "URSim version $URSIM_VERSION_CHECK is unfortunately not supported"
         exit 1
       fi
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur10e|ur12e|ur16e|ur15|ur20|ur30) ]]; then
@@ -209,9 +216,9 @@ validate_parameters()
       ;;
   esac
 
-  verlte "$MIN_VERSION" "$URSIM_VERSION" && return 0
+  verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK" && return 0
 
-  echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $IMAGE_URSIM_VERSION."
+  echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $URSIM_VERSION."
   exit 1
 }
 
@@ -363,6 +370,18 @@ fill_information() {
   fi
 }
 
+get_version_from_latest()
+{
+  local IMAGE_URSIM_VERSION
+  # Inspect the image's URSim version if the image is locally available. This is especially
+  # important when we use the "latest" tag, as we don't know the version hiding behind this and it
+  # could be potentially older.
+  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
+  if [ -n "$IMAGE_URSIM_VERSION" ]; then
+    URSIM_VERSION="$IMAGE_URSIM_VERSION"
+  fi
+}
+
 test_input_handling() {
   parse_arguments "$@"
   fill_information
@@ -372,6 +391,7 @@ test_input_handling() {
   echo "ROBOT_SERIES: $ROBOT_SERIES"
   echo "URSIM_VERSION: $URSIM_VERSION"
 
+  TEST_RUN=true
   validate_parameters
 }
 
@@ -380,6 +400,7 @@ main() {
   
 
   fill_information
+  get_version_from_latest
 
   echo "ROBOT_MODEL: $ROBOT_MODEL"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
