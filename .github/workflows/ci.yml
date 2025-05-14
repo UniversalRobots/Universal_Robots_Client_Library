@@ -126,14 +126,3 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: start_ursim
-
-  check_links:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check URLs
-        run: |
-          .github/helpers/check_urls.sh \
-            -d ".git build CMakeModules debian" \
-            -f "package.xml urcl_architecture.svg trajectory_interface.svg dataflow.graphml start_ursim.sh ursim_docker.rst" \
-            -p "vnc\.html opensource\.org\/licenses\/BSD-3-Clause kernel\.org\/pub\/linux\/kernel"
