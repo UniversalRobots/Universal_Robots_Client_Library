@@ -148,6 +148,17 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
+   * if false it will not.
+   *
+   * \param friction_compesation Will set a friction_compensation variable in urscript, which will be used when calling
+   * torque_command
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setFrictionCompensation(const bool friction_compensation);
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -177,13 +188,14 @@ private:
   enum class ScriptCommand : int32_t
   {
 
-    ZERO_FTSENSOR = 0,       ///< Zero force torque sensor
-    SET_PAYLOAD = 1,         ///< Set payload
-    SET_TOOL_VOLTAGE = 2,    ///< Set tool voltage
-    START_FORCE_MODE = 3,    ///< Start force mode
-    END_FORCE_MODE = 4,      ///< End force mode
-    START_TOOL_CONTACT = 5,  ///< Start detecting tool contact
-    END_TOOL_CONTACT = 6,    ///< End detecting tool contact
+    ZERO_FTSENSOR = 0,              ///< Zero force torque sensor
+    SET_PAYLOAD = 1,                ///< Set payload
+    SET_TOOL_VOLTAGE = 2,           ///< Set tool voltage
+    START_FORCE_MODE = 3,           ///< Start force mode
+    END_FORCE_MODE = 4,             ///< End force mode
+    START_TOOL_CONTACT = 5,         ///< Start detecting tool contact
+    END_TOOL_CONTACT = 6,           ///< End detecting tool contact
+    SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
   };
 
   bool client_connected_;

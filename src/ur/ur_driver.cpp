@@ -527,6 +527,19 @@ bool UrDriver::endToolContact()
   }
 }
 
+bool UrDriver::setFrictionCompensation(const bool friction_compensation)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setFrictionCompensation(friction_compensation);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set friction compensation.");
+    return 0;
+  }
+}
+
 bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;
