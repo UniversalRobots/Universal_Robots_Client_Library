@@ -344,7 +344,7 @@ TEST_F(ScriptCommandInterfaceTest, test_tool_contact)
   EXPECT_EQ(command, expected_command);
 
   // The rest of the message should be zero
-  int32_t message_sum = std::accumulate(std::begin(message) + 25, std::end(message), 0);
+  int32_t message_sum = std::accumulate(std::begin(message), std::end(message), 0);
   int32_t expected_message_sum = 0;
   EXPECT_EQ(message_sum, expected_message_sum);
 
@@ -358,7 +358,7 @@ TEST_F(ScriptCommandInterfaceTest, test_tool_contact)
   EXPECT_EQ(command, expected_command);
 
   // The rest of the message should be zero
-  message_sum = std::accumulate(std::begin(message) + 25, std::end(message), 0);
+  message_sum = std::accumulate(std::begin(message), std::end(message), 0);
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
