@@ -44,6 +44,10 @@ add_executable(script_sender_example
 script_sender.cpp)
 target_link_libraries(script_sender_example ur_client_library::urcl)
 
+add_executable(script_command_interface_example
+script_command_interface.cpp)
+target_link_libraries(script_command_interface_example ur_client_library::urcl)
+
 add_executable(trajectory_point_interface_example
 trajectory_point_interface.cpp)
 target_link_libraries(trajectory_point_interface_example ur_client_library::urcl)
