@@ -123,7 +123,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    1      No specific meaning / values ignored
    =====  =====
 
-.. table:: With endToolContact command
+.. table:: With setFrictionCompensation command
    :widths: auto
 
    =====  =====
