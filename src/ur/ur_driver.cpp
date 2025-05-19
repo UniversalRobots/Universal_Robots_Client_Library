@@ -527,11 +527,11 @@ bool UrDriver::endToolContact()
   }
 }
 
-bool UrDriver::setFrictionCompensation(const bool friction_compensation)
+bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
 {
   if (script_command_interface_->clientConnected())
   {
-    return script_command_interface_->setFrictionCompensation(friction_compensation);
+    return script_command_interface_->setFrictionCompensation(friction_compensation_enabled);
   }
   else
   {
