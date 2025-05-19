@@ -49,6 +49,7 @@ START_FORCE_MODE = 3
 END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
+SET_FRICTION_COMPENSATION = 7
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -81,6 +82,7 @@ global spline_qdd = [0, 0, 0, 0, 0, 0]
 global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 global trajectory_result = 0
+global friction_compensation_enabled = True
 
 # Global thread variables
 thread_move = 0
@@ -691,6 +693,12 @@ thread script_commands():
           socket_send_int(UNTIL_TOOL_CONTACT_RESULT_CANCELED, "script_command_socket")
         end
         tool_contact_running = False
+      elif command == SET_FRICTION_COMPENSATION:
+        if raw_command[2] == 0:
+          friction_compensation_enabled = False
+        else:
+          friction_compensation_enabled = True
+        end
       end
     end
   end
