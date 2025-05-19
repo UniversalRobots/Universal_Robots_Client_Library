@@ -222,7 +222,7 @@ bool ScriptCommandInterface::endToolContact()
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation)
+bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation_enabled)
 {
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
@@ -231,7 +231,7 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_COMPENSATION));
   b_pos += append(b_pos, val);
 
-  val = htobe32(friction_compensation);
+  val = htobe32(friction_compensation_enabled);
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
