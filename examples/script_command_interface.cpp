@@ -52,6 +52,9 @@ void sendScriptCommands()
     const std::chrono::seconds timeout(3);
     if (g_running)
     {
+      // We wait a fixed time so that not each command is run directly behind each other.
+      // This is done for example purposes only, so users can follow the effect on the teach
+      // pendant.
       std::this_thread::sleep_for(timeout);
       URCL_LOG_INFO(log_output.c_str());
       func();
