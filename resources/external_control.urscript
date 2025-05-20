@@ -71,7 +71,7 @@ JOINT_IGNORE_SPEED = 20.0
 global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global cmd_tau = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global cmd_torque = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_servo_q = get_joint_positions()
 global cmd_servo_q_last = cmd_servo_q
 global cmd_twist = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -228,16 +228,16 @@ thread speedThread():
 end
 
 # Helpers for torque control
-def set_torque(tau):
-  cmd_tau = tau
+def set_torque(target_torque):
+  cmd_torque = torque
   control_mode = MODE_TORQUE
 end
 
 thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
   while control_mode == MODE_TORQUE:
-    tau = cmd_tau
-    torque_command(tau, friction_comp=True)
+    torque = cmd_torque
+    torque_command(torque, friction_comp=friction_compensation_enabled)
   end
   textmsg("ExternalControl: torque thread ended")
   stopj(STOPJ_ACCELERATION)
@@ -787,8 +787,8 @@ while control_mode > MODE_STOPPED:
       qd = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
       set_speed(qd)
     elif control_mode == MODE_TORQUE:
-      tau = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
-      set_torque(tau)
+      torque = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
+      set_torque(torque)
     elif control_mode == MODE_FORWARD:
       if params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         kill thread_trajectory
