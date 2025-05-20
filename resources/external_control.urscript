@@ -229,7 +229,7 @@ end
 
 # Helpers for torque control
 def set_torque(target_torque):
-  cmd_torque = torque
+  cmd_torque = target_torque
   control_mode = MODE_TORQUE
 end
 
