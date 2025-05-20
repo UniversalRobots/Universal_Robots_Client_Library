@@ -9,7 +9,7 @@ URScript running that is connected to it.
 An example to utilize the script command interface can be found in the `freedrive_example.cpp <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/script_command_interface.cpp>`_.
 
 In order to use the ``ScriptCommandInterface``, there has to be a script code running on the robot
-that connects to the ``ScriptCommandInterface``. This happens as art of the big
+that connects to the ``ScriptCommandInterface``. This happens as part of the big
 `external_control.urscript <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/resources/external_control.urscript>`_. In order to reuse that with this example, we will create a full
 ``UrDriver`` and leverage the ``ScriptCommandInterface`` through this.
 
