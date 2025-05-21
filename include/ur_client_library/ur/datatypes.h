@@ -86,6 +86,18 @@ enum class AnalogOutputType : int8_t
   VOLTAGE = 1
 };
 
+enum class RobotType : int8_t
+{
+  UNDEFINED = -128,  // This is not defined by UR but only inside this driver
+  UR5 = 1,
+  UR10 = 2,
+  UR3 = 3,
+  UR16 = 4,
+  UR20 = 7,
+  UR30 = 8,
+  UR15 = 9
+};
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)
@@ -186,4 +198,31 @@ inline std::string safetyStatusString(const SafetyStatus& status)
       throw std::invalid_argument(ss.str());
   }
 }
+
+inline std::string robotTypeString(const RobotType& type)
+{
+  switch (type)
+  {
+    case RobotType::UR3:
+      return "UR3";
+    case RobotType::UR5:
+      return "UR5";
+    case RobotType::UR10:
+      return "UR10";
+    case RobotType::UR15:
+      return "UR15";
+    case RobotType::UR16:
+      return "UR16";
+    case RobotType::UR20:
+      return "UR20";
+    case RobotType::UR30:
+      return "UR30";
+    default:
+      std::stringstream ss;
+      ss << "Unknown Robot Type: " << static_cast<int>(type);
+      URCL_LOG_WARN(ss.str().c_str());
+      return "UNDEFINED";
+  }
+}
+
 }  // namespace urcl
