@@ -29,6 +29,7 @@
 #pragma once
 
 #include <ur_client_library/types.h>
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
