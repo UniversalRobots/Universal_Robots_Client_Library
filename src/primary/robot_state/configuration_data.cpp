@@ -92,24 +92,25 @@ bool ConfigurationData::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string ConfigurationData::toString() const
 {
   std::stringstream os;
-  os << "Joint position limits: [";
+  os << "ConfigurationData:" << std::endl;
+  os << "Joint position limits: [" << std::endl;
   for (auto& limits : joint_position_limits_)
   {
-    os << " {min: " << limits.joint_min_limit << ", max " << limits.joint_max_limit << "} ";
+    os << " {min: " << limits.joint_min_limit << ", max " << limits.joint_max_limit << "} " << std::endl;
   }
   os << "]" << std::endl;
-  os << "Joint motion limits: [";
+  os << "Joint motion limits: [" << std::endl;
   for (auto& limits : joint_motion_limits_)
   {
-    os << " {max joint speed: " << limits.joint_max_speed
-       << ", max joint acceleration: " << limits.joint_max_acceleration << "} ";
+    os << "  {max joint speed: " << limits.joint_max_speed
+       << ", max joint acceleration: " << limits.joint_max_acceleration << "} " << std::endl;
   }
   os << "]" << std::endl;
   os << "Velocity joint default: " << v_joint_default_ << std::endl;
   os << "Acceleration joint default: " << a_joint_default_ << std::endl;
   os << "Velocity tool default: " << v_tool_default_ << std::endl;
   os << "Acceleration tool default: " << a_tool_default_ << std::endl;
-  os << "Eq radius: " << eq_radius_ << std::endl;
+  os << "Equivalent radius: " << eq_radius_ << std::endl;
   os << "dh_a: [";
   for (size_t i = 0; i < dh_a_.size(); ++i)
   {
