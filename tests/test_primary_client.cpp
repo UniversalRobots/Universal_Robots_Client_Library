@@ -129,6 +129,8 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
   // The client is not started yet, so the robot mode should be UNKNOWN
   ASSERT_EQ(client_->getRobotMode(), RobotMode::UNKNOWN);
   ASSERT_THROW(client_->isRobotProtectiveStopped(), UrException);
+  // The client is not started yet, so the robot type should be UNDEFINED
+  ASSERT_EQ(client_->getRobotType(), RobotType::UNDEFINED);
 }
 
 TEST_F(PrimaryClientTest, test_stop_command)
@@ -175,6 +177,27 @@ TEST_F(PrimaryClientTest, test_stop_command)
         return !client_->getRobotModeData()->is_program_running_ && !client_->getRobotModeData()->is_program_paused_;
       },
       std::chrono::seconds(5)));
+}
+
+TEST_F(PrimaryClientTest, test_configuration_data)
+{
+  EXPECT_NO_THROW(client_->start());
+
+  // Once we connect to the primary client we should receive configuration data
+  auto start_time = std::chrono::system_clock::now();
+  const auto timeout = std::chrono::seconds(1);
+  auto config_data = client_->getConfigurationData();
+  while (config_data == nullptr && std::chrono::system_clock::now() - start_time < timeout)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    config_data = client_->getConfigurationData();
+  }
+
+  // We should have received a configuration data package
+  EXPECT_NE(config_data, nullptr);
+
+  // Robot type should no longer be undefined once we have received configuration data.
+  EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
 }
 
 int main(int argc, char* argv[])

@@ -218,6 +218,25 @@ public:
     return robot_mode_data->is_protective_stopped_;
   }
 
+  /*!
+   * \brief Get the latest configuration data
+   *
+   * The configuration data will be updated in the background. This will always show the latest
+   * received configuration data independent of the time that has passed since receiving it. If no
+   * configuration data has been received yet, this will return a nullptr.
+   */
+  std::shared_ptr<ConfigurationData> getConfigurationData()
+  {
+    return consumer_->getConfigurationData();
+  }
+
+  /*!
+   * \brief Get the Robot type
+   *
+   * If no robot type data has been received yet, this will return UNDEFINED.
+   */
+  RobotType getRobotType();
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.

@@ -30,6 +30,7 @@
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/primary/robot_state/configuration_data.h"
 
 namespace urcl
 {
@@ -159,6 +160,8 @@ private:
       // return new MBD;*/
       case RobotStateType::KINEMATICS_INFO:
         return new KinematicsInfo(type);
+      case RobotStateType::CONFIGURATION_DATA:
+        return new ConfigurationData(type);
       default:
         return new RobotState(type);
     }

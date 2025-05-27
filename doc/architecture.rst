@@ -26,5 +26,5 @@ The image below shows a rough architecture overview that should help developers 
 modules present in this library. Note that this is an incomplete view on the classes involved.
 
 .. image:: images/urcl_architecture.svg
-  :width: 100%
+  :width: 1200
   :alt: architecture overview

@@ -279,5 +279,15 @@ std::shared_ptr<VersionInformation> PrimaryClient::getRobotVersion(bool blocking
   return consumer_->getVersionInformation();
 }
 
+RobotType PrimaryClient::getRobotType()
+{
+  std::shared_ptr<ConfigurationData> configuration_data = consumer_->getConfigurationData();
+  if (configuration_data == nullptr)
+  {
+    return RobotType::UNDEFINED;
+  }
+  return static_cast<RobotType>(configuration_data->robot_type_);
+}
+
 }  // namespace primary_interface
 }  // namespace urcl

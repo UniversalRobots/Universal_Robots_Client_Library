@@ -170,6 +170,13 @@ public:
     return true;
   }
 
+  virtual bool consume(ConfigurationData& pkg) override
+  {
+    std::scoped_lock lock(configuration_data_mutex_);
+    configuration_data_ = std::make_shared<ConfigurationData>(pkg);
+    return true;
+  }
+
   /*!
    * \brief Set callback function which will be triggered whenever error code messages are received
    *
@@ -216,6 +223,19 @@ public:
     return version_information_;
   }
 
+  /*!
+   * \brief Get the latest configuration data.
+   *
+   * The configuration data will be updated in the background. This will always show the latest
+   * received configuration data independent of the time that has passed since receiving it. If no
+   * configuration data has been received yet, this will return a nullptr.
+   */
+  std::shared_ptr<ConfigurationData> getConfigurationData()
+  {
+    std::scoped_lock lock(configuration_data_mutex_);
+    return configuration_data_;
+  }
+
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
   std::shared_ptr<KinematicsInfo> kinematics_info_;
@@ -223,6 +243,8 @@ private:
   std::shared_ptr<RobotModeData> robot_mode_;
   std::mutex version_information_mutex_;
   std::shared_ptr<VersionInformation> version_information_;
+  std::shared_ptr<ConfigurationData> configuration_data_;
+  std::mutex configuration_data_mutex_;
 };
 
 }  // namespace primary_interface
