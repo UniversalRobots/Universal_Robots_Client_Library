@@ -1,3 +1,8 @@
+setup_file() {
+  docker pull universalrobots/ursim_cb3:latest
+  docker pull universalrobots/ursim_e-series:latest
+}
+
 setup() {
     # get the containing directory of this file
     # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
