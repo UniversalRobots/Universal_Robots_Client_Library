@@ -55,3 +55,7 @@ target_link_libraries(trajectory_point_interface_example ur_client_library::urcl
 add_executable(instruction_executor
 instruction_executor.cpp)
 target_link_libraries(instruction_executor ur_client_library::urcl)
+
+add_executable(pd_controller_example
+pd_controller_example.cpp)
+target_link_libraries(pd_controller_example ur_client_library::urcl)
