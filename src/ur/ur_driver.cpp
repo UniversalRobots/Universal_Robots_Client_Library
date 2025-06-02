@@ -52,6 +52,12 @@ static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PO
 static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
 static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
 
+UrDriver::~UrDriver()
+{
+  // This will return false if the external control script is not running.
+  stopControl();
+}
+
 void UrDriver::init(const UrDriverConfiguration& config)
 {
   robot_ip_ = config.robot_ip;
