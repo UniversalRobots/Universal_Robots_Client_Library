@@ -159,6 +159,30 @@ public:
   bool setFrictionCompensation(const bool friction_compensation_enabled);
 
   /*!
+   * \brief Set gains for the PD controller running in the external control script. The PD controller computes joint
+   * torques based on either tcp poses or joint poses and applies the torques to the robot using the torque_command
+   * function. The gains can be used to change the response of the controller. Be aware that changing the controller
+   * response can make it unstable.
+   *
+   * \param kp A vector6d of proportional gains for each of the joints in the robot.
+   * \param kd A vector6d of derivative gains for each of the joints in the robot.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd);
+
+  /*!
+   * \brief Set the maximum joint torques for the PD controller running in the external control script. The PD
+   * controller will clamp the torques between +-max_joint_torques before aplying them to the robot using the
+   * torque_command function.
+   *
+   * \param max_joint_torques A vector6d of the maximum joint torques for each of the joints.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setMaxJointTorques(const urcl::vector6d_t* max_joint_torques);
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -196,6 +220,8 @@ private:
     START_TOOL_CONTACT = 5,         ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,           ///< End detecting tool contact
     SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
+    SET_PD_CONTROLLER_GAINS = 8,    ///< Set PD controller gains
+    SET_MAX_JOINT_TORQUES = 9,      ///< Set max joint torques
   };
 
   bool client_connected_;

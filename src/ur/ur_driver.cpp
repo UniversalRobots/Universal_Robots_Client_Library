@@ -573,6 +573,54 @@ bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
   }
 }
 
+bool UrDriver::setPDControllerGains(const urcl::vector6d_t& kp, const urcl::vector6d_t& kd)
+{
+  if (!std::all_of(kp.begin(), kp.end(), [](double v) { return v >= 0.0; }))
+  {
+    throw InvalidRange("kp should be larger than zero");
+  }
+
+  if (!std::all_of(kd.begin(), kd.end(), [](double v) { return v >= 0.0; }))
+  {
+    throw InvalidRange("kd should be larger than zero");
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setPDControllerGains(&kp, &kd);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set PD Controller gains.");
+    return 0;
+  }
+}
+
+bool UrDriver::setMaxJointTorques(const urcl::vector6d_t& max_joint_torques)
+{
+  const urcl::vector6d_t max_torques_for_robot_type =
+      control::getMaxTorquesFromRobotType(primary_client_->getRobotType());
+  if (!std::equal(max_joint_torques.begin(), max_joint_torques.end(), max_torques_for_robot_type.begin(),
+                  [](double v1, double v2) { return v1 <= v2 && v1 >= 0.0; }))
+  {
+    std::stringstream ss;
+    ss << "The max joint torques should be smaller or equal to the maximum joint torques for the robot type and larger "
+          "than zero. Provided max joint torques "
+       << max_joint_torques << " and maximum joint torques for the robot type " << max_torques_for_robot_type;
+    throw InvalidRange(ss.str().c_str());
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setMaxJointTorques(&max_joint_torques);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set max joint torques.");
+    return 0;
+  }
+}
+
 bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;

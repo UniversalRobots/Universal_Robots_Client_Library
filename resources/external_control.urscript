@@ -53,6 +53,8 @@ END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_FRICTION_COMPENSATION = 7
+SET_PD_CONTROLLER_GAINS = 8
+SET_MAX_JOINT_TORQUES = 9
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -757,6 +759,11 @@ thread script_commands():
         else:
           friction_compensation_enabled = True
         end
+      elif command == SET_PD_CONTROLLER_GAINS:
+        pd_controller_gains.kp = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
+        pd_controller_gains.kd = [raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate, raw_command[12] / MULT_jointstate, raw_command[13] / MULT_jointstate]
+      elif command == SET_MAX_JOINT_TORQUES:
+        max_joint_torques = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate] 
       end
     end
   end
