@@ -435,7 +435,7 @@ public:
     init(config);
   }
 
-  virtual ~UrDriver() = default;
+  ~UrDriver();
 
   /*!
    * \brief Access function to receive the latest data package sent from the robot through RTDE
