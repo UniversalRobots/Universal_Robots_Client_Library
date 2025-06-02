@@ -171,9 +171,10 @@ setup() {
   run test_input_handling -m ur7e -v 5.22.0
   echo "$output"
   [ $status -eq 0 ]
-  #run test_input_handling -m ur7e -v 10.9.0
-  #echo "$output"
-  #[ $status -eq 0 ]
+
+  run test_input_handling -m ur7e -v 10.9.0
+  echo "$output"
+  [ $status -eq 0 ]
 }
 
 @test "test ur12e min version" {
@@ -190,9 +191,10 @@ setup() {
   run test_input_handling -m ur12e -v 5.22.0
   echo "$output"
   [ $status -eq 0 ]
-  #run test_input_handling -m ur12e -v 10.9.0
-  #echo "$output"
-  #[ $status -eq 0 ]
+
+  run test_input_handling -m ur12e -v 10.9.0
+  echo "$output"
+  [ $status -eq 0 ]
 }
 
 @test "test ur15 min version" {

@@ -40,7 +40,8 @@ TEST_RUN=false
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
 # versions
 declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
-                              ["10.8.0"]="0.13.124")
+                              ["10.8.0"]="0.13.124"
+                              ["10.9.0"]="0.14.47")
 
 help()
 {
@@ -135,7 +136,11 @@ strip_robot_model()
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     elif [[ "$robot_model" = @(ur7e|ur12e) ]]; then
-      ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
+      if [[ "$robot_series" == "polyscopex" ]]; then
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
+      else
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
+      fi
     fi
   fi
 }
