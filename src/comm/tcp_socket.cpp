@@ -56,6 +56,7 @@ void TCPSocket::setupOptions()
   int flag = 1;
   ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
+  // macOS does not have TCP_QUICKACK
 #ifdef TCP_QUICKACK
   ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
 #endif

@@ -61,6 +61,7 @@ if(MSVC)
   target_link_libraries(urcl ws2_32)
 else()
   if(APPLE)
+    # macOS does not have a built in endian.h header
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian)
   endif()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
