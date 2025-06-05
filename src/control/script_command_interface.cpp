@@ -293,6 +293,64 @@ bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd)
+{
+  const int message_length = 13;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_PD_CONTROLLER_GAINS));
+  b_pos += append(b_pos, val);
+
+  for (auto const& p_gain : *kp)
+  {
+    val = htobe32(static_cast<int32_t>(round(p_gain * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& d_gain : *kd)
+  {
+    val = htobe32(static_cast<int32_t>(round(d_gain * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::setMaxJointTorques(const urcl::vector6d_t* max_joint_torques)
+{
+  const int message_length = 7;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_MAX_JOINT_TORQUES));
+  b_pos += append(b_pos, val);
+
+  for (auto const& max_torque : *max_joint_torques)
+  {
+    val = htobe32(static_cast<int32_t>(round(max_torque * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::clientConnected()
 {
   return client_connected_;
