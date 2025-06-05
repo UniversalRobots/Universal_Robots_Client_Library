@@ -170,14 +170,12 @@ def clamp_array(values, clampValues):
   if length(values) != length(clampValues):
     popup("List of values has different length than list of clamp values.", error = True, blocking = True)
   end
-  pdiff = values - clampValues
-  mdiff = values + clampValues
   ret = values
   j = 0
   while j < length(values):
-    if pdiff[j] > 0:
+    if values[j] > clampValues[j]:
         ret[j] = clampValues[j]
-    elif mdiff[j] < 0:
+    elif values[j] < -clampValues[j]:
         ret[j] = -clampValues[j]
     end
     j = j + 1
