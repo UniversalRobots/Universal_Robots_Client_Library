@@ -436,6 +436,12 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
   received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
+
+  expected_control_mode = comm::ControlMode::MODE_PD_CONTROLLER_JOINT;
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
+
+  EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 }
 
 TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
