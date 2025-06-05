@@ -25,6 +25,8 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 - ``setGravity()``: Set the gravity vector for the robot.
 - ``setTcpOffset()``: Set the TCP offset of the robot.
 - ``setFrictionScales()``: Set viscous and Coulomb friction scale factors for direct torque control.
+- ``setPDControllerGains()``: Set PD gains for the PD control loop running in the external control script.
+- ``setMaxJointTorques()``: Set Max joint torques for the PD control loop running in the external control script.
 
 Communication protocol
 ----------------------
@@ -58,6 +60,8 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 9: setGravity
            - 10: setTcpOffset
            - 11: setFrictionScales
+           - 12: setPDControllerGains
+           - 13: setMaxJointTorques
    1-27   data fields specific to the command
    =====  =====
 
@@ -150,6 +154,24 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    2      sensor_mass in kg (floating point)
    3-5    sensor_mesurement_offset in m, displacement from the tool flange (3d floating point)
    6-9    sensor_cog in m, displacement from the tool flange (3d floating point)
+
+.. table:: With setPDControllerGains command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    Kp gains for each joint, used in the PD control loop running in the external control script (floating point)
+   7-12   Kd gains for each joint, used in the PD control loop running in the external control script (floating point)
+   =====  =====
+
+.. table:: With setMaxJointTorques command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    max_joint_torques for each joint, used to clamp the torques between +-max_joint_torques before applying them to the robot in the PD control loop running in the external control script (floating point)
    =====  =====
 
 .. table:: With setGravity command
