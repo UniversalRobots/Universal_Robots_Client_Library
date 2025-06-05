@@ -34,6 +34,8 @@
 #include "ur_client_library/ur/ur_driver.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/primary/primary_parser.h"
+#include "ur_client_library/control/torque_command_controller_parameters.h"
+#include "ur_client_library/helpers.h"
 #include <memory>
 #include <sstream>
 
@@ -51,6 +53,8 @@ static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLA
 static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
 static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
 static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
+static const std::string PD_CONTROLLER_GAINS_REPLACE("{{PD_CONTROLLER_GAINS_REPLACE}}");
+static const std::string MAX_JOINT_TORQUE_REPLACE("{{MAX_JOINT_TORQUE_REPLACE}}");
 
 void UrDriver::init(const UrDriverConfiguration& config)
 {
@@ -146,6 +150,35 @@ void UrDriver::init(const UrDriverConfiguration& config)
   script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
 
   startPrimaryClientCommunication();
+
+  std::chrono::milliseconds timeout(1000);
+  try
+  {
+    waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, timeout);
+  }
+  catch (const TimeoutException&)
+  {
+    throw TimeoutException("Could not get configuration package within timeout, are you connected to the robot?",
+                           timeout);
+  }
+
+  const RobotType robot_type = primary_client_->getRobotType();
+
+  if (prog.find(PD_CONTROLLER_GAINS_REPLACE) != std::string::npos)
+  {
+    const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
+    std::stringstream ss;
+    ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
+    prog.replace(prog.find(PD_CONTROLLER_GAINS_REPLACE), PD_CONTROLLER_GAINS_REPLACE.length(), ss.str());
+  }
+
+  if (prog.find(MAX_JOINT_TORQUE_REPLACE) != std::string::npos)
+  {
+    std::stringstream ss;
+    ss << control::getMaxTorquesFromRobotType(robot_type);
+    prog.replace(prog.find(MAX_JOINT_TORQUE_REPLACE), MAX_JOINT_TORQUE_REPLACE.length(), ss.str());
+  }
+
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";
