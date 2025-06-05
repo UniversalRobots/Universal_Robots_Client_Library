@@ -21,6 +21,8 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
   <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/tool_contact_example.cpp>`_
   for more information.
 - ``setFrictionCompensation()``: Set friction compensation for torque command.
+- ``setPDControllerGains()``: Set PD gains for the PD control loop running in the external control script.
+- ``setMaxJointTorques()``: Set Max joint torques for the PD control loop running in the external control script.
 
 Communication protocol
 ----------------------
@@ -50,6 +52,8 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 5: startToolContact
            - 6: endToolContact
            - 7: setFrictionCompensation
+           - 8: setPDControllerGains
+           - 9: setMaxJointTorques
    1-27   data fields specific to the command
    =====  =====
 
@@ -130,6 +134,25 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    index  meaning
    =====  =====
    1      friction_compensation_enabled enable/disable friction compensation for torque command.
+   =====  =====
+
+.. table:: With setPDControllerGains command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    Kp gains for each joint, used in the PD control loop running in the external control script (floating point)
+   7-12   Kd gains for each joint, used in the PD control loop running in the external control script (floating point)
+   =====  =====
+
+.. table:: With setMaxJointTorques command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    max_joint_torques for each joint, used to clamp the torques between +-max_joint_torques before applying them to the robot in the PD control loop running in the external control script (floating point)
    =====  =====
 
 .. note::
