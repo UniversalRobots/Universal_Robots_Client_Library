@@ -57,7 +57,7 @@ inline PDControllerGains getPdGainsFromRobotType(RobotType robot_type)
       return UR10_PD_CONTROLLER_PARAMETERS_JOINT_SPACE;
     default:
       std::stringstream ss;
-      ss << "Default gains has not been tuned for robot type " << static_cast<int>(robot_type)
+      ss << "Default gains has not been tuned for robot type " << robotTypeString(robot_type)
          << ". Defaulting to UR10 gains.";
       URCL_LOG_WARN(ss.str().c_str());
       return UR10_PD_CONTROLLER_PARAMETERS_JOINT_SPACE;
@@ -86,7 +86,7 @@ inline vector6d_t getMaxTorquesFromRobotType(RobotType robot_type)
       return MAX_UR10_JOINT_TORQUE;
     default:
       std::stringstream ss;
-      ss << "Max joint torques not collected for robot type " << static_cast<int>(robot_type)
+      ss << "Max joint torques not collected for robot type " << robotTypeString(robot_type)
          << ". Defaulting to UR10 max joint torques.";
       URCL_LOG_WARN(ss.str().c_str());
       return MAX_UR10_JOINT_TORQUE;
