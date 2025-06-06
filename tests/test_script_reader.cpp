@@ -33,6 +33,10 @@
 
 #include <fstream>
 
+#ifdef _WIN32
+#  define mkstemp _mktemp_s
+#endif
+
 using namespace urcl::control;
 
 class ScriptReaderTest : public ::testing::Test
@@ -51,9 +55,6 @@ protected:
     invalid_script_path_ = "test_resources/non_existent_script.urscript";
     empty_script_path_ = "resources/empty.txt";
     char existing_script_file[] = "urscript.XXXXXX";
-#ifdef _WIN32
-#  define mkstemp _mktemp_s
-#endif
     std::ignore = mkstemp(existing_script_file);
     std::ofstream ofs(existing_script_file);
     if (ofs.bad())
@@ -65,7 +66,7 @@ protected:
 
     valid_script_path_ = existing_script_file;
 
-    simple_script_ << "movej([0,0,0,0,0,0])";
+    simple_script_ << "movej([0,0,0,0,0,0])\n";
 
     // Create test resources
     std::ofstream valid_script(valid_script_path_);
@@ -89,7 +90,7 @@ TEST_F(ScriptReaderTest, ReadValidScript)
 {
   ScriptReader reader(robot_info_);
   std::string content = reader.readScriptFile(valid_script_path_);
-  EXPECT_EQ(content, "movej([0,0,0,0,0,0])");
+  EXPECT_EQ(content, simple_script_.str());
 }
 
 TEST_F(ScriptReaderTest, ReadEmptyScript)
@@ -103,4 +104,39 @@ TEST_F(ScriptReaderTest, ReadNonExistentScript)
 {
   ScriptReader reader(robot_info_);
   EXPECT_THROW(reader.readScriptFile(invalid_script_path_), std::runtime_error);
+}
+
+TEST_F(ScriptReaderTest, ReplaceIncludes)
+{
+  ScriptReader reader(robot_info_);
+
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  char existing_include_file[] = "included_script.XXXXXX";
+  std::ignore = mkstemp(existing_include_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  std::string script_with_include = "{% include '" + std::string(existing_include_file) + "' %}";
+  ofs << script_with_include;
+  ofs.close();
+
+  // Create a temporary included script
+  std::ofstream ofs_included(existing_include_file);
+  if (ofs_included.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs_included << "movej([1,2,3,4,5,6])";
+  ofs_included.close();
+
+  std::string processed_script = reader.readScriptFile(existing_script_file);
+  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])\n");
+
+  std::remove(existing_script_file);
+  std::remove(existing_include_file);
 }

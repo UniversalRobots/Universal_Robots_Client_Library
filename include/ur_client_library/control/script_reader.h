@@ -29,7 +29,10 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #pragma once
+#include <filesystem>
 #include <string>
+#include <unordered_map>
+#include <variant>
 
 #include <ur_client_library/ur/datatypes.h>
 #include <ur_client_library/ur/version_information.h>
@@ -59,7 +62,12 @@ public:
   std::string readScriptFile(const std::string& filename);
 
 private:
+  std::filesystem::path script_path_;
   RobotInfo robot_info_;
+  std::unordered_map<std::string, std::variant<std::string, float, int>> replacement_data_;
+
+  void replaceIncludes(std::string& script_code);
+  std::string readFileContent(const std::string& filename);
 };
 }  // namespace control
 }  // namespace urcl

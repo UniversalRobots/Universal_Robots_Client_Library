@@ -32,12 +32,23 @@
 #include <ur_client_library/control/script_reader.h>
 
 #include <fstream>
+#include <regex>
 
 namespace urcl
 {
 namespace control
 {
 std::string ScriptReader::readScriptFile(const std::string& filename)
+{
+  script_path_ = filename;
+  std::string script_code = readFileContent(filename);
+
+  replaceIncludes(script_code);
+
+  return script_code;
+}
+
+std::string ScriptReader::readFileContent(const std::string& filename)
 {
   std::ifstream ifs;
   ifs.open(filename);
@@ -57,5 +68,32 @@ std::string ScriptReader::readScriptFile(const std::string& filename)
 
   return content;
 }
+
+void ScriptReader::replaceIncludes(std::string& script)
+{
+  std::string line;
+  std::regex include_pattern(R"(\{\%\s*include\s*['|"]([^'"]+)['|"]\s*\%\})");
+
+  std::stringstream input_stream(script);
+  std::stringstream output_stream;
+
+  while (std::getline(input_stream, line))
+  {
+    std::smatch match;
+    std::string processed_line = line;
+
+    // Replace all include patterns in the line
+    while (std::regex_search(processed_line, match, include_pattern))
+    {
+      std::filesystem::path file_path(match[1]);
+      std::string file_content = readFileContent(script_path_.parent_path() / file_path.string());
+      processed_line.replace(match.position(0), match.length(0), file_content);
+    }
+
+    output_stream << processed_line << '\n';
+  }
+  script = output_stream.str();
+}
+
 }  // namespace control
 }  // namespace urcl
