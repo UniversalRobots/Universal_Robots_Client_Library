@@ -32,6 +32,7 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/ur/ur_driver.h"
+#include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
@@ -42,16 +43,16 @@
 
 namespace urcl
 {
-static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
-static const std::string JOINT_STATE_REPLACE("{{JOINT_STATE_REPLACE}}");
-static const std::string TIME_REPLACE("{{TIME_REPLACE}}");
-static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
-static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
-static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
-static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLACE}}");
-static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
-static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
-static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
+static const std::string BEGIN_REPLACE("BEGIN_REPLACE");
+static const std::string JOINT_STATE_REPLACE("JOINT_STATE_REPLACE");
+static const std::string TIME_REPLACE("TIME_REPLACE");
+static const std::string SERVO_J_REPLACE("SERVO_J_REPLACE");
+static const std::string SERVER_IP_REPLACE("SERVER_IP_REPLACE");
+static const std::string SERVER_PORT_REPLACE("SERVER_PORT_REPLACE");
+static const std::string TRAJECTORY_PORT_REPLACE("TRAJECTORY_SERVER_PORT_REPLACE");
+static const std::string SCRIPT_COMMAND_PORT_REPLACE("SCRIPT_COMMAND_SERVER_PORT_REPLACE");
+static const std::string FORCE_MODE_SET_DAMPING_REPLACE("FORCE_MODE_SET_DAMPING_REPLACE");
+static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("FORCE_MODE_SET_GAIN_SCALING_REPLACE");
 
 UrDriver::~UrDriver()
 {
@@ -87,52 +88,21 @@ void UrDriver::init(const UrDriverConfiguration& config)
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = config.reverse_ip.empty() ? rtde_client_->getIP() : config.reverse_ip;
 
+  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
+  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+
   startPrimaryClientCommunication();
-  waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, std::chrono::milliseconds(500));
-  control::ScriptReader::RobotInfo robot_info;
-  robot_info.robot_type = primary_client_->getRobotType();
-  script_reader_.reset(new control::ScriptReader(robot_info));
 
-  std::string prog = readScriptFile(config.script_file);
-  while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(),
-                 std::to_string(control::ReverseInterface::MULT_JOINTSTATE));
-  }
-  while (prog.find(TIME_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(TIME_REPLACE), TIME_REPLACE.length(),
-                 std::to_string(control::TrajectoryPointInterface::MULT_TIME));
-  }
-
+  control::ScriptReader::DataDict data;
+  data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
+  data[TIME_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_TIME);
   std::ostringstream out;
   out << "lookahead_time=" << servoj_lookahead_time_ << ", gain=" << servoj_gain_;
-  while (prog.find(SERVO_J_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVO_J_REPLACE), SERVO_J_REPLACE.length(), out.str());
-  }
-
-  while (prog.find(SERVER_IP_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVER_IP_REPLACE), SERVER_IP_REPLACE.length(), local_ip);
-  }
-
-  while (prog.find(SERVER_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVER_PORT_REPLACE), SERVER_PORT_REPLACE.length(), std::to_string(config.reverse_port));
-  }
-
-  while (prog.find(TRAJECTORY_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(TRAJECTORY_PORT_REPLACE), TRAJECTORY_PORT_REPLACE.length(),
-                 std::to_string(config.trajectory_port));
-  }
-
-  while (prog.find(SCRIPT_COMMAND_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SCRIPT_COMMAND_PORT_REPLACE), SCRIPT_COMMAND_PORT_REPLACE.length(),
-                 std::to_string(config.script_command_port));
-  }
+  data[SERVO_J_REPLACE] = out.str();
+  data[SERVER_IP_REPLACE] = local_ip;
+  data[SERVER_PORT_REPLACE] = std::to_string(config.reverse_port);
+  data[TRAJECTORY_PORT_REPLACE] = std::to_string(config.trajectory_port);
+  data[SCRIPT_COMMAND_PORT_REPLACE] = std::to_string(config.script_command_port);
 
   robot_version_ = rtde_client_->getVersion();
 
@@ -153,10 +123,9 @@ void UrDriver::init(const UrDriverConfiguration& config)
                   << config.tool_comm_setup->getStopBits() << ", " << config.tool_comm_setup->getRxIdleChars() << ", "
                   << config.tool_comm_setup->getTxIdleChars() << ")";
   }
-  prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
-
-  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
-  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+  data[BEGIN_REPLACE] = begin_replace.str();
+  script_reader_.reset(new control::ScriptReader());
+  std::string prog = script_reader_->readScriptFile(config.script_file, data);
 
   if (in_headless_mode_)
   {

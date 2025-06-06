@@ -48,8 +48,6 @@ protected:
 
   std::stringstream simple_script_;
 
-  ScriptReader::RobotInfo robot_info_;
-
   void SetUp() override
   {
     invalid_script_path_ = "test_resources/non_existent_script.urscript";
@@ -66,49 +64,43 @@ protected:
 
     valid_script_path_ = existing_script_file;
 
-    simple_script_ << "movej([0,0,0,0,0,0])\n";
+    simple_script_ << "movej([0,0,0,0,0,0])";
 
     // Create test resources
     std::ofstream valid_script(valid_script_path_);
     valid_script << simple_script_.str();
     valid_script.close();
-
-    std::ofstream empty_script(empty_script_path_);
-    empty_script.close();
-
-    robot_info_.robot_type = urcl::RobotType::UR3;
   }
 
   void TearDown() override
   {
     std::remove(valid_script_path_.c_str());
-    std::remove(empty_script_path_.c_str());
   }
 };
 
 TEST_F(ScriptReaderTest, ReadValidScript)
 {
-  ScriptReader reader(robot_info_);
+  ScriptReader reader;
   std::string content = reader.readScriptFile(valid_script_path_);
   EXPECT_EQ(content, simple_script_.str());
 }
 
 TEST_F(ScriptReaderTest, ReadEmptyScript)
 {
-  ScriptReader reader(robot_info_);
+  ScriptReader reader;
   std::string content = reader.readScriptFile(empty_script_path_);
   EXPECT_EQ(content, "");
 }
 
 TEST_F(ScriptReaderTest, ReadNonExistentScript)
 {
-  ScriptReader reader(robot_info_);
+  ScriptReader reader;
   EXPECT_THROW(reader.readScriptFile(invalid_script_path_), std::runtime_error);
 }
 
 TEST_F(ScriptReaderTest, ReplaceIncludes)
 {
-  ScriptReader reader(robot_info_);
+  ScriptReader reader;
 
   char existing_script_file[] = "main_script.XXXXXX";
   std::ignore = mkstemp(existing_script_file);
@@ -135,8 +127,34 @@ TEST_F(ScriptReaderTest, ReplaceIncludes)
   ofs_included.close();
 
   std::string processed_script = reader.readScriptFile(existing_script_file);
-  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])\n");
+  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])");
 
   std::remove(existing_script_file);
   std::remove(existing_include_file);
+}
+
+TEST_F(ScriptReaderTest, ReplaceVariables)
+{
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["VAR1"] = "value1";
+  data["VAR2"] = 42;
+  data["VAR3"] = 6.28;
+
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs << "movej([{{VAR1}}, {{VAR2}}, {{VAR3}}, 0, 0, 0])" << std::endl;
+  ofs << "This is just a line without any replacement" << std::endl;
+  ofs.close();
+
+  std::string script = reader.readScriptFile(existing_script_file, data);
+
+  // By default std::to_string will convert double to 6 decimal places
+  EXPECT_EQ(script, "movej([value1, 42, 6.280000, 0, 0, 0])\nThis is just a line without any replacement\n");
 }

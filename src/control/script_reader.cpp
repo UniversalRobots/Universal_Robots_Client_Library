@@ -33,17 +33,19 @@
 
 #include <fstream>
 #include <regex>
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
 namespace control
 {
-std::string ScriptReader::readScriptFile(const std::string& filename)
+std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
 {
   script_path_ = filename;
   std::string script_code = readFileContent(filename);
 
   replaceIncludes(script_code);
+  replaceVariables(script_code, data);
 
   return script_code;
 }
@@ -71,28 +73,57 @@ std::string ScriptReader::readFileContent(const std::string& filename)
 
 void ScriptReader::replaceIncludes(std::string& script)
 {
-  std::string line;
   std::regex include_pattern(R"(\{\%\s*include\s*['|"]([^'"]+)['|"]\s*\%\})");
 
-  std::stringstream input_stream(script);
-  std::stringstream output_stream;
+  std::smatch match;
 
-  while (std::getline(input_stream, line))
+  // Replace all include patterns in the line
+  while (std::regex_search(script, match, include_pattern))
   {
-    std::smatch match;
-    std::string processed_line = line;
-
-    // Replace all include patterns in the line
-    while (std::regex_search(processed_line, match, include_pattern))
-    {
-      std::filesystem::path file_path(match[1]);
-      std::string file_content = readFileContent(script_path_.parent_path() / file_path.string());
-      processed_line.replace(match.position(0), match.length(0), file_content);
-    }
-
-    output_stream << processed_line << '\n';
+    std::filesystem::path file_path(match[1]);
+    std::string file_content = readFileContent(script_path_.parent_path() / file_path.string());
+    script.replace(match.position(0), match.length(0), file_content);
   }
-  script = output_stream.str();
+}
+
+void ScriptReader::replaceVariables(std::string& script_code, const DataDict& data)
+{
+  std::regex pattern(R"(\{\{\s*([\w-]+)\s*\}\})");
+  std::smatch match;
+  while (std::regex_search(script_code, match, pattern))
+  {
+    std::string key = match[1];
+    URCL_LOG_INFO("Found replacement pattern %s", match[0].str().c_str());
+    if (data.find(key) == data.end())
+    {
+      std::stringstream ss;
+      ss << "Variable '" << key << "' not found in data.";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw UrException(ss.str().c_str());
+    }
+    std::string replaced_value;
+
+    if (std::holds_alternative<std::string>(data.at(key)))
+    {
+      replaced_value = std::get<std::string>(data.at(key));
+    }
+    else if (std::holds_alternative<double>(data.at(key)))
+    {
+      replaced_value = std::to_string(std::get<double>(data.at(key)));
+    }
+    else if (std::holds_alternative<int>(data.at(key)))
+    {
+      replaced_value = std::to_string(std::get<int>(data.at(key)));
+    }
+    else
+    {
+      std::stringstream ss;
+      ss << "Unsupported type for variable '" << key << "'.";
+      URCL_LOG_ERROR(ss.str().c_str());
+      throw UrException(ss.str().c_str());
+    }
+    script_code.replace(match.position(0), match.length(0), replaced_value);
+  }
 }
 
 }  // namespace control

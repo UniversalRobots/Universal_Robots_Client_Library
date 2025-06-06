@@ -50,24 +50,18 @@ public:
     RobotType robot_type;
   };
 
-  ScriptReader() = delete;
+  using DataDict = std::unordered_map<std::string, std::variant<std::string, double, int>>;
 
-  /*!
-   * \brief Creates a ScriptReader object with the robot info
-   */
-  explicit ScriptReader(const RobotInfo& robot_info) : robot_info_(robot_info)
-  {
-  }
+  ScriptReader() = default;
 
-  std::string readScriptFile(const std::string& filename);
+  std::string readScriptFile(const std::string& filename, const DataDict& data = DataDict());
 
 private:
   std::filesystem::path script_path_;
-  RobotInfo robot_info_;
-  std::unordered_map<std::string, std::variant<std::string, float, int>> replacement_data_;
 
-  void replaceIncludes(std::string& script_code);
   std::string readFileContent(const std::string& filename);
+  void replaceIncludes(std::string& script_code);
+  void replaceVariables(std::string& script_code, const DataDict& data);
 };
 }  // namespace control
 }  // namespace urcl
