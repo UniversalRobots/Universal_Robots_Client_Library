@@ -36,6 +36,7 @@
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
 #include "ur_client_library/control/script_command_interface.h"
+#include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
@@ -891,7 +892,7 @@ public:
     trajectory_interface_->registerDisconnectionCallback(fun);
   }
 
-  static std::string readScriptFile(const std::string& filename);
+  std::string readScriptFile(const std::string& filename);
 
   bool isReverseInterfaceConnected() const
   {
@@ -921,6 +922,7 @@ private:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
+  std::unique_ptr<control::ScriptReader> script_reader_;
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);

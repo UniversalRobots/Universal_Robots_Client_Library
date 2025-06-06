@@ -81,7 +81,7 @@ protected:
 TEST_F(UrDriverTest, read_non_existing_script_file)
 {
   const std::string non_existing_script_file = "";
-  EXPECT_THROW(UrDriver::readScriptFile(non_existing_script_file), UrException);
+  EXPECT_THROW(g_my_robot->getUrDriver()->readScriptFile(non_existing_script_file), UrException);
 }
 
 TEST_F(UrDriverTest, read_existing_script_file)
@@ -98,7 +98,7 @@ TEST_F(UrDriverTest, read_existing_script_file)
     std::cout << "Failed to create temporary files" << std::endl;
     GTEST_FAIL();
   }
-  EXPECT_NO_THROW(UrDriver::readScriptFile(existing_script_file));
+  EXPECT_NO_THROW(g_my_robot->getUrDriver()->readScriptFile(existing_script_file));
 
   // clean up
   ofs.close();

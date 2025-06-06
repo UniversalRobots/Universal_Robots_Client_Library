@@ -131,6 +131,13 @@ target_link_libraries(script_sender_tests PRIVATE ur_client_library::urcl GTest:
 gtest_add_tests(TARGET      script_sender_tests
 )
 
+add_executable(script_reader_tests test_script_reader.cpp)
+target_link_libraries(script_reader_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(
+        TARGET script_reader_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_executable(reverse_interface_tests test_reverse_interface.cpp)
 target_link_libraries(reverse_interface_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET reverse_interface_tests

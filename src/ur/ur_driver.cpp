@@ -33,6 +33,7 @@
 
 #include "ur_client_library/ur/ur_driver.h"
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
 #include <memory>
 #include <sstream>
@@ -85,6 +86,12 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = config.reverse_ip.empty() ? rtde_client_->getIP() : config.reverse_ip;
+
+  startPrimaryClientCommunication();
+  waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, std::chrono::milliseconds(500));
+  control::ScriptReader::RobotInfo robot_info;
+  robot_info.robot_type = primary_client_->getRobotType();
+  script_reader_.reset(new control::ScriptReader(robot_info));
 
   std::string prog = readScriptFile(config.script_file);
   while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
@@ -151,7 +158,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
   trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
   script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
 
-  startPrimaryClientCommunication();
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";
@@ -552,17 +558,13 @@ bool UrDriver::stopControl()
 
 std::string UrDriver::readScriptFile(const std::string& filename)
 {
-  std::ifstream ifs;
-  ifs.open(filename);
-  if (!ifs)
+  if (script_reader_ == nullptr)
   {
-    std::stringstream ss;
-    ss << "URScript file '" << filename << "' doesn't exists.";
-    throw UrException(ss.str().c_str());
+    throw std::runtime_error("Script reader is not initialized. Please initialize the UrDriver before using this "
+                             "function.");
   }
-  std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 
-  return content;
+  return script_reader_->readScriptFile(filename);
 }
 
 bool UrDriver::checkCalibration(const std::string& checksum)
