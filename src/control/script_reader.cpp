@@ -46,6 +46,7 @@ std::string ScriptReader::readScriptFile(const std::string& filename, const Data
 
   replaceIncludes(script_code);
   replaceVariables(script_code, data);
+  replaceConditionals(script_code, data);
 
   return script_code;
 }
@@ -93,13 +94,12 @@ void ScriptReader::replaceVariables(std::string& script_code, const DataDict& da
   while (std::regex_search(script_code, match, pattern))
   {
     std::string key = match[1];
-    URCL_LOG_INFO("Found replacement pattern %s", match[0].str().c_str());
     if (data.find(key) == data.end())
     {
       std::stringstream ss;
       ss << "Variable '" << key << "' not found in data.";
       URCL_LOG_ERROR(ss.str().c_str());
-      throw UrException(ss.str().c_str());
+      throw UnknownVariable(ss.str().c_str());
     }
     std::string replaced_value;
 
@@ -115,8 +115,13 @@ void ScriptReader::replaceVariables(std::string& script_code, const DataDict& da
     {
       replaced_value = std::to_string(std::get<int>(data.at(key)));
     }
+    else if (std::holds_alternative<bool>(data.at(key)))
+    {
+      std::get<bool>(data.at(key)) ? replaced_value = "True" : replaced_value = "False";
+    }
     else
     {
+      // This is more of a reminder if we add types to the variant and forget to add it here.
       std::stringstream ss;
       ss << "Unsupported type for variable '" << key << "'.";
       URCL_LOG_ERROR(ss.str().c_str());
@@ -124,6 +129,80 @@ void ScriptReader::replaceVariables(std::string& script_code, const DataDict& da
     }
     script_code.replace(match.position(0), match.length(0), replaced_value);
   }
+}
+
+void ScriptReader::replaceConditionals(std::string& script_code, const DataDict& data)
+{
+  std::istringstream stream(script_code);
+  std::ostringstream output;
+  std::string line;
+  std::stack<BlockState> block_stack;
+
+  std::regex if_pattern(R"(\{\%\s*if\s+([^\s].*[^\s])\s+\%\})");
+  std::regex elif_pattern(R"(\{\%\s*elif\s+([^\s].*[^\s])\s+\%\})");
+  std::regex else_pattern(R"(\{\%\s*else\s*\%\})");
+  std::regex endif_pattern(R"(\{\%\s*endif\s*\%\})");
+  std::smatch match;
+
+  while (std::getline(stream, line))
+  {
+    if (std::regex_search(line, match, if_pattern))
+    {
+      std::string condition = match[1];
+      bool result = data.count(condition) && std::holds_alternative<bool>(data.at(condition)) &&
+                    std::get<bool>(data.at(condition));
+      bool parent_render = block_stack.empty() ? true : block_stack.top().should_render;
+      block_stack.push({ IF, result, parent_render && result, parent_render });
+    }
+    else if (std::regex_search(line, match, elif_pattern))
+    {
+      if (!block_stack.empty())
+      {
+        BlockState& top = block_stack.top();
+        if (top.type == ELSE)
+          continue;
+        std::string condition = match[1];
+        bool result = data.count(condition) && std::holds_alternative<bool>(data.at(condition)) &&
+                      std::get<bool>(data.at(condition));
+        top.type = ELIF;
+        if (!top.condition_matched && result)
+        {
+          top.condition_matched = true;
+          top.should_render = top.parent_render;
+        }
+        else
+        {
+          top.should_render = false;
+        }
+      }
+    }
+    else if (std::regex_search(line, match, else_pattern))
+    {
+      if (!block_stack.empty())
+      {
+        BlockState& top = block_stack.top();
+        top.type = ELSE;
+        top.should_render = top.parent_render && !top.condition_matched;
+      }
+    }
+    else if (std::regex_search(line, match, endif_pattern))
+    {
+      if (!block_stack.empty())
+      {
+        block_stack.pop();
+      }
+    }
+    else
+    {
+      bool render = block_stack.empty() ? true : block_stack.top().should_render;
+      if (render)
+      {
+        output << line << "\n";
+      }
+    }
+  }
+
+  script_code = output.str();
 }
 
 }  // namespace control

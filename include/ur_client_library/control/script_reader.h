@@ -50,18 +50,33 @@ public:
     RobotType robot_type;
   };
 
-  using DataDict = std::unordered_map<std::string, std::variant<std::string, double, int>>;
+  using DataDict = std::unordered_map<std::string, std::variant<std::string, double, int, bool>>;
 
   ScriptReader() = default;
 
   std::string readScriptFile(const std::string& filename, const DataDict& data = DataDict());
 
 private:
+  enum BlockType
+  {
+    IF,
+    ELIF,
+    ELSE
+  };
+  struct BlockState
+  {
+    BlockType type;
+    bool condition_matched;  // Has any previous condition in this block matched?
+    bool should_render;      // Should this block render?
+    bool parent_render;      // Is the parent block rendering?
+  };
+
   std::filesystem::path script_path_;
 
   std::string readFileContent(const std::string& filename);
   void replaceIncludes(std::string& script_code);
   void replaceVariables(std::string& script_code, const DataDict& data);
+  void replaceConditionals(std::string& script_code, const DataDict& data);
 };
 }  // namespace control
 }  // namespace urcl

@@ -28,6 +28,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
+#include "ur_client_library/exceptions.h"
+
 #include <gtest/gtest.h>
 #include "ur_client_library/control/script_reader.h"
 
@@ -82,7 +84,7 @@ TEST_F(ScriptReaderTest, ReadValidScript)
 {
   ScriptReader reader;
   std::string content = reader.readScriptFile(valid_script_path_);
-  EXPECT_EQ(content, simple_script_.str());
+  EXPECT_EQ(content, simple_script_.str() + "\n");
 }
 
 TEST_F(ScriptReaderTest, ReadEmptyScript)
@@ -127,7 +129,7 @@ TEST_F(ScriptReaderTest, ReplaceIncludes)
   ofs_included.close();
 
   std::string processed_script = reader.readScriptFile(existing_script_file);
-  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])");
+  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])\n");
 
   std::remove(existing_script_file);
   std::remove(existing_include_file);
@@ -140,6 +142,35 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
   data["VAR1"] = "value1";
   data["VAR2"] = 42;
   data["VAR3"] = 6.28;
+  data["VAR4"] = true;
+  data["VAR5"] = false;
+
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs << "movej([{{VAR1}}, {{VAR2}}, {{VAR3}}, 0, 0, 0])" << std::endl;
+  ofs << "local is_true = {{VAR4}}" << std::endl;
+  ofs << "local is_false = {{VAR5}}" << std::endl;
+  ofs << "This is just a line without any replacement" << std::endl;
+  ofs.close();
+
+  std::string script = reader.readScriptFile(existing_script_file, data);
+
+  // By default std::to_string will convert double to 6 decimal places
+  EXPECT_EQ(script, "movej([value1, 42, 6.280000, 0, 0, 0])\nlocal is_true = True\nlocal is_false = False\nThis is "
+                    "just a line without any replacement\n");
+}
+
+TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
+{
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["VAR1"] = "value1";
 
   char existing_script_file[] = "main_script.XXXXXX";
   std::ignore = mkstemp(existing_script_file);
@@ -153,8 +184,55 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
   ofs << "This is just a line without any replacement" << std::endl;
   ofs.close();
 
+  EXPECT_THROW(reader.readScriptFile(existing_script_file, data), urcl::UnknownVariable);
+}
+
+TEST_F(ScriptReaderTest, ReplaceConditionals)
+{
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["is_logged_in"] = true;
+  data["is_guest"] = false;
+  data["has_username"] = true;
+  data["username"] = "test_user";
+
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs <<
+      R"({% if is_logged_in %}
+Welcome back, {{ username }}!
+{% elif is_guest %}
+  {% if has_username %}
+Welcome, {{ username }}!
+  {%else %}
+Welcome, guest!
+  {% endif %}
+{% else %}
+Please log in.
+{% endif %}
+)";
+  ofs.close();
+
   std::string script = reader.readScriptFile(existing_script_file, data);
 
-  // By default std::to_string will convert double to 6 decimal places
-  EXPECT_EQ(script, "movej([value1, 42, 6.280000, 0, 0, 0])\nThis is just a line without any replacement\n");
+  EXPECT_EQ(script, "Welcome back, test_user!\n");
+
+  data["is_logged_in"] = false;
+  data["is_guest"] = true;
+  script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_EQ(script, "Welcome, test_user!\n");
+
+  data["has_username"] = false;
+  script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_EQ(script, "Welcome, guest!\n");
+
+  data["is_guest"] = false;
+  script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_EQ(script, "Please log in.\n");
 }
