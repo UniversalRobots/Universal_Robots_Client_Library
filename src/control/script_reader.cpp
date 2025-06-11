@@ -39,6 +39,111 @@ namespace urcl
 {
 namespace control
 {
+
+bool ScriptReader::parseBoolean(const std::string& str)
+{
+  std::string lower = str;
+  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+
+  if (lower == "true" || lower == "1" || lower == "yes" || lower == "on")
+  {
+    return true;
+  }
+  else if (lower == "false" || lower == "0" || lower == "no" || lower == "off")
+  {
+    return false;
+  }
+  else
+  {
+    std::stringstream ss;
+    ss << "Invalid boolean value: '" << str << "'. Expected 'true', 'false', '1', '0', 'yes', 'no', 'on', or 'off'.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw UrException(ss.str().c_str());
+  }
+}
+
+bool operator<(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  if (std::holds_alternative<double>(lhs))
+  {
+    if (std::holds_alternative<double>(rhs))
+    {
+      return std::get<double>(lhs) < std::get<double>(rhs);
+    }
+    else if (std::holds_alternative<int>(rhs))
+    {
+      return std::get<double>(lhs) < static_cast<double>(std::get<int>(rhs));
+    }
+  }
+  if (std::holds_alternative<int>(lhs))
+  {
+    if (std::holds_alternative<double>(rhs))
+    {
+      return static_cast<double>(std::get<int>(lhs)) < std::get<double>(rhs);
+    }
+    else if (std::holds_alternative<int>(rhs))
+    {
+      return std::get<int>(lhs) < std::get<int>(rhs);
+    }
+  }
+  throw std::invalid_argument("The comparison operator is only allowed for numeric values.");
+}
+
+bool operator>(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  return !(lhs < rhs || lhs == rhs);
+}
+
+bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  if (lhs.index() != rhs.index())
+  {
+    // Allow comparison between int and double
+    if ((std::holds_alternative<int>(lhs) && std::holds_alternative<double>(rhs)))
+    {
+      return static_cast<double>(std::get<int>(lhs)) == std::get<double>(rhs);
+    }
+    if ((std::holds_alternative<double>(lhs) && std::holds_alternative<int>(rhs)))
+    {
+      return std::get<double>(lhs) == static_cast<double>(std::get<int>(rhs));
+    }
+    // Allow comparison between bool and int/double
+    if (std::holds_alternative<bool>(lhs))
+    {
+      if (std::holds_alternative<double>(rhs))
+      {
+        return std::abs((static_cast<double>(std::get<bool>(lhs)) - std::get<double>(rhs))) < 0.0001;
+      }
+      if (std::holds_alternative<int>(rhs))
+      {
+        return std::abs((static_cast<double>(std::get<bool>(lhs)) - std::get<int>(rhs))) == 0;
+      }
+    }
+    throw std::invalid_argument(
+        "Checking equality of types is not allowed: " +
+        std::string(lhs.index() == 0 ? "string" : (lhs.index() == 1 ? "double" : (lhs.index() == 2 ? "int" : "bool"))) +
+        " with " +
+        std::string(rhs.index() == 0 ? "string" : (rhs.index() == 1 ? "double" : (rhs.index() == 2 ? "int" : "bool"))));
+  }
+  if (std::holds_alternative<std::string>(lhs))
+  {
+    return std::get<std::string>(lhs) == std::get<std::string>(rhs);
+  }
+  if (std::holds_alternative<double>(lhs))
+  {
+    return std::get<double>(lhs) == std::get<double>(rhs);
+  }
+  if (std::holds_alternative<int>(lhs))
+  {
+    return std::get<int>(lhs) == std::get<int>(rhs);
+  }
+  if (std::holds_alternative<bool>(lhs))
+  {
+    return std::get<bool>(lhs) == std::get<bool>(rhs);
+  }
+  throw std::runtime_error("Unknown variant type passed to equality check. Please contact the developers.");
+}
+
 std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
 {
   script_path_ = filename;
@@ -149,8 +254,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
     if (std::regex_search(line, match, if_pattern))
     {
       std::string condition = match[1];
-      bool result = data.count(condition) && std::holds_alternative<bool>(data.at(condition)) &&
-                    std::get<bool>(data.at(condition));
+      bool result = checkCondition(condition, data);
       bool parent_render = block_stack.empty() ? true : block_stack.top().should_render;
       block_stack.push({ IF, result, parent_render && result, parent_render });
     }
@@ -194,8 +298,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
     }
     else
     {
-      bool render = block_stack.empty() ? true : block_stack.top().should_render;
-      if (render)
+      if (block_stack.empty() ? true : block_stack.top().should_render)
       {
         output << line << "\n";
       }
@@ -203,6 +306,94 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
   }
 
   script_code = output.str();
+}
+bool ScriptReader::checkCondition(const std::string& condition, const DataDict& data)
+{
+  const std::string trimmed = std::regex_replace(condition, std::regex("^\\s+|\\s+$"), "");
+  const std::vector<std::string> valid_operators = { "==", "!=", "<", ">", "<=", ">=" };
+  std::regex expression_pattern(R"(([a-zA-Z_][a-zA-Z0-9_]*)\s*([!=<>]=?)\s*(["']?[^'"]*["']?))");
+
+  std::smatch match;
+  if (std::regex_search(trimmed, match, expression_pattern))
+  {
+    std::string variable_name = match[1];
+    std::string comp_operator = match[2];
+    std::string value_str = match[3];
+    DataVariant value = value_str;
+
+    if (!data.count(variable_name))
+    {
+      throw UnknownVariable(variable_name);
+    }
+
+    std::stringstream ss;
+    ss << "Evaluating trimmed: " << variable_name << " " << comp_operator << " " << value_str << std::endl;
+    URCL_LOG_DEBUG(ss.str().c_str());
+
+    // Is the value a string, a number or a variable?
+    std::regex string_pattern(R"(^['"]([^'"]+)?['"]$)");
+    std::regex number_pattern(R"(^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$)");
+    std::regex boolean_pattern(R"(^(true|false|yes|no|on|off)$)", std::regex::icase);
+    if (std::regex_search(value_str, match, string_pattern))
+    {
+      value = match[1];  // Extract the string content without quotes
+    }
+    else if (std::regex_search(value_str, match, number_pattern))
+    {
+      value = std::stod(value_str);
+    }
+    else if (std::regex_search(value_str, match, boolean_pattern))
+    {
+      value = parseBoolean(value_str);
+    }
+    else if (data.count(value_str))
+    {
+      value = data.at(value_str);
+    }
+    else
+    {
+      throw UnknownVariable(value_str);
+    }
+
+    if (comp_operator == "==")
+    {
+      return data.at(variable_name) == value;
+    }
+    else if (comp_operator == "!=")
+    {
+      return data.at(variable_name) != value;
+    }
+    else if (comp_operator == "<")
+    {
+      return data.at(variable_name) < value;
+    }
+    else if (comp_operator == ">")
+    {
+      return data.at(variable_name) > value;
+    }
+    else if (comp_operator == "<=")
+    {
+      return data.at(variable_name) <= value;
+    }
+    else if (comp_operator == ">=")
+    {
+      return data.at(variable_name) >= value;
+    }
+  }
+  else if (std::regex_match(trimmed, std::regex(R"([a-zA-Z_][a-zA-Z0-9_]*)")))
+  {
+    if (!data.count(trimmed))
+    {
+      throw UnknownVariable(trimmed);
+    }
+    if (std::holds_alternative<bool>(data.at(trimmed)))
+    {
+      return std::get<bool>(data.at(trimmed));
+    }
+  }
+
+  throw std::runtime_error("trimmed evaluation failed: `" + trimmed +
+                           "`. Expected a boolean value, but got a different type.");
 }
 
 }  // namespace control

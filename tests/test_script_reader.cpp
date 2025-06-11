@@ -52,6 +52,7 @@ protected:
 
   void SetUp() override
   {
+    urcl::setLogLevel(urcl::LogLevel::INFO);
     invalid_script_path_ = "test_resources/non_existent_script.urscript";
     empty_script_path_ = "resources/empty.txt";
     char existing_script_file[] = "urscript.XXXXXX";
@@ -193,7 +194,6 @@ TEST_F(ScriptReaderTest, ReplaceConditionals)
   ScriptReader::DataDict data;
   data["is_logged_in"] = true;
   data["is_guest"] = false;
-  data["has_username"] = true;
   data["username"] = "test_user";
 
   char existing_script_file[] = "main_script.XXXXXX";
@@ -208,7 +208,7 @@ TEST_F(ScriptReaderTest, ReplaceConditionals)
       R"({% if is_logged_in %}
 Welcome back, {{ username }}!
 {% elif is_guest %}
-  {% if has_username %}
+  {% if username != "" %}
 Welcome, {{ username }}!
   {%else %}
 Welcome, guest!
@@ -228,11 +228,167 @@ Please log in.
   script = reader.readScriptFile(existing_script_file, data);
   EXPECT_EQ(script, "Welcome, test_user!\n");
 
-  data["has_username"] = false;
+  data["username"] = "";
   script = reader.readScriptFile(existing_script_file, data);
   EXPECT_EQ(script, "Welcome, guest!\n");
 
   data["is_guest"] = false;
   script = reader.readScriptFile(existing_script_file, data);
   EXPECT_EQ(script, "Please log in.\n");
+}
+
+TEST_F(ScriptReaderTest, CheckCondition)
+{
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["A"] = true;
+  data["B"] = false;
+  data["X"] = 5;
+  data["Y"] = 10;
+  data["PI"] = 3.14159;
+  data["S"] = "hello";
+  data["T"] = "world";
+
+  // True/False
+  EXPECT_TRUE(reader.checkCondition("  A", data));
+  EXPECT_FALSE(reader.checkCondition("B", data));
+
+  // Equality
+  EXPECT_TRUE(reader.checkCondition("X == 5", data));
+  EXPECT_FALSE(reader.checkCondition("X == 6", data));
+  EXPECT_TRUE(reader.checkCondition("S == \"hello\"", data));
+  EXPECT_TRUE(reader.checkCondition("S == 'hello'", data));
+  EXPECT_FALSE(reader.checkCondition("S == \"world\"", data));
+  EXPECT_FALSE(reader.checkCondition("S == 'world'", data));
+  EXPECT_FALSE(reader.checkCondition("S == T", data));
+  EXPECT_TRUE(reader.checkCondition("S == S", data));
+  EXPECT_TRUE(reader.checkCondition("A == true", data));
+  EXPECT_TRUE(reader.checkCondition("A == True", data));
+  EXPECT_TRUE(reader.checkCondition("A == TRUE", data));
+  EXPECT_TRUE(reader.checkCondition("A == 1", data));
+  EXPECT_TRUE(reader.checkCondition("A == on", data));
+  EXPECT_TRUE(reader.checkCondition("A == On", data));
+  EXPECT_TRUE(reader.checkCondition("A == ON", data));
+  EXPECT_FALSE(reader.checkCondition("B == true", data));
+  EXPECT_FALSE(reader.checkCondition("B == True", data));
+  EXPECT_FALSE(reader.checkCondition("B == TRUE", data));
+  EXPECT_FALSE(reader.checkCondition("B == 1", data));
+  EXPECT_FALSE(reader.checkCondition("B == on", data));
+  EXPECT_FALSE(reader.checkCondition("B == On", data));
+  EXPECT_FALSE(reader.checkCondition("B == ON", data));
+  EXPECT_FALSE(reader.checkCondition("A == B", data));
+
+  // Inequality
+  EXPECT_TRUE(reader.checkCondition("X != 6", data));
+  EXPECT_FALSE(reader.checkCondition("X != 5", data));
+  EXPECT_TRUE(reader.checkCondition("A != B", data));
+
+  // Greater/Less
+  EXPECT_TRUE(reader.checkCondition("Y > X", data));
+  EXPECT_FALSE(reader.checkCondition("X > Y", data));
+  EXPECT_TRUE(reader.checkCondition("X < Y", data));
+  EXPECT_FALSE(reader.checkCondition("Y < X", data));
+  EXPECT_TRUE(reader.checkCondition("PI > 3", data));
+  EXPECT_FALSE(reader.checkCondition("PI < 3", data));
+  EXPECT_TRUE(reader.checkCondition("PI >= 3.14159", data));
+  EXPECT_FALSE(reader.checkCondition("PI < 3.14159", data));
+  EXPECT_TRUE(reader.checkCondition("PI < X", data));
+
+  // String not empty
+  EXPECT_TRUE(reader.checkCondition("S != ''", data));
+  EXPECT_TRUE(reader.checkCondition("S != \"\"", data));
+  EXPECT_FALSE(reader.checkCondition("S == \"\"", data));
+
+  // Provoke errors
+  // Non-existing operator
+  EXPECT_THROW(reader.checkCondition("X ~= 5", data), std::runtime_error);
+  EXPECT_THROW(reader.checkCondition("This is not an expression at all", data), std::runtime_error);
+  EXPECT_TRUE(reader.checkCondition("S != \"This is not an expression at all\"", data));
+  // Non-existing variable
+  EXPECT_THROW(reader.checkCondition("non_existing == 5", data), urcl::UnknownVariable);
+  EXPECT_THROW(reader.checkCondition("A == non_existing", data), urcl::UnknownVariable);
+  EXPECT_THROW(reader.checkCondition("IDONTEXIST", data), urcl::UnknownVariable);
+  // <, >, <=, >= is only available for numeric types
+  EXPECT_THROW(reader.checkCondition("A < 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("S < T", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("X < True", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("A > 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("S > T", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("X > True", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("A <= 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("S <= T", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("X <= True", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("A >= 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("S >= T", data), std::invalid_argument);
+  EXPECT_THROW(reader.checkCondition("X >= True", data), std::invalid_argument);
+}
+
+TEST_F(ScriptReaderTest, ParseBoolean)
+{
+  EXPECT_TRUE(ScriptReader::parseBoolean("true"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("True"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("TRUE"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("on"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("On"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("ON"));
+  EXPECT_TRUE(ScriptReader::parseBoolean("1"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("false"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("False"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("FALSE"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("off"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("Off"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("OFF"));
+  EXPECT_FALSE(ScriptReader::parseBoolean("0"));
+  EXPECT_THROW(ScriptReader::parseBoolean("notabool"), urcl::UrException);
+}
+
+TEST_F(ScriptReaderTest, DataVariantOperators)
+{
+  ScriptReader::DataDict data;
+  data["int1"] = 5;
+  data["int2"] = 10;
+  data["double1"] = 3.14;
+  data["double2"] = 3.14;
+  data["str1"] = "foo";
+  data["str2"] = "bar";
+  data["bool1"] = true;
+  data["bool2"] = false;
+
+  // Equality
+  EXPECT_TRUE(data["int1"] == 5);
+  EXPECT_FALSE(data["int1"] == 6);
+  EXPECT_TRUE(data["double1"] == 3.14);
+  EXPECT_FALSE(data["double1"] == data["int1"]);
+  EXPECT_TRUE(data["str1"] == std::string("foo"));
+  EXPECT_FALSE(data["str1"] == std::string("bar"));
+  EXPECT_TRUE(data["bool1"] == true);
+  EXPECT_FALSE(data["bool2"] == true);
+  EXPECT_TRUE(data["bool1"] == 1);
+  EXPECT_TRUE(data["bool1"] == 1.0);
+  EXPECT_FALSE(data["bool1"] == 0.0);
+  EXPECT_FALSE(data["bool1"] == 3.14);
+  EXPECT_FALSE(data["bool1"] == 42);
+
+  // Inequality
+  EXPECT_TRUE(data["int1"] != 6);
+  EXPECT_FALSE(data["int1"] != 5);
+  EXPECT_TRUE(data["str1"] != std::string("bar"));
+  EXPECT_FALSE(data["str1"] != std::string("foo"));
+
+  // Less, Greater, etc. (numeric only)
+  EXPECT_TRUE(data["int1"] < data["int2"]);
+  EXPECT_TRUE(data["int2"] > data["int1"]);
+  EXPECT_TRUE(data["int1"] <= data["int2"]);
+  EXPECT_TRUE(data["int2"] >= data["int1"]);
+  EXPECT_TRUE(data["double1"] <= data["double2"]);
+  EXPECT_TRUE(data["double1"] >= data["double2"]);
+  EXPECT_FALSE(data["int1"] < data["double1"]);
+
+  // Invalid comparisons (should throw)
+  EXPECT_THROW((void)(data["str1"] < data["str2"]), std::invalid_argument);
+  EXPECT_THROW((void)(data["bool1"] < data["bool2"]), std::invalid_argument);
+  EXPECT_THROW((void)(data["str1"] > data["str2"]), std::invalid_argument);
+  EXPECT_THROW((void)(data["bool1"] > data["bool2"]), std::invalid_argument);
+  EXPECT_THROW(data["str1"] == data["bool1"], std::invalid_argument);
+  EXPECT_THROW(data["double1"] == data["str1"], std::invalid_argument);
 }

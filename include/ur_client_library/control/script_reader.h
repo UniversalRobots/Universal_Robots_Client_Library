@@ -50,11 +50,15 @@ public:
     RobotType robot_type;
   };
 
-  using DataDict = std::unordered_map<std::string, std::variant<std::string, double, int, bool>>;
+  using DataVariant = std::variant<std::string, double, int, bool>;
+  using DataDict = std::unordered_map<std::string, DataVariant>;
 
   ScriptReader() = default;
 
   std::string readScriptFile(const std::string& filename, const DataDict& data = DataDict());
+
+  static bool checkCondition(const std::string& condition, const DataDict& data);
+  static bool parseBoolean(const std::string& str);
 
 private:
   enum BlockType
@@ -73,10 +77,27 @@ private:
 
   std::filesystem::path script_path_;
 
-  std::string readFileContent(const std::string& filename);
+  static std::string readFileContent(const std::string& filename);
   void replaceIncludes(std::string& script_code);
-  void replaceVariables(std::string& script_code, const DataDict& data);
-  void replaceConditionals(std::string& script_code, const DataDict& data);
+  static void replaceVariables(std::string& script_code, const DataDict& data);
+  static void replaceConditionals(std::string& script_code, const DataDict& data);
 };
+
+bool operator<(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs);
+bool operator>(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs);
+bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs);
+
+inline bool operator!=(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  return !(lhs == rhs);
+}
+inline bool operator<=(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  return (lhs < rhs || lhs == rhs);
+}
+inline bool operator>=(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
+{
+  return (lhs > rhs || lhs == rhs);
+}
 }  // namespace control
 }  // namespace urcl
