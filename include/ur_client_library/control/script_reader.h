@@ -78,7 +78,7 @@ private:
   std::filesystem::path script_path_;
 
   static std::string readFileContent(const std::string& filename);
-  void replaceIncludes(std::string& script_code);
+  void replaceIncludes(std::string& script_code, const DataDict& data);
   static void replaceVariables(std::string& script_code, const DataDict& data);
   static void replaceConditionals(std::string& script_code, const DataDict& data);
 };

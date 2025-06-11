@@ -85,7 +85,7 @@ TEST_F(ScriptReaderTest, ReadValidScript)
 {
   ScriptReader reader;
   std::string content = reader.readScriptFile(valid_script_path_);
-  EXPECT_EQ(content, simple_script_.str() + "\n");
+  EXPECT_EQ(content, simple_script_.str());
 }
 
 TEST_F(ScriptReaderTest, ReadEmptyScript)
@@ -130,7 +130,7 @@ TEST_F(ScriptReaderTest, ReplaceIncludes)
   ofs_included.close();
 
   std::string processed_script = reader.readScriptFile(existing_script_file);
-  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])\n");
+  EXPECT_EQ(processed_script, "movej([1,2,3,4,5,6])");
 
   std::remove(existing_script_file);
   std::remove(existing_include_file);
@@ -164,7 +164,7 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
 
   // By default std::to_string will convert double to 6 decimal places
   EXPECT_EQ(script, "movej([value1, 42, 6.280000, 0, 0, 0])\nlocal is_true = True\nlocal is_false = False\nThis is "
-                    "just a line without any replacement\n");
+                    "just a line without any replacement");
 }
 
 TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
@@ -221,20 +221,20 @@ Please log in.
 
   std::string script = reader.readScriptFile(existing_script_file, data);
 
-  EXPECT_EQ(script, "Welcome back, test_user!\n");
+  EXPECT_EQ(script, "Welcome back, test_user!");
 
   data["is_logged_in"] = false;
   data["is_guest"] = true;
   script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_EQ(script, "Welcome, test_user!\n");
+  EXPECT_EQ(script, "Welcome, test_user!");
 
   data["username"] = "";
   script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_EQ(script, "Welcome, guest!\n");
+  EXPECT_EQ(script, "Welcome, guest!");
 
   data["is_guest"] = false;
   script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_EQ(script, "Please log in.\n");
+  EXPECT_EQ(script, "Please log in.");
 }
 
 TEST_F(ScriptReaderTest, CheckCondition)
@@ -391,4 +391,51 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   EXPECT_THROW((void)(data["bool1"] > data["bool2"]), std::invalid_argument);
   EXPECT_THROW(data["str1"] == data["bool1"], std::invalid_argument);
   EXPECT_THROW(data["double1"] == data["str1"], std::invalid_argument);
+}
+
+TEST_F(ScriptReaderTest, ConditionalInclude)
+{
+  ScriptReader reader;
+
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  char existing_include_file[] = "included_script.XXXXXX";
+  std::ignore = mkstemp(existing_include_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs << "textmsg(\"This is a test script\")" << std::endl;
+  ofs << "{% if ROBOT_VERSION > 10.7 %}" << std::endl;
+  ofs << "{% include '" << std::string(existing_include_file) << "' %}" << std::endl;
+  ofs << "{% endif %}" << std::endl;
+  ofs.close();
+
+  // Create a temporary included script
+  std::ofstream ofs_included(existing_include_file);
+  if (ofs_included.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs_included << "movej([1,2,3,4,5,6])";
+  ofs_included.close();
+
+  ScriptReader::DataDict data;
+  data["ROBOT_VERSION"] = 10.8;  // Set a version greater than 10.7 to include the script
+
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  std::string expected_script = "textmsg(\"This is a test script\")\n"
+                                "movej([1,2,3,4,5,6])";
+  EXPECT_EQ(processed_script, expected_script);
+
+  data["ROBOT_VERSION"] = 10.6;
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  expected_script = "textmsg(\"This is a test script\")";
+  EXPECT_EQ(processed_script, expected_script);
+
+  std::remove(existing_script_file);
+  std::remove(existing_include_file);
 }

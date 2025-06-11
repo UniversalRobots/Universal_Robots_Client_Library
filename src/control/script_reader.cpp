@@ -149,9 +149,9 @@ std::string ScriptReader::readScriptFile(const std::string& filename, const Data
   script_path_ = filename;
   std::string script_code = readFileContent(filename);
 
-  replaceIncludes(script_code);
   replaceVariables(script_code, data);
   replaceConditionals(script_code, data);
+  replaceIncludes(script_code, data);
 
   return script_code;
 }
@@ -177,7 +177,7 @@ std::string ScriptReader::readFileContent(const std::string& filename)
   return content;
 }
 
-void ScriptReader::replaceIncludes(std::string& script)
+void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
 {
   std::regex include_pattern(R"(\{\%\s*include\s*['|"]([^'"]+)['|"]\s*\%\})");
 
@@ -187,7 +187,7 @@ void ScriptReader::replaceIncludes(std::string& script)
   while (std::regex_search(script, match, include_pattern))
   {
     std::filesystem::path file_path(match[1]);
-    std::string file_content = readFileContent(script_path_.parent_path() / file_path.string());
+    std::string file_content = readScriptFile(script_path_.parent_path() / file_path.string(), data);
     script.replace(match.position(0), match.length(0), file_content);
   }
 }
@@ -249,6 +249,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
   std::regex endif_pattern(R"(\{\%\s*endif\s*\%\})");
   std::smatch match;
 
+  bool first_line = true;
   while (std::getline(stream, line))
   {
     if (std::regex_search(line, match, if_pattern))
@@ -300,13 +301,19 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
     {
       if (block_stack.empty() ? true : block_stack.top().should_render)
       {
-        output << line << "\n";
+        if (!first_line)
+        {
+          output << "\n";
+        }
+        output << line;
+        first_line = false;
       }
     }
   }
 
   script_code = output.str();
 }
+
 bool ScriptReader::checkCondition(const std::string& condition, const DataDict& data)
 {
   const std::string trimmed = std::regex_replace(condition, std::regex("^\\s+|\\s+$"), "");
