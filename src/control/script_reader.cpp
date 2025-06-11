@@ -86,6 +86,10 @@ bool operator<(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVar
       return std::get<int>(lhs) < std::get<int>(rhs);
     }
   }
+  if (std::holds_alternative<VersionInformation>(lhs))
+  {
+    return std::get<VersionInformation>(lhs) < std::get<VersionInformation>(rhs);
+  }
   throw std::invalid_argument("The comparison operator is only allowed for numeric values.");
 }
 
@@ -140,6 +144,10 @@ bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVa
   if (std::holds_alternative<bool>(lhs))
   {
     return std::get<bool>(lhs) == std::get<bool>(rhs);
+  }
+  if (std::holds_alternative<VersionInformation>(lhs))
+  {
+    return std::get<VersionInformation>(lhs) == std::get<VersionInformation>(rhs);
   }
   throw std::runtime_error("Unknown variant type passed to equality check. Please contact the developers.");
 }
@@ -223,6 +231,10 @@ void ScriptReader::replaceVariables(std::string& script_code, const DataDict& da
     else if (std::holds_alternative<bool>(data.at(key)))
     {
       std::get<bool>(data.at(key)) ? replaced_value = "True" : replaced_value = "False";
+    }
+    else if (std::holds_alternative<VersionInformation>(data.at(key)))
+    {
+      replaced_value = std::get<VersionInformation>(data.at(key)).toString();
     }
     else
     {
@@ -341,6 +353,7 @@ bool ScriptReader::checkCondition(const std::string& condition, const DataDict& 
     std::regex string_pattern(R"(^['"]([^'"]+)?['"]$)");
     std::regex number_pattern(R"(^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$)");
     std::regex boolean_pattern(R"(^(true|false|yes|no|on|off)$)", std::regex::icase);
+    std::regex version_pattern(R"(^v(\d+\.\d+(\.\d+)?(-\d+)?)$)");
     if (std::regex_search(value_str, match, string_pattern))
     {
       value = match[1];  // Extract the string content without quotes
@@ -352,6 +365,10 @@ bool ScriptReader::checkCondition(const std::string& condition, const DataDict& 
     else if (std::regex_search(value_str, match, boolean_pattern))
     {
       value = parseBoolean(value_str);
+    }
+    else if (std::regex_search(value_str, match, version_pattern))
+    {
+      value = VersionInformation::fromString(match[1]);
     }
     else if (data.count(value_str))
     {

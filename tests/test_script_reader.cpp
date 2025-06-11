@@ -353,6 +353,8 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   data["str2"] = "bar";
   data["bool1"] = true;
   data["bool2"] = false;
+  data["version1"] = urcl::VersionInformation::fromString("10.7.0");
+  data["version2"] = urcl::VersionInformation::fromString("5.22.1");
 
   // Equality
   EXPECT_TRUE(data["int1"] == 5);
@@ -368,12 +370,16 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   EXPECT_FALSE(data["bool1"] == 0.0);
   EXPECT_FALSE(data["bool1"] == 3.14);
   EXPECT_FALSE(data["bool1"] == 42);
+  EXPECT_TRUE(data["version1"] == urcl::VersionInformation::fromString("10.7.0"));
+  EXPECT_FALSE(data["version2"] == urcl::VersionInformation::fromString("10.7.0"));
+  EXPECT_FALSE(data["version2"] == data["version1"]);
 
   // Inequality
   EXPECT_TRUE(data["int1"] != 6);
   EXPECT_FALSE(data["int1"] != 5);
   EXPECT_TRUE(data["str1"] != std::string("bar"));
   EXPECT_FALSE(data["str1"] != std::string("foo"));
+  EXPECT_TRUE(data["version1"] != urcl::VersionInformation::fromString("1.2.3"));
 
   // Less, Greater, etc. (numeric only)
   EXPECT_TRUE(data["int1"] < data["int2"]);
@@ -383,6 +389,10 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   EXPECT_TRUE(data["double1"] <= data["double2"]);
   EXPECT_TRUE(data["double1"] >= data["double2"]);
   EXPECT_FALSE(data["int1"] < data["double1"]);
+  EXPECT_TRUE(data["version1"] > data["version2"]);
+  EXPECT_TRUE(data["version1"] >= data["version1"]);
+  EXPECT_TRUE(data["version1"] <= data["version1"]);
+  EXPECT_TRUE(data["version2"] < data["version1"]);
 
   // Invalid comparisons (should throw)
   EXPECT_THROW((void)(data["str1"] < data["str2"]), std::invalid_argument);

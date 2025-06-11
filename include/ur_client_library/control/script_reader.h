@@ -44,13 +44,7 @@ namespace control
 class ScriptReader
 {
 public:
-  struct RobotInfo
-  {
-    VersionInformation version_info;
-    RobotType robot_type;
-  };
-
-  using DataVariant = std::variant<std::string, double, int, bool>;
+  using DataVariant = std::variant<std::string, double, int, bool, VersionInformation>;
   using DataDict = std::unordered_map<std::string, DataVariant>;
 
   ScriptReader() = default;
