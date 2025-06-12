@@ -31,10 +31,11 @@
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/control/script_reader.h>
 #include <ur_client_library/helpers.h>
+#include <ur_client_library/log.h>
 
+#include <stack>
 #include <fstream>
 #include <regex>
-#include "ur_client_library/log.h"
 
 namespace urcl
 {
@@ -174,7 +175,7 @@ void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
   while (std::regex_search(script, match, include_pattern))
   {
     std::filesystem::path file_path(match[1].str());
-    std::string file_content = readScriptFile(script_path_.parent_path() / file_path.string(), data);
+    std::string file_content = readScriptFile((script_path_.parent_path() / file_path.string()).string(), data);
     script.replace(match.position(0), match.length(0), file_content);
   }
 }
