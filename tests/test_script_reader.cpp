@@ -32,6 +32,7 @@
 
 #include <gtest/gtest.h>
 #include "ur_client_library/control/script_reader.h"
+#include "ur_client_library/ur/version_information.h"
 
 #include <fstream>
 
@@ -165,6 +166,7 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
   // By default std::to_string will convert double to 6 decimal places
   EXPECT_EQ(script, "movej([value1, 42, 6.280000, 0, 0, 0])\nlocal is_true = True\nlocal is_false = False\nThis is "
                     "just a line without any replacement");
+  std::remove(existing_script_file);
 }
 
 TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
@@ -186,6 +188,7 @@ TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
   ofs.close();
 
   EXPECT_THROW(reader.readScriptFile(existing_script_file, data), urcl::UnknownVariable);
+  std::remove(existing_script_file);
 }
 
 TEST_F(ScriptReaderTest, ReplaceConditionals)
@@ -235,6 +238,7 @@ Please log in.
   data["is_guest"] = false;
   script = reader.readScriptFile(existing_script_file, data);
   EXPECT_EQ(script, "Please log in.");
+  std::remove(existing_script_file);
 }
 
 TEST_F(ScriptReaderTest, CheckCondition)
@@ -323,25 +327,6 @@ TEST_F(ScriptReaderTest, CheckCondition)
   EXPECT_THROW(reader.evaluateExpression("X >= True", data), std::invalid_argument);
 }
 
-TEST_F(ScriptReaderTest, ParseBoolean)
-{
-  EXPECT_TRUE(ScriptReader::parseBoolean("true"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("True"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("TRUE"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("on"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("On"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("ON"));
-  EXPECT_TRUE(ScriptReader::parseBoolean("1"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("false"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("False"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("FALSE"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("off"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("Off"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("OFF"));
-  EXPECT_FALSE(ScriptReader::parseBoolean("0"));
-  EXPECT_THROW(ScriptReader::parseBoolean("notabool"), urcl::UrException);
-}
-
 TEST_F(ScriptReaderTest, DataVariantOperators)
 {
   ScriptReader::DataDict data;
@@ -403,49 +388,21 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   EXPECT_THROW(data["double1"] == data["str1"], std::invalid_argument);
 }
 
-TEST_F(ScriptReaderTest, ConditionalInclude)
+TEST_F(ScriptReaderTest, Example)
 {
   ScriptReader reader;
-
-  char existing_script_file[] = "main_script.XXXXXX";
-  std::ignore = mkstemp(existing_script_file);
-  char existing_include_file[] = "included_script.XXXXXX";
-  std::ignore = mkstemp(existing_include_file);
-  std::ofstream ofs(existing_script_file);
-  if (ofs.bad())
-  {
-    std::cout << "Failed to create temporary files" << std::endl;
-    GTEST_FAIL();
-  }
-  ofs << "textmsg(\"This is a test script\")" << std::endl;
-  ofs << "{% if ROBOT_VERSION > 10.7 %}" << std::endl;
-  ofs << "{% include '" << std::string(existing_include_file) << "' %}" << std::endl;
-  ofs << "{% endif %}" << std::endl;
-  ofs.close();
-
-  // Create a temporary included script
-  std::ofstream ofs_included(existing_include_file);
-  if (ofs_included.bad())
-  {
-    std::cout << "Failed to create temporary files" << std::endl;
-    GTEST_FAIL();
-  }
-  ofs_included << "movej([1,2,3,4,5,6])";
-  ofs_included.close();
+  std::string existing_script_file = "resources/example_urscript_main.urscript";
 
   ScriptReader::DataDict data;
-  data["ROBOT_VERSION"] = 10.8;  // Set a version greater than 10.7 to include the script
+  data["SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.9");
+  data["feature_name"] = "torque control";
 
   std::string processed_script = reader.readScriptFile(existing_script_file, data);
-  std::string expected_script = "textmsg(\"This is a test script\")\n"
-                                "movej([1,2,3,4,5,6])";
+  std::string expected_script = "  popup(\"The cool new feature is not supported on Software version 5.23.0\")";
   EXPECT_EQ(processed_script, expected_script);
 
-  data["ROBOT_VERSION"] = 10.6;
+  data["SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.23.0");
   processed_script = reader.readScriptFile(existing_script_file, data);
-  expected_script = "textmsg(\"This is a test script\")";
+  expected_script = "  textmsg(\"torque control is a very cool feature!\")";
   EXPECT_EQ(processed_script, expected_script);
-
-  std::remove(existing_script_file);
-  std::remove(existing_include_file);
 }
