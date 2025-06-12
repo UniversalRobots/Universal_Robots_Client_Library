@@ -173,7 +173,7 @@ void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
   // Replace all include patterns in the line
   while (std::regex_search(script, match, include_pattern))
   {
-    std::filesystem::path file_path(match[1]);
+    std::filesystem::path file_path(match[1].str());
     std::string file_content = readScriptFile(script_path_.parent_path() / file_path.string(), data);
     script.replace(match.position(0), match.length(0), file_content);
   }
