@@ -250,77 +250,77 @@ TEST_F(ScriptReaderTest, CheckCondition)
   data["T"] = "world";
 
   // True/False
-  EXPECT_TRUE(reader.checkCondition("  A", data));
-  EXPECT_FALSE(reader.checkCondition("B", data));
+  EXPECT_TRUE(reader.evaluateExpression("  A", data));
+  EXPECT_FALSE(reader.evaluateExpression("B", data));
 
   // Equality
-  EXPECT_TRUE(reader.checkCondition("X == 5", data));
-  EXPECT_FALSE(reader.checkCondition("X == 6", data));
-  EXPECT_TRUE(reader.checkCondition("S == \"hello\"", data));
-  EXPECT_TRUE(reader.checkCondition("S == 'hello'", data));
-  EXPECT_FALSE(reader.checkCondition("S == \"world\"", data));
-  EXPECT_FALSE(reader.checkCondition("S == 'world'", data));
-  EXPECT_FALSE(reader.checkCondition("S == T", data));
-  EXPECT_TRUE(reader.checkCondition("S == S", data));
-  EXPECT_TRUE(reader.checkCondition("A == true", data));
-  EXPECT_TRUE(reader.checkCondition("A == True", data));
-  EXPECT_TRUE(reader.checkCondition("A == TRUE", data));
-  EXPECT_TRUE(reader.checkCondition("A == 1", data));
-  EXPECT_TRUE(reader.checkCondition("A == on", data));
-  EXPECT_TRUE(reader.checkCondition("A == On", data));
-  EXPECT_TRUE(reader.checkCondition("A == ON", data));
-  EXPECT_FALSE(reader.checkCondition("B == true", data));
-  EXPECT_FALSE(reader.checkCondition("B == True", data));
-  EXPECT_FALSE(reader.checkCondition("B == TRUE", data));
-  EXPECT_FALSE(reader.checkCondition("B == 1", data));
-  EXPECT_FALSE(reader.checkCondition("B == on", data));
-  EXPECT_FALSE(reader.checkCondition("B == On", data));
-  EXPECT_FALSE(reader.checkCondition("B == ON", data));
-  EXPECT_FALSE(reader.checkCondition("A == B", data));
+  EXPECT_TRUE(reader.evaluateExpression("X == 5", data));
+  EXPECT_FALSE(reader.evaluateExpression("X == 6", data));
+  EXPECT_TRUE(reader.evaluateExpression("S == \"hello\"", data));
+  EXPECT_TRUE(reader.evaluateExpression("S == 'hello'", data));
+  EXPECT_FALSE(reader.evaluateExpression("S == \"world\"", data));
+  EXPECT_FALSE(reader.evaluateExpression("S == 'world'", data));
+  EXPECT_FALSE(reader.evaluateExpression("S == T", data));
+  EXPECT_TRUE(reader.evaluateExpression("S == S", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == true", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == True", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == TRUE", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == 1", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == on", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == On", data));
+  EXPECT_TRUE(reader.evaluateExpression("A == ON", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == true", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == True", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == TRUE", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == 1", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == on", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == On", data));
+  EXPECT_FALSE(reader.evaluateExpression("B == ON", data));
+  EXPECT_FALSE(reader.evaluateExpression("A == B", data));
 
   // Inequality
-  EXPECT_TRUE(reader.checkCondition("X != 6", data));
-  EXPECT_FALSE(reader.checkCondition("X != 5", data));
-  EXPECT_TRUE(reader.checkCondition("A != B", data));
+  EXPECT_TRUE(reader.evaluateExpression("X != 6", data));
+  EXPECT_FALSE(reader.evaluateExpression("X != 5", data));
+  EXPECT_TRUE(reader.evaluateExpression("A != B", data));
 
   // Greater/Less
-  EXPECT_TRUE(reader.checkCondition("Y > X", data));
-  EXPECT_FALSE(reader.checkCondition("X > Y", data));
-  EXPECT_TRUE(reader.checkCondition("X < Y", data));
-  EXPECT_FALSE(reader.checkCondition("Y < X", data));
-  EXPECT_TRUE(reader.checkCondition("PI > 3", data));
-  EXPECT_FALSE(reader.checkCondition("PI < 3", data));
-  EXPECT_TRUE(reader.checkCondition("PI >= 3.14159", data));
-  EXPECT_FALSE(reader.checkCondition("PI < 3.14159", data));
-  EXPECT_TRUE(reader.checkCondition("PI < X", data));
+  EXPECT_TRUE(reader.evaluateExpression("Y > X", data));
+  EXPECT_FALSE(reader.evaluateExpression("X > Y", data));
+  EXPECT_TRUE(reader.evaluateExpression("X < Y", data));
+  EXPECT_FALSE(reader.evaluateExpression("Y < X", data));
+  EXPECT_TRUE(reader.evaluateExpression("PI > 3", data));
+  EXPECT_FALSE(reader.evaluateExpression("PI < 3", data));
+  EXPECT_TRUE(reader.evaluateExpression("PI >= 3.14159", data));
+  EXPECT_FALSE(reader.evaluateExpression("PI < 3.14159", data));
+  EXPECT_TRUE(reader.evaluateExpression("PI < X", data));
 
   // String not empty
-  EXPECT_TRUE(reader.checkCondition("S != ''", data));
-  EXPECT_TRUE(reader.checkCondition("S != \"\"", data));
-  EXPECT_FALSE(reader.checkCondition("S == \"\"", data));
+  EXPECT_TRUE(reader.evaluateExpression("S != ''", data));
+  EXPECT_TRUE(reader.evaluateExpression("S != \"\"", data));
+  EXPECT_FALSE(reader.evaluateExpression("S == \"\"", data));
 
   // Provoke errors
   // Non-existing operator
-  EXPECT_THROW(reader.checkCondition("X ~= 5", data), std::runtime_error);
-  EXPECT_THROW(reader.checkCondition("This is not an expression at all", data), std::runtime_error);
-  EXPECT_TRUE(reader.checkCondition("S != \"This is not an expression at all\"", data));
+  EXPECT_THROW(reader.evaluateExpression("X ~= 5", data), std::runtime_error);
+  EXPECT_THROW(reader.evaluateExpression("This is not an expression at all", data), std::runtime_error);
+  EXPECT_TRUE(reader.evaluateExpression("S != \"This is not an expression at all\"", data));
   // Non-existing variable
-  EXPECT_THROW(reader.checkCondition("non_existing == 5", data), urcl::UnknownVariable);
-  EXPECT_THROW(reader.checkCondition("A == non_existing", data), urcl::UnknownVariable);
-  EXPECT_THROW(reader.checkCondition("IDONTEXIST", data), urcl::UnknownVariable);
+  EXPECT_THROW(reader.evaluateExpression("non_existing == 5", data), urcl::UnknownVariable);
+  EXPECT_THROW(reader.evaluateExpression("A == non_existing", data), urcl::UnknownVariable);
+  EXPECT_THROW(reader.evaluateExpression("IDONTEXIST", data), urcl::UnknownVariable);
   // <, >, <=, >= is only available for numeric types
-  EXPECT_THROW(reader.checkCondition("A < 5", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("S < T", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("X < True", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("A > 5", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("S > T", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("X > True", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("A <= 5", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("S <= T", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("X <= True", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("A >= 5", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("S >= T", data), std::invalid_argument);
-  EXPECT_THROW(reader.checkCondition("X >= True", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("A < 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("S < T", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("X < True", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("A > 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("S > T", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("X > True", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("A <= 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("S <= T", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("X <= True", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("A >= 5", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("S >= T", data), std::invalid_argument);
+  EXPECT_THROW(reader.evaluateExpression("X >= True", data), std::invalid_argument);
 }
 
 TEST_F(ScriptReaderTest, ParseBoolean)

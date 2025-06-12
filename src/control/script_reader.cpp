@@ -30,6 +30,7 @@
 
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/control/script_reader.h>
+#include <ur_client_library/helpers.h>
 
 #include <fstream>
 #include <regex>
@@ -39,28 +40,6 @@ namespace urcl
 {
 namespace control
 {
-
-bool ScriptReader::parseBoolean(const std::string& str)
-{
-  std::string lower = str;
-  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
-
-  if (lower == "true" || lower == "1" || lower == "yes" || lower == "on")
-  {
-    return true;
-  }
-  else if (lower == "false" || lower == "0" || lower == "no" || lower == "off")
-  {
-    return false;
-  }
-  else
-  {
-    std::stringstream ss;
-    ss << "Invalid boolean value: '" << str << "'. Expected 'true', 'false', '1', '0', 'yes', 'no', 'on', or 'off'.";
-    URCL_LOG_ERROR(ss.str().c_str());
-    throw UrException(ss.str().c_str());
-  }
-}
 
 bool operator<(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
 {
@@ -267,7 +246,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
     if (std::regex_search(line, match, if_pattern))
     {
       std::string condition = match[1];
-      bool result = checkCondition(condition, data);
+      bool result = evaluateExpression(condition, data);
       bool parent_render = block_stack.empty() ? true : block_stack.top().should_render;
       block_stack.push({ IF, result, parent_render && result, parent_render });
     }
@@ -326,9 +305,9 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
   script_code = output.str();
 }
 
-bool ScriptReader::checkCondition(const std::string& condition, const DataDict& data)
+bool ScriptReader::evaluateExpression(const std::string& expression, const DataDict& data)
 {
-  const std::string trimmed = std::regex_replace(condition, std::regex("^\\s+|\\s+$"), "");
+  const std::string trimmed = std::regex_replace(expression, std::regex("^\\s+|\\s+$"), "");
   const std::vector<std::string> valid_operators = { "==", "!=", "<", ">", "<=", ">=" };
   std::regex expression_pattern(R"(([a-zA-Z_][a-zA-Z0-9_]*)\s*([!=<>]=?)\s*(["']?[^'"]*["']?))");
 

@@ -41,6 +41,26 @@ namespace urcl
 {
 namespace control
 {
+/*!
+ * \brief This class handles reading script files parsing special instructions that will get replaced.
+ *
+ * When parsing the script code, it is supported to have
+ *   - Variable replacements using `{{ VARIABLE_NAME }}`
+ *   - Including other files using `{% include <filename> %}`.
+ *     The filename has to be relative to the root script file's folder
+ *   - Conditionals using
+ *
+ *         {% if <condition %}
+ *           ...
+ *         {% elif <condition> %}
+ *           ...
+ *         {% else %}
+ *           ...
+ *         {% endif %}
+ *
+ *
+ * Those directives use Jinja2 notation.
+ */
 class ScriptReader
 {
 public:
@@ -49,10 +69,21 @@ public:
 
   ScriptReader() = default;
 
+  /*!
+   * \brief Reads a script file and applies variable replacements, includes, and conditionals.
+   * \param filename Filename (absolute path) of the script to be loaded.
+   * \param data Data dictionary used for variable replacements and expression evaluation.
+   * \return The Script code with all replacements, includes and conditionals applied.
+   */
   std::string readScriptFile(const std::string& filename, const DataDict& data = DataDict());
 
-  static bool checkCondition(const std::string& condition, const DataDict& data);
-  static bool parseBoolean(const std::string& str);
+  /*!
+   * \brief Evaluate a boolean expression
+   * \param expression The boolean expression to be evaluated.
+   * \param data A data dictionary that will be used when evaluating the expressions
+   * \return The result of evaluating the boolean expression
+   */
+  static bool evaluateExpression(const std::string& expression, const DataDict& data);
 
 private:
   enum BlockType
