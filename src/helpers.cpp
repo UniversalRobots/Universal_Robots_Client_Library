@@ -30,6 +30,7 @@
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
