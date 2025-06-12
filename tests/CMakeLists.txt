@@ -232,3 +232,8 @@ add_executable(control_mode_tests test_control_mode.cpp)
 target_link_libraries(control_mode_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET control_mode_tests
 )
+
+add_executable(helpers_tests test_helpers.cpp)
+target_link_libraries(helpers_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET helpers_tests
+)
