@@ -292,7 +292,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
     }
     else
     {
-      if (block_stack.empty() ? true : block_stack.top().should_render)
+      if (block_stack.empty() || block_stack.top().should_render)
       {
         if (!first_line)
         {
@@ -310,7 +310,6 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
 bool ScriptReader::evaluateExpression(const std::string& expression, const DataDict& data)
 {
   const std::string trimmed = std::regex_replace(expression, std::regex("^\\s+|\\s+$"), "");
-  const std::vector<std::string> valid_operators = { "==", "!=", "<", ">", "<=", ">=" };
   std::regex expression_pattern(R"(([a-zA-Z_][a-zA-Z0-9_]*)\s*([!=<>]=?)\s*(["']?[^'"]*["']?))");
 
   std::smatch match;
