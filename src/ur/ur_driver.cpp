@@ -527,13 +527,17 @@ bool UrDriver::stopControl()
 
 std::string UrDriver::readScriptFile(const std::string& filename)
 {
-  if (script_reader_ == nullptr)
+  std::ifstream ifs;
+  ifs.open(filename);
+  if (!ifs)
   {
-    throw std::runtime_error("Script reader is not initialized. Please initialize the UrDriver before using this "
-                             "function.");
+    std::stringstream ss;
+    ss << "URScript file '" << filename << "' doesn't exists.";
+    throw UrException(ss.str().c_str());
   }
+  std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 
-  return script_reader_->readScriptFile(filename);
+  return content;
 }
 
 bool UrDriver::checkCalibration(const std::string& checksum)

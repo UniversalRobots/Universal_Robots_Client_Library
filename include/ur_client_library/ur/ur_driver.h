@@ -892,7 +892,19 @@ public:
     trajectory_interface_->registerDisconnectionCallback(fun);
   }
 
-  std::string readScriptFile(const std::string& filename);
+  /*!
+   * \brief Reads a script file and returns its content.
+   *
+   * This doesn't perform any substitutions on the file contents, but simply reads the file into a string.
+   *
+   * \deprecated This function isn't used. Please use the ScriptReader class instead.
+   *
+   * \param filename The name of the script file to read.
+   *
+   * \returns The content of the script file as a string.
+   */
+  [[deprecated("This function isn't used. Please use the ScriptReader class instead.")]]
+  static std::string readScriptFile(const std::string& filename);
 
   bool isReverseInterfaceConnected() const
   {
