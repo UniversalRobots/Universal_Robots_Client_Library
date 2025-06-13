@@ -84,6 +84,11 @@ VersionInformation VersionInformation::fromString(const std::string& str)
 
   return info;
 }
+std::string VersionInformation::toString() const
+{
+  return std::to_string(this->major) + "." + std::to_string(this->minor) + "." + std::to_string(this->bugfix) + "." +
+         std::to_string(this->build);
+}
 
 bool VersionInformation::isESeries() const
 {

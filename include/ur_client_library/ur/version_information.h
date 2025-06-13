@@ -54,6 +54,11 @@ public:
    */
   static VersionInformation fromString(const std::string& str);
 
+  /*!
+   * \brief Generates a string representation of the version information such as "5.12.0.1101319"
+   */
+  std::string toString() const;
+
   bool isESeries() const;
 
   friend bool operator==(const VersionInformation& v1, const VersionInformation& v2);

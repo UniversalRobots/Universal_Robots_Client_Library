@@ -1,0 +1,5 @@
+{% if SOFTWARE_VERSION >= v5.23.0 %}
+  {% include "example_urscript_feature.urscript" %}
+{% else %}
+  popup("The cool new feature is not supported on Software version 5.23.0")
+{% endif %}

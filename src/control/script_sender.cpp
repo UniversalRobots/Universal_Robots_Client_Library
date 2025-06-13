@@ -62,8 +62,12 @@ void ScriptSender::messageCallback(const socket_t filedescriptor, char* buffer)
 
 void ScriptSender::sendProgram(const socket_t filedescriptor)
 {
-  size_t len = program_.size();
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_.c_str());
+  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
+  // not execute them. To avoid problems, we always just append a newline here, even if
+  // there may already be one.
+  const std::string send_string = program_ + "\n";
+  size_t len = send_string.size();
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(send_string.c_str());
   size_t written;
 
   if (server_.write(filedescriptor, data, len, written))

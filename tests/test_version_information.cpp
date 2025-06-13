@@ -106,6 +106,14 @@ TEST(version_information, test_is_e_series)
   EXPECT_FALSE(v2.isESeries());
 }
 
+TEST(version_information, test_to_string)
+{
+  std::string version_string = "5.5.0.1101319";
+  auto v1 = VersionInformation::fromString(version_string);
+
+  EXPECT_EQ(v1.toString(), version_string);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

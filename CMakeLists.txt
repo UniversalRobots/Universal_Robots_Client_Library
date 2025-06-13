@@ -18,6 +18,7 @@ add_library(urcl
     src/comm/tcp_socket.cpp
     src/comm/tcp_server.cpp
     src/control/reverse_interface.cpp
+    src/control/script_reader.cpp
     src/control/script_sender.cpp
     src/control/trajectory_point_interface.cpp
     src/control/script_command_interface.cpp

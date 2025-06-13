@@ -13,6 +13,7 @@ well as a couple of standalone modules to directly use subsets of the library's 
    architecture/reverse_interface
    architecture/rtde_client
    architecture/script_command_interface
+   architecture/script_reader
    architecture/script_sender
    architecture/trajectory_point_interface
    architecture/ur_driver

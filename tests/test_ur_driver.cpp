@@ -81,7 +81,10 @@ protected:
 TEST_F(UrDriverTest, read_non_existing_script_file)
 {
   const std::string non_existing_script_file = "";
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   EXPECT_THROW(UrDriver::readScriptFile(non_existing_script_file), UrException);
+#pragma GCC diagnostic pop
 }
 
 TEST_F(UrDriverTest, read_existing_script_file)
@@ -98,7 +101,10 @@ TEST_F(UrDriverTest, read_existing_script_file)
     std::cout << "Failed to create temporary files" << std::endl;
     GTEST_FAIL();
   }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   EXPECT_NO_THROW(UrDriver::readScriptFile(existing_script_file));
+#pragma GCC diagnostic pop
 
   // clean up
   ofs.close();

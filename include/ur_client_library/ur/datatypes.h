@@ -30,6 +30,7 @@
 
 #include <ur_client_library/types.h>
 #include "ur_client_library/log.h"
+#include <sstream>
 
 namespace urcl
 {

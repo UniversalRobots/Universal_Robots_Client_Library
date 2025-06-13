@@ -213,5 +213,17 @@ public:
   {
   }
 };
+
+class UnknownVariable : public UrException
+{
+private:
+  std::string text_;
+
+public:
+  explicit UnknownVariable() = delete;
+  explicit UnknownVariable(const std::string& variable_name) : std::runtime_error("Unknown variable: " + variable_name)
+  {
+  }
+};
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
