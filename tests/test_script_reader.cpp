@@ -139,14 +139,6 @@ TEST_F(ScriptReaderTest, ReplaceIncludes)
 
 TEST_F(ScriptReaderTest, ReplaceVariables)
 {
-  ScriptReader reader;
-  ScriptReader::DataDict data;
-  data["VAR1"] = "value1";
-  data["VAR2"] = 42;
-  data["VAR3"] = 6.28;
-  data["VAR4"] = true;
-  data["VAR5"] = false;
-
   char existing_script_file[] = "main_script.XXXXXX";
   std::ignore = mkstemp(existing_script_file);
   std::ofstream ofs(existing_script_file);
@@ -161,6 +153,13 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
   ofs << "This is just a line without any replacement" << std::endl;
   ofs.close();
 
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["VAR1"] = "value1";
+  data["VAR2"] = 42;
+  data["VAR3"] = 6.28;
+  data["VAR4"] = true;
+  data["VAR5"] = false;
   std::string script = reader.readScriptFile(existing_script_file, data);
 
   // By default std::to_string will convert double to 6 decimal places
@@ -171,10 +170,6 @@ TEST_F(ScriptReaderTest, ReplaceVariables)
 
 TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
 {
-  ScriptReader reader;
-  ScriptReader::DataDict data;
-  data["VAR1"] = "value1";
-
   char existing_script_file[] = "main_script.XXXXXX";
   std::ignore = mkstemp(existing_script_file);
   std::ofstream ofs(existing_script_file);
@@ -187,18 +182,16 @@ TEST_F(ScriptReaderTest, VariableNotInDictThrowsError)
   ofs << "This is just a line without any replacement" << std::endl;
   ofs.close();
 
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["VAR1"] = "value1";
+
   EXPECT_THROW(reader.readScriptFile(existing_script_file, data), urcl::UnknownVariable);
   std::remove(existing_script_file);
 }
 
 TEST_F(ScriptReaderTest, ReplaceConditionals)
 {
-  ScriptReader reader;
-  ScriptReader::DataDict data;
-  data["is_logged_in"] = true;
-  data["is_guest"] = false;
-  data["username"] = "test_user";
-
   char existing_script_file[] = "main_script.XXXXXX";
   std::ignore = mkstemp(existing_script_file);
   std::ofstream ofs(existing_script_file);
@@ -221,6 +214,12 @@ Please log in.
 {% endif %}
 )";
   ofs.close();
+
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["is_logged_in"] = true;
+  data["is_guest"] = false;
+  data["username"] = "test_user";
 
   std::string script = reader.readScriptFile(existing_script_file, data);
 
@@ -432,9 +431,9 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
 
 TEST_F(ScriptReaderTest, Example)
 {
-  ScriptReader reader;
   std::string existing_script_file = "resources/example_urscript_main.urscript";
 
+  ScriptReader reader;
   ScriptReader::DataDict data;
   data["SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.9");
   data["feature_name"] = "torque control";
