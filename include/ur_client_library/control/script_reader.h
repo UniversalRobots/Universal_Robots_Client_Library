@@ -71,11 +71,11 @@ public:
 
   /*!
    * \brief Reads a script file and applies variable replacements, includes, and conditionals.
-   * \param filename Filename (absolute path) of the script to be loaded.
+   * \param file_path Path of the script file to be loaded.
    * \param data Data dictionary used for variable replacements and expression evaluation.
    * \return The Script code with all replacements, includes and conditionals applied.
    */
-  std::string readScriptFile(const std::string& filename, const DataDict& data = DataDict());
+  std::string readScriptFile(const std::string& file_path, const DataDict& data = DataDict());
 
   /*!
    * \brief Evaluate a boolean expression
@@ -102,7 +102,7 @@ private:
 
   std::filesystem::path script_path_;
 
-  static std::string readFileContent(const std::string& filename);
+  static std::string readFileContent(const std::string& file_path);
   void replaceIncludes(std::string& script_code, const DataDict& data);
   static void replaceVariables(std::string& script_code, const DataDict& data);
   static void replaceConditionals(std::string& script_code, const DataDict& data);

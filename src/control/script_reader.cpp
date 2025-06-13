@@ -41,6 +41,7 @@ namespace urcl
 {
 namespace control
 {
+constexpr double ZERO_EPSILON = 0.000001;
 
 bool operator<(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVariant& rhs)
 {
@@ -96,7 +97,7 @@ bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVa
     {
       if (std::holds_alternative<double>(rhs))
       {
-        return std::abs((static_cast<double>(std::get<bool>(lhs)) - std::get<double>(rhs))) < 0.0001;
+        return std::abs((static_cast<double>(std::get<bool>(lhs)) - std::get<double>(rhs))) < ZERO_EPSILON;
       }
       if (std::holds_alternative<int>(rhs))
       {
@@ -144,12 +145,11 @@ std::string ScriptReader::readScriptFile(const std::string& filename, const Data
   return script_code;
 }
 
-std::string ScriptReader::readFileContent(const std::string& filename)
+std::string ScriptReader::readFileContent(const std::string& file_path)
 {
   std::ifstream ifs;
-  ifs.open(filename);
+  ifs.open(file_path);
   std::string content;
-  std::ifstream file(filename);
   if (ifs)
   {
     content = std::string((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
@@ -158,7 +158,7 @@ std::string ScriptReader::readFileContent(const std::string& filename)
   else
   {
     std::stringstream ss;
-    ss << "Could not open script file '" << filename << "'. Please check if the file exists and is readable.";
+    ss << "Could not open script file '" << file_path << "'. Please check if the file exists and is readable.";
     throw UrException(ss.str().c_str());
   }
 
@@ -174,8 +174,9 @@ void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
   // Replace all include patterns in the line
   while (std::regex_search(script, match, include_pattern))
   {
-    std::filesystem::path file_path(match[1].str());
-    std::string file_content = readScriptFile((script_path_.parent_path() / file_path.string()).string(), data);
+    std::filesystem::path relative_file_path(match[1].str());
+    std::string file_content =
+        readScriptFile((script_path_.parent_path() / relative_file_path.string()).string(), data);
     script.replace(match.position(0), match.length(0), file_content);
   }
 }
