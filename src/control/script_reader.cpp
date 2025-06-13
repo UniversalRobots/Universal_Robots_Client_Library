@@ -260,8 +260,7 @@ void ScriptReader::replaceConditionals(std::string& script_code, const DataDict&
         if (top.type == ELSE)
           continue;
         std::string condition = match[1];
-        bool result = data.count(condition) && std::holds_alternative<bool>(data.at(condition)) &&
-                      std::get<bool>(data.at(condition));
+        bool result = evaluateExpression(condition, data);
         top.type = ELIF;
         if (!top.condition_matched && result)
         {

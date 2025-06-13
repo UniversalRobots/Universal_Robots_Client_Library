@@ -241,6 +241,48 @@ Please log in.
   std::remove(existing_script_file);
 }
 
+TEST_F(ScriptReaderTest, TestNestedConditionals)
+{
+  char existing_script_file[] = "main_script.XXXXXX";
+  std::ignore = mkstemp(existing_script_file);
+  std::ofstream ofs(existing_script_file);
+  if (ofs.bad())
+  {
+    std::cout << "Failed to create temporary files" << std::endl;
+    GTEST_FAIL();
+  }
+  ofs <<
+      R"({% if PI < THE_ANSWER_TO_EVERYTHING %}
+  {% if TAU < PI %}
+It's a strange universe you live in...
+  {%elif pie_tastes == "great" %}
+What's better than a pie? 2 pies!
+  {% else %}
+You don't like pie?
+  {% endif %}
+{% else %}
+How can something be greater than the answer to everything?
+{% endif %}
+)";
+  ofs.close();
+
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["PI"] = 3.14;
+  data["TAU"] = 6.28;
+  data["THE_ANSWER_TO_EVERYTHING"] = 42;
+
+  data["pie_tastes"] = "great";
+  std::string script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_EQ(script, "What's better than a pie? 2 pies!");
+
+  data["pie_tastes"] = "aweful";
+  script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_EQ(script, "You don't like pie?");
+
+  std::remove(existing_script_file);
+}
+
 TEST_F(ScriptReaderTest, CheckCondition)
 {
   ScriptReader reader;
