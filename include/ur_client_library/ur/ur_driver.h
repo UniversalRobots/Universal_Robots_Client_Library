@@ -897,13 +897,15 @@ public:
    *
    * This doesn't perform any substitutions on the file contents, but simply reads the file into a string.
    *
-   * \deprecated This function isn't used. Please use the ScriptReader class instead.
+   * \deprecated This function isn't used. Please use the ScriptReader class instead. This function
+   * will be removed in May 2027.
    *
    * \param filename The name of the script file to read.
    *
    * \returns The content of the script file as a string.
    */
-  [[deprecated("This function isn't used. Please use the ScriptReader class instead.")]]
+  [[deprecated("This function isn't used. Please use the ScriptReader class instead. This function will be removed in "
+               "May 2027.")]]
   static std::string readScriptFile(const std::string& filename);
 
   bool isReverseInterfaceConnected() const
