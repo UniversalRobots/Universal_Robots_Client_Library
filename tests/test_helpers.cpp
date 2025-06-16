@@ -43,6 +43,9 @@ TEST(TestHelpers, test_parse_boolean)
   EXPECT_TRUE(parseBoolean("on"));
   EXPECT_TRUE(parseBoolean("On"));
   EXPECT_TRUE(parseBoolean("ON"));
+  EXPECT_TRUE(parseBoolean("yes"));
+  EXPECT_TRUE(parseBoolean("Yes"));
+  EXPECT_TRUE(parseBoolean("YES"));
   EXPECT_TRUE(parseBoolean("1"));
   EXPECT_FALSE(parseBoolean("false"));
   EXPECT_FALSE(parseBoolean("False"));
@@ -50,6 +53,9 @@ TEST(TestHelpers, test_parse_boolean)
   EXPECT_FALSE(parseBoolean("off"));
   EXPECT_FALSE(parseBoolean("Off"));
   EXPECT_FALSE(parseBoolean("OFF"));
+  EXPECT_FALSE(parseBoolean("no"));
+  EXPECT_FALSE(parseBoolean("No"));
+  EXPECT_FALSE(parseBoolean("NO"));
   EXPECT_FALSE(parseBoolean("0"));
   EXPECT_THROW(parseBoolean("notabool"), urcl::UrException);
 }
