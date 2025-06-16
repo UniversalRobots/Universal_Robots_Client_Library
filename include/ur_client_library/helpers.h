@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 
+#include <string>
 #include <chrono>
 #include <functional>
 #ifdef _WIN32
@@ -78,5 +79,25 @@ bool setFiFoScheduling(pthread_t& thread, const int priority);
  */
 void waitFor(std::function<bool()> condition, const std::chrono::milliseconds timeout,
              const std::chrono::milliseconds check_interval = std::chrono::milliseconds(50));
+
+/*!
+ * \brief Parses a boolean value from a string.
+ *
+ * The string can be one of
+ *  - true, True, TRUE
+ *  - on, On, ON
+ *  - yes, Yes, YES
+ *  - 1
+ *  - false, False, FALSE
+ *  - off, Off, OFF
+ *  - no, No, NO
+ *  - 0
+ *
+ * \param str string to be parsed
+ * \throws urcl::UrException If the string doesn't match one of the options
+ * \return The boolean representation of the string
+ */
+bool parseBoolean(const std::string& str);
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

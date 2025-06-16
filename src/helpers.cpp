@@ -30,6 +30,7 @@
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -116,5 +117,27 @@ void waitFor(std::function<bool()> condition, const std::chrono::milliseconds ti
     std::this_thread::sleep_for(check_interval);
   }
   throw urcl::TimeoutException("Timeout while waiting for condition to be met", timeout);
+}
+
+bool parseBoolean(const std::string& str)
+{
+  std::string lower = str;
+  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+
+  if (lower == "true" || lower == "1" || lower == "yes" || lower == "on")
+  {
+    return true;
+  }
+  else if (lower == "false" || lower == "0" || lower == "no" || lower == "off")
+  {
+    return false;
+  }
+  else
+  {
+    std::stringstream ss;
+    ss << "Invalid boolean value: '" << str << "'. Expected 'true', 'false', '1', '0', 'yes', 'no', 'on', or 'off'.";
+    URCL_LOG_ERROR(ss.str().c_str());
+    throw UrException(ss.str().c_str());
+  }
 }
 }  // namespace urcl
