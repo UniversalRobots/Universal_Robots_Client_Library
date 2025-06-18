@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.1.0 (2025-06-18)
+------------------
 * Minimal support for building on macOS (`#341 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/341>`_)
 * Install endian.h and add that to the target include directories on Windows and MacOS (`#345 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/345>`_)
 * Add ScriptReader for script template parsing (`#343 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/343>`_)
