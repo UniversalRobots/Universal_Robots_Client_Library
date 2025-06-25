@@ -36,6 +36,7 @@
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
 #include "ur_client_library/control/script_command_interface.h"
+#include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/control/script_sender.h"
 #include "ur_client_library/ur/tool_communication.h"
 #include "ur_client_library/ur/version_information.h"
@@ -435,7 +436,7 @@ public:
     init(config);
   }
 
-  virtual ~UrDriver() = default;
+  ~UrDriver();
 
   /*!
    * \brief Access function to receive the latest data package sent from the robot through RTDE
@@ -928,6 +929,20 @@ public:
     trajectory_interface_->registerDisconnectionCallback(fun);
   }
 
+  /*!
+   * \brief Reads a script file and returns its content.
+   *
+   * This doesn't perform any substitutions on the file contents, but simply reads the file into a string.
+   *
+   * \deprecated This function isn't used. Please use the ScriptReader class instead. This function
+   * will be removed in May 2027.
+   *
+   * \param filename The name of the script file to read.
+   *
+   * \returns The content of the script file as a string.
+   */
+  [[deprecated("This function isn't used. Please use the ScriptReader class instead. This function will be removed in "
+               "May 2027.")]]
   static std::string readScriptFile(const std::string& filename);
 
   bool isReverseInterfaceConnected() const
@@ -958,6 +973,7 @@ private:
   std::unique_ptr<control::TrajectoryPointInterface> trajectory_interface_;
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
+  std::unique_ptr<control::ScriptReader> script_reader_;
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);

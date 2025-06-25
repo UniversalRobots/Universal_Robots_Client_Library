@@ -70,6 +70,7 @@ TEST(version_information, test_relations)
   auto v2 = VersionInformation::fromString("5.5.0.1101318");
   auto v3 = VersionInformation::fromString("5.5.1");
   auto v4 = VersionInformation::fromString("3.12.0.1234");
+  auto v5 = VersionInformation::fromString("3.11.0");
 
   EXPECT_EQ(v1, v1);
   EXPECT_LT(v2, v1);
@@ -80,6 +81,37 @@ TEST(version_information, test_relations)
   EXPECT_LT(v1, v3);
   EXPECT_LT(v4, v1);
   EXPECT_TRUE(v1 != v2);
+  EXPECT_LT(v5, v4);
+}
+
+TEST(version_information, test_invalid_inputs)
+{
+  // Empty string
+  EXPECT_THROW(VersionInformation::fromString(""), UrException);
+
+  // Too many components
+  EXPECT_THROW(VersionInformation::fromString("1.2.3.4.5"), UrException);
+
+  // Non-numeric values
+  EXPECT_THROW(VersionInformation::fromString("1.two.3"), std::invalid_argument);
+  EXPECT_THROW(VersionInformation::fromString("a.b.c.d"), std::invalid_argument);
+}
+
+TEST(version_information, test_is_e_series)
+{
+  auto v1 = VersionInformation::fromString("5.5.0.1101319");
+  auto v2 = VersionInformation::fromString("4.12.0.1234");
+
+  EXPECT_TRUE(v1.isESeries());
+  EXPECT_FALSE(v2.isESeries());
+}
+
+TEST(version_information, test_to_string)
+{
+  std::string version_string = "5.5.0.1101319";
+  auto v1 = VersionInformation::fromString(version_string);
+
+  EXPECT_EQ(v1.toString(), version_string);
 }
 
 int main(int argc, char* argv[])

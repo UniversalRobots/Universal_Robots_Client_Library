@@ -32,7 +32,9 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/ur/ur_driver.h"
+#include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
 #include "ur_client_library/control/torque_command_controller_parameters.h"
 #include "ur_client_library/helpers.h"
@@ -43,18 +45,24 @@
 
 namespace urcl
 {
-static const std::string BEGIN_REPLACE("{{BEGIN_REPLACE}}");
-static const std::string JOINT_STATE_REPLACE("{{JOINT_STATE_REPLACE}}");
-static const std::string TIME_REPLACE("{{TIME_REPLACE}}");
-static const std::string SERVO_J_REPLACE("{{SERVO_J_REPLACE}}");
-static const std::string SERVER_IP_REPLACE("{{SERVER_IP_REPLACE}}");
-static const std::string SERVER_PORT_REPLACE("{{SERVER_PORT_REPLACE}}");
-static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLACE}}");
-static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
-static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
-static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
-static const std::string PD_CONTROLLER_GAINS_REPLACE("{{PD_CONTROLLER_GAINS_REPLACE}}");
-static const std::string MAX_JOINT_TORQUE_REPLACE("{{MAX_JOINT_TORQUE_REPLACE}}");
+static const std::string BEGIN_REPLACE("BEGIN_REPLACE");
+static const std::string JOINT_STATE_REPLACE("JOINT_STATE_REPLACE");
+static const std::string TIME_REPLACE("TIME_REPLACE");
+static const std::string SERVO_J_REPLACE("SERVO_J_REPLACE");
+static const std::string SERVER_IP_REPLACE("SERVER_IP_REPLACE");
+static const std::string SERVER_PORT_REPLACE("SERVER_PORT_REPLACE");
+static const std::string TRAJECTORY_PORT_REPLACE("TRAJECTORY_SERVER_PORT_REPLACE");
+static const std::string SCRIPT_COMMAND_PORT_REPLACE("SCRIPT_COMMAND_SERVER_PORT_REPLACE");
+static const std::string FORCE_MODE_SET_DAMPING_REPLACE("FORCE_MODE_SET_DAMPING_REPLACE");
+static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("FORCE_MODE_SET_GAIN_SCALING_REPLACE");
+static const std::string PD_CONTROLLER_GAINS_REPLACE("PD_CONTROLLER_GAINS_REPLACE");
+static const std::string MAX_JOINT_TORQUE_REPLACE("MAX_JOINT_TORQUE_REPLACE");
+
+UrDriver::~UrDriver()
+{
+  // This will return false if the external control script is not running.
+  stopControl();
+}
 
 void UrDriver::init(const UrDriverConfiguration& config)
 {
@@ -84,46 +92,34 @@ void UrDriver::init(const UrDriverConfiguration& config)
   // Figure out the ip automatically if the user didn't provide it
   std::string local_ip = config.reverse_ip.empty() ? rtde_client_->getIP() : config.reverse_ip;
 
-  std::string prog = readScriptFile(config.script_file);
-  while (prog.find(JOINT_STATE_REPLACE) != std::string::npos)
+  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
+  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+
+  startPrimaryClientCommunication();
+
+  std::chrono::milliseconds timeout(1000);
+  try
   {
-    prog.replace(prog.find(JOINT_STATE_REPLACE), JOINT_STATE_REPLACE.length(),
-                 std::to_string(control::ReverseInterface::MULT_JOINTSTATE));
+    waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, timeout);
   }
-  while (prog.find(TIME_REPLACE) != std::string::npos)
+  catch (const TimeoutException&)
   {
-    prog.replace(prog.find(TIME_REPLACE), TIME_REPLACE.length(),
-                 std::to_string(control::TrajectoryPointInterface::MULT_TIME));
+    throw TimeoutException("Could not get configuration package within timeout, are you connected to the robot?",
+                           timeout);
   }
 
+  const RobotType robot_type = primary_client_->getRobotType();
+
+  control::ScriptReader::DataDict data;
+  data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
+  data[TIME_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_TIME);
   std::ostringstream out;
   out << "lookahead_time=" << servoj_lookahead_time_ << ", gain=" << servoj_gain_;
-  while (prog.find(SERVO_J_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVO_J_REPLACE), SERVO_J_REPLACE.length(), out.str());
-  }
-
-  while (prog.find(SERVER_IP_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVER_IP_REPLACE), SERVER_IP_REPLACE.length(), local_ip);
-  }
-
-  while (prog.find(SERVER_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SERVER_PORT_REPLACE), SERVER_PORT_REPLACE.length(), std::to_string(config.reverse_port));
-  }
-
-  while (prog.find(TRAJECTORY_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(TRAJECTORY_PORT_REPLACE), TRAJECTORY_PORT_REPLACE.length(),
-                 std::to_string(config.trajectory_port));
-  }
-
-  while (prog.find(SCRIPT_COMMAND_PORT_REPLACE) != std::string::npos)
-  {
-    prog.replace(prog.find(SCRIPT_COMMAND_PORT_REPLACE), SCRIPT_COMMAND_PORT_REPLACE.length(),
-                 std::to_string(config.script_command_port));
-  }
+  data[SERVO_J_REPLACE] = out.str();
+  data[SERVER_IP_REPLACE] = local_ip;
+  data[SERVER_PORT_REPLACE] = std::to_string(config.reverse_port);
+  data[TRAJECTORY_PORT_REPLACE] = std::to_string(config.trajectory_port);
+  data[SCRIPT_COMMAND_PORT_REPLACE] = std::to_string(config.script_command_port);
 
   robot_version_ = rtde_client_->getVersion();
 
@@ -144,40 +140,19 @@ void UrDriver::init(const UrDriverConfiguration& config)
                   << config.tool_comm_setup->getStopBits() << ", " << config.tool_comm_setup->getRxIdleChars() << ", "
                   << config.tool_comm_setup->getTxIdleChars() << ")";
   }
-  prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
+  data[BEGIN_REPLACE] = begin_replace.str();
 
-  trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
-  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+  const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
+  std::stringstream pd_gains_ss;
+  pd_gains_ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
+  data[PD_CONTROLLER_GAINS_REPLACE] = pd_gains_ss.str();
 
-  startPrimaryClientCommunication();
+  std::stringstream max_torques_ss;
+  max_torques_ss << control::getMaxTorquesFromRobotType(robot_type);
+  data[MAX_JOINT_TORQUE_REPLACE] = max_torques_ss.str();
 
-  std::chrono::milliseconds timeout(1000);
-  try
-  {
-    waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, timeout);
-  }
-  catch (const TimeoutException&)
-  {
-    throw TimeoutException("Could not get configuration package within timeout, are you connected to the robot?",
-                           timeout);
-  }
-
-  const RobotType robot_type = primary_client_->getRobotType();
-
-  if (prog.find(PD_CONTROLLER_GAINS_REPLACE) != std::string::npos)
-  {
-    const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
-    std::stringstream ss;
-    ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
-    prog.replace(prog.find(PD_CONTROLLER_GAINS_REPLACE), PD_CONTROLLER_GAINS_REPLACE.length(), ss.str());
-  }
-
-  if (prog.find(MAX_JOINT_TORQUE_REPLACE) != std::string::npos)
-  {
-    std::stringstream ss;
-    ss << control::getMaxTorquesFromRobotType(robot_type);
-    prog.replace(prog.find(MAX_JOINT_TORQUE_REPLACE), MAX_JOINT_TORQUE_REPLACE.length(), ss.str());
-  }
+  script_reader_.reset(new control::ScriptReader());
+  std::string prog = script_reader_->readScriptFile(config.script_file, data);
 
   if (in_headless_mode_)
   {

@@ -2,6 +2,29 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2025-06-18)
+------------------
+* Minimal support for building on macOS (`#341 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/341>`_)
+* Install endian.h and add that to the target include directories on Windows and MacOS (`#345 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/345>`_)
+* Add ScriptReader for script template parsing (`#343 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/343>`_)
+* Add more tests for VersionInformation (`#344 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/344>`_)
+* Fix driver branch for Jazzy downstream build (`#339 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/339>`_)
+* Stop control, when UrDriver object is destroyed (`#338 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/338>`_)
+* Add new robot types to URSim startup script (`#331 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/331>`_)
+* Fix robot message type POPUP (`#335 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/335>`_)
+* Disable checking links for two broken ones (`#333 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/333>`_)
+* readme: load ROSin imgs from press_kit repository (`#334 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/334>`_)
+* Added configuration data to packages parsed from the primary interface (`#327 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/327>`_)
+* Correct message sum in test_tool_contact (`#324 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/324>`_)
+* Fix the image sizes in architecture section (`#321 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/321>`_)
+* Check links using lychee (`#319 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/319>`_)
+* Update ROS distributions for industrial_ci (`#317 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/317>`_)
+* Support PolyScopeX simulator for 10.8.0 (`#315 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/315>`_)
+* Add an API reference page to the docs (`#314 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/314>`_)
+* Update documentation (`#309 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/309>`_)
+
+* Contributors: Andrew C. Morrow, Felix Exner, G.A. vd. Hoorn, Mads Holm Peters
+
 2.0.0 (2025-04-16)
 ------------------
 * Add functionality to send MoveP and MoveC instructions to the robot (`#303 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/303>`_)

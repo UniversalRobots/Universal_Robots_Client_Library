@@ -40,7 +40,8 @@ TEST_RUN=false
 # The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
 # versions
 declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
-                              ["10.8.0"]="0.13.124")
+                              ["10.8.0"]="0.13.124"
+                              ["10.9.0"]="0.14.47")
 
 help()
 {
@@ -49,7 +50,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20, ur30]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur7e, ur10e, ur12e, ur16e, ur15, ur20, ur30]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -89,10 +90,10 @@ get_series_from_model()
     ur3|ur5|ur10)
       ROBOT_SERIES=cb3
       ;;
-    ur3e|ur5e|ur10e|ur16e)
+    ur3e|ur5e|ur7e|ur10e|ur12e|ur16e)
       ROBOT_SERIES=e-series
       ;;
-    ur20|ur30)
+    ur15|ur20|ur30)
       ROBOT_SERIES=e-series
       ;;
     *)
@@ -131,9 +132,15 @@ strip_robot_model()
     ROBOT_MODEL=${robot_model^^}
   else
     ROBOT_MODEL=${robot_model^^}
-    # UR20 and UR30 need no further adjustment
+    # UR15, UR20 and UR30 need no further adjustment
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
+    elif [[ "$robot_model" = @(ur7e|ur12e) ]]; then
+      if [[ "$robot_series" == "polyscopex" ]]; then
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
+      else
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
+      fi
     fi
   fi
 }
@@ -144,19 +151,31 @@ strip_robot_model()
 # - ROBOT_SERIES
 validate_parameters()
 {
-  local IMAGE_URSIM_VERSION
-  # Inspect the image's URSim version if the image is locally available. This is especially
-  # important when we use the "latest" tag, as we don't know the version hiding behind this and it
-  # could be potentially older.
-  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
-  if [ -z "$IMAGE_URSIM_VERSION" ]; then
-    IMAGE_URSIM_VERSION="$URSIM_VERSION"
-  fi
-  [ "$IMAGE_URSIM_VERSION" == "latest" ] && return 0
   local MIN_CB3="3.14.3"
   local MIN_E_SERIES="5.9.4"
+  local MIN_UR15="5.22.0"
+  local MIN_UR15_X="10.8.0"
+  local MIN_POLYSCOPE_X="10.7.0"
   local MIN_UR20="5.14.0"
   local MIN_UR30="5.15.0"
+  local MIN_UR7e="5.22.0" # and UR12e
+  local MIN_UR7e_X="10.9.0" # and UR12e
+
+  local URSIM_VERSION_CHECK="$URSIM_VERSION"
+  if [[ "$URSIM_VERSION" == "latest" ]]; then
+    if [[ "$ROBOT_SERIES" == "cb3" ]]; then
+      URSIM_VERSION_CHECK="$MIN_CB3"
+    elif [[ "$ROBOT_SERIES" == "e-series" ]]; then
+      URSIM_VERSION_CHECK="$MIN_UR15"
+    elif [[ "$ROBOT_SERIES" == "polyscopex" ]]; then
+      URSIM_VERSION_CHECK="MIN_UR15_X"
+    fi
+  fi
+
+  if ! [[ "$URSIM_VERSION_CHECK" =~ [0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Invalid URSim version given. Must be in the format X.Y.Z. Given: $URSIM_VERSION_CHECK"
+    exit 1
+  fi
 
   local MIN_VERSION="0.0"
 
@@ -166,37 +185,45 @@ validate_parameters()
       if [[ $ROBOT_MODEL != @(ur3|ur5|ur10) ]]; then
         echo "$ROBOT_MODEL is no valid CB3 model!" && exit 1
       fi
-      verlte "4.0.0" "$IMAGE_URSIM_VERSION" && echo "$IMAGE_URSIM_VERSION is no valid CB3 version!" && exit 1
-      verlte "$MIN_CB3" "$IMAGE_URSIM_VERSION" && return 0
+      verlte "4.0.0" "$URSIM_VERSION_CHECK" && echo "$URSIM_VERSION_CHECK is no valid CB3 version!" && exit 1
+      verlte "$MIN_CB3" "$URSIM_VERSION_CHECK" && return 0
       ;;
     e-series)
-      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur10e|ur12e|ur16e|ur15|ur20|ur30) ]]; then
         echo "$ROBOT_MODEL is no valid e-series model!" && exit 1
       fi
-      if [[ $ROBOT_MODEL == "ur20" ]]; then
+      if [[ $ROBOT_MODEL == "ur15" ]]; then
+          MIN_VERSION=$MIN_UR15
+      elif [[ $ROBOT_MODEL == "ur20" ]]; then
           MIN_VERSION=$MIN_UR20
       elif [[ $ROBOT_MODEL == "ur30" ]]; then
           MIN_VERSION=$MIN_UR30
+      elif [[ $ROBOT_MODEL == "ur7e" || $ROBOT_MODEL == "ur12e" ]]; then
+          MIN_VERSION=$MIN_UR7e
       else
           MIN_VERSION=$MIN_E_SERIES
       fi
       ;;
     polyscopex)
-      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION}]+_}" ]]; then
-        echo "URSim version $URSIM_VERSION is unfortunately not supported"
+      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION_CHECK}]+_}" ]]; then
+        echo "URSim version $URSIM_VERSION_CHECK is unfortunately not supported"
         exit 1
       fi
-      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur10e|ur16e|ur20|ur30) ]]; then
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur10e|ur12e|ur16e|ur15|ur20|ur30) ]]; then
         echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit 1
+      elif [[ $ROBOT_MODEL == "ur7e" || $ROBOT_MODEL == "ur12e" ]]; then
+          MIN_VERSION=$MIN_UR7e_X
+      elif [[ $ROBOT_MODEL == "ur15" ]]; then
+          MIN_VERSION=$MIN_UR15_X
       else
-        return 0
+        MIN_VERSION=$MIN_POLYSCOPE_X
       fi
       ;;
   esac
 
-  verlte "$MIN_VERSION" "$URSIM_VERSION" && return 0
+  verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK" && return 0
 
-  echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $IMAGE_URSIM_VERSION."
+  echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $URSIM_VERSION."
   exit 1
 }
 
@@ -348,6 +375,18 @@ fill_information() {
   fi
 }
 
+get_version_from_latest()
+{
+  local IMAGE_URSIM_VERSION
+  # Inspect the image's URSim version if the image is locally available. This is especially
+  # important when we use the "latest" tag, as we don't know the version hiding behind this and it
+  # could be potentially older.
+  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
+  if [ -n "$IMAGE_URSIM_VERSION" ]; then
+    URSIM_VERSION="$IMAGE_URSIM_VERSION"
+  fi
+}
+
 test_input_handling() {
   parse_arguments "$@"
   fill_information
@@ -357,6 +396,7 @@ test_input_handling() {
   echo "ROBOT_SERIES: $ROBOT_SERIES"
   echo "URSIM_VERSION: $URSIM_VERSION"
 
+  TEST_RUN=true
   validate_parameters
 }
 
@@ -365,6 +405,7 @@ main() {
   
 
   fill_information
+  get_version_from_latest
 
   echo "ROBOT_MODEL: $ROBOT_MODEL"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
@@ -409,10 +450,14 @@ main() {
     mkdir -p "${PROGRAM_STORAGE}"
     PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
+    ROBOT_MODEL_CONTROLLER_FLAG=""
+    verlte "${POLYSCOPE_X_MAP[10.7.0]}" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "${POLYSCOPE_X_MAP[10.8.0]}" && ROBOT_MODEL_CONTROLLER_FLAG="-e ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}"
+
     docker_cmd="docker run --rm -d \
       --net ursim_net --ip $IP_ADDRESS \
       -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
       -e ROBOT_TYPE=${ROBOT_MODEL} \
+      $ROBOT_MODEL_CONTROLLER_FLAG \
       $PORT_FORWARDING \
       $DOCKER_ARGS \
       --name $CONTAINER_NAME \

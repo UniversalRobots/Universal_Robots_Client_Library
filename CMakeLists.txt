@@ -18,6 +18,7 @@ add_library(urcl
     src/comm/tcp_socket.cpp
     src/comm/tcp_server.cpp
     src/control/reverse_interface.cpp
+    src/control/script_reader.cpp
     src/control/script_sender.cpp
     src/control/trajectory_point_interface.cpp
     src/control/script_command_interface.cpp
@@ -57,9 +58,18 @@ add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_features(urcl PUBLIC cxx_std_17)
 
 if(MSVC)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian)
   target_link_libraries(urcl ws2_32)
+  target_include_directories(urcl PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}/3rdparty>
+  )
 else()
+  if(APPLE)
+    target_include_directories(urcl PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian>
+      $<INSTALL_INTERFACE:include/${PROJECT_NAME}/3rdparty>
+    )
+  endif()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
   target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
@@ -69,7 +79,7 @@ else()
   endif()
 endif()
 
-target_include_directories( urcl PUBLIC
+target_include_directories(urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -101,6 +111,9 @@ install(TARGETS urcl EXPORT urcl_targets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY 3rdparty/endian/ DESTINATION include/${PROJECT_NAME}/3rdparty
+  FILES_MATCHING PATTERN "*.h"
+)
 
 install(EXPORT urcl_targets
   DESTINATION lib/cmake/ur_client_library
