@@ -154,6 +154,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   max_torques_ss << control::getMaxTorquesFromRobotType(robot_type);
   data[MAX_JOINT_TORQUE_REPLACE] = max_torques_ss.str();
 
+  data["ROBOT_SOFTWARE_VERSION"] = getVersion();
+
   script_reader_.reset(new control::ScriptReader());
   std::string prog = script_reader_->readScriptFile(config.script_file, data);
 
