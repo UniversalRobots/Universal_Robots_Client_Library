@@ -185,6 +185,17 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  {
+    auto robot_version = g_my_robot->getUrDriver()->getVersion();
+    if (robot_version < urcl::VersionInformation::fromString("5.23.0") ||
+        (robot_version.major > 5 && robot_version < urcl::VersionInformation::fromString("10.10.0")))
+    {
+      URCL_LOG_ERROR("This example requires a robot with at least version 5.23.0 / 10.10.0. Your robot has version %s.",
+                     robot_version.toString().c_str());
+      return 0;
+    }
+  }
+
   auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->getUrDriver());
 
   URCL_LOG_INFO("Move the robot to initial position");

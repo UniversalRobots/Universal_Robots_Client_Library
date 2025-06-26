@@ -78,8 +78,13 @@ void sendScriptCommands()
       g_my_robot->getUrDriver()->setPDControllerGains({ 500.0, 500.0, 300.0, 124.0, 124.0, 124.0 },
                                                       { 44.72, 44.72, 34.64, 22.27, 22.27, 22.27 });
     });
-    run_cmd("Setting max joint torques",
-            []() { g_my_robot->getUrDriver()->setMaxJointTorques({ 27.0, 27.0, 14.0, 4.5, 4.5, 4.5 }); });
+    auto robot_version = g_my_robot->getUrDriver()->getVersion();
+    if (robot_version > urcl::VersionInformation::fromString("10.10.0") ||
+        (robot_version.major == 5 && robot_version.minor >= 23))
+    {
+      run_cmd("Setting max joint torques",
+              []() { g_my_robot->getUrDriver()->setMaxJointTorques({ 27.0, 27.0, 14.0, 4.5, 4.5, 4.5 }); });
+    }
   }
   URCL_LOG_INFO("Script command thread finished.");
 }
