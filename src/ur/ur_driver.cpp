@@ -147,7 +147,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
   std::stringstream pd_gains_ss;
-  if (robot_version_.major == 5 && robot_version_.minor < 10)
+  if (robot_version_ < urcl::VersionInformation::fromString("5.10.0"))
   {
     // Structs are only available in URScript 5.10 and later. It isn't used pre 5.23, so we can safely set it to 0.
     pd_gains_ss << 0;
