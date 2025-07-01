@@ -284,7 +284,12 @@ get_download_url_urcap()
 
 post_setup_polyscopex()
 {
-  get_download_url_urcapx latest
+
+  if [[ "$URSIM_VERSION" == "${POLYSCOPE_X_MAP[10.7.0]}" ]]; then
+    get_download_url_urcapx 0.1.0
+  else
+    get_download_url_urcapx latest
+  fi
   mkdir -p "${URCAP_STORAGE}"
   urcapx_file="${URCAP_STORAGE}/external-control-$URCAPX_VERSION.urcapx"
   if [[ ! -f "$urcapx_file" ]]; then
