@@ -38,6 +38,11 @@ ScriptCommandInterface::ScriptCommandInterface(uint32_t port) : ReverseInterface
   client_connected_ = false;
 }
 
+ScriptCommandInterface::ScriptCommandInterface(const ReverseInterfaceConfig& config) : ReverseInterface(config)
+{
+  client_connected_ = false;
+}
+
 bool ScriptCommandInterface::zeroFTSensor()
 {
   const int message_length = 1;

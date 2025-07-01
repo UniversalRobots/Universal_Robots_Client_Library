@@ -64,6 +64,14 @@ public:
   ScriptCommandInterface(uint32_t port);
 
   /*!
+   * \brief Creates a ScriptCommandInterface object, including a new TCPServer
+   *
+   * \param config Configuration for the ReverseInterface, including the port to start the server
+   * on.
+   */
+  ScriptCommandInterface(const ReverseInterfaceConfig& config);
+
+  /*!
    * \brief Zero the force torque sensor
    *
    * \returns True, if the write was performed successfully, false otherwise.
