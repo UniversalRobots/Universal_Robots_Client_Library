@@ -56,7 +56,7 @@ std::string trajectoryResultToString(const TrajectoryResult result)
   }
 }
 
-TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInterface(port, [](bool foo) { return foo; })
+TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInterface(ReverseInterfaceConfig{ port })
 {
 }
 

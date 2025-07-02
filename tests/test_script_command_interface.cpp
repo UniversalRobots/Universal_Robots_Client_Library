@@ -102,7 +102,7 @@ protected:
 
   void SetUp()
   {
-    script_command_interface_.reset(new control::ScriptCommandInterface(50004));
+    script_command_interface_.reset(new control::ScriptCommandInterface(control::ReverseInterfaceConfig{ 50004 }));
     client_.reset(new Client(50004));
   }
 
