@@ -356,6 +356,21 @@ void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char
                   nbytesrecv);
   }
 }
+bool ScriptCommandInterface::robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
+                                                               const VersionInformation& min_polyscopeX,
+                                                               const std::string& command_name)
+{
+  if (robot_software_version_ < min_polyscope5 ||
+      (robot_software_version_.major > 5 && robot_software_version_ < min_polyscopeX))
+  {
+    URCL_LOG_WARN("%s is only available for robots with PolyScope %s / %s or "
+                  "later. This robot's version is %s. This command will have no effect.",
+                  command_name.c_str(), min_polyscope5.toString().c_str(), min_polyscopeX.toString().c_str(),
+                  robot_software_version_.toString().c_str());
+    return false;
+  }
+  return true;
+}
 
 }  // namespace control
 }  // namespace urcl
