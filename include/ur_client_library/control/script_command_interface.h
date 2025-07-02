@@ -61,6 +61,7 @@ public:
    *
    * \param port Port to start the server on
    */
+  [[deprecated("Use ReverseInterfaceConfig instead of port, handle_program_state and step_time parameters")]]
   ScriptCommandInterface(uint32_t port);
 
   /*!
