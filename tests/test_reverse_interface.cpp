@@ -150,8 +150,10 @@ protected:
 
   void SetUp()
   {
-    reverse_interface_.reset(new control::ReverseInterface(
-        50001, std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1)));
+    control::ReverseInterfaceConfig config;
+    config.port = 50001;
+    config.handle_program_state = std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1);
+    reverse_interface_.reset(new control::ReverseInterface(config));
     client_.reset(new Client(50001));
   }
 

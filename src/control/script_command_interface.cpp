@@ -33,7 +33,11 @@ namespace urcl
 {
 namespace control
 {
-ScriptCommandInterface::ScriptCommandInterface(uint32_t port) : ReverseInterface(port, [](bool foo) { return foo; })
+ScriptCommandInterface::ScriptCommandInterface(uint32_t port) : ScriptCommandInterface(ReverseInterfaceConfig{ port })
+{
+}
+
+ScriptCommandInterface::ScriptCommandInterface(const ReverseInterfaceConfig& config) : ReverseInterface(config)
 {
   client_connected_ = false;
 }

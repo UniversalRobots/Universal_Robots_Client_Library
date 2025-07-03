@@ -61,7 +61,16 @@ public:
    *
    * \param port Port to start the server on
    */
+  [[deprecated("Use ReverseInterfaceConfig instead of port, handle_program_state and step_time parameters")]]
   ScriptCommandInterface(uint32_t port);
+
+  /*!
+   * \brief Creates a ScriptCommandInterface object, including a new TCPServer
+   *
+   * \param config Configuration for the ReverseInterface, including the port to start the server
+   * on.
+   */
+  ScriptCommandInterface(const ReverseInterfaceConfig& config);
 
   /*!
    * \brief Zero the force torque sensor

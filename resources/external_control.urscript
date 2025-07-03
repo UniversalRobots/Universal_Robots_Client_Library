@@ -896,7 +896,7 @@ while control_mode > MODE_STOPPED:
 end
 
 textmsg("ExternalControl: Stopping communication and control")
-kill thread_move
+join thread_move
 kill thread_trajectory
 kill thread_script_commands
 stopj(STOPJ_ACCELERATION)
