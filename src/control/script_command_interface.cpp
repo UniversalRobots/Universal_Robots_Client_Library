@@ -295,6 +295,8 @@ bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double 
 
 bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd)
 {
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                    urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 13;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
@@ -327,6 +329,8 @@ bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, co
 
 bool ScriptCommandInterface::setMaxJointTorques(const urcl::vector6d_t* max_joint_torques)
 {
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                    urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 7;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
