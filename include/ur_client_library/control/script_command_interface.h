@@ -31,6 +31,7 @@
 
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/ur/tool_communication.h"
+#include "ur_client_library/ur/version_information.h"
 
 namespace urcl
 {
@@ -234,6 +235,25 @@ private:
     SET_PD_CONTROLLER_GAINS = 8,    ///< Set PD controller gains
     SET_MAX_JOINT_TORQUES = 9,      ///< Set max joint torques
   };
+
+  /*!
+   * \brief Checks if the robot version is higher than the minimum required version for Polyscope 5
+   * or Polyscope X.
+   *
+   * If the robot version is lower than the minimum required version, this function
+   * will log a warning message.
+   * In case of a PolyScope 5 robot, the robot's software version will be checked against \p
+   * min_polyscope5, and in case of a PolyScope X robot, it will be checked against \p
+   * min_polyscopeX.
+   *
+   * \param min_polyscope5 Minimum required version for PolyScope 5
+   * \param min_polyscopeX Minimum required version for PolyScope X
+   * \param command_name Name of the command being checked, used for logging
+   *
+   * \returns True if the robot version is higher than the versions provided, false otherwise.
+   */
+  bool robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
+                                         const VersionInformation& min_polyscopeX, const std::string& command_name);
 
   bool client_connected_;
   static const int MAX_MESSAGE_LENGTH = 28;

@@ -147,12 +147,22 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
   std::stringstream pd_gains_ss;
-  pd_gains_ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
+  if (robot_version_ < urcl::VersionInformation::fromString("5.10.0"))
+  {
+    // Structs are only available in URScript 5.10 and later. It isn't used pre 5.23, so we can safely set it to 0.
+    pd_gains_ss << 0;
+  }
+  else
+  {
+    pd_gains_ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
+  }
   data[PD_CONTROLLER_GAINS_REPLACE] = pd_gains_ss.str();
 
   std::stringstream max_torques_ss;
   max_torques_ss << control::getMaxTorquesFromRobotType(robot_type);
   data[MAX_JOINT_TORQUE_REPLACE] = max_torques_ss.str();
+
+  data["ROBOT_SOFTWARE_VERSION"] = getVersion();
 
   script_reader_.reset(new control::ScriptReader());
   std::string prog = script_reader_->readScriptFile(config.script_file, data);
