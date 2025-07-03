@@ -34,6 +34,7 @@
 #include "ur_client_library/types.h"
 #include "ur_client_library/log.h"
 #include "ur_client_library/ur/robot_receive_timeout.h"
+#include "ur_client_library/ur/version_information.h"
 #include <cstring>
 #include <endian.h>
 #include <condition_variable>
@@ -62,6 +63,17 @@ enum class FreedriveControlMessage : int32_t
   FREEDRIVE_START = 1,  ///< Represents command to start freedrive mode.
 };
 
+struct ReverseInterfaceConfig
+{
+  uint32_t port = 50001;  //!< Port the server is started on
+  std::function<void(bool)> handle_program_state = [](bool) {
+    return;
+  };  //!< Function handle to a callback on program state changes.
+  std::chrono::milliseconds step_time = std::chrono::milliseconds(8);  //!< The robots step time
+  uint32_t keepalive_count = 0;                                      //!< Number of allowed timeout reads on the robot.
+  VersionInformation robot_software_version = VersionInformation();  //!< The robot software version.
+};
+
 /*!
  * \brief The ReverseInterface class handles communication to the robot. It starts a server and
  * waits for the robot to connect via its URCaps program.
@@ -79,8 +91,11 @@ public:
    * \param handle_program_state Function handle to a callback on program state changes.
    * \param step_time The robots step time
    */
+  [[deprecated("Use ReverseInterfaceConfig instead of port, handle_program_state and step_time parameters")]]
   ReverseInterface(uint32_t port, std::function<void(bool)> handle_program_state,
                    std::chrono::milliseconds step_time = std::chrono::milliseconds(8));
+
+  ReverseInterface(const ReverseInterfaceConfig& config);
 
   /*!
    * \brief Disconnects possible clients so the reverse interface object can be safely destroyed.
@@ -166,6 +181,8 @@ protected:
   std::function<void(const int)> disconnection_callback_ = nullptr;
   socket_t client_fd_;
   comm::TCPServer server_;
+
+  VersionInformation robot_software_version_;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)

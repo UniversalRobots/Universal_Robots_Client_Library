@@ -89,7 +89,10 @@ void UrDriver::init(const UrDriverConfiguration& config)
   std::string local_ip = config.reverse_ip.empty() ? rtde_client_->getIP() : config.reverse_ip;
 
   trajectory_interface_.reset(new control::TrajectoryPointInterface(config.trajectory_port));
-  script_command_interface_.reset(new control::ScriptCommandInterface(config.script_command_port));
+  control::ReverseInterfaceConfig script_command_config;
+  script_command_config.port = config.script_command_port;
+  script_command_config.robot_software_version = rtde_client_->getVersion();
+  script_command_interface_.reset(new control::ScriptCommandInterface(script_command_config));
 
   startPrimaryClientCommunication();
 
@@ -622,7 +625,12 @@ void UrDriver::setupReverseInterface(const uint32_t reverse_port)
 {
   auto rtde_frequency = rtde_client_->getTargetFrequency();
   auto step_time = std::chrono::milliseconds(static_cast<int>(1000 / rtde_frequency));
-  reverse_interface_.reset(new control::ReverseInterface(reverse_port, handle_program_state_, step_time));
+  control::ReverseInterfaceConfig config;
+  config.step_time = step_time;
+  config.port = reverse_port;
+  config.handle_program_state = handle_program_state_;
+  config.robot_software_version = robot_version_;
+  reverse_interface_.reset(new control::ReverseInterface(config));
 }
 
 void UrDriver::startPrimaryClientCommunication()
