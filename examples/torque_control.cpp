@@ -59,6 +59,19 @@ int main(int argc, char* argv[])
     URCL_LOG_ERROR("Something in the robot initialization went wrong. Exiting. Please check the output above.");
     return 1;
   }
+
+  // Torque control requires Software version 5.23 / 10.10 or higher. Error and exit on older
+  // software versions.
+  {
+    auto robot_version = g_my_robot->getUrDriver()->getVersion();
+    if (robot_version < urcl::VersionInformation::fromString("5.23.0") ||
+        (robot_version.major > 5 && robot_version < urcl::VersionInformation::fromString("10.10.0")))
+    {
+      URCL_LOG_ERROR("This example requires a robot with at least version 5.23.0 / 10.10.0. Your robot has version %s.",
+                     robot_version.toString().c_str());
+      return 0;
+    }
+  }
   // --------------- INITIALIZATION END -------------------
 
   bool passed_negative_part = false;
