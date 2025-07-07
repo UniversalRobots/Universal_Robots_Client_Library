@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <ur_client_library/example_robot_wrapper.h>
+#include <cstddef>
 
 // In a real-world example it would be better to get those values from command line parameters / a
 // better configuration system such as Boost.Program_options
@@ -36,6 +37,8 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
+
+const size_t JOINT_INDEX = 5;  // Joint index to control, in this case joint 6 (index 5)
 
 std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 urcl::vector6d_t g_joint_positions;
@@ -74,6 +77,7 @@ int main(int argc, char* argv[])
   }
   // --------------- INITIALIZATION END -------------------
 
+  double cmd_torque = 2.0;  // Target torque [Nm] for joint 6
   bool passed_negative_part = false;
   bool passed_positive_part = false;
   URCL_LOG_INFO("Start moving the robot");
@@ -106,20 +110,21 @@ int main(int argc, char* argv[])
     // Open loop control. The target is incremented with a constant each control loop
     if (passed_positive_part == false)
     {
-      if (g_joint_positions[0] >= 2)
+      if (g_joint_positions[JOINT_INDEX] >= 2)
       {
-        target_torques[0] = -2.0;
         passed_positive_part = true;
+        cmd_torque = -2.0;
       }
     }
     else if (passed_negative_part == false)
     {
-      if (g_joint_positions[0] <= 0)
+      if (g_joint_positions[JOINT_INDEX] <= 0)
       {
-        target_torques[0] = 2.0;
+        cmd_torque = 2.0;
         passed_negative_part = true;
       }
     }
+    target_torques[JOINT_INDEX] = cmd_torque;
 
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications. Having it
