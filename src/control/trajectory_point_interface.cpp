@@ -62,6 +62,12 @@ TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInter
 
 bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive)
 {
+  if (!primitive->validate())
+  {
+    URCL_LOG_ERROR("Motion primitive validation failed.");
+    return false;
+  }
+
   if (client_fd_ == -1)
   {
     return false;
@@ -129,6 +135,25 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       {
         third_block = spline_primitive->target_accelerations.value();
       }
+      break;
+    }
+    case control::MotionType::OPTIMOVEJ:
+    {
+      auto optimovej_primitive = std::static_pointer_cast<control::OptimoveJPrimitive>(primitive);
+      first_block = optimovej_primitive->target_joint_configuration;
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
+      break;
+    }
+    case control::MotionType::OPTIMOVEL:
+    {
+      URCL_LOG_INFO("Executing OptimoveL motion.");
+      auto optimovel_primitive = std::static_pointer_cast<control::OptimoveLPrimitive>(primitive);
+      first_block = { optimovel_primitive->target_pose.x,  optimovel_primitive->target_pose.y,
+                      optimovel_primitive->target_pose.z,  optimovel_primitive->target_pose.rx,
+                      optimovel_primitive->target_pose.ry, optimovel_primitive->target_pose.rz };
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
       break;
     }
     default:

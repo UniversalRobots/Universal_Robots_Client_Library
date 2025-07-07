@@ -46,6 +46,8 @@ enum class MotionType : uint8_t
   MOVEL = 1,
   MOVEP = 2,
   MOVEC = 3,
+  OPTIMOVEJ = 4,
+  OPTIMOVEL = 5,
   SPLINE = 51,
   UNKNOWN = 255
 };
@@ -66,6 +68,8 @@ struct MotionPrimitive
   double acceleration;
   double velocity;
   double blend_radius;
+
+  virtual bool validate() const;
 };
 
 struct MoveJPrimitive : public MotionPrimitive
@@ -161,6 +165,40 @@ struct SplinePrimitive : public MotionPrimitive
   vector6d_t target_positions;
   vector6d_t target_velocities;
   std::optional<vector6d_t> target_accelerations;
+};
+
+struct OptimoveJPrimitive : public MotionPrimitive
+{
+  OptimoveJPrimitive(const urcl::vector6d_t& target, const double blend_radius = 0,
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
+  {
+    type = MotionType::OPTIMOVEJ;
+    target_joint_configuration = target;
+    this->blend_radius = blend_radius;
+    this->acceleration = acceleration_fraction;
+    this->velocity = velocity_fraction;
+  }
+
+  urcl::vector6d_t target_joint_configuration;
+
+  bool validate() const override;
+};
+
+struct OptimoveLPrimitive : public MotionPrimitive
+{
+  OptimoveLPrimitive(const urcl::Pose& target, const double blend_radius = 0, const double acceleration_fraction = 0.3,
+                     const double velocity_fraction = 0.3)
+  {
+    type = MotionType::OPTIMOVEL;
+    target_pose = target;
+    this->blend_radius = blend_radius;
+    this->acceleration = acceleration_fraction;
+    this->velocity = velocity_fraction;
+  }
+
+  bool validate() const override;
+
+  urcl::Pose target_pose;
 };
 }  // namespace control
 }  // namespace urcl

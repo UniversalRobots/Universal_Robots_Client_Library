@@ -17,6 +17,7 @@ endif()
 add_library(urcl
     src/comm/tcp_socket.cpp
     src/comm/tcp_server.cpp
+    src/control/motion_primitives.cpp
     src/control/reverse_interface.cpp
     src/control/script_reader.cpp
     src/control/script_sender.cpp
