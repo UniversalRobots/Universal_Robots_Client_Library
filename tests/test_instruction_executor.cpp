@@ -415,8 +415,8 @@ TEST_F(InstructionExecutorTest, optimovel_succeeds)
   // move to a feasible starting pose
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
 
-  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, 0.1));
-  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.263, 0.459, 0.68, -1.083, -2.076 }, 1.0, 1.0, 0.1));
+  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, 0.1));
+  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.463, 0.459, 0.68, -1.083, -2.076 }, 1.0, 1.0, 0.1));
 }
 
 TEST_F(InstructionExecutorTest, optimovej_with_illegal_parameters_fails)
