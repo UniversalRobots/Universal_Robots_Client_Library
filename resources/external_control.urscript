@@ -8,6 +8,8 @@ textmsg("ExternalControl: steptime=", steptime)
 MULT_jointstate = {{JOINT_STATE_REPLACE}}
 MULT_time = {{TIME_REPLACE}}
 
+DEBUG = False
+
 STOPJ_ACCELERATION = 4.0
 
 #Constants
@@ -35,6 +37,8 @@ MOTION_TYPE_MOVEJ = 0
 MOTION_TYPE_MOVEL = 1
 MOTION_TYPE_MOVEP = 2
 MOTION_TYPE_MOVEC = 3
+MOTION_TYPE_OPTIMOVEJ = 4
+MOTION_TYPE_OPTIMOVEL = 5
 MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
@@ -551,6 +555,63 @@ thread trajectoryThread():
           clear_remaining_trajectory_points()
           trajectory_result = TRAJECTORY_RESULT_FAILURE
         end
+
+      # OptimoveJ point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
+        {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
+          {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+        optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+          {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
+        optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+          {% else %}
+        popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
+          {% endif %}
+        {% else %}
+        popup("Optimovej is only supported from software 5.21.0 and upwards.", error=True, blocking=False)
+        {% endif %}
+
+        if DEBUG:
+          textmsg(str_cat("optimovej(", str_cat(
+            str_cat("q=", q), str_cat(
+              str_cat(", a=", acceleration), str_cat(
+                str_cat(", v=", velocity), str_cat(
+                  str_cat(", r=", blend_radius), ")"))))))
+        end
+
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+
+      # OptimoveL point
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
+        
+        {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
+          {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+        optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+          {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
+        optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+          {% else %}
+        popup("Optimovel is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
+          {% endif %}
+        {% else %}
+        popup("Optimovel is only supported from software 5.21.0 and upwards.", error=True, blocking=False)
+        {% endif %}
+
+        if DEBUG:
+          textmsg(str_cat("optimovel(", str_cat(
+            str_cat("q=", p[q[0], q[1], q[2], q[3], q[4], q[5]]), str_cat(
+              str_cat(", a=", acceleration), str_cat(
+                str_cat(", v=", velocity), str_cat(
+                  str_cat(", r=", blend_radius), ")"))))))
+        end
+
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
       end
     else:
       textmsg("Receiving trajectory point failed!")

@@ -106,6 +106,10 @@ TEST_F(InstructionExecutorTest, execute_motion_sequence_success)
                                                     std::chrono::seconds(2)),
     std::make_shared<urcl::control::MoveLPrimitive>(urcl::Pose{ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1,
                                                     std::chrono::seconds(2)),
+    std::make_shared<urcl::control::OptimoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.1, 0.4,
+                                                        0.7),
+    std::make_shared<urcl::control::OptimoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
+                                                        0.4, 0.7),
   };
   ASSERT_TRUE(executor_->executeMotion(motion_sequence));
 }
@@ -379,6 +383,76 @@ TEST_F(InstructionExecutorTest, movec_succeeds)
   ASSERT_TRUE(executor_->moveP({ -0.209, 0.492, 0.5522, 0.928, -1.134, -2.168 }, 1.2, 0.25, 0.025));
   ASSERT_TRUE(executor_->moveC({ -0.209, 0.487, 0.671, 1.026, -0.891, -2.337 },
                                { -0.209, 0.425, 0.841, 1.16, -0.477, -2.553 }, 0.1, 0.25, 0.025, 0));
+}
+
+TEST_F(InstructionExecutorTest, optimovej_succeeds)
+{
+  if (robotVersionLessThan(g_ROBOT_IP, "5.21.0"))
+  {
+    GTEST_SKIP_("optimoveJ is not supported on robots with a version lower than 5.21.0.");
+  }
+  else if (!robotVersionLessThan(g_ROBOT_IP, "10.0.0") && robotVersionLessThan(g_ROBOT_IP, "10.8.0"))
+  {
+    GTEST_SKIP_("optimoveJ is not supported on PolyScope X with a version lower than 10.8.0.");
+  }
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.4, 0.7, 0.1));
+  ASSERT_TRUE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.1 }, 1.0, 1.0, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, optimovel_succeeds)
+{
+  if (robotVersionLessThan(g_ROBOT_IP, "5.21.0"))
+  {
+    GTEST_SKIP_("optimoveL is not supported on robots with a version lower than 5.21.0.");
+  }
+  else if (!robotVersionLessThan(g_ROBOT_IP, "10.0.0") && robotVersionLessThan(g_ROBOT_IP, "10.8.0"))
+  {
+    GTEST_SKIP_("optimoveL is not supported on PolyScope X with a version lower than 10.8.0.");
+  }
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, 0.1));
+  ASSERT_TRUE(executor_->optimoveL({ -0.203, 0.463, 0.459, 0.68, -1.083, -2.076 }, 1.0, 1.0, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, optimovej_with_illegal_parameters_fails)
+{
+  // Negative acceleration
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, -0.4, 0.7));
+  // Acceleration of 0
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.0, 0.7));
+  // Acceleration > 1
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 1.2, 0.7));
+  // negative velocity
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.4, -0.7));
+  // Velocity of 0
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.4, 0.0));
+  // Velocity > 1
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.4, 1.2));
+  // Negative blend radius
+  ASSERT_FALSE(executor_->optimoveJ({ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.4, 0.7, -0.1));
+}
+
+TEST_F(InstructionExecutorTest, optimovel_with_illegal_parameters_fails)
+{
+  // Negative acceleration
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, -0.4, 0.7));
+  // Acceleration of 0
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.0, 0.7));
+  // Acceleration > 1
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.2, 0.7));
+  // negative velocity
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, -0.7));
+  // Velocity of 0
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.0));
+  // Velocity > 1
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 1.2));
+  // Negative blend radius
+  ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, -0.1));
 }
 
 int main(int argc, char* argv[])

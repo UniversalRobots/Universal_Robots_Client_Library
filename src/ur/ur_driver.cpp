@@ -127,6 +127,9 @@ void UrDriver::init(const UrDriverConfiguration& config)
                   << config.tool_comm_setup->getTxIdleChars() << ")";
   }
   data[BEGIN_REPLACE] = begin_replace.str();
+
+  data["ROBOT_SOFTWARE_VERSION"] = getVersion();
+
   script_reader_.reset(new control::ScriptReader());
   std::string prog = script_reader_->readScriptFile(config.script_file, data);
 

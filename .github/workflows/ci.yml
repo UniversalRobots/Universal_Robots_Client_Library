@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:

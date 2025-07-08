@@ -99,6 +99,7 @@ bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const doub
   return executeMotion({ std::make_shared<control::MoveJPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
 }
+
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
@@ -117,6 +118,18 @@ bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& t
 {
   return executeMotion(
       { std::make_shared<control::MoveCPrimitive>(via, target, blend_radius, acceleration, velocity, mode) });
+}
+
+bool urcl::InstructionExecutor::optimoveJ(const urcl::vector6d_t& target, const double acceleration,
+                                          const double velocity, const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::OptimoveJPrimitive>(target, blend_radius, acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::optimoveL(const urcl::Pose& target, const double acceleration, const double velocity,
+                                          const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::OptimoveLPrimitive>(target, blend_radius, acceleration, velocity) });
 }
 
 bool urcl::InstructionExecutor::cancelMotion()
