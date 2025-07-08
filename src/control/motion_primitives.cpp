@@ -56,7 +56,7 @@ bool MotionPrimitive::validate() const
 
 bool SplinePrimitive::validate() const
 {
-  if (duration <= 0)
+  if (duration <= std::chrono::milliseconds(0))
   {
     URCL_LOG_ERROR("Duration must be greater than zero.");
     return false;
