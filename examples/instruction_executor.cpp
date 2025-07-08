@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  bool headless_mode = false;
+  bool headless_mode = true;
   g_my_robot = std::make_unique<urcl::ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                            "external_control.urp");
   if (!g_my_robot->getUrDriver()->checkCalibration(CALIBRATION_CHECKSUM))
