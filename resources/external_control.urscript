@@ -566,10 +566,10 @@ thread trajectoryThread():
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
         optimovej(q, a = acceleration, v = velocity, r = blend_radius)
           {% else %}
-        popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=True)
+        popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
           {% endif %}
         {% else %}
-        popup("Optimovej is only supported from software 5.21.0 and upwards.", error=True, blocking=True)
+        popup("Optimovej is only supported from software 5.21.0 and upwards.", error=True, blocking=False)
         {% endif %}
 
         if DEBUG:
@@ -595,10 +595,10 @@ thread trajectoryThread():
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
         optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
           {% else %}
-        popup("Optimovel is only supported from software 10.8.0 and upwards.", error=True, blocking=True)
+        popup("Optimovel is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
           {% endif %}
         {% else %}
-        popup("Optimovel is only supported from software 5.21.0 and upwards.", error=True, blocking=True)
+        popup("Optimovel is only supported from software 5.21.0 and upwards.", error=True, blocking=False)
         {% endif %}
 
         if DEBUG:
