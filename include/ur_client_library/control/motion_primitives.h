@@ -68,7 +68,7 @@ struct MotionPrimitive
   std::chrono::duration<double> duration;
   double acceleration;
   double velocity;
-  double blend_radius;
+  double blend_radius = 0.0;
 
   virtual bool validate() const;
 };
