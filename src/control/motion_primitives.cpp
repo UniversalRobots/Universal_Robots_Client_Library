@@ -56,11 +56,8 @@ bool MotionPrimitive::validate() const
 
 bool SplinePrimitive::validate() const
 {
-  if (duration <= std::chrono::milliseconds(0))
-  {
-    URCL_LOG_ERROR("Duration must be greater than zero.");
-    return false;
-  }
+  // Spline primitives don't have the same restriction as others do. Whether the primitives are valid or not
+  // is checked in the URScript program.
   return true;
 }
 bool OptimoveJPrimitive::validate() const
