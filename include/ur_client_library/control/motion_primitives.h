@@ -63,6 +63,7 @@ enum class TrajectorySplineType : int32_t
 
 struct MotionPrimitive
 {
+  virtual ~MotionPrimitive() = default;
   MotionType type = MotionType::UNKNOWN;
   std::chrono::duration<double> duration;
   double acceleration;
@@ -86,6 +87,7 @@ struct MoveJPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
   }
 
+  bool validate() const override;
   urcl::vector6d_t target_joint_configuration;
 };
 
@@ -103,6 +105,8 @@ struct MoveLPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
   }
 
+  bool validate() const override;
+
   urcl::Pose target_pose;
 };
 
@@ -117,6 +121,9 @@ struct MovePPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
+
+  bool validate() const override;
+
   urcl::Pose target_pose;
 };
 
@@ -133,6 +140,9 @@ struct MoveCPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
     this->mode = mode;
   }
+
+  bool validate() const override;
+
   urcl::Pose via_point_pose;
   urcl::Pose target_pose;
   int32_t mode = 0;

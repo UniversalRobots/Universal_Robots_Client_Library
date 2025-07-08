@@ -36,19 +36,83 @@ namespace urcl::control
 
 bool MotionPrimitive::validate() const
 {
+  if (blend_radius < 0)
+  {
+    URCL_LOG_ERROR("Negative blend radius passed to motion primitive. This is not allowed.");
+    return false;
+  }
+  return true;
+}
+bool MoveJPrimitive::validate() const
+{
+  if (!MotionPrimitive::validate())
+  {
+    return false;
+  }
   if (acceleration < 0)
   {
-    URCL_LOG_ERROR("Negative acceleration passed to motion primitive. This is not allowed.");
+    URCL_LOG_ERROR("Negative acceleration passed to MoveJ primitive. This is not allowed.");
     return false;
   }
   if (velocity < 0)
   {
-    URCL_LOG_ERROR("Negative velocity passed to motion primitive. This is not allowed.");
+    URCL_LOG_ERROR("Negative velocity passed to MoveJ primitive. This is not allowed.");
     return false;
   }
-  if (blend_radius < 0)
+  return true;
+}
+
+bool MoveLPrimitive::validate() const
+{
+  if (!MotionPrimitive::validate())
   {
-    URCL_LOG_ERROR("Negative blend radius passed to motion primitive. This is not allowed.");
+    return false;
+  }
+  if (acceleration < 0)
+  {
+    URCL_LOG_ERROR("Negative acceleration passed to MoveL primitive. This is not allowed.");
+    return false;
+  }
+  if (velocity < 0)
+  {
+    URCL_LOG_ERROR("Negative velocity passed to MoveL primitive. This is not allowed.");
+    return false;
+  }
+  return true;
+}
+bool MovePPrimitive::validate() const
+{
+  if (!MotionPrimitive::validate())
+  {
+    return false;
+  }
+  if (acceleration < 0)
+  {
+    URCL_LOG_ERROR("Negative acceleration passed to MoveP primitive. This is not allowed.");
+    return false;
+  }
+  if (velocity < 0)
+  {
+    URCL_LOG_ERROR("Negative velocity passed to MoveP primitive. This is not allowed.");
+    return false;
+  }
+  return true;
+}
+
+bool MoveCPrimitive::validate() const
+{
+  if (!MotionPrimitive::validate())
+  {
+    return false;
+  }
+  if (acceleration < 0)
+  {
+    URCL_LOG_ERROR("Negative acceleration passed to MoveC primitive. This is not allowed.");
+    return false;
+  }
+  if (velocity < 0)
+  {
+    URCL_LOG_ERROR("Negative velocity passed to MoveC primitive. This is not allowed.");
     return false;
   }
   return true;
