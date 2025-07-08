@@ -87,7 +87,6 @@ struct MoveJPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
   }
 
-  bool validate() const override;
   urcl::vector6d_t target_joint_configuration;
 };
 
@@ -105,8 +104,6 @@ struct MoveLPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
   }
 
-  bool validate() const override;
-
   urcl::Pose target_pose;
 };
 
@@ -121,8 +118,6 @@ struct MovePPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
-
-  bool validate() const override;
 
   urcl::Pose target_pose;
 };
@@ -140,8 +135,6 @@ struct MoveCPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
     this->mode = mode;
   }
-
-  bool validate() const override;
 
   urcl::Pose via_point_pose;
   urcl::Pose target_pose;
@@ -172,6 +165,9 @@ struct SplinePrimitive : public MotionPrimitive
       return control::TrajectorySplineType::SPLINE_CUBIC;
     }
   }
+
+  bool validate() const override;
+
   vector6d_t target_positions;
   vector6d_t target_velocities;
   std::optional<vector6d_t> target_accelerations;
@@ -189,9 +185,9 @@ struct OptimoveJPrimitive : public MotionPrimitive
     this->velocity = velocity_fraction;
   }
 
-  urcl::vector6d_t target_joint_configuration;
-
   bool validate() const override;
+
+  urcl::vector6d_t target_joint_configuration;
 };
 
 struct OptimoveLPrimitive : public MotionPrimitive
