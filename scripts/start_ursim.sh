@@ -36,13 +36,6 @@ PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004"
 CONTAINER_NAME="ursim"
 TEST_RUN=false
 
-# TODO: Add support for more URSim PolyScopeX versions once released
-# The PolyScopeX URSim containers follow the SDK versioning scheme. This maps those to marketing
-# versions
-declare -Ag POLYSCOPE_X_MAP=( ["10.7.0"]="0.12.159"
-                              ["10.8.0"]="0.13.124"
-                              ["10.9.0"]="0.14.47")
-
 help()
 {
   # Display Help
@@ -205,8 +198,8 @@ validate_parameters()
       fi
       ;;
     polyscopex)
-      if [[ ! "${POLYSCOPE_X_MAP[${URSIM_VERSION_CHECK}]+_}" ]]; then
-        echo "URSim version $URSIM_VERSION_CHECK is unfortunately not supported"
+      if ! verlte "$MIN_POLYSCOPE_X" "$URSIM_VERSION_CHECK"; then
+        echo "PolyscopeX is only supported from version $MIN_POLYSCOPE_X onwards"
         exit 1
       fi
       if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur10e|ur12e|ur16e|ur15|ur20|ur30) ]]; then
@@ -285,7 +278,7 @@ get_download_url_urcap()
 post_setup_polyscopex()
 {
 
-  if [[ "$URSIM_VERSION" == "${POLYSCOPE_X_MAP[10.7.0]}" ]]; then
+  if [[ "$URSIM_VERSION" == "10.7.0" ]]; then
     get_download_url_urcapx 0.1.0
   else
     get_download_url_urcapx latest
@@ -434,7 +427,6 @@ main() {
   DOCKER_ARGS=""
 
   if [ "$ROBOT_SERIES" == "polyscopex" ]; then
-    URSIM_VERSION=${POLYSCOPE_X_MAP[$URSIM_VERSION]}
     DOCKER_ARGS="$DOCKER_ARGS --privileged"
   fi
 
@@ -456,7 +448,7 @@ main() {
     PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
     ROBOT_MODEL_CONTROLLER_FLAG=""
-    verlte "${POLYSCOPE_X_MAP[10.7.0]}" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "${POLYSCOPE_X_MAP[10.8.0]}" && ROBOT_MODEL_CONTROLLER_FLAG="-e ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}"
+    verlte "10.7.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "10.8.0" && ROBOT_MODEL_CONTROLLER_FLAG="-e ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}"
 
     docker_cmd="docker run --rm -d \
       --net ursim_net --ip $IP_ADDRESS \
