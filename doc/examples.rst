@@ -27,5 +27,6 @@ may be running forever until manually stopped.
    examples/script_sender
    examples/spline_example
    examples/tool_contact_example
+   examples/torque_control
    examples/trajectory_point_interface
    examples/ur_driver
