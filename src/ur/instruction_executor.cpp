@@ -41,6 +41,11 @@ void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::Trajectory
   trajectory_result_ = result;
   trajectory_running_ = false;
 }
+void urcl::InstructionExecutor::registerTrajDoneCallback()
+{
+  driver_->registerTrajectoryDoneCallback(
+        std::bind(&InstructionExecutor::trajDoneCallback, this, std::placeholders::_1));
+}
 void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
 {
   URCL_LOG_INFO("Trajectory disconnect");
