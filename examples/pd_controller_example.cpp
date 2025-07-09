@@ -50,7 +50,7 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
-void signal_callback_handler(int signum)
+void signalCallbackHandler(int signum)
 {
   std::cout << "Caught signal " << signum << std::endl;
   if (g_my_robot != nullptr)
@@ -68,7 +68,7 @@ struct DataStorage
   std::vector<urcl::vector6d_t> actual;
   std::vector<double> time;
 
-  void write_to_file(const std::string& filename)
+  void writeToFile(const std::string& filename)
   {
     std::fstream output(filename, std::ios::out);
     output << "timestamp,target0,target1,target2,target3,target4,target5,actual0,actual1,actual2,"
@@ -90,8 +90,8 @@ struct DataStorage
   }
 };
 
-bool pd_control_loop(DataStorage& data_storage, const std::string& actual_data_name,
-                     const comm::ControlMode control_mode, const urcl::vector6d_t& amplitude)
+bool pdControlLoop(DataStorage& data_storage, const std::string& actual_data_name, const comm::ControlMode control_mode,
+                   const urcl::vector6d_t& amplitude)
 {
   const int32_t running_time = 13;
   double time = 0.0;
@@ -165,7 +165,7 @@ bool pd_control_loop(DataStorage& data_storage, const std::string& actual_data_n
 int main(int argc, char* argv[])
 {
   // This will make sure that we stop controlling the robot if the user presses ctrl-c
-  signal(SIGINT, signal_callback_handler);
+  signal(SIGINT, signalCallbackHandler);
 
   urcl::setLogLevel(urcl::LogLevel::INFO);
 
@@ -209,8 +209,8 @@ int main(int argc, char* argv[])
   g_my_robot->getUrDriver()->startRTDECommunication();
   URCL_LOG_INFO("Start controlling the robot using the PD controller");
   const bool completed_joint_control =
-      pd_control_loop(joint_controller_storage, "actual_q", comm::ControlMode::MODE_PD_CONTROLLER_JOINT,
-                      { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 });
+      pdControlLoop(joint_controller_storage, "actual_q", comm::ControlMode::MODE_PD_CONTROLLER_JOINT,
+                    { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 });
   if (!completed_joint_control)
   {
     URCL_LOG_ERROR("Didn't complete pd control in joint space");
@@ -229,8 +229,8 @@ int main(int argc, char* argv[])
   g_my_robot->stopConsumingRTDEData();
   URCL_LOG_INFO("Start controlling the robot using the PD controller with task space targets");
   const bool completed_task_control =
-      pd_control_loop(task_controller_storage, "actual_TCP_pose", comm::ControlMode::MODE_PD_CONTROLLER_TASK,
-                      { 0.05, 0.05, 0.05, 0.02, 0.02, 0.02 });
+      pdControlLoop(task_controller_storage, "actual_TCP_pose", comm::ControlMode::MODE_PD_CONTROLLER_TASK,
+                    { 0.05, 0.05, 0.05, 0.02, 0.02, 0.02 });
   if (!completed_task_control)
   {
     URCL_LOG_ERROR("Didn't complete PD control in task space");
