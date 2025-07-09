@@ -67,7 +67,8 @@ int main(int argc, char* argv[])
   // software versions.
   {
     auto robot_version = g_my_robot->getUrDriver()->getVersion();
-    if (robot_version < urcl::VersionInformation::fromString("5.23.0") ||
+    // ToDo: Increase to 5.23.0 once released
+    if (robot_version < urcl::VersionInformation::fromString("5.22.0") ||
         (robot_version.major > 5 && robot_version < urcl::VersionInformation::fromString("10.10.0")))
     {
       URCL_LOG_ERROR("This example requires a robot with at least version 5.23.0 / 10.10.0. Your robot has version %s.",

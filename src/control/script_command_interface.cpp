@@ -228,7 +228,8 @@ bool ScriptCommandInterface::endToolContact()
 
 bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation_enabled)
 {
-  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+  // ToDo: Increase to 5.23.0 once released
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.22.0"),
                                     urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
@@ -253,7 +254,8 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
 
 bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd)
 {
-  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+  // ToDo: Increase to 5.23.0 once released
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.22.0"),
                                     urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 13;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
@@ -287,7 +289,8 @@ bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, co
 
 bool ScriptCommandInterface::setMaxJointTorques(const urcl::vector6d_t* max_joint_torques)
 {
-  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+  // ToDo: Increase to 5.23.0 once released
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.22.0"),
                                     urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 7;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
