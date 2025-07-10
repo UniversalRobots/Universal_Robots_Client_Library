@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 
+#include <list>
 #include <optional>
 
 #include "ur_client_library/control/motion_primitives.h"
@@ -133,10 +134,11 @@ public:
    */
   bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
-  void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
-  {
-    handle_trajectory_end_ = callback;
-  }
+  void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback);
+
+  uint32_t addTrajectoryEndCallback(const std::function<void(TrajectoryResult)>& callback);
+
+  void removeTrajectoryEndCallback(const uint32_t callback_id);
 
 protected:
   virtual void connectionCallback(const socket_t filedescriptor) override;
@@ -146,7 +148,8 @@ protected:
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv) override;
 
 private:
-  std::function<void(TrajectoryResult)> handle_trajectory_end_;
+  std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
+  uint32_t next_done_callback_id_ = 0;
 };
 
 }  // namespace control

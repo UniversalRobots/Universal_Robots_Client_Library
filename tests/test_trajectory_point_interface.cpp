@@ -599,6 +599,50 @@ TEST_F(TrajectoryPointInterfaceTest, unsupported_motion_type_throws)
   EXPECT_THROW(traj_point_interface_->writeMotionPrimitive(primitive), urcl::UnsupportedMotionType);
 }
 
+TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly)
+{
+  std::atomic<bool> disconnect_called_1 = false;
+  std::atomic<bool> disconnect_called_2 = false;
+
+  // Register disconnection callbacks
+  int disconnection_callback_id_1 =
+      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_1](const int fd) {
+        std::cout << "Disconnection 1 callback called with fd: " << fd << std::endl;
+        disconnect_called_1 = true;
+      });
+  int disconnection_callback_id_2 =
+      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_2](const int fd) {
+        std::cout << "Disconnection 2 callback called with fd: " << fd << std::endl;
+        disconnect_called_2 = true;
+      });
+
+  // Close the client connection
+  client_->close();
+  sleep(1);
+  EXPECT_TRUE(disconnect_called_1);
+  EXPECT_TRUE(disconnect_called_2);
+
+  // Unregister 1. 2 should still be called
+  disconnect_called_1 = false;
+  disconnect_called_2 = false;
+  client_.reset(new Client(50003));
+  traj_point_interface_->unregisterDisconnectionCallback(disconnection_callback_id_1);
+  client_->close();
+  sleep(1);
+  EXPECT_FALSE(disconnect_called_1);
+  EXPECT_TRUE(disconnect_called_2);
+
+  // Unregister both. None should be called
+  disconnect_called_1 = false;
+  disconnect_called_2 = false;
+  client_.reset(new Client(50003));
+  traj_point_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);
+  client_->close();
+  sleep(1);
+  EXPECT_FALSE(disconnect_called_1);
+  EXPECT_FALSE(disconnect_called_2);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

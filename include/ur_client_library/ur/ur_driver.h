@@ -823,10 +823,17 @@ public:
    *
    * \param trajectory_done_cb Callback function that will be triggered in the event of finishing
    * a trajectory execution
+   *
+   * \returns The ID of the callback that can be used to unregister the callback later.
    */
-  void registerTrajectoryDoneCallback(std::function<void(control::TrajectoryResult)> trajectory_done_cb)
+  uint32_t registerTrajectoryDoneCallback(std::function<void(control::TrajectoryResult)> trajectory_done_cb)
   {
-    trajectory_interface_->setTrajectoryEndCallback(trajectory_done_cb);
+    return trajectory_interface_->addTrajectoryEndCallback(trajectory_done_cb);
+  }
+
+  void unregisterTrajectoryDoneCallback(const uint32_t handler_id)
+  {
+    trajectory_interface_->removeTrajectoryEndCallback(handler_id);
   }
 
   /*!
@@ -887,9 +894,32 @@ public:
     primary_client_->stop();
   }
 
-  void registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
+  /*!
+   * \brief Register a callback for the trajectory interface disconnection.
+   *
+   * This callback will be called when the trajectory interface is disconnected.
+   *
+   * \param fun Callback function that will be triggered in the event of disconnection
+   *
+   * \returns The ID of the callback that can be used to unregister the callback later.
+   */
+  uint32_t registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
   {
-    trajectory_interface_->registerDisconnectionCallback(fun);
+    return trajectory_interface_->registerDisconnectionCallback(fun);
+  }
+
+  /*!
+   * \brief Unregister a callback for the trajectory interface disconnection.
+   *
+   * This will remove the callback that was registered with
+   * registerTrajectoryInterfaceDisconnectedCallback.
+   *
+   * \param handler_id The ID of the callback to be removed as obtained from
+   * registerTrajectoryInterfaceDisconnectedCallback.
+   */
+  void unregisterTrajectoryInterfaceDisconnectedCallback(const uint32_t handler_id)
+  {
+    trajectory_interface_->unregisterDisconnectionCallback(handler_id);
   }
 
   /*!

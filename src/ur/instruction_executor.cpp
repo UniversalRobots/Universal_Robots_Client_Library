@@ -36,10 +36,13 @@
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
   URCL_LOG_DEBUG("Trajectory result received: %s", control::trajectoryResultToString(result).c_str());
-  std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
-  trajectory_done_cv_.notify_all();
-  trajectory_result_ = result;
-  trajectory_running_ = false;
+  if (trajectory_running_)
+  {
+    std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    trajectory_done_cv_.notify_all();
+    trajectory_result_ = result;
+    trajectory_running_ = false;
+  }
 }
 void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
 {
