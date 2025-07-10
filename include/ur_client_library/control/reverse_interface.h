@@ -38,6 +38,7 @@
 #include <cstring>
 #include <endian.h>
 #include <condition_variable>
+#include <list>
 
 namespace urcl
 {
@@ -156,9 +157,31 @@ public:
                "commands.")]] virtual void
   setKeepaliveCount(const uint32_t count);
 
-  void registerDisconnectionCallback(std::function<void(const int)> disconnection_fun)
+  /*!
+   * \brief Register a callback for the robot-based disconnection.
+   *
+   * The callback will be called when the robot disconnects from the reverse interface.
+   *
+   * \param disconnection_fun The function to be called on disconnection.
+   *
+   * \returns A unique handler ID for the registered callback. This can be used to unregister the
+   * callback later.
+   */
+  uint32_t registerDisconnectionCallback(std::function<void(const int)> disconnection_fun)
   {
-    disconnection_callback_ = disconnection_fun;
+    disconnect_callbacks_.push_back({ next_disconnect_callback_id_, disconnection_fun });
+    return next_disconnect_callback_id_++;
+  }
+
+  /*! \brief Unregisters a disconnection callback.
+   *
+   * \param handler_id The ID of the handler to be unregistered as obtained from
+   * registerDisconnectionCallback.
+   */
+  void unregisterDisconnectionCallback(const uint32_t handler_id)
+  {
+    disconnect_callbacks_.remove_if(
+        [handler_id](const HandlerFunction<void(const int)>& h) { return h.id == handler_id; });
   }
 
   /*!
@@ -178,7 +201,8 @@ protected:
 
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
-  std::function<void(const int)> disconnection_callback_ = nullptr;
+  std::list<HandlerFunction<void(const int)>> disconnect_callbacks_;
+  uint32_t next_disconnect_callback_id_ = 0;
   socket_t client_fd_;
   comm::TCPServer server_;
 
