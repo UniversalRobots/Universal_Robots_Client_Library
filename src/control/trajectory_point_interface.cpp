@@ -275,7 +275,7 @@ void TrajectoryPointInterface::connectionCallback(const socket_t filedescriptor)
 void TrajectoryPointInterface::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_DEBUG("Connection to trajectory interface dropped.");
-  if (!trajectory_end_callbacks_.empty())
+  if (!disconnect_callbacks_.empty())
   {
     for (auto handler : disconnect_callbacks_)
     {

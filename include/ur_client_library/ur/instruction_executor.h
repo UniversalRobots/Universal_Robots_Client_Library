@@ -187,7 +187,7 @@ public:
     return trajectory_running_;
   }
 
-private:
+protected:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
   void trajDisconnectCallback(const int filedescriptor);
 
