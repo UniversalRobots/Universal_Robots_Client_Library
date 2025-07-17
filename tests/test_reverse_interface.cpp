@@ -32,8 +32,38 @@
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/exceptions.h>
+#include "ur_client_library/log.h"
 
 using namespace urcl;
+std::mutex g_connection_mutex;
+std::condition_variable g_connection_condition;
+
+class TestableReverseInterface : public control::ReverseInterface
+{
+public:
+  TestableReverseInterface(const control::ReverseInterfaceConfig& config) : control::ReverseInterface(config)
+  {
+  }
+
+  virtual void connectionCallback(const socket_t filedescriptor)
+  {
+    control::ReverseInterface::connectionCallback(filedescriptor);
+    connected = true;
+    std::lock_guard<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.notify_one();
+  }
+
+  virtual void disconnectionCallback(const socket_t filedescriptor)
+  {
+    URCL_LOG_DEBUG("There are %zu disconnection callbacks registered.", disconnect_callbacks_.size());
+    control::ReverseInterface::disconnectionCallback(filedescriptor);
+    connected = false;
+    std::lock_guard<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.notify_one();
+  }
+
+  std::atomic<bool> connected = false;
+};
 
 class ReverseIntefaceTest : public ::testing::Test
 {
@@ -153,8 +183,11 @@ protected:
     control::ReverseInterfaceConfig config;
     config.port = 50001;
     config.handle_program_state = std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1);
-    reverse_interface_.reset(new control::ReverseInterface(config));
+    reverse_interface_.reset(new TestableReverseInterface(config));
     client_.reset(new Client(50001));
+    std::unique_lock<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                    [&]() { return reverse_interface_->connected.load(); });
   }
 
   void TearDown()
@@ -187,7 +220,7 @@ protected:
     return false;
   }
 
-  std::unique_ptr<control::ReverseInterface> reverse_interface_;
+  std::unique_ptr<TestableReverseInterface> reverse_interface_;
   std::unique_ptr<Client> client_;
 
 private:
@@ -473,7 +506,8 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
   // Close the client connection
   client_->close();
   EXPECT_TRUE(waitForProgramState(1000, false));
-  sleep(1);
+  std::unique_lock<std::mutex> lk(g_connection_mutex);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
   EXPECT_TRUE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
 
@@ -484,7 +518,7 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_1);
   client_->close();
-  sleep(1);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
   EXPECT_TRUE(waitForProgramState(1000, false));
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
@@ -496,7 +530,7 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);
   client_->close();
-  sleep(1);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
   EXPECT_TRUE(waitForProgramState(1000, false));
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_FALSE(disconnect_called_2);
@@ -505,6 +539,7 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
+  urcl::setLogLevel(LogLevel::INFO);
 
   return RUN_ALL_TESTS();
 }

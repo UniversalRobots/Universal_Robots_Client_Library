@@ -37,6 +37,36 @@
 
 using namespace urcl;
 
+std::mutex g_connection_mutex;
+std::condition_variable g_connection_condition;
+
+class TestableTrajectoryPointInterface : public control::TrajectoryPointInterface
+{
+public:
+  TestableTrajectoryPointInterface(uint32_t port) : control::TrajectoryPointInterface(port)
+  {
+  }
+
+  virtual void connectionCallback(const socket_t filedescriptor) override
+  {
+    control::TrajectoryPointInterface::connectionCallback(filedescriptor);
+    connected = true;
+    std::lock_guard<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.notify_one();
+  }
+
+  virtual void disconnectionCallback(const socket_t filedescriptor) override
+  {
+    URCL_LOG_DEBUG("There are %zu disconnection callbacks registered.", disconnect_callbacks_.size());
+    control::TrajectoryPointInterface::disconnectionCallback(filedescriptor);
+    connected = false;
+    std::lock_guard<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.notify_one();
+  }
+
+  std::atomic<bool> connected = false;  //!< True, if the interface is connected to the robot.
+};
+
 class TrajectoryPointInterfaceTest : public ::testing::Test
 {
 protected:
@@ -257,10 +287,12 @@ protected:
 
   void SetUp()
   {
-    traj_point_interface_.reset(new control::TrajectoryPointInterface(50003));
+    traj_point_interface_.reset(new TestableTrajectoryPointInterface(50003));
     client_.reset(new Client(50003));
     // Need to be sure that the client has connected to the server
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::unique_lock<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                    [&]() { return traj_point_interface_->connected.load(); });
   }
 
   void TearDown()
@@ -271,7 +303,7 @@ protected:
     }
   }
 
-  std::unique_ptr<control::TrajectoryPointInterface> traj_point_interface_;
+  std::unique_ptr<TestableTrajectoryPointInterface> traj_point_interface_;
   std::unique_ptr<Client> client_;
 
 public:
@@ -618,7 +650,9 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
 
   // Close the client connection
   client_->close();
-  sleep(1);
+  std::unique_lock<std::mutex> lk(g_connection_mutex);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                  [&]() { return !traj_point_interface_->connected.load(); });
   EXPECT_TRUE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
 
@@ -626,9 +660,13 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
   disconnect_called_1 = false;
   disconnect_called_2 = false;
   client_.reset(new Client(50003));
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                  [&]() { return traj_point_interface_->connected.load(); });
+
   traj_point_interface_->unregisterDisconnectionCallback(disconnection_callback_id_1);
   client_->close();
-  sleep(1);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                  [&]() { return !traj_point_interface_->connected.load(); });
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
 
@@ -636,9 +674,12 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
   disconnect_called_1 = false;
   disconnect_called_2 = false;
   client_.reset(new Client(50003));
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                  [&]() { return traj_point_interface_->connected.load(); });
   traj_point_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);
   client_->close();
-  sleep(1);
+  g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                  [&]() { return !traj_point_interface_->connected.load(); });
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_FALSE(disconnect_called_2);
 }
