@@ -78,11 +78,12 @@ int main(int argc, char* argv[])
   }
   // --------------- INITIALIZATION END -------------------
 
-  double cmd_torque = 2.0;  // Target torque [Nm] for joint 6
+  const double torque_abs = 2.5;
+  double cmd_torque = torque_abs;  // Target torque [Nm] for joint 6
   bool passed_negative_part = false;
   bool passed_positive_part = false;
   URCL_LOG_INFO("Start moving the robot");
-  urcl::vector6d_t target_torques = { 2.0, 0, 0, 0, 0, 0 };
+  urcl::vector6d_t target_torques = { 0, 0, 0, 0, 0, 0 };
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
@@ -114,14 +115,14 @@ int main(int argc, char* argv[])
       if (g_joint_positions[JOINT_INDEX] >= 2)
       {
         passed_positive_part = true;
-        cmd_torque = -2.0;
+        cmd_torque = -torque_abs;
       }
     }
     else if (passed_negative_part == false)
     {
       if (g_joint_positions[JOINT_INDEX] <= 0)
       {
-        cmd_torque = 2.0;
+        cmd_torque = torque_abs;
         passed_negative_part = true;
       }
     }
