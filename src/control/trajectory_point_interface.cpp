@@ -147,7 +147,6 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     }
     case control::MotionType::OPTIMOVEL:
     {
-      URCL_LOG_INFO("Executing OptimoveL motion.");
       auto optimovel_primitive = std::static_pointer_cast<control::OptimoveLPrimitive>(primitive);
       first_block = { optimovel_primitive->target_pose.x,  optimovel_primitive->target_pose.y,
                       optimovel_primitive->target_pose.z,  optimovel_primitive->target_pose.rx,
