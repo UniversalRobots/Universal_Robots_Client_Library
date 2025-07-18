@@ -22,7 +22,9 @@
 
 #include <inttypes.h>
 #include <array>
+#include <functional>
 #include <iostream>
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
@@ -81,4 +83,20 @@ constexpr typename std::underlying_type<E>::type toUnderlying(const E e) noexcep
 {
   return static_cast<typename std::underlying_type<E>::type>(e);
 }
+
+template <typename FunctionT>
+struct HandlerFunction
+{
+  uint32_t id;
+  std::function<FunctionT> function;
+
+  HandlerFunction(uint32_t id, std::function<FunctionT> function) : id(id), function(function)
+  {
+  }
+
+  bool operator==(const HandlerFunction& other) const
+  {
+    return id == other.id;
+  }
+};
 }  // namespace urcl
