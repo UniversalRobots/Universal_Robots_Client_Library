@@ -2,6 +2,16 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Remove print statement when executing optimovel primitives (`#365 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/365>`_)
+* Remove SDK version mapping (`#355 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/355>`_)
+* Support optimove motions in InstructionExecutor (`#354 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/354>`_)
+* Initialize ReverseInterface with a config struct (`#351 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/351>`_)
+* Join thread_move instead of killing it (`#349 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/349>`_)
+* Fix external_control urcapx version to 0.1.0 for PolyScope 10.7.0 (`#350 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/350>`_)
+* Contributors: Felix Exner
+
 2.1.0 (2025-06-18)
 ------------------
 * Minimal support for building on macOS (`#341 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/341>`_)
