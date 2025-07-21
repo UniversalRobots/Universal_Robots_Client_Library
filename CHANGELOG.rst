@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.2.0 (2025-07-21)
+------------------
 * Remove print statement when executing optimovel primitives (`#365 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/365>`_)
 * Remove SDK version mapping (`#355 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/355>`_)
 * Support optimove motions in InstructionExecutor (`#354 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/354>`_)
