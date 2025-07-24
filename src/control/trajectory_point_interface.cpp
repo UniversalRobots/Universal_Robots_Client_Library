@@ -274,9 +274,9 @@ void TrajectoryPointInterface::connectionCallback(const socket_t filedescriptor)
 void TrajectoryPointInterface::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_DEBUG("Connection to trajectory interface dropped.");
-  if (disconnection_callback_ != nullptr)
+  for (auto handler : disconnect_callbacks_)
   {
-    disconnection_callback_(filedescriptor);
+    handler.function(filedescriptor);
   }
   client_fd_ = INVALID_SOCKET;
 }
@@ -288,9 +288,12 @@ void TrajectoryPointInterface::messageCallback(const socket_t filedescriptor, ch
     int32_t* status = reinterpret_cast<int*>(buffer);
     URCL_LOG_DEBUG("Received message %d on TrajectoryPointInterface", be32toh(*status));
 
-    if (handle_trajectory_end_)
+    if (!trajectory_end_callbacks_.empty())
     {
-      handle_trajectory_end_(static_cast<TrajectoryResult>(be32toh(*status)));
+      for (auto handler : trajectory_end_callbacks_)
+      {
+        handler.function(static_cast<TrajectoryResult>(be32toh(*status)));
+      }
     }
     else
     {
@@ -303,5 +306,23 @@ void TrajectoryPointInterface::messageCallback(const socket_t filedescriptor, ch
                   nbytesrecv);
   }
 }
+
+void TrajectoryPointInterface::setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)
+{
+  addTrajectoryEndCallback(callback);
+}
+
+uint32_t TrajectoryPointInterface::addTrajectoryEndCallback(const std::function<void(TrajectoryResult)>& callback)
+{
+  trajectory_end_callbacks_.push_back({ next_done_callback_id_, callback });
+  return next_done_callback_id_++;
+}
+
+void TrajectoryPointInterface::removeTrajectoryEndCallback(const uint32_t handler_id)
+{
+  trajectory_end_callbacks_.remove_if(
+      [handler_id](const HandlerFunction<void(TrajectoryResult)>& h) { return h.id == handler_id; });
+}
+
 }  // namespace control
 }  // namespace urcl

@@ -42,16 +42,16 @@ public:
   InstructionExecutor() = delete;
   InstructionExecutor(std::shared_ptr<urcl::UrDriver> driver) : driver_(driver)
   {
-    driver_->registerTrajectoryDoneCallback(
+    traj_done_callback_handler_id_ = driver_->registerTrajectoryDoneCallback(
         std::bind(&InstructionExecutor::trajDoneCallback, this, std::placeholders::_1));
-    driver_->registerTrajectoryInterfaceDisconnectedCallback(
+    disconnected_handler_id_ = driver_->registerTrajectoryInterfaceDisconnectedCallback(
         std::bind(&InstructionExecutor::trajDisconnectCallback, this, std::placeholders::_1));
   }
 
   ~InstructionExecutor()
   {
-    driver_->registerTrajectoryDoneCallback(nullptr);
-    driver_->registerTrajectoryInterfaceDisconnectedCallback(nullptr);
+    driver_->unregisterTrajectoryDoneCallback(traj_done_callback_handler_id_);
+    driver_->unregisterTrajectoryInterfaceDisconnectedCallback(disconnected_handler_id_);
   }
 
   /**
@@ -187,9 +187,12 @@ public:
     return trajectory_running_;
   }
 
-private:
+protected:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
   void trajDisconnectCallback(const int filedescriptor);
+
+  uint32_t traj_done_callback_handler_id_;
+  uint32_t disconnected_handler_id_;
 
   std::shared_ptr<urcl::UrDriver> driver_;
   std::atomic<bool> trajectory_running_ = false;
