@@ -6,7 +6,7 @@ RTDEClient
 ==========
 
 The Real Time Data Exchange Client, ``RTDEClient``, class serves as a standalone
-`RTDE <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
+`RTDE <https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/>`_
 client. To use the RTDE-Client, you'll have to initialize and start it separately:
 
 .. code-block:: c++
@@ -25,7 +25,7 @@ client. To use the RTDE-Client, you'll have to initialize and start it separatel
 
 Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
 outputs. Please refer to the `RTDE
-guide <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
+guide <https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/>`_
 on which elements are available.
 
 Inside the ``RTDEclient`` data is received in a separate thread, parsed by the ``RTDEParser`` and
