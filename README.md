@@ -55,7 +55,7 @@ Currently, this library contains the following components:
   and provides only basic functionality. See [A word on the primary / secondary
   interface](#a-word-on-the-primary--secondary-interface) for further information about the primary
   interface.
-* **RTDE interface:** The [RTDE interface](https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/)
+* **RTDE interface:** The [RTDE interface](https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide)
   is fully supported by this library. See
   [RTDEClient](https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_client_library/doc/architecture.html#rtdeclient)
   for further information on how
