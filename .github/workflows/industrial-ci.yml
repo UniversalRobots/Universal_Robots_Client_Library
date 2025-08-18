@@ -30,7 +30,7 @@ jobs:
     env:
       DOCKER_RUN_OPTS: '-v /var/run/docker.sock:/var/run/docker.sock --network ursim_net'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: docker network create --subnet=192.168.56.0/24 ursim_net
         if: ${{ !env.ACT }}
       - uses: 'ros-industrial/industrial_ci@master'
