@@ -270,13 +270,13 @@ thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
   while control_mode == MODE_TORQUE:
     torque = cmd_torque
-    {% if ROBOT_SOFTWARE_VERSION >= v5.22.0 %} # ToDo: Increase to 5.23.0 once released
+    {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
       {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-    torque_command(torque, friction_comp=friction_compensation_enabled)
-      {% elif ROBOT_SOFTWARE_VERSION >= v10.10.0 %}
-    torque_command(torque, friction_comp=friction_compensation_enabled)
+    direct_torque(torque, friction_comp=friction_compensation_enabled)
+      {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+    direct_torque(torque, friction_comp=friction_compensation_enabled)
       {% else %}
-    popup("Torque control is only supported from software 10.10.0 and upwards.", error=True, blocking=True)
+    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
       {% endif %}
     {% else %}
     popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
@@ -688,17 +688,17 @@ end
 thread PDControlThread():
   while control_mode == MODE_PD_CONTROLLER_JOINT or control_mode == MODE_PD_CONTROLLER_TASK: 
     local q_err = cmd_servo_q - get_actual_joint_positions()
-    {% if ROBOT_SOFTWARE_VERSION >= v5.22.0 %} # ToDo: Increase to 5.23.0 once released
+    {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
       {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
     local tau = pd_controller_gains.kp * q_err - pd_controller_gains.kd  * get_actual_joint_speeds()
     tau = clamp_array(tau, max_joint_torques)
-    torque_command(tau, friction_comp=friction_compensation_enabled)
-      {% elif ROBOT_SOFTWARE_VERSION >= v10.10.0 %}
+    direct_torque(tau, friction_comp=friction_compensation_enabled)
+      {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
     local tau = pd_controller_gains.kp * q_err - pd_controller_gains.kd  * get_actual_joint_speeds()
     tau = clamp_array(tau, max_joint_torques)
-    torque_command(tau, friction_comp=friction_compensation_enabled)
+    direct_torque(tau, friction_comp=friction_compensation_enabled)
       {% else %}
-    popup("Torque control is only supported from software 10.10.0 and upwards.", error=True, blocking=True)
+    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
       {% endif %}
     {% else %}
     popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
