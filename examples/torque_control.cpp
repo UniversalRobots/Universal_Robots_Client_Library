@@ -54,6 +54,13 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
+  // Parse how many seconds to run
+  auto second_to_run = std::chrono::seconds(0);
+  if (argc > 2)
+  {
+    second_to_run = std::chrono::seconds(std::stoi(argv[2]));
+  }
+
   bool headless_mode = true;
   g_my_robot = std::make_unique<urcl::ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                            "external_control.urp");
@@ -89,6 +96,7 @@ int main(int argc, char* argv[])
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
   g_my_robot->getUrDriver()->startRTDECommunication();
+  auto start_time = std::chrono::system_clock::now();
   while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
@@ -140,6 +148,12 @@ int main(int argc, char* argv[])
       return 1;
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
+    if (second_to_run.count() > 0 && (std::chrono::system_clock::now() - start_time) > second_to_run)
+    {
+      URCL_LOG_WARN("Time limit reached, stopping movement. This is expected on a simualted robot, as it doesn't move "
+                    "to torque commands.");
+      break;
+    }
   }
   g_my_robot->getUrDriver()->stopControl();
   URCL_LOG_INFO("Movement done");
