@@ -112,7 +112,12 @@ install(TARGETS urcl EXPORT urcl_targets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY 3rdparty/endian/ DESTINATION include/${PROJECT_NAME}/3rdparty
+if(MSVC OR APPLE)
+  install(DIRECTORY 3rdparty/endian/ DESTINATION include/${PROJECT_NAME}/3rdparty
+    FILES_MATCHING PATTERN "*.h"
+  )
+endif()
+install(DIRECTORY 3rdparty/httplib/ DESTINATION include/${PROJECT_NAME}/3rdparty
   FILES_MATCHING PATTERN "*.h"
 )
 
