@@ -2,6 +2,15 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Install endian header on Windows and Apple only (`#372 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/372>`_)
+* Add support for UR8 LONG (`#375 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/375>`_)
+* Change ubuntu manpage link from bionic to noble (`#374 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/374>`_)
+* Bump actions/setup-python from 5 to 6 (`#373 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/373>`_)
+* Add possibility to register multiple callbacks to ReverseInterface and TrajectoryPointInterface (`#359 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/359>`_)
+* Contributors: Felix Exner, dependabot[bot]
+
 2.2.0 (2025-07-21)
 ------------------
 * Remove print statement when executing optimovel primitives (`#365 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/365>`_)
