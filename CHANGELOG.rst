@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.3.0 (2025-09-15)
+------------------
 * Install endian header on Windows and Apple only (`#372 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/372>`_)
 * Add support for UR8 LONG (`#375 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/375>`_)
 * Change ubuntu manpage link from bionic to noble (`#374 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/374>`_)
