@@ -247,6 +247,24 @@ setup() {
   [ $status -eq 0 ]
 }
 
+@test "test ur8long min version" {
+  run test_input_handling -m ur8long -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 5.22.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 5.23.0
+  echo "$output"
+  [ $status -eq 0 ]
+  run test_input_handling -m ur8long -v 10.10.0
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 10.11.0
+  echo "$output"
+  [ $status -eq 0 ]
+}
+
 @test "unsupported versions raise error" {
   run main -v 1.2.3 -t
   echo "$output"
