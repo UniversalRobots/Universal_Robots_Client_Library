@@ -125,11 +125,11 @@ public:
    * \returns True on success, false if the field cannot be found inside the package.
    */
   template <typename T>
-  bool getData(const std::string& name, T& val)
+  bool getData(const std::string& name, T& val) const
   {
     if (data_.find(name) != data_.end())
     {
-      val = std::get<T>(data_[name]);
+      val = std::get<T>(data_.at(name));
     }
     else
     {
@@ -149,13 +149,13 @@ public:
    * \returns True on success, false if the field cannot be found inside the package.
    */
   template <typename T, size_t N>
-  bool getData(const std::string& name, std::bitset<N>& val)
+  bool getData(const std::string& name, std::bitset<N>& val) const
   {
     static_assert(sizeof(T) * 8 >= N, "Bitset is too large for underlying variable");
 
     if (data_.find(name) != data_.end())
     {
-      val = std::bitset<N>(std::get<T>(data_[name]));
+      val = std::bitset<N>(std::get<T>(data_.at(name)));
     }
     else
     {
@@ -179,7 +179,7 @@ public:
   {
     if (data_.find(name) != data_.end())
     {
-      data_[name] = val;
+      data_.at(name) = val;
     }
     else
     {
