@@ -74,13 +74,6 @@ void sendScriptCommands()
     run_cmd("Disabling tool contact mode", []() { g_my_robot->getUrDriver()->endToolContact(); });
     run_cmd("Setting friction_compensation variable to `true`",
             []() { g_my_robot->getUrDriver()->setFrictionCompensation(true); });
-    run_cmd("Setting PD controller gains", []() {
-      g_my_robot->getUrDriver()->setPDControllerGains({ 500.0, 500.0, 300.0, 124.0, 124.0, 124.0 },
-                                                      { 44.72, 44.72, 34.64, 22.27, 22.27, 22.27 });
-    });
-    // The following will have no effect on PolyScope < 5.23 / 10.10
-    run_cmd("Setting max joint torques",
-            []() { g_my_robot->getUrDriver()->setMaxJointTorques({ 27.0, 27.0, 14.0, 4.5, 4.5, 4.5 }); });
   }
   URCL_LOG_INFO("Script command thread finished.");
 }

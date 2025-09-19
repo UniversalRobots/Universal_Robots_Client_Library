@@ -36,7 +36,6 @@
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
-#include "ur_client_library/control/torque_command_controller_parameters.h"
 #include "ur_client_library/helpers.h"
 #include <memory>
 #include <sstream>
@@ -55,8 +54,6 @@ static const std::string TRAJECTORY_PORT_REPLACE("TRAJECTORY_SERVER_PORT_REPLACE
 static const std::string SCRIPT_COMMAND_PORT_REPLACE("SCRIPT_COMMAND_SERVER_PORT_REPLACE");
 static const std::string FORCE_MODE_SET_DAMPING_REPLACE("FORCE_MODE_SET_DAMPING_REPLACE");
 static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("FORCE_MODE_SET_GAIN_SCALING_REPLACE");
-static const std::string PD_CONTROLLER_GAINS_REPLACE("PD_CONTROLLER_GAINS_REPLACE");
-static const std::string MAX_JOINT_TORQUE_REPLACE("MAX_JOINT_TORQUE_REPLACE");
 
 UrDriver::~UrDriver()
 {
@@ -111,8 +108,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
                            timeout);
   }
 
-  const RobotType robot_type = primary_client_->getRobotType();
-
   control::ScriptReader::DataDict data;
   data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
   data[TIME_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_TIME);
@@ -144,23 +139,6 @@ void UrDriver::init(const UrDriverConfiguration& config)
                   << config.tool_comm_setup->getTxIdleChars() << ")";
   }
   data[BEGIN_REPLACE] = begin_replace.str();
-
-  const control::PDControllerGains pd_gains = control::getPdGainsFromRobotType(robot_type);
-  std::stringstream pd_gains_ss;
-  if (robot_version_ < urcl::VersionInformation::fromString("5.10.0"))
-  {
-    // Structs are only available in URScript 5.10 and later. It isn't used pre 5.23, so we can safely set it to 0.
-    pd_gains_ss << 0;
-  }
-  else
-  {
-    pd_gains_ss << "struct(kp=" << pd_gains.kp << ", kd=" << pd_gains.kd << ")";
-  }
-  data[PD_CONTROLLER_GAINS_REPLACE] = pd_gains_ss.str();
-
-  std::stringstream max_torques_ss;
-  max_torques_ss << control::getMaxTorquesFromRobotType(robot_type);
-  data[MAX_JOINT_TORQUE_REPLACE] = max_torques_ss.str();
 
   data["ROBOT_SOFTWARE_VERSION"] = getVersion();
 
@@ -557,54 +535,6 @@ bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to set friction compensation.");
-    return 0;
-  }
-}
-
-bool UrDriver::setPDControllerGains(const urcl::vector6d_t& kp, const urcl::vector6d_t& kd)
-{
-  if (!std::all_of(kp.begin(), kp.end(), [](double v) { return v >= 0.0; }))
-  {
-    throw InvalidRange("kp should be larger than zero");
-  }
-
-  if (!std::all_of(kd.begin(), kd.end(), [](double v) { return v >= 0.0; }))
-  {
-    throw InvalidRange("kd should be larger than zero");
-  }
-
-  if (script_command_interface_->clientConnected())
-  {
-    return script_command_interface_->setPDControllerGains(&kp, &kd);
-  }
-  else
-  {
-    URCL_LOG_ERROR("Script command interface is not running. Unable to set PD Controller gains.");
-    return 0;
-  }
-}
-
-bool UrDriver::setMaxJointTorques(const urcl::vector6d_t& max_joint_torques)
-{
-  const urcl::vector6d_t max_torques_for_robot_type =
-      control::getMaxTorquesFromRobotType(primary_client_->getRobotType());
-  if (!std::equal(max_joint_torques.begin(), max_joint_torques.end(), max_torques_for_robot_type.begin(),
-                  [](double v1, double v2) { return v1 <= v2 && v1 >= 0.0; }))
-  {
-    std::stringstream ss;
-    ss << "The max joint torques should be smaller or equal to the maximum joint torques for the robot type and larger "
-          "than zero. Provided max joint torques "
-       << max_joint_torques << " and maximum joint torques for the robot type " << max_torques_for_robot_type;
-    throw InvalidRange(ss.str().c_str());
-  }
-
-  if (script_command_interface_->clientConnected())
-  {
-    return script_command_interface_->setMaxJointTorques(&max_joint_torques);
-  }
-  else
-  {
-    URCL_LOG_ERROR("Script command interface is not running. Unable to set max joint torques.");
     return 0;
   }
 }

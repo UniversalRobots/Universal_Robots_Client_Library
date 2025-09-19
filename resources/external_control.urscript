@@ -26,8 +26,6 @@ MODE_POSE = 5
 MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
 MODE_TORQUE = 8
-MODE_PD_CONTROLLER_JOINT = 9
-MODE_PD_CONTROLLER_TASK = 10
 # Data dimensions of the message received on the reverse interface
 REVERSE_INTERFACE_DATA_DIMENSION = 8
 
@@ -53,8 +51,6 @@ END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_FRICTION_COMPENSATION = 7
-SET_PD_CONTROLLER_GAINS = 8
-SET_MAX_JOINT_TORQUES = 9
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -89,8 +85,6 @@ global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 global trajectory_result = 0
 global friction_compensation_enabled = True
-global pd_controller_gains = {{PD_CONTROLLER_GAINS_REPLACE}}
-global max_joint_torques = {{MAX_JOINT_TORQUE_REPLACE}}
 
 # Global thread variables
 thread_move = 0
@@ -158,31 +152,6 @@ def terminateProgram():
   textmsg("Terminating robot program due to targets sent to the robot is violating robot constraints.")
   stopj(STOPJ_ACCELERATION)
   halt
-end
-
-###
-# @brief Function to clamp each element of a list in between +- clamp value.
-#
-# @param values array is the list of values to clamp
-# @param clampvalues array is the list of clamp values
-#
-# @returns array of values within +- clamp value 
-###
-def clamp_array(values, clampValues):
-  if length(values) != length(clampValues):
-    popup("List of values has different length than list of clamp values.", error = True, blocking = True)
-  end
-  ret = values
-  j = 0
-  while j < length(values):
-    if values[j] > clampValues[j]:
-        ret[j] = clampValues[j]
-    elif values[j] < -clampValues[j]:
-        ret[j] = -clampValues[j]
-    end
-    j = j + 1
-  end
-  return ret
 end
 
 def set_servo_setpoint(q):
@@ -685,29 +654,6 @@ thread servoThreadP():
   stopj(STOPJ_ACCELERATION)
 end
 
-thread PDControlThread():
-  while control_mode == MODE_PD_CONTROLLER_JOINT or control_mode == MODE_PD_CONTROLLER_TASK: 
-    local q_err = cmd_servo_q - get_actual_joint_positions()
-    {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
-      {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-    local tau = pd_controller_gains.kp * q_err - pd_controller_gains.kd  * get_actual_joint_speeds()
-    tau = clamp_array(tau, max_joint_torques)
-    direct_torque(tau, friction_comp=friction_compensation_enabled)
-      {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
-    local tau = pd_controller_gains.kp * q_err - pd_controller_gains.kd  * get_actual_joint_speeds()
-    tau = clamp_array(tau, max_joint_torques)
-    direct_torque(tau, friction_comp=friction_compensation_enabled)
-      {% else %}
-    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
-      {% endif %}
-    {% else %}
-    popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
-    {% endif %}
-  end 
-  textmsg("PD Control thread ended")
-  stopj(STOPJ_ACCELERATION)
-end
-
 def tool_contact_detection():
   # Detect tool contact in the directions that the TCP is moving
   step_back = tool_contact(direction = get_actual_tcp_speed())
@@ -781,13 +727,6 @@ thread script_commands():
         else:
           friction_compensation_enabled = True
         end
-      elif command == SET_PD_CONTROLLER_GAINS:
-        {% if ROBOT_SOFTWARE_VERSION > v5.10.0 %}
-        pd_controller_gains.kp = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
-        pd_controller_gains.kd = [raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate, raw_command[12] / MULT_jointstate, raw_command[13] / MULT_jointstate]
-        {% endif %}
-      elif command == SET_MAX_JOINT_TORQUES:
-        max_joint_torques = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate] 
       end
     end
   end
@@ -855,12 +794,6 @@ while control_mode > MODE_STOPPED:
       elif control_mode == MODE_POSE:
         cmd_servo_q = get_joint_positions()
         thread_move = run servoThreadP()
-      elif control_mode == MODE_PD_CONTROLLER_JOINT:
-        cmd_servo_q = get_joint_positions()
-        thread_move = run PDControlThread()
-      elif control_mode == MODE_PD_CONTROLLER_TASK:
-        cmd_servo_q = get_joint_positions()
-        thread_move = run PDControlThread()
       end
     end
 
@@ -901,12 +834,6 @@ while control_mode > MODE_STOPPED:
         textmsg("Leaving freedrive mode")
         end_freedrive_mode()
       end
-    elif control_mode == MODE_PD_CONTROLLER_JOINT:
-      q = [params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
-      set_servo_setpoint(q)
-    elif control_mode == MODE_PD_CONTROLLER_TASK:
-      pose = p[params_mult[2] / MULT_jointstate, params_mult[3] / MULT_jointstate, params_mult[4] / MULT_jointstate, params_mult[5] / MULT_jointstate, params_mult[6] / MULT_jointstate, params_mult[7] / MULT_jointstate]
-      set_servo_setpoint(get_inverse_kin(pose, cmd_servo_q))
     end
     # Tool contact is running, but hasn't been detected
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
