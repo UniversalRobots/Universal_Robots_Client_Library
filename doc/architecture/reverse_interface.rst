@@ -57,6 +57,9 @@ meaning:
            - freedrive instruction (FREEDRIVE)
 
              - field 1: Freedrive mode (1: FREEDRIVE_MODE_START, -1: FREEDRIVE_MODE_STOP)
+           - target joint torques (TORQUE). Note that this is **after** gravity compensation. A
+             vector of zeros will hold the current position given that the payload is known to the
+             controller.
 
    7      Control mode. Can be either of
 
@@ -72,6 +75,7 @@ meaning:
            - 7: TOOL_IN_CONTACT -- status - not meant to be sent.
              In tool contact mode this will
              encode whether tool contact has been established or not.
+           - 8: TORQUE -- Direct torque control mode (since PolyScope 5.23.0 / 10.10.0)
    =====  =====
 
 .. note::
