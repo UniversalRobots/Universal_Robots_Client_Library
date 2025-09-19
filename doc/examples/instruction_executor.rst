@@ -44,10 +44,11 @@ To run a sequence of motions, create an
    :end-at: instruction_executor->executeMotion(motion_sequence);
 
 Each element in the motion sequence can be a different motion type. In the example, there are two
-``MoveJ`` motions, a ``MoveL`` motion and a ``MoveP`` motion. The primitives' parameters are directly forwarded to
-the underlying script functions, so the parameter descriptions for them apply, as well.
-Particularly, you may want to choose between either a time-based execution speed or an acceleration
-/ velocity parametrization for some move functions. The latter will be ignored if a time > 0 is given.
+``MoveJ`` motions, a ``MoveL`` motion, a ``MoveP`` motion, a ``OptimiveJ`` motion and a
+``OptimoveL`` motion. The primitives' parameters are directly forwarded to the underlying script
+functions, so the parameter descriptions for them apply, as well. Particularly, you may want to
+choose between either a time-based execution or an acceleration / velocity parametrization
+for some move functions. The latter will be ignored if a time > 0 is given.
 
 Please refer to the script manual for details.
 

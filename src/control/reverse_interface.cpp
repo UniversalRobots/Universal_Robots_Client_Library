@@ -238,6 +238,10 @@ void ReverseInterface::disconnectionCallback(const socket_t filedescriptor)
   URCL_LOG_INFO("Connection to reverse interface dropped.", filedescriptor);
   client_fd_ = INVALID_SOCKET;
   handle_program_state_(false);
+  for (auto handler : disconnect_callbacks_)
+  {
+    handler.function(filedescriptor);
+  }
 }
 
 void ReverseInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)

@@ -2,6 +2,25 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.3.0 (2025-09-15)
+------------------
+* Install endian header on Windows and Apple only (`#372 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/372>`_)
+* Add support for UR8 LONG (`#375 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/375>`_)
+* Change ubuntu manpage link from bionic to noble (`#374 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/374>`_)
+* Bump actions/setup-python from 5 to 6 (`#373 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/373>`_)
+* Add possibility to register multiple callbacks to ReverseInterface and TrajectoryPointInterface (`#359 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/359>`_)
+* Contributors: Felix Exner, dependabot[bot]
+
+2.2.0 (2025-07-21)
+------------------
+* Remove print statement when executing optimovel primitives (`#365 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/365>`_)
+* Remove SDK version mapping (`#355 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/355>`_)
+* Support optimove motions in InstructionExecutor (`#354 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/354>`_)
+* Initialize ReverseInterface with a config struct (`#351 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/351>`_)
+* Join thread_move instead of killing it (`#349 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/349>`_)
+* Fix external_control urcapx version to 0.1.0 for PolyScope 10.7.0 (`#350 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/350>`_)
+* Contributors: Felix Exner
+
 2.1.0 (2025-06-18)
 ------------------
 * Minimal support for building on macOS (`#341 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/341>`_)

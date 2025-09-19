@@ -42,16 +42,16 @@ public:
   InstructionExecutor() = delete;
   InstructionExecutor(std::shared_ptr<urcl::UrDriver> driver) : driver_(driver)
   {
-    driver_->registerTrajectoryDoneCallback(
+    traj_done_callback_handler_id_ = driver_->registerTrajectoryDoneCallback(
         std::bind(&InstructionExecutor::trajDoneCallback, this, std::placeholders::_1));
-    driver_->registerTrajectoryInterfaceDisconnectedCallback(
+    disconnected_handler_id_ = driver_->registerTrajectoryInterfaceDisconnectedCallback(
         std::bind(&InstructionExecutor::trajDisconnectCallback, this, std::placeholders::_1));
   }
 
   ~InstructionExecutor()
   {
-    driver_->registerTrajectoryDoneCallback(nullptr);
-    driver_->registerTrajectoryInterfaceDisconnectedCallback(nullptr);
+    driver_->unregisterTrajectoryDoneCallback(traj_done_callback_handler_id_);
+    driver_->unregisterTrajectoryInterfaceDisconnectedCallback(disconnected_handler_id_);
   }
 
   /**
@@ -133,6 +133,42 @@ public:
              const double velocity = 1.04, const double blend_radius = 0.0, const int32_t mode = 0);
 
   /**
+   * \brief Move the robot to a joint target using optimoveJ.
+   *
+   * This function will move the robot to the given joint target using the optimoveJ motion
+   * primitive. The robot will move with the given acceleration and velocity fractions.
+   *
+   * \param target The joint target to move to.
+   * \param acceleration_fraction The fraction of the maximum acceleration to use for the motion
+   * (0.0 < fraction <= 1.0).
+   * \param velocity_fraction The fraction of the maximum velocity to use for the motion_sequence
+   * (0.0 < fraction <= 1.0).
+   * \param blend_radius The blend radius to use for the motion.
+   *
+   * \return True if the robot has reached the target, false otherwise.
+   */
+  bool optimoveJ(const urcl::vector6d_t& target, const double acceleration_fraction = 0.3,
+                 const double velocity_fraction = 0.3, const double blend_radius = 0);
+
+  /**
+   * \brief Move the robot to a pose target using optimoveL.
+   *
+   * This function will move the robot to the given pose target using the optimoveL motion
+   * primitive. The robot will move with the given acceleration and velocity fractions.
+   *
+   * \param target The pose target to move to.
+   * \param acceleration_fraction The fraction of the maximum acceleration to use for the motion
+   * (0.0 < fraction <= 1.0).
+   * \param velocity_fraction The fraction of the maximum velocity to use for the motion_sequence
+   * (0.0 < fraction <= 1.0).
+   * \param blend_radius The blend radius to use for the motion.
+   *
+   * \return True if the robot has reached the target, false otherwise.
+   */
+  bool optimoveL(const urcl::Pose& target, const double acceleration_fraction = 0.3,
+                 const double velocity_fraction = 0.3, const double blend_radius = 0);
+
+  /**
    * \brief Cancel the current motion.
    *
    * If no motion is running, false will be returned.
@@ -151,9 +187,13 @@ public:
     return trajectory_running_;
   }
 
-private:
+protected:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
   void trajDisconnectCallback(const int filedescriptor);
+
+  uint32_t traj_done_callback_handler_id_;
+  uint32_t disconnected_handler_id_;
+
   std::shared_ptr<urcl::UrDriver> driver_;
   std::atomic<bool> trajectory_running_ = false;
   std::atomic<bool> cancel_requested_ = false;

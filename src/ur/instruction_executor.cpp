@@ -36,10 +36,13 @@
 void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
   URCL_LOG_DEBUG("Trajectory result received: %s", control::trajectoryResultToString(result).c_str());
-  std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
-  trajectory_done_cv_.notify_all();
-  trajectory_result_ = result;
-  trajectory_running_ = false;
+  if (trajectory_running_)
+  {
+    std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    trajectory_done_cv_.notify_all();
+    trajectory_result_ = result;
+    trajectory_running_ = false;
+  }
 }
 void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
 {
@@ -99,6 +102,7 @@ bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const doub
   return executeMotion({ std::make_shared<control::MoveJPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
 }
+
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
@@ -117,6 +121,18 @@ bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& t
 {
   return executeMotion(
       { std::make_shared<control::MoveCPrimitive>(via, target, blend_radius, acceleration, velocity, mode) });
+}
+
+bool urcl::InstructionExecutor::optimoveJ(const urcl::vector6d_t& target, const double acceleration,
+                                          const double velocity, const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::OptimoveJPrimitive>(target, blend_radius, acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::optimoveL(const urcl::Pose& target, const double acceleration, const double velocity,
+                                          const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::OptimoveLPrimitive>(target, blend_radius, acceleration, velocity) });
 }
 
 bool urcl::InstructionExecutor::cancelMotion()

@@ -91,6 +91,10 @@ int main(int argc, char* argv[])
                                                     std::chrono::seconds(2)),
     std::make_shared<urcl::control::MovePPrimitive>(urcl::Pose{ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.4,
                                                     0.4),
+    std::make_shared<urcl::control::OptimoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.1, 0.4,
+                                                        0.7),
+    std::make_shared<urcl::control::OptimoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
+                                                        0.4, 0.7),
   };
   instruction_executor->executeMotion(motion_sequence);
 

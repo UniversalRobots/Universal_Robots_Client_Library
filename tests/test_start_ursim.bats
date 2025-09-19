@@ -1,4 +1,5 @@
 setup_file() {
+  echo "Pulling latest URSim Docker images for CB3 and PolyScope 5"
   docker pull universalrobots/ursim_cb3:latest
   docker pull universalrobots/ursim_e-series:latest
 }
@@ -246,6 +247,24 @@ setup() {
   [ $status -eq 0 ]
 }
 
+@test "test ur8long min version" {
+  run test_input_handling -m ur8long -v 3.14.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 5.22.3
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 5.23.0
+  echo "$output"
+  [ $status -eq 0 ]
+  run test_input_handling -m ur8long -v 10.10.0
+  echo "$output"
+  [ $status -eq 1 ]
+  run test_input_handling -m ur8long -v 10.11.0
+  echo "$output"
+  [ $status -eq 0 ]
+}
+
 @test "unsupported versions raise error" {
   run main -v 1.2.3 -t
   echo "$output"
@@ -259,14 +278,6 @@ setup() {
   run main -v 6.99.123 -t
   echo "$output"
   [ $status -eq 1 ]
-}
-
-@test "docker image polyscopex" {
-  run main -v 10.7.0 -t
-  echo "$output"
-  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
-  [ $status -eq 0 ]
-  [ "$image" == "universalrobots/ursim_polyscopex:0.12.159" ]
 }
 
 @test "docker image cb3 latest" {
