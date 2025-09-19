@@ -48,9 +48,9 @@ add_executable(script_command_interface_example
 script_command_interface.cpp)
 target_link_libraries(script_command_interface_example ur_client_library::urcl)
 
-add_executable(torque_control_example
-  torque_control.cpp)
-target_link_libraries(torque_control_example ur_client_library::urcl)
+add_executable(direct_torque_control_example
+  direct_torque_control.cpp)
+target_link_libraries(direct_torque_control_example ur_client_library::urcl)
 
 add_executable(trajectory_point_interface_example
 trajectory_point_interface.cpp)

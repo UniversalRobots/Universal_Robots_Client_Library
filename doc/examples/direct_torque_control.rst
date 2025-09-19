@@ -1,6 +1,6 @@
-:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/torque_control.rst
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/direct_torque_control.rst
 
-.. _torque_control_example:
+.. _direct_torque_control_example:
 
 Torque control example
 ======================
@@ -25,16 +25,16 @@ Initialization
 At first, we create a ``ExampleRobotWrapper`` object giving it the robot's IP address, script file and RTDE
 recipes.
 
-.. literalinclude:: ../../examples/torque_control.cpp
+.. literalinclude:: ../../examples/direct_torque_control.cpp
    :language: c++
-   :caption: examples/torque_control.cpp
+   :caption: examples/direct_torque_control.cpp
    :linenos:
    :lineno-match:
    :start-at: bool headless_mode = true;
    :end-at: // --------------- INITIALIZATION END -------------------
 
 .. note::
-   This example requires PolyScope version 5.23.0 / 10.10.0 or later, as it uses the torque_control
+   This example requires PolyScope version 5.23.0 / 10.10.0 or later, as it uses the direct_torque_control
    mode which is only available in these versions and later. If you try to run it on an older
    software version, this example will print an error and exit.
 
@@ -48,9 +48,9 @@ positive limit and then back to 0.
 To read the joint data, the driver's RTDE client is used:
 
 
-.. literalinclude:: ../../examples/torque_control.cpp
+.. literalinclude:: ../../examples/direct_torque_control.cpp
    :language: c++
-   :caption: examples/torque_control.cpp
+   :caption: examples/direct_torque_control.cpp
    :linenos:
    :lineno-match:
    :start-at: // Once RTDE communication is started
@@ -60,9 +60,9 @@ The first read operation will initialize the target buffer with the current robo
 the target joint torques are set based on the current joint positions:
 
 
-.. literalinclude:: ../../examples/torque_control.cpp
+.. literalinclude:: ../../examples/direct_torque_control.cpp
    :language: c++
-   :caption: examples/torque_control.cpp
+   :caption: examples/direct_torque_control.cpp
    :linenos:
    :lineno-match:
    :start-at: // Open loop control
@@ -71,9 +71,9 @@ the target joint torques are set based on the current joint positions:
 To send the control command, the robot's :ref:`reverse_interface` is used via the
 ``writeJointCommand()`` function:
 
-.. literalinclude:: ../../examples/torque_control.cpp
+.. literalinclude:: ../../examples/direct_torque_control.cpp
    :language: c++
-   :caption: examples/torque_control.cpp
+   :caption: examples/direct_torque_control.cpp
    :linenos:
    :lineno-match:
    :start-at: // Setting the RobotReceiveTimeout
