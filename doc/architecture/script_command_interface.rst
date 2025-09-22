@@ -20,6 +20,7 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
   contact example
   <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/tool_contact_example.cpp>`_
   for more information.
+- ``setFrictionCompensation()``: Set friction compensation for torque command.
 
 Communication protocol
 ----------------------
@@ -48,6 +49,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 4: endForceMode
            - 5: startToolContact
            - 6: endToolContact
+           - 7: setFrictionCompensation
    1-27   data fields specific to the command
    =====  =====
 
@@ -119,6 +121,15 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    index  meaning
    =====  =====
    1      No specific meaning / values ignored
+   =====  =====
+
+.. table:: With setFrictionCompensation command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1      friction_compensation_enabled enable/disable friction compensation for torque command.
    =====  =====
 
 .. note::

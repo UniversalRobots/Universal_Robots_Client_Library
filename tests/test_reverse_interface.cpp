@@ -430,6 +430,12 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
 
   expected_control_mode = comm::ControlMode::MODE_UNINITIALIZED;
   EXPECT_THROW(reverse_interface_->write(&pos, expected_control_mode), UrException);
+
+  expected_control_mode = comm::ControlMode::MODE_TORQUE;
+  reverse_interface_->write(&pos, expected_control_mode);
+  received_control_mode = client_->getControlMode();
+
+  EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 }
 
 TEST_F(ReverseIntefaceTest, write_freedrive_control_message)

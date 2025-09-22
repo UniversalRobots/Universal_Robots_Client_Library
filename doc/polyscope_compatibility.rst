@@ -3,6 +3,9 @@
 |polyscope| version compatibility
 =================================
 
+Version-breaking changes
+------------------------
+
 The table below shows breaking changes in the library compared to |polyscope| versions. Compatibility
 is listed for CB3 robots (versions 3.x.y) and e-Series robots (versions 5.x.y) respectively.
 
@@ -44,3 +47,17 @@ table below or checkout the latest tag before the breaking changes were introduc
        See `Universal Robots External Control URCapX <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX>`_
 
 .. |polyscope| replace:: PolyScope
+
+Features requiring a specific |polyscope| version
+-------------------------------------------------
+
+Features in this section have been added in a backwards-compatible way. It is still possible to use
+this library with an older compatible version, but trying to use one of the features below might
+lead to a runtime exception.
+
+Torque control (From version 2.4.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The direct torque control mode is only available on |polyscope| 5.23.0 / 10.10.0 and later. This
+includes the ``TORQUE`` control mode in the ``ReverseInterface`` as well as the
+``setFrictionCompensation()`` function in the ``ScriptCommandInterface``.

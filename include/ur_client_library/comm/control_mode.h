@@ -51,8 +51,9 @@ enum class ControlMode : int32_t
   MODE_POSE = 5,            ///< Set when cartesian pose control is active.
   MODE_FREEDRIVE = 6,       ///< Set when freedrive mode is active.
   MODE_TOOL_IN_CONTACT =
-      7,  ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
-  END     ///< This is not an actual control mode, but used internally to get the number of control modes
+      7,            ///< Used only internally in the script, when robot is in tool contact, clear by endToolContact()
+  MODE_TORQUE = 8,  ///< Set when torque control is active.
+  END               ///< This is not an actual control mode, but used internally to get the number of control modes
 };
 
 /*!
@@ -63,7 +64,8 @@ class ControlModeTypes
 public:
   // Control modes that require realtime communication
   static const inline std::vector<ControlMode> REALTIME_CONTROL_MODES = {
-    ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ, ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE
+    ControlMode::MODE_SERVOJ, ControlMode::MODE_SPEEDJ, ControlMode::MODE_SPEEDL, ControlMode::MODE_POSE,
+    ControlMode::MODE_TORQUE
   };
 
   // Control modes that doesn't require realtime communication

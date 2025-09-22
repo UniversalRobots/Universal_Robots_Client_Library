@@ -36,6 +36,7 @@
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
+#include "ur_client_library/helpers.h"
 #include <memory>
 #include <sstream>
 
@@ -95,6 +96,17 @@ void UrDriver::init(const UrDriverConfiguration& config)
   script_command_interface_.reset(new control::ScriptCommandInterface(script_command_config));
 
   startPrimaryClientCommunication();
+
+  std::chrono::milliseconds timeout(1000);
+  try
+  {
+    waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, timeout);
+  }
+  catch (const TimeoutException&)
+  {
+    throw TimeoutException("Could not get configuration package within timeout, are you connected to the robot?",
+                           timeout);
+  }
 
   control::ScriptReader::DataDict data;
   data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
@@ -510,6 +522,19 @@ bool UrDriver::endToolContact()
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    return 0;
+  }
+}
+
+bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setFrictionCompensation(friction_compensation_enabled);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set friction compensation.");
     return 0;
   }
 }

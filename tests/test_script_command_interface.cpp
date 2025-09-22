@@ -382,6 +382,45 @@ TEST_F(ScriptCommandInterfaceTest, test_tool_contact_callback)
   EXPECT_EQ(toUnderlying(received_result_), toUnderlying(send_result));
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_compensation)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  script_command_interface_->setFrictionCompensation(true);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 7 is set friction compensation
+  int32_t expected_command = 7;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t expected_friction_compensation = 1;
+  EXPECT_EQ(message[0], expected_friction_compensation);
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+
+  script_command_interface_->setFrictionCompensation(false);
+
+  message.clear();
+  client_->readMessage(command, message);
+
+  EXPECT_EQ(command, expected_command);
+
+  expected_friction_compensation = 0;
+  EXPECT_EQ(message[0], expected_friction_compensation);
+
+  // The rest of the message should be zero
+  message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
+  expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
