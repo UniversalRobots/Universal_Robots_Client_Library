@@ -10,25 +10,6 @@ drivers.
 
 ---
 
-> [!IMPORTANT]
-> The **torque_control** branch is a **beta feature**. At the current time, you will need to
-> participate in the public beta program at
-> [https://ur.centercode.com/key/PolyScope5Beta](https://ur.centercode.com/key/PolyScope5Beta) to
-> use it. It will not work with any released robot software version. At a later time this will
-> require a certain robot software version to work and the new features will not work with older
-> software versions. However, old functionality will still be working with older robot software as
-> noted in the version requirements below.
->
-> This being a beta feature, the API is not to be considered stable. Anything developed on this
-> branch might be changing in a breaking way until it is merged into the master branch.
->
-> Also, please keep the beta status in mind when operating the robot. Parts of the software
-> involved in the beta-feature might not be tested to the usual extent and might show unexpected
-> behavior in edge cases.
->
-> Documentation for the new features may also be missing initially. This will be added before
-> merging things to the master branch.
-
 <!-- markdownlint-disable MD033 -->
 <div align="center">
   <img src="doc/resources/family_photo.png" alt="Universal Robot family" style="width: 90%;"/>
