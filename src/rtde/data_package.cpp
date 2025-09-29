@@ -38,8 +38,8 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "speed_slider_mask", uint32_t() },
   { "speed_slider_fraction", double() },
   { "standard_digital_output_mask", uint8_t() },
-  { "configurable_digital_output_mask", uint8_t() },
   { "standard_digital_output", uint8_t() },
+  { "configurable_digital_output_mask", uint8_t() },
   { "configurable_digital_output", uint8_t() },
   { "standard_analog_output_mask", uint8_t() },
   { "standard_analog_output_type", uint8_t() },
@@ -293,9 +293,14 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "actual_TCP_force", vector6d_t() },
   { "target_TCP_pose", vector6d_t() },
   { "target_TCP_speed", vector6d_t() },
+  { "tcp_offset", vector6d_t() },
+  { "actual_TCP_acceleration", vector6d_t() },
+  { "target_TCP_acceleration", vector6d_t() },
   { "actual_digital_input_bits", uint64_t() },
+  { "actual_configurable_digital_input_bits", uint64_t() },
   { "joint_temperatures", vector6d_t() },
   { "actual_execution_time", double() },
+  { "target_execution_time", double() },
   { "robot_mode", int32_t() },
   { "joint_mode", vector6int32_t() },
   { "safety_mode", int32_t() },
@@ -309,6 +314,7 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "actual_robot_current", double() },
   { "actual_joint_voltage", vector6d_t() },
   { "actual_digital_output_bits", uint64_t() },
+  { "actual_configurable_digital_output_bits", uint64_t() },
   { "runtime_state", uint32_t() },
   { "elbow_position", vector3d_t() },
   { "elbow_velocity", vector3d_t() },
@@ -546,7 +552,6 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "output_double_register_45", double() },
   { "output_double_register_46", double() },
   { "output_double_register_47", double() },
-  { "output_bit_registers", uint32_t() },
   { "actual_robot_energy_consumed", double() },
   { "actual_robot_braking_energy_dissipated", double() },
   { "encoder0_raw", int32_t() },
@@ -579,7 +584,6 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   // NOT IN OFFICIAL DOCS
   { "tool_digital_output_mask", uint8_t() },
   { "tool_digital_output", uint8_t() },
-  { "tcp_offset", vector6d_t() },
 };
 
 void rtde_interface::DataPackage::initEmpty()
