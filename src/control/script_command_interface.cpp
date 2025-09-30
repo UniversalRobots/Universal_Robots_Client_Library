@@ -228,8 +228,7 @@ bool ScriptCommandInterface::endToolContact()
 
 bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation_enabled)
 {
-  // ToDo: Increase to 5.23.0 once released
-  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.22.0"),
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
                                     urcl::VersionInformation::fromString("10.10.0"), __func__);
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];

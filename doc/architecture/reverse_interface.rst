@@ -96,7 +96,7 @@ Direct torque control mode
 Direct torque control mode is available since PolyScope version 5.23.0 / 10.10.0. It allows to command
 joint torques directly to the robot.
 
-.. note:: Target tprques are given **after** gravity compensation. A vector of zeros will hold the current position
+.. note:: Target torques are given **after** gravity compensation. A vector of zeros will hold the current position
    given that the payload is known to the controller.
 
 .. warning:: Direct torque control is a very low-level command interface. Commanding high torques in
