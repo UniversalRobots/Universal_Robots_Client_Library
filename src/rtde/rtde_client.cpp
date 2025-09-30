@@ -169,9 +169,16 @@ void RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     return;
   }
 
-  setupInputs();
+  if (input_recipe_.size() > 0)
+  {
+    setupInputs();
   if (client_state_ == ClientState::UNINITIALIZED)
     return;
+  }
+  else
+  {
+    writer_.init(0);
+  }
 
   // We finished communication for now
   pipeline_->stop();
