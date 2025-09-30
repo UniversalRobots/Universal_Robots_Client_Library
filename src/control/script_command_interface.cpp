@@ -228,8 +228,11 @@ bool ScriptCommandInterface::endToolContact()
 
 bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation_enabled)
 {
-  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
-                                    urcl::VersionInformation::fromString("10.10.0"), __func__);
+  if (!robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                         urcl::VersionInformation::fromString("10.10.0"), __func__))
+  {
+    return false;
+  }
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
@@ -300,6 +303,7 @@ void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char
                   nbytesrecv);
   }
 }
+
 bool ScriptCommandInterface::robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
                                                                const VersionInformation& min_polyscopeX,
                                                                const std::string& command_name)
