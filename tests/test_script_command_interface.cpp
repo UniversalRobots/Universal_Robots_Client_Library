@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <iterator>
 #include <numeric>
+#include "ur_client_library/control/reverse_interface.h"
 
 #include <ur_client_library/control/script_command_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
@@ -102,7 +103,11 @@ protected:
 
   void SetUp()
   {
-    script_command_interface_.reset(new control::ScriptCommandInterface(control::ReverseInterfaceConfig{ 50004 }));
+    control::ReverseInterfaceConfig config;
+    config.port = 50004;
+    // Assume, we have all features supported
+    config.robot_software_version = VersionInformation::fromString("99.99.9");
+    script_command_interface_.reset(new control::ScriptCommandInterface(config));
     client_.reset(new Client(50004));
   }
 
