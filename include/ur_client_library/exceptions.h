@@ -30,6 +30,7 @@
 #define UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
 
 #include <chrono>
+#include <optional>
 #include <stdexcept>
 #include <sstream>
 #include "ur/version_information.h"
@@ -75,10 +76,11 @@ private:
 class VersionMismatch : public UrException
 {
 public:
-  explicit VersionMismatch() : VersionMismatch("", 0, 0)
+  explicit VersionMismatch() : VersionMismatch("", VersionInformation(), VersionInformation())
   {
   }
-  explicit VersionMismatch(const std::string& text, const uint32_t version_req, const uint32_t version_actual)
+  explicit VersionMismatch(const std::string& text, const VersionInformation version_req,
+                           const VersionInformation version_actual)
     : std::runtime_error(text)
   {
     version_required_ = version_req;
@@ -95,8 +97,8 @@ public:
   }
 
 private:
-  uint32_t version_required_;
-  uint32_t version_actual_;
+  VersionInformation version_required_;
+  VersionInformation version_actual_;
   std::string text_;
 };
 
@@ -106,10 +108,11 @@ private:
 class ToolCommNotAvailable : public VersionMismatch
 {
 public:
-  explicit ToolCommNotAvailable() : ToolCommNotAvailable("", 0, 0)
+  explicit ToolCommNotAvailable() : ToolCommNotAvailable("", VersionInformation(), VersionInformation())
   {
   }
-  explicit ToolCommNotAvailable(const std::string& text, const uint32_t version_req, const uint32_t version_actual)
+  explicit ToolCommNotAvailable(const std::string& text, const VersionInformation version_req,
+                                const VersionInformation version_actual)
     : std::runtime_error(text), VersionMismatch(text, version_req, version_actual)
   {
   }
@@ -224,6 +227,50 @@ public:
   explicit UnknownVariable(const std::string& variable_name) : std::runtime_error("Unknown variable: " + variable_name)
   {
   }
+};
+
+class NotImplementedException : public UrException
+{
+public:
+  explicit NotImplementedException() : std::runtime_error("Not implemented")
+  {
+  }
+  explicit NotImplementedException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+  virtual ~NotImplementedException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
+class UnexpectedResponse : public UrException
+{
+public:
+  explicit UnexpectedResponse() : std::runtime_error("Unexpected response")
+  {
+  }
+  explicit UnexpectedResponse(const std::string& text) : std::runtime_error(text)
+  {
+    text_ = text;
+  }
+  explicit UnexpectedResponse(const std::string& text, int status) : std::runtime_error(text), status(status)
+  {
+    std::stringstream ss;
+    ss << "Message: " << text << ". \nStatus code: " << status;
+    text_ = ss.str();
+  }
+  virtual ~UnexpectedResponse() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+  std::optional<int> status = std::nullopt;  // Optional status code, if available
+private:
+  std::string text_;
 };
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

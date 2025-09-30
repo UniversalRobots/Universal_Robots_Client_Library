@@ -30,6 +30,7 @@
 
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/ur/version_information.h>
+#include <ur_client_library/ur/dashboard_client_implementation.h>
 
 namespace urcl
 {
@@ -43,19 +44,23 @@ namespace urcl
  *  - https://www.universal-robots.com/articles/ur/dashboard-server-cb-series-port-29999/
  *  - https://www.universal-robots.com/articles/ur/dashboard-server-e-series-port-29999/
  */
-class DashboardClient : public comm::TCPSocket
+class DashboardClient
 {
 public:
+  enum class ClientPolicy
+  {
+    G5,
+    POLYSCOPE_X
+  };
+
   /*!
    * \brief Constructor that shall be used by default
    *
    * \param host IP address of the robot
    */
-  DashboardClient(const std::string& host);
+  DashboardClient(const std::string& host, const ClientPolicy client_policy = ClientPolicy::G5);
   DashboardClient() = delete;
   virtual ~DashboardClient() = default;
-
-  static constexpr int DASHBOARD_SERVER_PORT = 29999;
 
   /*!
    * \brief Opens a connection to the dashboard server on the host as specified in the constructor.
@@ -66,8 +71,8 @@ public:
    *
    * \returns True on successful connection, false otherwise.
    */
-  bool connect(const size_t max_num_tries = 0,
-               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
+  virtual bool connect(const size_t max_num_tries = 0,
+                       const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
 
   /*!
    * \brief Makes sure no connection to the dashboard server is held inside the object.
@@ -93,7 +98,7 @@ public:
    *
    * \return True if the reply to the command is as expected
    */
-  bool sendRequest(const std::string& command, const std::string& expected);
+  bool sendRequest(const std::string& command, const std::string& expected = "");
 
   /*!
    * \brief Sends command and compare it with the expected answer
@@ -145,6 +150,16 @@ public:
   bool commandPowerOff();
 
   /*!
+   * \brief Send Power off command
+   *
+   * \return The response string returned by the server
+   *
+   * \throws UnexpectedResponse if the response is not as expected / does not confirm the robot has
+   * been powered off.
+   */
+  DashboardResponse commandPowerOffWithResponse();
+
+  /*!
    * \brief Send Power on command
    *
    * \param timeout Timeout in seconds - The robot might take some time to boot before this call can
@@ -155,11 +170,25 @@ public:
   bool commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300));
 
   /*!
+   * \brief Send Power on command
+   *
+   * \param timeout Timeout in seconds - The robot might take some time to boot before this call can
+   * be made successfully.
+   *
+   */
+  DashboardResponse commandPowerOnWithResponse(const std::chrono::duration<double> timeout = std::chrono::seconds(300));
+
+  /*!
    * \brief Send Brake release command
    *
    * \return True succeeded
    */
   bool commandBrakeRelease();
+
+  /*!
+   * \brief Send Brake release command
+   */
+  DashboardResponse commandBrakeReleaseWithResponse();
 
   /*!
    * \brief Send Load program command
@@ -171,6 +200,17 @@ public:
   bool commandLoadProgram(const std::string& program_file_name);
 
   /*!
+   * \brief Send Load program command and wait for a response
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_name': std::string
+   *
+   * \param program_file_name The urp program file name with the urp extension
+   */
+  DashboardResponse commandLoadProgramWithResponse(const std::string& program_file_name);
+
+  /*!
    * \brief Send Load installation command
    *
    * \param installation_file_name The installation file name with the installation extension
@@ -180,11 +220,23 @@ public:
   bool commandLoadInstallation(const std::string& installation_file_name);
 
   /*!
+   * \brief Send Load installation command
+   *
+   * \param installation_file_name The installation file name with the installation extension
+   */
+  DashboardResponse commandLoadInstallationWithResponse(const std::string& installation_file_name);
+
+  /*!
    * \brief Send Play program command
    *
    * \return True succeeded
    */
   bool commandPlay();
+
+  /*!
+   * \brief Send Play program command
+   */
+  DashboardResponse commandPlayWithResponse();
 
   /*!
    * \brief Send Pause program command
@@ -194,6 +246,29 @@ public:
   bool commandPause();
 
   /*!
+   * \brief Send Pause program command
+   */
+  DashboardResponse commandPauseWithResponse();
+
+  /*!
+   * \brief Send resume command
+   *
+   * This does only exist for PolyScope X, for e-Series robots "play" is used also for resuming a
+   * paused program.
+   *
+   * \return True succeeded
+   */
+  bool commandResume();
+
+  /*!
+   * \brief Send resume command
+   *
+   * This does only exist for PolyScope X, for e-Series robots "play" is used also for resuming a
+   * paused program.
+   */
+  DashboardResponse commandResumeWithResponse();
+
+  /*!
    * \brief Send Stop program command
    *
    * \return True succeeded
@@ -201,11 +276,20 @@ public:
   bool commandStop();
 
   /*!
-   * \brief Send Close popup command
-   *
+   * \brief Send Stop program command
+   */
+  DashboardResponse commandStopWithResponse();
+
+  /*!
+   * \brief Send Stop program command
    * \return True succeeded
    */
   bool commandClosePopup();
+
+  /*!
+   * \brief Send Close popup command
+   */
+  DashboardResponse commandClosePopupWithResponse();
 
   /*!
    * \brief Send Close safety popup command
@@ -215,11 +299,21 @@ public:
   bool commandCloseSafetyPopup();
 
   /*!
+   * \brief Send Close safety popup command
+   */
+  DashboardResponse commandCloseSafetyPopupWithResponse();
+
+  /*!
    * \brief Send Restart Safety command
    *
    * \return True succeeded
    */
   bool commandRestartSafety();
+
+  /*!
+   * \brief Send Restart Safety command
+   */
+  DashboardResponse commandRestartSafetyWithResponse();
 
   /*!
    * \brief Send Unlock Protective stop popup command
@@ -229,11 +323,21 @@ public:
   bool commandUnlockProtectiveStop();
 
   /*!
+   * \brief Send Unlock Protective stop popup command
+   */
+  DashboardResponse commandUnlockProtectiveStopWithResponse();
+
+  /*!
    * \brief Send Shutdown command
    *
    * \return True succeeded
    */
   bool commandShutdown();
+
+  /*!
+   * \brief Send Shutdown command
+   */
+  DashboardResponse commandShutdownWithResponse();
 
   /*!
    * \brief Send Quit command
@@ -243,11 +347,25 @@ public:
   bool commandQuit();
 
   /*!
+   * \brief Send Quit command
+   */
+  DashboardResponse commandQuitWithResponse();
+
+  /*!
    * \brief Send Running command
    *
    * \return True succeeded
    */
   bool commandRunning();
+
+  /*!
+   * \brief Send Running command
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'running': bool
+   */
+  DashboardResponse commandRunningWithResponse();
 
   /*!
    * \brief Send "Is program saved" request command
@@ -257,6 +375,16 @@ public:
   bool commandIsProgramSaved();
 
   /*!
+   * \brief Send "Is program saved" request command
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'saved': bool
+   *   - 'program_name': std::string (PolyScope 5 only)
+   */
+  DashboardResponse commandIsProgramSavedWithResponse();
+
+  /*!
    * \brief Send "Is in remote control" query command
    *
    * \throws an UrException when called on CB3 robots
@@ -264,6 +392,15 @@ public:
    * \return True if the robot is currently in remote control
    */
   bool commandIsInRemoteControl();
+
+  DashboardResponse commandIsInRemoteControlWithResponse();
+  /*!
+   * \brief Send "Is in remote control" query command
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'remote_control': bool
+   */
 
   /*!
    * \brief Send popup command
@@ -275,6 +412,11 @@ public:
   bool commandPopup(const std::string& popup_text);
 
   /*!
+   * \brief Send popup command
+   */
+  DashboardResponse commandPopupWithResponse(const std::string& popup_text);
+
+  /*!
    * \brief Send text to log
    *
    * \param log_text The text to be sent to the log
@@ -282,6 +424,13 @@ public:
    * \return True succeeded
    */
   bool commandAddToLog(const std::string& log_text);
+
+  /*!
+   * \brief Send text to log
+   *
+   * \param log_text The text to be sent to the log
+   */
+  DashboardResponse commandAddToLogWithResponse(const std::string& log_text);
 
   /*!
    * \brief Get Polyscope version
@@ -293,6 +442,15 @@ public:
   bool commandPolyscopeVersion(std::string& polyscope_version);
 
   /*!
+   * \brief Get Polyscope version
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'polyscope_version': std::string
+   */
+  DashboardResponse commandPolyscopeVersionWithResponse();
+
+  /*!
    * \brief Get Robot model
    *
    * \param robot_model The string for the robot model returned
@@ -300,6 +458,15 @@ public:
    * \return True succeeded
    */
   bool commandGetRobotModel(std::string& robot_model);
+
+  /*!
+   * \brief Get Robot model
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'robot_model': std::string
+   */
+  DashboardResponse commandGetRobotModelWithResponse();
 
   /*!
    * \brief Get Serial number
@@ -311,13 +478,31 @@ public:
   bool commandGetSerialNumber(std::string& serial_number);
 
   /*!
+   * \brief Get Serial number
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'serial_number': std::string
+   */
+  DashboardResponse commandGetSerialNumberWithResponse();
+
+  /*!
    * \brief Get Robot mode
    *
    * \param robot_mode The mode of the robot returned
    *
    * \return True succeeded
    */
+
   bool commandRobotMode(std::string& robot_mode);
+  /*!
+   * \brief Get Robot mode
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'robot_mode': std::string
+   */
+  DashboardResponse commandRobotModeWithResponse();
 
   /*!
    * \brief Get Loaded Program
@@ -329,6 +514,15 @@ public:
   bool commandGetLoadedProgram(std::string& loaded_program);
 
   /*!
+   * \brief Get Loaded Program
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_name': std::string
+   */
+  DashboardResponse commandGetLoadedProgramWithResponse();
+
+  /*!
    * \brief Get Safety mode
    *
    * \param safety_mode The safety mode of the robot returned
@@ -336,6 +530,15 @@ public:
    * \return True succeeded
    */
   bool commandSafetyMode(std::string& safety_mode);
+
+  /*!
+   * \brief Get Safety mode
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'safety_mode': std::string
+   */
+  DashboardResponse commandSafetyModeWithResponse();
 
   /*!
    * \brief Get Safety status
@@ -347,6 +550,15 @@ public:
   bool commandSafetyStatus(std::string& safety_status);
 
   /*!
+   * \brief Get Safety status
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'safety_status': std::string
+   */
+  DashboardResponse commandSafetyStatusWithResponse();
+
+  /*!
    * \brief Get Program state
    *
    * \param program_state The program state of the robot returned
@@ -354,6 +566,16 @@ public:
    * \return True succeeded
    */
   bool commandProgramState(std::string& program_state);
+
+  /*!
+   * \brief Get Program state
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_state': std::string
+   *   - 'program_name': std::string
+   */
+  DashboardResponse commandProgramStateWithResponse();
 
   /*!
    * \brief Get Operational mode
@@ -367,6 +589,15 @@ public:
   bool commandGetOperationalMode(std::string& operational_mode);
 
   /*!
+   * \brief Get Operational mode
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'operational_mode': std::string
+   */
+  DashboardResponse commandGetOperationalModeWithResponse();
+
+  /*!
    * \brief Send Set operational mode command (Only available for e-series)
    *
    * \param operational_mode The operational mode to set on the robot
@@ -378,6 +609,13 @@ public:
   bool commandSetOperationalMode(const std::string& operational_mode);
 
   /*!
+   * \brief Send Set operational mode command (Only available for e-series)
+   *
+   * \param operational_mode The operational mode to set on the robot
+   */
+  DashboardResponse commandSetOperationalModeWithResponse(const std::string& operational_mode);
+
+  /*!
    * \brief Send Clear operational mode command
    *
    * \throws an UrException when called on CB3 robots
@@ -385,6 +623,13 @@ public:
    * \return True succeeded
    */
   bool commandClearOperationalMode();
+
+  /*!
+   * \brief Send Clear operational mode command
+   *
+   * \throws an UrException when called on CB3 robots
+   */
+  DashboardResponse commandClearOperationalModeWithResponse();
 
   /*!
    * \brief Send Set user role command (Only available for CB3)
@@ -398,6 +643,15 @@ public:
   bool commandSetUserRole(const std::string& user_role);
 
   /*!
+   * \brief Send Set user role command (Only available for CB3)
+   *
+   * \param user_role The user role to set on the robot
+   *
+   * \throws an UrException when called on e-series robots
+   */
+  DashboardResponse commandSetUserRoleWithResponse(const std::string& user_role);
+
+  /*!
    * \brief Send Get user role command (Only available for CB3)
    *
    * \param user_role The user role on the robot
@@ -409,7 +663,18 @@ public:
   bool commandGetUserRole(std::string& user_role);
 
   /*!
+   * \brief Send Get user role command (Only available for CB3)
+   *
+   * \param user_role The user role on the robot
+   *
+   * \throws an UrException when called on e-series robots
+   */
+  DashboardResponse commandGetUserRoleWithResponse();
+
+  /*!
    * \brief Send Generate flight report command
+   *
+   * \note This may take a long time to run.
    *
    * \param report_type The report type to set for the flight report
    *
@@ -418,7 +683,18 @@ public:
   bool commandGenerateFlightReport(const std::string& report_type);
 
   /*!
+   * \brief Send Generate flight report command
+   *
+   * \note This may take a long time to run.
+   *
+   * \param report_type The report type to set for the flight report
+   */
+  DashboardResponse commandGenerateFlightReportWithResponse(const std::string& report_type);
+
+  /*!
    * \brief Send Generate support file command
+   *
+   * \note This may take a long time to run.
    *
    * \param dir_path The path to the directory of an already existing directory location inside the programs directory,
    * where the support file is saved
@@ -428,11 +704,26 @@ public:
   bool commandGenerateSupportFile(const std::string& dir_path);
 
   /*!
+   * \brief Send Generate support file command
+   *
+   * \note This may take a long time to run.
+   *
+   * \param dir_path The path to the directory of an already existing directory location inside the programs directory,
+   * where the support file is saved
+   */
+  DashboardResponse commandGenerateSupportFileWithResponse(const std::string& dir_path);
+
+  /*!
    * \brief Flush the polyscope log to the log_history.txt file
    *
    * \return True succeeded
    */
   bool commandSaveLog();
+
+  /*!
+   * \brief Flush the polyscope log to the log_history.txt file
+   */
+  DashboardResponse commandSaveLogWithResponse();
 
   /*!
    * \brief Makes sure that the dashboard_server's version is above the required version
@@ -454,17 +745,15 @@ public:
    */
   timeval getConfiguredReceiveTimeout() const;
 
+  /*!
+   * \brief Setup Receive timeout used for this socket.
+   *
+   * \param timeout Timeout used for setting things up
+   */
+  void setReceiveTimeout(const timeval& timeout);
+
 protected:
-  VersionInformation polyscope_version_;
-
-private:
-  bool send(const std::string& text);
-  std::string read();
-  void rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
-
-  std::string host_;
-  int port_;
-  std::mutex write_mutex_;
+  std::shared_ptr<DashboardClientImpl> impl_;
 };
 }  // namespace urcl
 #endif  // ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
