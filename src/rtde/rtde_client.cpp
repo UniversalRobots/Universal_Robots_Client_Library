@@ -287,7 +287,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   unsigned int num_retries = 0;
   size_t size;
   size_t written;
-  uint8_t buffer[8192];
+  uint8_t buffer[65536];
   URCL_LOG_INFO("Setting up RTDE communication with frequency %f", target_frequency_);
 
   while (num_retries < MAX_REQUEST_RETRIES)
