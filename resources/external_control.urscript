@@ -715,6 +715,8 @@ end
 
 # Thread to receive one shot script commands, the commands shouldn't be blocking
 thread script_commands():
+  last_force_mode_set_damping = -1.0 # Negative damping will give a runtime expection
+  last_force_mode_set_gain_scaling = -1.0 # Negative scaling will give a runtime expection
   while control_mode > MODE_STOPPED:
     raw_command = socket_read_binary_integer(SCRIPT_COMMAND_DATA_DIMENSION, "script_command_socket", 0)
     if raw_command[0] > 0:
@@ -734,12 +736,23 @@ thread script_commands():
         wrench = [raw_command[14] / MULT_jointstate, raw_command[15] / MULT_jointstate, raw_command[16] / MULT_jointstate, raw_command[17] / MULT_jointstate, raw_command[18] / MULT_jointstate, raw_command[19] / MULT_jointstate]
         force_type = raw_command[20] / MULT_jointstate
         force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
-        force_mode_set_damping(raw_command[27] / MULT_jointstate)
+        
+        # Only update the forcemode damping if changed
+        local new_force_mode_set_damping = raw_command[27] / MULT_jointstate
+        if new_force_mode_set_damping != last_force_mode_set_damping:
+          force_mode_set_damping(new_force_mode_set_damping)
+          last_force_mode_set_damping = new_force_mode_set_damping
+        end
         # Check whether script is running on CB3 or e-series. Gain scaling can only be set on e-series robots.
         # step time = 0.008: CB3 robot
         # Step time = 0.002: e-series robot
         if (get_steptime() < 0.008):
-          force_mode_set_gain_scaling(raw_command[28] / MULT_jointstate)
+          # Only update the forcemode damping if changed
+          local new_force_mode_set_gain_scaling = raw_command[28] / MULT_jointstate
+          if new_force_mode_set_gain_scaling != last_force_mode_set_gain_scaling:
+            force_mode_set_gain_scaling(new_force_mode_set_gain_scaling)
+            last_force_mode_set_gain_scaling = new_force_mode_set_gain_scaling
+          end
         end
         force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
       elif command == END_FORCE_MODE:
