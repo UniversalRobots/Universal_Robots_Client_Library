@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <iterator>
 #include <numeric>
+#include "ur_client_library/control/reverse_interface.h"
 
 #include <ur_client_library/control/script_command_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
@@ -102,7 +103,11 @@ protected:
 
   void SetUp()
   {
-    script_command_interface_.reset(new control::ScriptCommandInterface(control::ReverseInterfaceConfig{ 50004 }));
+    control::ReverseInterfaceConfig config;
+    config.port = 50004;
+    // Assume, we have all features supported
+    config.robot_software_version = VersionInformation::fromString("99.99.9");
+    script_command_interface_.reset(new control::ScriptCommandInterface(config));
     client_.reset(new Client(50004));
   }
 
@@ -380,6 +385,45 @@ TEST_F(ScriptCommandInterfaceTest, test_tool_contact_callback)
   waitToolContactResult(send_result);
 
   EXPECT_EQ(toUnderlying(received_result_), toUnderlying(send_result));
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_compensation)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  script_command_interface_->setFrictionCompensation(true);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 7 is set friction compensation
+  int32_t expected_command = 7;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t expected_friction_compensation = 1;
+  EXPECT_EQ(message[0], expected_friction_compensation);
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+
+  script_command_interface_->setFrictionCompensation(false);
+
+  message.clear();
+  client_->readMessage(command, message);
+
+  EXPECT_EQ(command, expected_command);
+
+  expected_friction_compensation = 0;
+  EXPECT_EQ(message[0], expected_friction_compensation);
+
+  // The rest of the message should be zero
+  message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
+  expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
 }
 
 int main(int argc, char* argv[])

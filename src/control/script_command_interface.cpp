@@ -226,6 +226,34 @@ bool ScriptCommandInterface::endToolContact()
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compensation_enabled)
+{
+  if (!robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                         urcl::VersionInformation::fromString("10.10.0"), __func__))
+  {
+    return false;
+  }
+  const int message_length = 2;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_COMPENSATION));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(friction_compensation_enabled);
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::clientConnected()
 {
   return client_connected_;
@@ -274,6 +302,22 @@ void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char
     URCL_LOG_WARN("Received %d bytes on script command interface. Expecting 4 bytes, so ignoring this message",
                   nbytesrecv);
   }
+}
+
+bool ScriptCommandInterface::robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
+                                                               const VersionInformation& min_polyscopeX,
+                                                               const std::string& command_name)
+{
+  if (robot_software_version_ < min_polyscope5 ||
+      (robot_software_version_.major > 5 && robot_software_version_ < min_polyscopeX))
+  {
+    URCL_LOG_WARN("%s is only available for robots with PolyScope %s / %s or "
+                  "later. This robot's version is %s. This command will have no effect.",
+                  command_name.c_str(), min_polyscope5.toString().c_str(), min_polyscopeX.toString().c_str(),
+                  robot_software_version_.toString().c_str());
+    return false;
+  }
+  return true;
 }
 
 }  // namespace control

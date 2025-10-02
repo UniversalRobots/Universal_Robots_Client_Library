@@ -57,6 +57,7 @@ meaning:
            - freedrive instruction (FREEDRIVE)
 
              - field 1: Freedrive mode (1: FREEDRIVE_MODE_START, -1: FREEDRIVE_MODE_STOP)
+           - target joint torques (TORQUE, see :ref:`direct_torque_control_mode`).
 
    7      Control mode. Can be either of
 
@@ -72,6 +73,7 @@ meaning:
            - 7: TOOL_IN_CONTACT -- status - not meant to be sent.
              In tool contact mode this will
              encode whether tool contact has been established or not.
+           - 8: TORQUE -- :ref:`direct_torque_control_mode` (since PolyScope 5.23.0 / 10.10.0)
    =====  =====
 
 .. note::
@@ -84,4 +86,19 @@ meaning:
    ``MULT_JOINTSTATE`` constant to get the actual floating point value. This constant is defined in
    ``ReverseInterface`` class.
 
-Depending on the control mode one can use the ``write()`` (SERVOJ, SPEEDJ, SPEEDL, POSE), ``writeTrajectoryControlMessage()`` (FORWARD) or ``writeFreedriveControlMessage()`` (FREEDRIVE) function to write a message to the "reverse_socket".
+Depending on the control mode one can use the ``write()`` (SERVOJ, SPEEDJ, SPEEDL, POSE, TORQUE), ``writeTrajectoryControlMessage()`` (FORWARD) or ``writeFreedriveControlMessage()`` (FREEDRIVE) function to write a message to the "reverse_socket".
+
+.. _direct_torque_control_mode:
+
+Direct torque control mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Direct torque control mode is available since PolyScope version 5.23.0 / 10.10.0. It allows to command
+joint torques directly to the robot.
+
+.. note:: Target torques are given **after** gravity compensation. A vector of zeros will hold the current position
+   given that the payload is known to the controller.
+
+.. warning:: Direct torque control is a very low-level command interface. Commanding high torques in
+   free space can make the robot move very fast and hereby trigger a fault due to joint velocities
+   or the TCP speed violating the safety settings. Keep that in mind when using this mode.

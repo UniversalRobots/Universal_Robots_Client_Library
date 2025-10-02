@@ -716,6 +716,17 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
+   * if false it will not.
+   *
+   * \param friction_compensation_enabled Will set a friction_compensation_enabled variable in urscript, which will be
+   * used when calling torque_command
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setFrictionCompensation(const bool friction_compensation_enabled);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still

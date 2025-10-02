@@ -23,8 +23,10 @@ may be running forever until manually stopped.
    examples/primary_pipeline
    examples/primary_pipeline_calibration
    examples/rtde_client
+   examples/script_command_interface
    examples/script_sender
    examples/spline_example
    examples/tool_contact_example
+   examples/direct_torque_control
    examples/trajectory_point_interface
    examples/ur_driver
