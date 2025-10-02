@@ -52,8 +52,6 @@ static const std::string SERVER_IP_REPLACE("SERVER_IP_REPLACE");
 static const std::string SERVER_PORT_REPLACE("SERVER_PORT_REPLACE");
 static const std::string TRAJECTORY_PORT_REPLACE("TRAJECTORY_SERVER_PORT_REPLACE");
 static const std::string SCRIPT_COMMAND_PORT_REPLACE("SCRIPT_COMMAND_SERVER_PORT_REPLACE");
-static const std::string FORCE_MODE_SET_DAMPING_REPLACE("FORCE_MODE_SET_DAMPING_REPLACE");
-static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("FORCE_MODE_SET_GAIN_SCALING_REPLACE");
 
 UrDriver::~UrDriver()
 {
@@ -73,6 +71,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   socket_reconnection_timeout_ = config.socket_reconnection_timeout;
   rtde_initialization_attempts_ = config.rtde_initialization_attempts;
   rtde_initialization_timeout_ = config.rtde_initialization_timeout;
+  force_mode_gain_scale_factor_ = config.force_mode_gain_scaling;
+  force_mode_damping_factor_ = config.force_mode_damping;
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
