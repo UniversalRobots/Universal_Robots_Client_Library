@@ -11,7 +11,7 @@ client. To use the RTDE-Client, you'll have to initialize and start it separatel
 
 .. code-block:: c++
 
-   rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
+   rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE_FILE, INPUT_RECIPE_FILE);
    my_client.init();
    my_client.start();
    while (true)
@@ -27,6 +27,20 @@ Upon construction, two recipe files have to be given, one for the RTDE inputs, o
 outputs. Please refer to the `RTDE
 guide <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
 on which elements are available.
+
+.. note::
+
+   The recipes can be either passed as a filename or as a list of strings directly. E.g. the
+   following will work
+
+   .. code-block:: c++
+
+      rtde_interface::RTDEClient my_client(
+        ROBOT_IP,
+        notifier,
+        {"timestamp", "actual_q"},
+        {"speed_slider_mask", "speed_slider_fraction"}
+      );
 
 Inside the ``RTDEclient`` data is received in a separate thread, parsed by the ``RTDEParser`` and
 added to a pipeline queue.
@@ -56,6 +70,29 @@ sure to
    frequency, please use the ``resetRTDEClient()`` method after the ``UrDriver`` object has been
    created.
 
+Read-Only RTDEClient
+--------------------
+
+While RTDE allows multiple clients to connect to the same robot, only one client is allowed to
+write data to the robot. To create a read-only RTDE client, the ``RTDEClient`` can be created with
+an empty input recipe, like this:
+
+.. code-block:: c++
+
+   rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, {});
+   // Alternatively, pass an empty filename when using recipe files
+   // rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE_FILE, "");
+   my_client.init();
+   my_client.start();
+   while (true)
+   {
+     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
+     if (data_pkg)
+     {
+       std::cout << data_pkg->toString() << std::endl;
+     }
+   }
+
 RTDEWriter
 ----------
 
@@ -66,3 +103,8 @@ The class offers specific methods for every RTDE input possible to write.
 
 Data is sent asynchronously to the RTDE interface.
 
+.. note::
+
+   The ``RTDEWriter`` will return ``false`` on any writing attempts for fields that have not been
+   setup in the ``INPUT_RECIPE``. When no input recipe was provided, all write operations will
+   return ``false``.

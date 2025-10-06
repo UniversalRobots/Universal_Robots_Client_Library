@@ -71,6 +71,22 @@ public:
     this->protocol_version_ = other.protocol_version_;
   }
 
+  DataPackage& operator=(DataPackage& other)
+  {
+    this->data_ = other.data_;
+    this->recipe_ = other.recipe_;
+    this->protocol_version_ = other.protocol_version_;
+    return *this;
+  }
+
+  DataPackage operator=(const DataPackage& other)
+  {
+    this->data_ = other.data_;
+    this->recipe_ = other.recipe_;
+    this->protocol_version_ = other.protocol_version_;
+    return *this;
+  }
+
   /*!
    * \brief Creates a new DataPackage object, based on a given recipe.
    *
@@ -82,6 +98,7 @@ public:
     : RTDEPackage(PackageType::RTDE_DATA_PACKAGE), recipe_(recipe), protocol_version_(protocol_version)
   {
   }
+
   virtual ~DataPackage() = default;
 
   /*!

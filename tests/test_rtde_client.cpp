@@ -120,9 +120,12 @@ TEST_F(RTDEClientTest, no_recipe)
       UrException);
 
   // Only input recipe is unconfigured
-  EXPECT_THROW(
-      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
-      UrException);
+  EXPECT_NO_THROW(
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)));
+
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_,
+                                                            "/i/do/not/exist/urclrtdetest.txt")),
+               UrException);
 }
 
 TEST_F(RTDEClientTest, empty_recipe_file)
@@ -411,6 +414,48 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
                                                0.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
+}
+
+TEST_F(RTDEClientTest, empty_input_recipe)
+{
+  std::vector<std::string> empty_input_recipe = {};
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, empty_input_recipe));
+  client_->init();
+  client_->start();
+
+  // Test that we can receive and parse the timestamp from the received package to prove the setup was successful
+  const std::chrono::milliseconds read_timeout{ 100 };
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
+
+  if (data_pkg == nullptr)
+  {
+    std::cout << "Failed to get data package from robot" << std::endl;
+    GTEST_FAIL();
+  }
+
+  double timestamp;
+  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
+
+  EXPECT_FALSE(client_->getWriter().sendStandardDigitalOutput(1, false));
+
+  client_->pause();
+
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, ""));
+  client_->init();
+  client_->start();
+
+  data_pkg = client_->getDataPackage(read_timeout);
+
+  if (data_pkg == nullptr)
+  {
+    std::cout << "Failed to get data package from robot" << std::endl;
+    GTEST_FAIL();
+  }
+  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
+
+  EXPECT_FALSE(client_->getWriter().sendStandardDigitalOutput(1, false));
+
+  client_->pause();
 }
 
 int main(int argc, char* argv[])

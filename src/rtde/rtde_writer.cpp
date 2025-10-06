@@ -37,6 +37,14 @@ RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<st
 {
 }
 
+void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
+{
+  std::lock_guard<std::mutex> guard(package_mutex_);
+  recipe_ = recipe;
+  package_ = DataPackage(recipe_);
+  package_.initEmpty();
+}
+
 void RTDEWriter::init(uint8_t recipe_id)
 {
   recipe_id_ = recipe_id;
