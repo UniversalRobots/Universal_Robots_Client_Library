@@ -95,6 +95,7 @@ enum class RobotType : int8_t
   UR10 = 2,
   UR3 = 3,
   UR16 = 4,
+  UR18 = 5,
   UR8LONG = 6,
   UR20 = 7,
   UR30 = 8,
