@@ -158,6 +158,18 @@ public:
    */
   bool sendInputDoubleRegister(uint32_t register_id, double value);
 
+  /*!
+   * \brief Creates a package to request setting a new value for the robot's external force/torque
+   * interface.
+   *
+   * Note: This requires that the ft_rtde_input_enable() function was called on the robot side.
+   *
+   * \param external_force_torque The new external force/torque as a vector6d_t
+   *
+   * \returns Success of the package creation
+   */
+  bool sendExternalForceTorque(const vector6d_t& external_force_torque);
+
 private:
   uint8_t pinToMask(uint8_t pin);
   comm::URStream<RTDEPackage>* stream_;
