@@ -21,7 +21,19 @@ option(INTEGRATION_TESTS "Build the integration tests that require a running rob
 if (INTEGRATION_TESTS)
   # Integration tests require a robot reachable at 192.168.56.101. Therefore, they have to be
   # activated separately.
+  
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py
+    BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt
+  )
+
+  add_custom_target(generate_outputs ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt)
+
   add_executable(rtde_tests test_rtde_client.cpp)
+  add_dependencies(rtde_tests generate_outputs)
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -110,6 +122,8 @@ add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      primary_parser_tests
 )
+
+
 
 add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
 target_link_libraries(rtde_data_package_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
