@@ -52,6 +52,8 @@ jobs:
         run: mkdir -p test_artifacts
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
+        env:
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
