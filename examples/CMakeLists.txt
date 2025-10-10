@@ -59,3 +59,7 @@ target_link_libraries(trajectory_point_interface_example ur_client_library::urcl
 add_executable(instruction_executor
 instruction_executor.cpp)
 target_link_libraries(instruction_executor ur_client_library::urcl)
+
+add_executable(external_fts_through_rtde
+external_fts_through_rtde.cpp)
+target_link_libraries(external_fts_through_rtde ur_client_library::urcl)

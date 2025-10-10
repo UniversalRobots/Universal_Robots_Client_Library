@@ -40,7 +40,7 @@ using namespace urcl;
 class RTDEWriterTest : public ::testing::Test
 {
 protected:
-  using input_types = std::variant<uint8_t, bool, uint32_t, int32_t, double>;
+  using input_types = std::variant<uint8_t, bool, uint32_t, int32_t, double, vector6d_t>;
 
   void SetUp()
   {
@@ -108,23 +108,22 @@ protected:
     return false;
   }
 
-  std::vector<std::string> input_recipe_ = {
-    "speed_slider_mask",
-    "speed_slider_fraction",
-    "standard_digital_output_mask",
-    "standard_digital_output",
-    "configurable_digital_output_mask",
-    "configurable_digital_output",
-    "tool_digital_output_mask",
-    "tool_digital_output",
-    "standard_analog_output_mask",
-    "standard_analog_output_type",
-    "standard_analog_output_0",
-    "standard_analog_output_1",
-    "input_bit_register_65",
-    "input_int_register_25",
-    "input_double_register_25",
-  };
+  std::vector<std::string> input_recipe_ = { "speed_slider_mask",
+                                             "speed_slider_fraction",
+                                             "standard_digital_output_mask",
+                                             "standard_digital_output",
+                                             "configurable_digital_output_mask",
+                                             "configurable_digital_output",
+                                             "tool_digital_output_mask",
+                                             "tool_digital_output",
+                                             "standard_analog_output_mask",
+                                             "standard_analog_output_type",
+                                             "standard_analog_output_0",
+                                             "standard_analog_output_1",
+                                             "input_bit_register_65",
+                                             "input_int_register_25",
+                                             "input_double_register_25",
+                                             "external_force_torque" };
   std::unique_ptr<rtde_interface::RTDEWriter> writer_;
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
@@ -164,6 +163,7 @@ private:
     { "input_bit_register_65", bool() },
     { "input_int_register_25", int32_t() },
     { "input_double_register_25", double() },
+    { "external_force_torque", vector6d_t() },
   };
 };
 
@@ -439,6 +439,25 @@ TEST_F(RTDEWriterTest, send_input_double_register)
   EXPECT_FALSE(writer_->sendInputDoubleRegister(register_id, send_register_value));
   register_id = 48;
   EXPECT_FALSE(writer_->sendInputDoubleRegister(register_id, send_register_value));
+}
+
+TEST_F(RTDEWriterTest, send_external_force_torque)
+{
+  vector6d_t send_external_force_torque = { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
+  EXPECT_TRUE(writer_->sendExternalForceTorque(send_external_force_torque));
+
+  waitForMessageCallback(1000);
+
+  ASSERT_TRUE(dataFieldExist("external_force_torque"));
+
+  vector6d_t received_external_force_torque = std::get<vector6d_t>(parsed_data_["external_force_torque"]);
+
+  EXPECT_EQ(send_external_force_torque[0], received_external_force_torque[0]);
+  EXPECT_EQ(send_external_force_torque[1], received_external_force_torque[1]);
+  EXPECT_EQ(send_external_force_torque[2], received_external_force_torque[2]);
+  EXPECT_EQ(send_external_force_torque[3], received_external_force_torque[3]);
+  EXPECT_EQ(send_external_force_torque[4], received_external_force_torque[4]);
+  EXPECT_EQ(send_external_force_torque[5], received_external_force_torque[5]);
 }
 
 int main(int argc, char* argv[])

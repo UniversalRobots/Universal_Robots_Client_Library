@@ -186,7 +186,7 @@ private:
   uint32_t max_clients_allowed_;
   std::vector<socket_t> client_fds_;
 
-  static const int INPUT_BUFFER_SIZE = 100;
+  static const int INPUT_BUFFER_SIZE = 4096;
   char input_buffer_[INPUT_BUFFER_SIZE];
 
   std::function<void(const socket_t)> new_connection_callback_;
