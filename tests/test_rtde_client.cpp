@@ -383,8 +383,8 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 
   if (env != "latest")
   {
-    std::cout << "Incorrect URSIM version, it should be the latest version, version is: " << env << std::endl;
-    GTEST_FAIL();
+    std::cout << "Not using the latest URSIM version, skipping test." << std::endl;
+    GTEST_SKIP();
   }
 
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
