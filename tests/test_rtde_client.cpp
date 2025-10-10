@@ -377,9 +377,19 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 {
   client_->init();
 
+  VersionInformation version = client_->getVersion();
+  const char* env_var = std::getenv("URSIM_VERSION");
+  std::string env(env_var);
+
+  if (env != "latest")
+  {
+    std::cout << "Incorrect URSIM version, it should be the latest version, version is: " << env << std::endl;
+    GTEST_FAIL();
+  }
+
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
   client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,
-                                               input_recipe_file_, 0.0, true));
+                                               input_recipe_file_, 0.0, false));
 
   EXPECT_TRUE(client_->init());
   client_->start();

@@ -24,14 +24,7 @@ if (INTEGRATION_TESTS)
   
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py
-    BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt
-  )
-
-  add_custom_target(generate_outputs ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/resources/exhaustive_rtde_output_recipe.txt)
-
+  add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
   add_executable(rtde_tests test_rtde_client.cpp)
   add_dependencies(rtde_tests generate_outputs)
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
