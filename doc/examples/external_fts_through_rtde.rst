@@ -63,7 +63,7 @@ keyboard input commands.
 Input key handling
 ------------------
 
-For handling the keyboard input, define a ``getch()`` function that reads a single character from
+For handling the keyboard input, define a ``getChar()`` function that reads a single character from
 the terminal without waiting for a newline character. This has to be done differently on Windows
 and Linux (and other unix-like systems), therefore the code is split using preprocessor directives.
 
@@ -72,7 +72,7 @@ and Linux (and other unix-like systems), therefore the code is split using prepr
    :caption: external_fts_through_rtde/freedrive_example.cpp
    :linenos:
    :lineno-match:
-   :start-at: // Platform-specific implementation of getch()
+   :start-at: // Platform-specific implementation of getChar()
    :end-at: #endif
 
 Setting the external force-torque values

@@ -34,17 +34,17 @@
 #include "ur_client_library/example_robot_wrapper.h"
 #include "ur_client_library/types.h"
 
-// Platform-specific implementation of getch()
+// Platform-specific implementation of getChar()
 #if defined(_WIN32) || defined(_WIN64)
 #  include <conio.h>
-char getch()
+char getChar()
 {
   return _getch();  // Windows-specific
 }
 #else
 #  include <termios.h>
 #  include <unistd.h>
-char getch()
+char getChar()
 {
   termios oldt, newt;
   char ch;
@@ -77,7 +77,7 @@ void ftInputTui()
   while (g_RUNNING)
   {
     std::cout << instructions << std::endl;
-    char ch = getch();
+    char ch = getChar();
 
     std::cout << "<'" << ch << "' pressed>" << std::endl;
 
