@@ -299,6 +299,7 @@ public:
     , queue_{ 32 }
     , running_{ false }
     , producer_fifo_scheduling_(producer_fifo_scheduling)
+    , threads_stopped_(true)
   {
   }
   /*!
@@ -318,6 +319,7 @@ public:
     , queue_{ 32 }
     , running_{ false }
     , producer_fifo_scheduling_(producer_fifo_scheduling)
+    , threads_stopped_(true)
   {
   }
 
@@ -354,6 +356,7 @@ public:
       return;
 
     running_ = true;
+    threads_stopped_ = false;
     producer_.startProducer();
     pThread_ = std::thread(&Pipeline::runProducer, this);
     if (consumer_ != nullptr)
@@ -366,13 +369,13 @@ public:
    */
   void stop()
   {
-    if (!running_)
+    if (threads_stopped_)
       return;
 
     URCL_LOG_DEBUG("Stopping pipeline! <%s>", name_.c_str());
 
     running_ = false;
-
+    threads_stopped_ = true;
     producer_.stopProducer();
     if (pThread_.joinable())
     {
@@ -417,6 +420,7 @@ private:
   std::atomic<bool> running_;
   std::thread pThread_, cThread_;
   bool producer_fifo_scheduling_;
+  bool threads_stopped_;
 
   void runProducer()
   {

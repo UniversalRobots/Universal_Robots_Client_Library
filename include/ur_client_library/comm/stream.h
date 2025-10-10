@@ -30,6 +30,18 @@ namespace urcl
 {
 namespace comm
 {
+
+/*!
+ * \brief Different types of UR streams
+ */
+enum class URStreamType
+{
+  Primary = 30001,    ///< Stream connected to the primary interface
+  Secondary = 30002,  ///< Stream connected to the secondary interface
+  RTDE = 30004,       ///< Stream connected to the RTDE interface
+  UNKNOWN = -1,       ///< Stream type is fetched from the port, this is to handle unknown ports
+};
+
 /*!
  * \brief The stream is an abstraction of the TCPSocket that offers reading a full UR data package
  * out of the socket. This means, it has to have some knowledge about the package structure to
@@ -115,6 +127,26 @@ public:
   std::string getHost()
   {
     return host_;
+  }
+
+  /*!
+   * \brief Get the stream type
+   *
+   * \returns The stream type
+   */
+  URStreamType getStreamType()
+  {
+    switch (port_)
+    {
+      case static_cast<int>(URStreamType::Primary):
+        return URStreamType::Primary;
+      case static_cast<int>(URStreamType::Secondary):
+        return URStreamType::Secondary;
+      case static_cast<int>(URStreamType::RTDE):
+        return URStreamType::RTDE;
+      default:
+        return URStreamType::UNKNOWN;
+    }
   }
 
 private:
