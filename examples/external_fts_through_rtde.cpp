@@ -164,7 +164,7 @@ void ftInputTui()
   }
 }
 
-void RTDEWorker(const int second_to_run)
+void rtdeWorker(const int second_to_run)
 {
   g_my_robot->startRTDECommununication(false);
 
@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
 
   // The RTDE thread sends the force-torque data to the robot and receives the wrench data from the
   // robot.
-  std::thread rtde_thread(RTDEWorker, second_to_run);
+  std::thread rtde_thread(rtdeWorker, second_to_run);
 
   // Modify the artificial force-torque input through keyboard input
   ftInputTui();
