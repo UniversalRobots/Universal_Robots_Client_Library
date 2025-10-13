@@ -33,7 +33,7 @@ namespace urcl
 namespace rtde_interface
 {
 RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<std::string>& recipe)
-  : stream_(stream), recipe_(recipe), queue_{ 32 }, running_(false), package_(recipe_)
+  : stream_(stream), recipe_(recipe), recipe_id_(0), queue_{ 32 }, running_(false), package_(recipe_)
 {
 }
 
