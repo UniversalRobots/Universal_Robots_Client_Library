@@ -199,6 +199,7 @@ TEST_F(PipelineTest, stop_pipeline)
 
 TEST_F(PipelineTest, consumer_pipeline)
 {
+  pipeline_.reset();
   stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60002));
   producer_.reset(new comm::URProducer<rtde_interface::RTDEPackage>(*stream_.get(), *parser_.get()));
   TestConsumer consumer;
@@ -236,6 +237,7 @@ TEST_F(PipelineTest, consumer_pipeline)
 
 TEST_F(PipelineTest, connect_non_connected_robot)
 {
+  pipeline_.reset();
   stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 12321));
   producer_.reset(new comm::URProducer<rtde_interface::RTDEPackage>(*stream_.get(), *parser_.get()));
   TestConsumer consumer;

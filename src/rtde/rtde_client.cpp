@@ -75,6 +75,11 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 
 RTDEClient::~RTDEClient()
 {
+  reconnecting_ = false;
+  if (reconnecting_thread_.joinable())
+  {
+    reconnecting_thread_.join();
+  }
   disconnect();
 }
 
@@ -92,19 +97,11 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   }
 
   prod_->setRTDEReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
-  std::cout << "what is happening here" << std::endl;
 
   unsigned int attempts = 0;
   std::stringstream ss;
 
-  // A running pipeline is needed inside setup.
-  pipeline_->init(max_connection_attempts, reconnection_timeout);
-  pipeline_->run();
-
-  // The state initializing is used inside disconnect to stop the pipeline again.
-  client_state_ = ClientState::INITIALIZING;
-
-  while (!setupCommunication())
+  while (!setupCommunication(max_connection_attempts, reconnection_timeout))
   {
     if (++attempts >= max_initialization_attempts)
     {
@@ -116,10 +113,6 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
     disconnect();
     URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
     std::this_thread::sleep_for(initialization_timeout);
-
-    // A running pipeline is needed inside setup
-    pipeline_->init(max_connection_attempts, reconnection_timeout);
-    pipeline_->run();
   }
   // Stop pipeline again
   pipeline_->stop();
@@ -127,11 +120,25 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   return true;
 }
 
-bool RTDEClient::setupCommunication()
+bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
-  uint16_t protocol_version = setProtocolVersion();
+  // The state initializing is used inside disconnect to stop the pipeline again.
+  client_state_ = ClientState::INITIALIZING;
+  // A running pipeline is needed inside setup.
+  try
+  {
+    pipeline_->init(max_num_tries, reconnection_time);
+  }
+  catch (const UrException& exc)
+  {
+    URCL_LOG_ERROR("Caught exception %s, while trying to initialize pipeline", exc.what());
+    return false;
+  }
+  pipeline_->run();
+
+  std::pair<bool, uint16_t> protocol_version = setProtocolVersion();
   // Protocol version must be above zero
-  if (protocol_version == 0)
+  if (protocol_version.first == false)
   {
     return false;
   }
@@ -139,85 +146,71 @@ bool RTDEClient::setupCommunication()
   bool is_rtde_comm_setup = true;
   is_rtde_comm_setup = queryURControlVersion();
 
-  is_rtde_comm_setup = is_rtde_comm_setup && setTargetFrequency();
+  if (is_rtde_comm_setup)
+  {
+    setTargetFrequency();
+  }
 
-  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version);
+  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version.second);
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
 
   return is_rtde_comm_setup && setupInputs();
 }
 
-uint16_t RTDEClient::setProtocolVersion()
+std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
 {
   uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
-  while (!negotiateProtocolVersion(protocol_version))
+  while (protocol_version > 0)
   {
-    if (stream_.getState() != comm::SocketState::Connected)
+    // Protocol version should always be 1 before starting negotiation
+    parser_.setProtocolVersion(1);
+    unsigned int num_retries = 0;
+    uint8_t buffer[4096];
+    size_t size;
+    size_t written;
+    size = RequestProtocolVersionRequest::generateSerializedRequest(buffer, protocol_version);
+    if (!stream_.write(buffer, size, written))
     {
-      URCL_LOG_ERROR("Protocol version for RTDE communication could not be established, because the RTDE client is "
-                     "disconnected from the server.");
-      return 0;
+      URCL_LOG_ERROR("Sending protocol version query to robot failed");
+      return { false, 0 };
     }
+
+    while (num_retries < MAX_REQUEST_RETRIES)
+    {
+      std::unique_ptr<RTDEPackage> package;
+      if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
+      {
+        URCL_LOG_ERROR("failed to get package from RTDE interface");
+        return { false, 0 };
+      }
+      if (rtde_interface::RequestProtocolVersion* tmp_version =
+              dynamic_cast<rtde_interface::RequestProtocolVersion*>(package.get()))
+      {
+        if (tmp_version->accepted_)
+        {
+          URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
+          parser_.setProtocolVersion(protocol_version);
+          return { true, protocol_version };
+        }
+        break;
+      }
+      else
+      {
+        std::stringstream ss;
+        ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
+           << package->toString() << ". Retrying...";
+        num_retries++;
+        URCL_LOG_WARN("%s", ss.str().c_str());
+      }
+    }
+
     URCL_LOG_INFO("Robot did not accept RTDE protocol version '%hu'. Trying lower protocol version", protocol_version);
     protocol_version--;
-    if (protocol_version == 0)
-    {
-      URCL_LOG_ERROR("Protocol version for RTDE communication could not be established. Robot didn't accept any of "
-                     "the suggested versions.");
-      return 0;
-    }
   }
-
-  URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
-  parser_.setProtocolVersion(protocol_version);
-  return protocol_version;
-}
-
-bool RTDEClient::negotiateProtocolVersion(const uint16_t protocol_version)
-{
-  // Protocol version should always be 1 before starting negotiation
-  parser_.setProtocolVersion(1);
-  unsigned int num_retries = 0;
-  uint8_t buffer[4096];
-  size_t size;
-  size_t written;
-  size = RequestProtocolVersionRequest::generateSerializedRequest(buffer, protocol_version);
-  if (!stream_.write(buffer, size, written))
-  {
-    URCL_LOG_ERROR("Sending protocol version query to robot failed");
-    return false;
-  }
-
-  while (num_retries < MAX_REQUEST_RETRIES)
-  {
-    std::unique_ptr<RTDEPackage> package;
-    if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
-    {
-      URCL_LOG_ERROR("failed to get package from rtde interface");
-      return false;
-    }
-    if (rtde_interface::RequestProtocolVersion* tmp_version =
-            dynamic_cast<rtde_interface::RequestProtocolVersion*>(package.get()))
-    {
-      // Reset the num_tries variable in case we have to try with another protocol version.
-      num_retries = 0;
-      return tmp_version->accepted_;
-    }
-    else
-    {
-      std::stringstream ss;
-      ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
-         << package->toString() << ". Retrying...";
-      num_retries++;
-      URCL_LOG_WARN("%s", ss.str().c_str());
-    }
-  }
-  std::stringstream ss;
-  ss << "Could not negotiate RTDE protocol version after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
-  return false;
+  URCL_LOG_ERROR("Protocol version for RTDE communication could not be established. Robot didn't accept any of "
+                 "the suggested versions.");
+  return { false, 0 };
 }
 
 bool RTDEClient::queryURControlVersion()
@@ -264,7 +257,7 @@ bool RTDEClient::queryURControlVersion()
   return false;
 }
 
-bool RTDEClient::setTargetFrequency()
+void RTDEClient::setTargetFrequency()
 {
   if (urcontrol_version_.major < 5)
   {
@@ -281,7 +274,6 @@ bool RTDEClient::setTargetFrequency()
     // Target frequency outside valid range
     throw UrException("Invalid target frequency of RTDE connection");
   }
-  return true;
 }
 
 void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
@@ -748,13 +740,71 @@ void RTDEClient::reconnect()
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
   ClientState cur_client_state = client_state_;
   disconnect();
-  try
+
+  const size_t max_initialization_attempts = 3;
+  size_t cur_initialization_attempt = 0;
+  bool client_reconnected = false;
+  while (cur_initialization_attempt < max_initialization_attempts)
   {
-    init();
+    bool is_communication_setup = false;
+    try
+    {
+      is_communication_setup = setupCommunication(1, std::chrono::milliseconds{ 10000 });
+    }
+    catch (const UrException& exc)
+    {
+      URCL_LOG_ERROR("Caught exception while reconnecting to the RTDE interface %s. Unable to reconnect", exc.what());
+      disconnect();
+      reconnecting_ = false;
+      return;
+    }
+
+    const std::string reconnecting_stopped_msg = "Reconnecting has been stopped, because the object is being destroyed";
+    if (reconnecting_ == false)
+    {
+      URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
+      return;
+    }
+
+    if (is_communication_setup)
+    {
+      client_reconnected = true;
+      break;
+    }
+
+    auto duration = std::chrono::seconds(1);
+    if (stream_.getState() != comm::SocketState::Connected)
+    {
+      // We don't wanna count it as an initialization attempt if we cannot connect to the socket and we want to wait
+      // longer before reconnecting.
+      duration = std::chrono::seconds(10);
+      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", duration.count());
+    }
+    else
+    {
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", duration.count());
+      cur_initialization_attempt += 1;
+    }
+
+    disconnect();
+
+    auto start_time = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start_time < duration)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      if (reconnecting_ == false)
+      {
+        URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
+        return;
+      }
+    }
   }
-  catch (const UrException& exc)
+
+  if (client_reconnected == false)
   {
-    URCL_LOG_ERROR("Caught exception while reconnecting to the RTDE interface %s. Unable to reconnect", exc.what());
+    URCL_LOG_ERROR("Failed to initialize RTDE client after %i attempts, unable to reconnect",
+                   max_initialization_attempts);
+    disconnect();
     reconnecting_ = false;
     return;
   }

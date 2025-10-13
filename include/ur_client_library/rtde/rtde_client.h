@@ -252,11 +252,11 @@ private:
   // the robot is booted.
   std::vector<std::string> ensureTimestampIsPresent(const std::vector<std::string>& output_recipe) const;
 
-  bool setupCommunication();
-  uint16_t setProtocolVersion();
-  bool negotiateProtocolVersion(const uint16_t protocol_version);
+  bool setupCommunication(const size_t max_num_tries = 0,
+                          const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
+  std::pair<bool, uint16_t> setProtocolVersion();
   bool queryURControlVersion();
-  bool setTargetFrequency();
+  void setTargetFrequency();
   bool setupOutputs(const uint16_t protocol_version);
   bool setupInputs();
   void disconnect();
