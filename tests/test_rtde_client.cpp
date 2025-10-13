@@ -33,6 +33,7 @@
 #include <optional>
 #include <unordered_map>
 #include <utility>
+#include <iostream>
 #include "ur_client_library/exceptions.h"
 
 #include <ur_client_library/rtde/rtde_client.h>
@@ -59,6 +60,7 @@ protected:
 
   std::string output_recipe_file_ = "resources/rtde_output_recipe.txt";
   std::string exhaustive_output_recipe_file_ = "resources/exhaustive_rtde_output_recipe.txt";
+  std::string docs_output_recipe_file_ = "resources/docs_rtde_output_recipe.txt";
   std::string input_recipe_file_ = "resources/rtde_input_recipe.txt";
   comm::INotifier notifier_;
   std::unique_ptr<rtde_interface::RTDEClient> client_;
@@ -408,6 +410,51 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
 
   client_->pause();
+}
+
+TEST_F(RTDEClientTest, check_rtde_data_fields_match_docs)
+{
+  std::ifstream docs_file(docs_output_recipe_file_);
+  std::ifstream pkg_file(exhaustive_output_recipe_file_);
+  std::vector<std::string> docs_outputs;
+  std::string line;
+  while (std::getline(docs_file, line))
+  {
+    docs_outputs.push_back(line);
+  }
+  std::vector<std::string> pkg_outputs;
+  while (std::getline(pkg_file, line))
+  {
+    pkg_outputs.push_back(line);
+  }
+  std::sort(docs_outputs.begin(), docs_outputs.end());
+  std::sort(pkg_outputs.begin(), pkg_outputs.end());
+  if (!std::is_permutation(docs_outputs.begin(), docs_outputs.end(), pkg_outputs.begin(), pkg_outputs.end()))
+  {
+    std::cout << "Data package output fields do not match output fields in documentation" << std::endl;
+    std::unordered_map<std::string, int> diff;
+    std::cout << "Differences: " << std::endl;
+    for (auto name : docs_outputs)
+    {
+      diff[name] += 1;
+    }
+    for (auto name : pkg_outputs)
+    {
+      diff[name] -= 1;
+    }
+    for (auto elem : diff)
+    {
+      if (elem.second > 0)
+      {
+        std::cout << elem.first << " exists in documentation, but not in data package dict." << std::endl;
+      }
+      if (elem.second < 0)
+      {
+        std::cout << elem.first << " exists in data package dict, but not in documentation." << std::endl;
+      }
+    }
+    GTEST_FAIL();
+  }
 }
 
 TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
