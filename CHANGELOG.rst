@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.4.0 (2025-10-13)
+------------------
 * UR18 support (`#387 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/387>`_)
 * Remove output_bit_register_0...63 and input_bit_register_0..63 from RTDE list (`#385 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/385>`_)
 * Set force mode parameters from config (`#383 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/383>`_)
