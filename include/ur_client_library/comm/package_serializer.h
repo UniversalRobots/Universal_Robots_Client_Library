@@ -126,7 +126,7 @@ public:
    * \brief A serialization method for std::arrays (works for urcl::vector6d_t, etc).
    *
    * \param buffer The buffer to write the serialization into.
-   * \param val The string to serialize.
+   * \param val The array to serialize.
    *
    * \returns Size in byte of the serialization.
    */

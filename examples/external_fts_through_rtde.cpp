@@ -72,7 +72,7 @@ using namespace urcl;
 
 void ftInputTui()
 {
-  const std::string instructions = "Press x,y,z to increase the respective axes, 0 for reset, q for quit.";
+  const std::string instructions = "Press x,y,z to increase the respective translational axes, a,b,c to increase the rotational axes, 0 for reset and q for quit.";
   urcl::vector6d_t local_ft_vec = g_FT_VEC;
   while (g_RUNNING)
   {
