@@ -63,6 +63,15 @@ public:
   {
     stop();
   }
+
+  /*!
+   * \brief Sets a new input recipe. This can be used to change the input recipe on the fly, if
+   * needed.
+   *
+   * \param recipe The new recipe to use
+   */
+  void setInputRecipe(const std::vector<std::string>& recipe);
+
   /*!
    * \brief Starts the writer thread, which periodically clears the queue to write packages to the
    * robot.

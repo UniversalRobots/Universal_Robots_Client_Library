@@ -2,6 +2,16 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.4.0 (2025-10-13)
+------------------
+* UR18 support (`#387 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/387>`_)
+* Remove output_bit_register_0...63 and input_bit_register_0..63 from RTDE list (`#385 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/385>`_)
+* Set force mode parameters from config (`#383 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/383>`_)
+* Direct torque control (`#381 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/381>`_)
+* Update RTDE list to include new fields (`#380 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/380>`_)
+* Add const qualifier to get functions and changed map value retrieval to at() function (`#379 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/379>`_)
+* Contributors: Dominic Reber, Felix Exner, Pablo David Aranda Rodriguez, URJala
+
 2.3.0 (2025-09-15)
 ------------------
 * Install endian header on Windows and Apple only (`#372 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/372>`_)

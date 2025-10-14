@@ -41,7 +41,6 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   : stream_(robot_ip, UR_RTDE_PORT)
   , output_recipe_(ensureTimestampIsPresent(readRecipe(output_recipe_file)))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
-  , input_recipe_(readRecipe(input_recipe_file))
   , parser_(output_recipe_)
   , prod_(std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_))
   , notifier_(notifier)
@@ -52,6 +51,11 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , target_frequency_(target_frequency)
   , client_state_(ClientState::UNINITIALIZED)
 {
+  if (!input_recipe_file.empty())
+  {
+    input_recipe_ = readRecipe(input_recipe_file);
+    writer_.setInputRecipe(input_recipe_);
+  }
 }
 
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
@@ -155,7 +159,11 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
 
-  return is_rtde_comm_setup && setupInputs();
+  if (input_recipe_.size() > 0)
+  {
+    is_rtde_comm_setup = is_rtde_comm_setup && setupInputs();
+  }
+  return is_rtde_comm_setup;
 }
 
 std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
