@@ -377,17 +377,22 @@ TEST_F(RTDEClientTest, connect_non_running_robot)
 
 TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 {
-  client_->init();
-
-  VersionInformation version = client_->getVersion();
   const char* env_var = std::getenv("URSIM_VERSION");
-  std::string env(env_var);
-
-  if (env != "latest")
+  if (env_var == nullptr)
   {
-    std::cout << "Not using the latest URSIM version, skipping test." << std::endl;
+    std::cout << "No URSIM_VERSION environment variable set, skipping test." << std::endl;
     GTEST_SKIP();
   }
+  const std::string env_ursim_version(env_var);
+
+  if (env_ursim_version != "latest")
+  {
+    std::cout << "Not using the latest URSIM version, skipping test. URSIM_VERSION is set to '" << env_ursim_version
+              << "'" << std::endl;
+    GTEST_SKIP();
+  }
+
+  client_->init();
 
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
   client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,

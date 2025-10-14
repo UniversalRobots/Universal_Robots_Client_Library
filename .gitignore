@@ -8,3 +8,4 @@ install_manifest.txt
 .directory
 .vscode
 build/
+tests/resources/docs_rtde_output_recipe.txt
