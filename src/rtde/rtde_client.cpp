@@ -281,8 +281,14 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
+
+  // Reset pipeline first otherwise we will segfault, if the producer object no longer exists, when destroying the
+  // pipeline
+  pipeline_.reset();
+
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
+  prod_->setRTDEReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
   pipeline_ = std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier_, true);
 }
 
