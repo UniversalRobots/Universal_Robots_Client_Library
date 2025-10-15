@@ -232,6 +232,7 @@ private:
   std::unique_ptr<comm::Pipeline<RTDEPackage>> pipeline_;
   RTDEWriter writer_;
   bool reconnecting_;
+  bool stop_reconnection_;
   std::mutex reconnect_mutex_;
   std::thread reconnecting_thread_;
 

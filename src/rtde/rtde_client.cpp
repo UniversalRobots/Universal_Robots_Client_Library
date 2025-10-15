@@ -47,6 +47,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , pipeline_(std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier, true))
   , writer_(&stream_, input_recipe_)
   , reconnecting_(false)
+  , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
   , client_state_(ClientState::UNINITIALIZED)
@@ -71,6 +72,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , pipeline_(std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier, true))
   , writer_(&stream_, input_recipe_)
   , reconnecting_(false)
+  , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
   , client_state_(ClientState::UNINITIALIZED)
@@ -79,7 +81,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 
 RTDEClient::~RTDEClient()
 {
-  reconnecting_ = false;
+  prod_->setReconnectionCallback(nullptr);
+  stop_reconnection_ = true;
   if (reconnecting_thread_.joinable())
   {
     reconnecting_thread_.join();
@@ -100,7 +103,7 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
     return true;
   }
 
-  prod_->setRTDEReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
+  prod_->setReconnectionCallback(nullptr);
 
   unsigned int attempts = 0;
   std::stringstream ss;
@@ -121,6 +124,9 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   // Stop pipeline again
   pipeline_->stop();
   client_state_ = ClientState::INITIALIZED;
+  // Set reconnection callback after we are initialized to ensure that a disconnect during initialization doesn't
+  // trigger a reconnect
+  prod_->setReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
   return true;
 }
 
@@ -296,7 +302,6 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
 
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
-  prod_->setRTDEReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
   pipeline_ = std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier_, true);
 }
 
@@ -611,7 +616,6 @@ bool RTDEClient::sendStart()
       ss << "Did not receive answer to RTDE start request. Message received instead: " << std::endl
          << package->toString();
       URCL_LOG_WARN("%s", ss.str().c_str());
-      return false;
     }
   }
   std::stringstream ss;
@@ -644,7 +648,6 @@ bool RTDEClient::sendPause()
     }
     if (rtde_interface::ControlPackagePause* tmp = dynamic_cast<rtde_interface::ControlPackagePause*>(package.get()))
     {
-      client_state_ = ClientState::PAUSED;
       return tmp->accepted_;
     }
   }
@@ -774,7 +777,7 @@ void RTDEClient::reconnect()
     }
 
     const std::string reconnecting_stopped_msg = "Reconnecting has been stopped, because the object is being destroyed";
-    if (reconnecting_ == false)
+    if (stop_reconnection_)
     {
       URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
       return;
@@ -806,7 +809,7 @@ void RTDEClient::reconnect()
     while (std::chrono::steady_clock::now() - start_time < duration)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
-      if (reconnecting_ == false)
+      if (stop_reconnection_)
       {
         URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
         return;
@@ -828,12 +831,13 @@ void RTDEClient::reconnect()
   {
     pause();
   }
+  URCL_LOG_INFO("Done reconnecting to the RTDE interface");
   reconnecting_ = false;
 }
 
 void RTDEClient::reconnectCallback()
 {
-  if (reconnecting_)
+  if (reconnecting_ || stop_reconnection_)
   {
     return;
   }
