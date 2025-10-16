@@ -46,6 +46,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , notifier_(notifier)
   , pipeline_(std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier, true))
   , writer_(&stream_, input_recipe_)
+  , reconnecting_(false)
+  , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
   , client_state_(ClientState::UNINITIALIZED)
@@ -69,6 +71,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , notifier_(notifier)
   , pipeline_(std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier, true))
   , writer_(&stream_, input_recipe_)
+  , reconnecting_(false)
+  , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
   , client_state_(ClientState::UNINITIALIZED)
@@ -77,6 +81,12 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 
 RTDEClient::~RTDEClient()
 {
+  prod_->setReconnectionCallback(nullptr);
+  stop_reconnection_ = true;
+  if (reconnecting_thread_.joinable())
+  {
+    reconnecting_thread_.join();
+  }
   disconnect();
 }
 
@@ -93,60 +103,176 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
     return true;
   }
 
+  prod_->setReconnectionCallback(nullptr);
+
   unsigned int attempts = 0;
   std::stringstream ss;
-  while (attempts < max_initialization_attempts)
+
+  while (!setupCommunication(max_connection_attempts, reconnection_timeout))
   {
-    try
+    if (++attempts >= max_initialization_attempts)
     {
-      setupCommunication(max_connection_attempts, reconnection_timeout);
+      disconnect();
+      ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
+      throw UrException(ss.str());
     }
-    catch (const UrException& exc)
-    {
-      ss << exc.what() << std::endl;
-    }
-    if (client_state_ == ClientState::INITIALIZED)
-    {
-      return true;
-    }
-    if (++attempts < max_initialization_attempts)
-    {
-      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
-      std::this_thread::sleep_for(initialization_timeout);
-    }
+    // disconnect to start on a clean slate when trying to set up communication again
+    disconnect();
+    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
+    std::this_thread::sleep_for(initialization_timeout);
   }
-  ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
-  throw UrException(ss.str());
+  // Stop pipeline again
+  pipeline_->stop();
+  client_state_ = ClientState::INITIALIZED;
+  // Set reconnection callback after we are initialized to ensure that a disconnect during initialization doesn't
+  // trigger a reconnect
+  prod_->setReconnectionCallback(std::bind(&RTDEClient::reconnectCallback, this));
+  return true;
 }
 
-void RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
+bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
+  // The state initializing is used inside disconnect to stop the pipeline again.
   client_state_ = ClientState::INITIALIZING;
-  // A running pipeline is needed inside setup
-  pipeline_->init(max_num_tries, reconnection_time);
+  // A running pipeline is needed inside setup.
+  try
+  {
+    pipeline_->init(max_num_tries, reconnection_time);
+  }
+  catch (const UrException& exc)
+  {
+    URCL_LOG_ERROR("Caught exception %s, while trying to initialize pipeline", exc.what());
+    return false;
+  }
   pipeline_->run();
 
-  uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
-  while (!negotiateProtocolVersion(protocol_version) && client_state_ == ClientState::INITIALIZING)
+  uint16_t protocol_version = negotiateProtocolVersion();
+  // Protocol version must be above zero
+  if (protocol_version == 0)
   {
+    return false;
+  }
+
+  bool is_rtde_comm_setup = true;
+  is_rtde_comm_setup = queryURControlVersion();
+
+  if (is_rtde_comm_setup)
+  {
+    setTargetFrequency();
+  }
+
+  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version);
+
+  is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
+
+  if (input_recipe_.size() > 0)
+  {
+    is_rtde_comm_setup = is_rtde_comm_setup && setupInputs();
+  }
+  return is_rtde_comm_setup;
+}
+
+uint16_t RTDEClient::negotiateProtocolVersion()
+{
+  uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
+  while (protocol_version > 0)
+  {
+    // Protocol version should always be 1 before starting negotiation
+    parser_.setProtocolVersion(1);
+    unsigned int num_retries = 0;
+    uint8_t buffer[4096];
+    size_t size;
+    size_t written;
+    size = RequestProtocolVersionRequest::generateSerializedRequest(buffer, protocol_version);
+    if (!stream_.write(buffer, size, written))
+    {
+      URCL_LOG_ERROR("Sending protocol version query to robot failed");
+      return 0;
+    }
+
+    while (num_retries < MAX_REQUEST_RETRIES)
+    {
+      std::unique_ptr<RTDEPackage> package;
+      if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
+      {
+        URCL_LOG_ERROR("failed to get package from RTDE interface");
+        return 0;
+      }
+      if (rtde_interface::RequestProtocolVersion* tmp_version =
+              dynamic_cast<rtde_interface::RequestProtocolVersion*>(package.get()))
+      {
+        if (tmp_version->accepted_)
+        {
+          URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
+          parser_.setProtocolVersion(protocol_version);
+          return protocol_version;
+        }
+        break;
+      }
+      else
+      {
+        std::stringstream ss;
+        ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
+           << package->toString() << ". Retrying...";
+        num_retries++;
+        URCL_LOG_WARN("%s", ss.str().c_str());
+      }
+    }
+
     URCL_LOG_INFO("Robot did not accept RTDE protocol version '%hu'. Trying lower protocol version", protocol_version);
     protocol_version--;
-    if (protocol_version == 0)
+  }
+  URCL_LOG_ERROR("Protocol version for RTDE communication could not be established. Robot didn't accept any of "
+                 "the suggested versions.");
+  return 0;
+}
+
+bool RTDEClient::queryURControlVersion()
+{
+  unsigned int num_retries = 0;
+  uint8_t buffer[4096];
+  size_t size;
+  size_t written;
+  size = GetUrcontrolVersionRequest::generateSerializedRequest(buffer);
+  if (!stream_.write(buffer, size, written))
+  {
+    URCL_LOG_ERROR("Sending urcontrol version query request to robot failed");
+    return false;
+  }
+
+  std::unique_ptr<RTDEPackage> package;
+  while (num_retries < MAX_REQUEST_RETRIES)
+  {
+    if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
     {
-      throw UrException("Protocol version for RTDE communication could not be established. Robot didn't accept any of "
-                        "the suggested versions.");
+      URCL_LOG_ERROR("No answer to urcontrol version query was received from robot");
+      return false;
+    }
+
+    if (rtde_interface::GetUrcontrolVersion* tmp_urcontrol_version =
+            dynamic_cast<rtde_interface::GetUrcontrolVersion*>(package.get()))
+    {
+      urcontrol_version_ = tmp_urcontrol_version->version_information_;
+      return true;
+    }
+    else
+    {
+      std::stringstream ss;
+      ss << "Did not receive URControl version from robot. Message received instead: " << std::endl
+         << package->toString() << ". Retrying...";
+      num_retries++;
+      URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
-  if (client_state_ == ClientState::UNINITIALIZED)
-    return;
+  std::stringstream ss;
+  ss << "Could not query urcontrol version after " << MAX_REQUEST_RETRIES
+     << " tries. Please check the output of the "
+        "negotiation attempts above to get a hint what could be wrong.";
+  return false;
+}
 
-  URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
-  parser_.setProtocolVersion(protocol_version);
-
-  queryURControlVersion();
-  if (client_state_ == ClientState::UNINITIALIZED)
-    return;
-
+void RTDEClient::setTargetFrequency()
+{
   if (urcontrol_version_.major < 5)
   {
     max_frequency_ = CB3_MAX_FREQUENCY;
@@ -162,121 +288,6 @@ void RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     // Target frequency outside valid range
     throw UrException("Invalid target frequency of RTDE connection");
   }
-
-  setupOutputs(protocol_version);
-  if (client_state_ == ClientState::UNINITIALIZED)
-    return;
-
-  if (!isRobotBooted())
-  {
-    disconnect();
-    return;
-  }
-
-  if (input_recipe_.size() > 0)
-  {
-    setupInputs();
-    if (client_state_ == ClientState::UNINITIALIZED)
-      return;
-  }
-
-  // We finished communication for now
-  pipeline_->stop();
-  client_state_ = ClientState::INITIALIZED;
-}
-
-bool RTDEClient::negotiateProtocolVersion(const uint16_t protocol_version)
-{
-  // Protocol version should always be 1 before starting negotiation
-  parser_.setProtocolVersion(1);
-  unsigned int num_retries = 0;
-  uint8_t buffer[4096];
-  size_t size;
-  size_t written;
-  size = RequestProtocolVersionRequest::generateSerializedRequest(buffer, protocol_version);
-  if (!stream_.write(buffer, size, written))
-  {
-    URCL_LOG_ERROR("Sending protocol version query to robot failed, disconnecting");
-    disconnect();
-    return false;
-  }
-
-  while (num_retries < MAX_REQUEST_RETRIES)
-  {
-    std::unique_ptr<RTDEPackage> package;
-    if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
-    {
-      URCL_LOG_ERROR("failed to get package from rtde interface, disconnecting");
-      disconnect();
-      return false;
-    }
-    if (rtde_interface::RequestProtocolVersion* tmp_version =
-            dynamic_cast<rtde_interface::RequestProtocolVersion*>(package.get()))
-    {
-      // Reset the num_tries variable in case we have to try with another protocol version.
-      num_retries = 0;
-      return tmp_version->accepted_;
-    }
-    else
-    {
-      std::stringstream ss;
-      ss << "Did not receive protocol negotiation answer from robot. Message received instead: " << std::endl
-         << package->toString() << ". Retrying...";
-      num_retries++;
-      URCL_LOG_WARN("%s", ss.str().c_str());
-    }
-  }
-  std::stringstream ss;
-  ss << "Could not negotiate RTDE protocol version after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
-  throw UrException(ss.str());
-}
-
-void RTDEClient::queryURControlVersion()
-{
-  unsigned int num_retries = 0;
-  uint8_t buffer[4096];
-  size_t size;
-  size_t written;
-  size = GetUrcontrolVersionRequest::generateSerializedRequest(buffer);
-  if (!stream_.write(buffer, size, written))
-  {
-    URCL_LOG_ERROR("Sending urcontrol version query request to robot failed, disconnecting");
-    disconnect();
-    return;
-  }
-
-  std::unique_ptr<RTDEPackage> package;
-  while (num_retries < MAX_REQUEST_RETRIES)
-  {
-    if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
-    {
-      URCL_LOG_ERROR("No answer to urcontrol version query was received from robot, disconnecting");
-      disconnect();
-      return;
-    }
-
-    if (rtde_interface::GetUrcontrolVersion* tmp_urcontrol_version =
-            dynamic_cast<rtde_interface::GetUrcontrolVersion*>(package.get()))
-    {
-      urcontrol_version_ = tmp_urcontrol_version->version_information_;
-      return;
-    }
-    else
-    {
-      std::stringstream ss;
-      ss << "Did not receive URControl version from robot. Message received instead: " << std::endl
-         << package->toString() << ". Retrying...";
-      num_retries++;
-      URCL_LOG_WARN("%s", ss.str().c_str());
-    }
-  }
-  std::stringstream ss;
-  ss << "Could not query urcontrol version after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
-  throw UrException(ss.str());
 }
 
 void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
@@ -284,12 +295,17 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
+
+  // Reset pipeline first otherwise we will segfault, if the producer object no longer exists, when destroying the
+  // pipeline
+  pipeline_.reset();
+
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
   pipeline_ = std::make_unique<comm::Pipeline<RTDEPackage>>(*prod_, PIPELINE_NAME, notifier_, true);
 }
 
-void RTDEClient::setupOutputs(const uint16_t protocol_version)
+bool RTDEClient::setupOutputs(const uint16_t protocol_version)
 {
   unsigned int num_retries = 0;
   size_t size;
@@ -317,17 +333,15 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
     // Send output recipe to robot
     if (!stream_.write(buffer, size, written))
     {
-      URCL_LOG_ERROR("Could not send RTDE output recipe to robot, disconnecting");
-      disconnect();
-      return;
+      URCL_LOG_ERROR("Could not send RTDE output recipe to robot");
+      return false;
     }
 
     std::unique_ptr<RTDEPackage> package;
     if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
     {
-      URCL_LOG_ERROR("Did not receive confirmation on RTDE output recipe, disconnecting");
-      disconnect();
-      return;
+      URCL_LOG_ERROR("Did not receive confirmation on RTDE output recipe");
+      return false;
     }
 
     if (rtde_interface::ControlPackageSetupOutputs* tmp_output =
@@ -371,7 +385,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
 
           // Some variables are not available so retry setting up the communication with a stripped-down output recipe
           resetOutputRecipe(available_variables);
-          return;
+          return false;
         }
         else
         {
@@ -382,7 +396,7 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
       else
       {
         // All variables are accounted for in the RTDE package
-        return;
+        return true;
       }
     }
     else
@@ -398,10 +412,11 @@ void RTDEClient::setupOutputs(const uint16_t protocol_version)
   ss << "Could not setup RTDE outputs after " << MAX_REQUEST_RETRIES
      << " tries. Please check the output of the "
         "negotiation attempts above to get a hint what could be wrong.";
-  throw UrException(ss.str());
+  URCL_LOG_ERROR(ss.str().c_str());
+  return false;
 }
 
-void RTDEClient::setupInputs()
+bool RTDEClient::setupInputs()
 {
   unsigned int num_retries = 0;
   size_t size;
@@ -410,9 +425,8 @@ void RTDEClient::setupInputs()
   size = ControlPackageSetupInputsRequest::generateSerializedRequest(buffer, input_recipe_);
   if (!stream_.write(buffer, size, written))
   {
-    URCL_LOG_ERROR("Could not send RTDE input recipe to robot, disconnecting");
-    disconnect();
-    return;
+    URCL_LOG_ERROR("Could not send RTDE input recipe to robot");
+    return false;
   }
 
   while (num_retries < MAX_REQUEST_RETRIES)
@@ -420,11 +434,9 @@ void RTDEClient::setupInputs()
     std::unique_ptr<RTDEPackage> package;
     if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
     {
-      URCL_LOG_ERROR("Did not receive confirmation on RTDE input recipe, disconnecting");
-      disconnect();
-      return;
+      URCL_LOG_ERROR("Did not receive confirmation on RTDE input recipe");
+      return false;
     }
-
     if (rtde_interface::ControlPackageSetupInputs* tmp_input =
             dynamic_cast<rtde_interface::ControlPackageSetupInputs*>(package.get()))
 
@@ -450,7 +462,7 @@ void RTDEClient::setupInputs()
       }
       writer_.init(tmp_input->input_recipe_id_);
 
-      return;
+      return true;
     }
     else
     {
@@ -465,7 +477,8 @@ void RTDEClient::setupInputs()
   ss << "Could not setup RTDE inputs after " << MAX_REQUEST_RETRIES
      << " tries. Please check the output of the "
         "negotiation attempts above to get a hint what could be wrong.";
-  throw UrException(ss.str());
+  URCL_LOG_ERROR(ss.str().c_str());
+  return false;
 }
 
 void RTDEClient::disconnect()
@@ -482,6 +495,7 @@ void RTDEClient::disconnect()
   if (client_state_ > ClientState::UNINITIALIZED)
   {
     stream_.disconnect();
+    writer_.stop();
   }
   client_state_ = ClientState::UNINITIALIZED;
 }
@@ -602,7 +616,6 @@ bool RTDEClient::sendStart()
       ss << "Did not receive answer to RTDE start request. Message received instead: " << std::endl
          << package->toString();
       URCL_LOG_WARN("%s", ss.str().c_str());
-      return false;
     }
   }
   std::stringstream ss;
@@ -635,7 +648,6 @@ bool RTDEClient::sendPause()
     }
     if (rtde_interface::ControlPackagePause* tmp = dynamic_cast<rtde_interface::ControlPackagePause*>(package.get()))
     {
-      client_state_ = ClientState::PAUSED;
       return tmp->accepted_;
     }
   }
@@ -689,16 +701,29 @@ std::vector<std::string> RTDEClient::ensureTimestampIsPresent(const std::vector<
 
 std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chrono::milliseconds timeout)
 {
-  std::unique_ptr<RTDEPackage> urpackage;
-  if (pipeline_->getLatestProduct(urpackage, timeout))
+  // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
+  if (reconnect_mutex_.try_lock())
   {
-    rtde_interface::DataPackage* tmp = dynamic_cast<rtde_interface::DataPackage*>(urpackage.get());
-    if (tmp != nullptr)
+    std::unique_ptr<RTDEPackage> urpackage;
+    if (pipeline_->getLatestProduct(urpackage, timeout))
     {
-      urpackage.release();
-      return std::unique_ptr<rtde_interface::DataPackage>(tmp);
+      rtde_interface::DataPackage* tmp = dynamic_cast<rtde_interface::DataPackage*>(urpackage.get());
+      if (tmp != nullptr)
+      {
+        urpackage.release();
+        reconnect_mutex_.unlock();
+        return std::unique_ptr<rtde_interface::DataPackage>(tmp);
+      }
     }
+    reconnect_mutex_.unlock();
   }
+  else
+  {
+    URCL_LOG_WARN("Unable to get data package while reconnecting to the RTDE interface");
+    auto period = std::chrono::duration<double>(1.0 / target_frequency_);
+    std::this_thread::sleep_for(period);
+  }
+
   return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
 }
 
@@ -723,5 +748,106 @@ std::vector<std::string> RTDEClient::splitVariableTypes(const std::string& varia
   }
   return result;
 }
+
+void RTDEClient::reconnect()
+{
+  URCL_LOG_INFO("Reconnecting to the RTDE interface");
+  // Locking mutex to ensure that calling getDataPackage doesn't influence the communication needed for reconfiguring
+  // the RTDE connection
+  std::lock_guard<std::mutex> lock(reconnect_mutex_);
+  ClientState cur_client_state = client_state_;
+  disconnect();
+
+  const size_t max_initialization_attempts = 3;
+  size_t cur_initialization_attempt = 0;
+  bool client_reconnected = false;
+  while (cur_initialization_attempt < max_initialization_attempts)
+  {
+    bool is_communication_setup = false;
+    try
+    {
+      is_communication_setup = setupCommunication(1, std::chrono::milliseconds{ 10000 });
+    }
+    catch (const UrException& exc)
+    {
+      URCL_LOG_ERROR("Caught exception while reconnecting to the RTDE interface %s. Unable to reconnect", exc.what());
+      disconnect();
+      reconnecting_ = false;
+      return;
+    }
+
+    const std::string reconnecting_stopped_msg = "Reconnecting has been stopped, because the object is being destroyed";
+    if (stop_reconnection_)
+    {
+      URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
+      return;
+    }
+
+    if (is_communication_setup)
+    {
+      client_reconnected = true;
+      break;
+    }
+
+    auto duration = std::chrono::seconds(1);
+    if (stream_.getState() != comm::SocketState::Connected)
+    {
+      // We don't wanna count it as an initialization attempt if we cannot connect to the socket and we want to wait
+      // longer before reconnecting.
+      duration = std::chrono::seconds(10);
+      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", duration.count());
+    }
+    else
+    {
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", duration.count());
+      cur_initialization_attempt += 1;
+    }
+
+    disconnect();
+
+    auto start_time = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start_time < duration)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      if (stop_reconnection_)
+      {
+        URCL_LOG_WARN(reconnecting_stopped_msg.c_str());
+        return;
+      }
+    }
+  }
+
+  if (client_reconnected == false)
+  {
+    URCL_LOG_ERROR("Failed to initialize RTDE client after %i attempts, unable to reconnect",
+                   max_initialization_attempts);
+    disconnect();
+    reconnecting_ = false;
+    return;
+  }
+
+  start();
+  if (cur_client_state == ClientState::PAUSED)
+  {
+    pause();
+  }
+  URCL_LOG_INFO("Done reconnecting to the RTDE interface");
+  reconnecting_ = false;
+}
+
+void RTDEClient::reconnectCallback()
+{
+  if (reconnecting_ || stop_reconnection_)
+  {
+    return;
+  }
+  if (reconnecting_thread_.joinable())
+  {
+    reconnecting_thread_.join();
+  }
+  reconnecting_ = true;
+  reconnecting_thread_ = std::thread(&RTDEClient::reconnect, this);
+}
+
 }  // namespace rtde_interface
 }  // namespace urcl

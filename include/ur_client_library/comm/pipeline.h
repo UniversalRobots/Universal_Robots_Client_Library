@@ -366,13 +366,9 @@ public:
    */
   void stop()
   {
-    if (!running_)
-      return;
-
     URCL_LOG_DEBUG("Stopping pipeline! <%s>", name_.c_str());
 
     running_ = false;
-
     producer_.stopProducer();
     if (pThread_.joinable())
     {

@@ -61,11 +61,7 @@ public:
 
   ~RTDEWriter()
   {
-    running_ = false;
-    if (writer_thread_.joinable())
-    {
-      writer_thread_.join();
-    }
+    stop();
   }
 
   /*!
@@ -87,6 +83,11 @@ public:
    * \brief The writer thread loop, continually serializing and sending packages to the robot.
    */
   void run();
+
+  /*!
+   * \brief Stops the writer thread loop.
+   */
+  void stop();
 
   /*!
    * \brief Creates a package to request setting a new value for the speed slider.

@@ -43,6 +43,7 @@ private:
   URStream<T>& stream_;
   Parser<T>& parser_;
   std::chrono::seconds timeout_;
+  std::function<void()> on_reconnect_cb_;
 
   bool running_;
 
@@ -124,8 +125,20 @@ public:
       if (!running_)
         return true;
 
+      if (stream_.getState() == SocketState::Connected)
+      {
+        continue;
+      }
+
       if (stream_.closed())
         return false;
+
+      if (on_reconnect_cb_)
+      {
+        URCL_LOG_WARN("Failed to read from stream, invoking on reconnect callback and stopping the producer");
+        on_reconnect_cb_();
+        return false;
+      }
 
       URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
       std::this_thread::sleep_for(timeout_);
@@ -139,6 +152,18 @@ public:
     }
 
     return false;
+  }
+
+  /*!
+   * \brief Sets the reconnection callback. Use this to configure a reconnection callback instead of connecting directly
+   * to the stream again. This is needed for RTDE as it requires setting up the communication again upon reconnection it
+   * is not enough to just reconnect to the stream.
+   *
+   * \param on_reconnect_cb Callback to be invoked when connection is lost to the stream.
+   */
+  void setReconnectionCallback(std::function<void()> on_reconnect_cb)
+  {
+    on_reconnect_cb_ = on_reconnect_cb;
   }
 };
 }  // namespace comm

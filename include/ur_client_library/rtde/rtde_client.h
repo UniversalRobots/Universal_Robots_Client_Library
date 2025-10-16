@@ -231,6 +231,10 @@ private:
   comm::INotifier notifier_;
   std::unique_ptr<comm::Pipeline<RTDEPackage>> pipeline_;
   RTDEWriter writer_;
+  std::atomic<bool> reconnecting_;
+  std::atomic<bool> stop_reconnection_;
+  std::mutex reconnect_mutex_;
+  std::thread reconnecting_thread_;
 
   VersionInformation urcontrol_version_;
 
@@ -249,12 +253,13 @@ private:
   // the robot is booted.
   std::vector<std::string> ensureTimestampIsPresent(const std::vector<std::string>& output_recipe) const;
 
-  void setupCommunication(const size_t max_num_tries = 0,
+  bool setupCommunication(const size_t max_num_tries = 0,
                           const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
-  bool negotiateProtocolVersion(const uint16_t protocol_version);
-  void queryURControlVersion();
-  void setupOutputs(const uint16_t protocol_version);
-  void setupInputs();
+  uint16_t negotiateProtocolVersion();
+  bool queryURControlVersion();
+  void setTargetFrequency();
+  bool setupOutputs(const uint16_t protocol_version);
+  bool setupInputs();
   void disconnect();
 
   /*!
@@ -288,6 +293,12 @@ private:
    * \returns A vector of variable variable_names
    */
   std::vector<std::string> splitVariableTypes(const std::string& variable_types) const;
+
+  /*!
+   * \brief Reconnects to the RTDE interface and set the input and output recipes again.
+   */
+  void reconnect();
+  void reconnectCallback();
 };
 
 }  // namespace rtde_interface

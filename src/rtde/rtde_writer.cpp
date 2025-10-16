@@ -47,6 +47,10 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
 
 void RTDEWriter::init(uint8_t recipe_id)
 {
+  if (running_)
+  {
+    return;
+  }
   recipe_id_ = recipe_id;
   package_.initEmpty();
   running_ = true;
@@ -69,6 +73,15 @@ void RTDEWriter::run()
     }
   }
   URCL_LOG_DEBUG("Write thread ended.");
+}
+
+void RTDEWriter::stop()
+{
+  running_ = false;
+  if (writer_thread_.joinable())
+  {
+    writer_thread_.join();
+  }
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
