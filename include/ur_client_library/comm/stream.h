@@ -30,7 +30,6 @@ namespace urcl
 {
 namespace comm
 {
-
 /*!
  * \brief The stream is an abstraction of the TCPSocket that offers reading a full UR data package
  * out of the socket. This means, it has to have some knowledge about the package structure to
