@@ -168,6 +168,15 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set the TCP offset
+   *
+   * \param offset TCP offset
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setTcpOffset(const vector6d_t* offset);
+
+  /*!
    * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
    * if false it will not.
    *
@@ -235,9 +244,10 @@ private:
     END_FORCE_MODE = 4,             ///< End force mode
     START_TOOL_CONTACT = 5,         ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,           ///< End detecting tool contact
-    SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
-    FT_RTDE_INPUT_ENABLE = 8,       ///< Enable FT RTDE input
-    SET_GRAVITY = 9,                ///< Set gravity vector
+    SET_TCP_OFFSET = 7,             ///< Set TCP offset
+    SET_FRICTION_COMPENSATION = 8,  ///< Set friction compensation
+    FT_RTDE_INPUT_ENABLE = 9,       ///< Enable FT RTDE input
+    SET_GRAVITY = 10,               ///< Set gravity vector
   };
 
   /*!
