@@ -255,7 +255,7 @@ private:
 
   bool setupCommunication(const size_t max_num_tries = 0,
                           const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10));
-  std::pair<bool, uint16_t> setProtocolVersion();
+  uint16_t negotiateProtocolVersion();
   bool queryURControlVersion();
   void setTargetFrequency();
   bool setupOutputs(const uint16_t protocol_version);

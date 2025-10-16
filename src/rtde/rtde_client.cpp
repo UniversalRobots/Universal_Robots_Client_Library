@@ -146,9 +146,9 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   }
   pipeline_->run();
 
-  std::pair<bool, uint16_t> protocol_version = setProtocolVersion();
+  uint16_t protocol_version = negotiateProtocolVersion();
   // Protocol version must be above zero
-  if (protocol_version.first == false)
+  if (protocol_version == 0)
   {
     return false;
   }
@@ -161,7 +161,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     setTargetFrequency();
   }
 
-  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version.second);
+  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version);
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
 
@@ -172,7 +172,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   return is_rtde_comm_setup;
 }
 
-std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
+uint16_t RTDEClient::negotiateProtocolVersion()
 {
   uint16_t protocol_version = MAX_RTDE_PROTOCOL_VERSION;
   while (protocol_version > 0)
@@ -187,7 +187,7 @@ std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
     if (!stream_.write(buffer, size, written))
     {
       URCL_LOG_ERROR("Sending protocol version query to robot failed");
-      return { false, 0 };
+      return 0;
     }
 
     while (num_retries < MAX_REQUEST_RETRIES)
@@ -196,7 +196,7 @@ std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
       if (!pipeline_->getLatestProduct(package, std::chrono::milliseconds(1000)))
       {
         URCL_LOG_ERROR("failed to get package from RTDE interface");
-        return { false, 0 };
+        return 0;
       }
       if (rtde_interface::RequestProtocolVersion* tmp_version =
               dynamic_cast<rtde_interface::RequestProtocolVersion*>(package.get()))
@@ -205,7 +205,7 @@ std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
         {
           URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
           parser_.setProtocolVersion(protocol_version);
-          return { true, protocol_version };
+          return protocol_version;
         }
         break;
       }
@@ -224,7 +224,7 @@ std::pair<bool, uint16_t> RTDEClient::setProtocolVersion()
   }
   URCL_LOG_ERROR("Protocol version for RTDE communication could not be established. Robot didn't accept any of "
                  "the suggested versions.");
-  return { false, 0 };
+  return 0;
 }
 
 bool RTDEClient::queryURControlVersion()
