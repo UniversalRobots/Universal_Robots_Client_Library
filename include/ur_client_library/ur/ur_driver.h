@@ -729,6 +729,13 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set the TCP offset of the robot.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setTcpOffset(const vector6d_t& tcp_offset);
+
+  /*!
    * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
    * if false it will not.
    *

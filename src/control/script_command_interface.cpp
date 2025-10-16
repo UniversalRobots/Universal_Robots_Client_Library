@@ -318,7 +318,7 @@ bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool ScriptCommandInterface::setTcpOffset(const vector6d_t* offset)
+bool ScriptCommandInterface::setTcpOffset(const vector6d_t& offset)
 {
   const int message_length = 7;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
@@ -327,7 +327,7 @@ bool ScriptCommandInterface::setTcpOffset(const vector6d_t* offset)
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TCP_OFFSET));
   b_pos += append(b_pos, val);
 
-  for (auto const& frame : *offset)
+  for (auto const& frame : offset)
   {
     val = htobe32(static_cast<int32_t>(round(frame * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
