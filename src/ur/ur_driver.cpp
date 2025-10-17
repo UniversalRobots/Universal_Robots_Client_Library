@@ -539,6 +539,20 @@ bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
   }
 }
 
+bool UrDriver::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
+                                 const vector3d_t& sensor_measuring_offset, const vector3d_t& sensor_cog)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->ftRtdeInputEnable(enabled, sensor_mass, sensor_measuring_offset, sensor_cog);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set ft_rtde_input_enable.");
+    return 0;
+  }
+}
+
 bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;

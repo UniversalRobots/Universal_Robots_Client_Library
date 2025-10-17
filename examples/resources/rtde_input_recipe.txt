@@ -10,4 +10,3 @@ standard_analog_output_mask
 standard_analog_output_type
 standard_analog_output_0
 standard_analog_output_1
-external_force_torque

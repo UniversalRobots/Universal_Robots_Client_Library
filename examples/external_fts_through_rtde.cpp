@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <mutex>
 
+#include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/example_robot_wrapper.h"
 #include "ur_client_library/types.h"
 
@@ -61,7 +62,7 @@ char getChar()
 const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string SCRIPT_FILE = "resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
-const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
+const std::string INPUT_RECIPE = "examples/resources/rtde_input_only_ft.txt";
 
 std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 std::atomic<bool> g_RUNNING = true;
@@ -72,7 +73,8 @@ using namespace urcl;
 
 void ftInputTui()
 {
-  const std::string instructions = "Press x,y,z to increase the respective translational axes, a,b,c to increase the rotational axes, 0 for reset and q for quit.";
+  const std::string instructions = "Press x,y,z to increase the respective translational axes, a,b,c to increase the "
+                                   "rotational axes, 0 for reset and q for quit.";
   urcl::vector6d_t local_ft_vec = g_FT_VEC;
   while (g_RUNNING)
   {
@@ -235,8 +237,7 @@ int main(int argc, char* argv[])
   }
 
   // Enable using the force-torque input through RTDE in the robot controller
-  g_my_robot->getPrimaryClient()->sendScript("ft_rtde_input_enable(True)");
-
+  g_my_robot->getUrDriver()->ftRtdeInputEnable(true);
   // The RTDE thread sends the force-torque data to the robot and receives the wrench data from the
   // robot.
   std::thread rtde_thread(rtdeWorker, second_to_run);

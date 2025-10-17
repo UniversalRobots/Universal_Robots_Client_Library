@@ -55,6 +55,7 @@ END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_FRICTION_COMPENSATION = 7
+FT_RTDE_INPUT_ENABLE = 8
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -788,6 +789,21 @@ thread script_commands():
         else:
           friction_compensation_enabled = True
         end
+      elif command == FT_RTDE_INPUT_ENABLE:
+        if raw_command[2] == 0:
+          enabled = False
+        else:
+          enabled = True
+        end
+        sensor_mass = raw_command[3] / MULT_jointstate
+        sensor_offset = [raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate]
+        sensor_cog = [raw_command[7] / MULT_jointstate, raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate]
+        textmsg("calling ft_rtde_input_enable(",
+          str_cat(enabled, str_cat(", ",
+            str_cat(sensor_mass, str_cat(", ",
+              str_cat(to_str(sensor_offset), str_cat(", ",
+                str_cat(to_str(sensor_cog), ")"))))))))
+        ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)
       end
     end
   end
