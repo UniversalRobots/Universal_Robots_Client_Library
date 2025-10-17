@@ -59,19 +59,28 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
+  // Query the robot information from the primary interface in order to select the correct
+  // implementation policy.
   urcl::comm::INotifier notifier;
   urcl::primary_interface::PrimaryClient primary_client(robot_ip, notifier);
   primary_client.start();
   auto version_information = primary_client.getRobotVersion();
+  DashboardClient::ClientPolicy policy = DashboardClient::ClientPolicy::POLYSCOPE_X;
+  if (version_information->major < 10)
+  {
+    policy = DashboardClient::ClientPolicy::G5;
+  }
 
   // Connect to the robot Dashboard Server
-  auto my_dashboard = std::make_unique<DashboardClient>(robot_ip, DashboardClient::ClientPolicy::POLYSCOPE_X);
+  auto my_dashboard = std::make_unique<DashboardClient>(robot_ip, policy);
   if (!my_dashboard->connect())
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
     return 1;
   }
 
+  // Bring the robot to a defined state being powered off. We're ignoring errors here since
+  // powering off an already powered off robot will return an error.
   if (version_information->major < 10)
   {
     if (!my_dashboard->commandPowerOff())
