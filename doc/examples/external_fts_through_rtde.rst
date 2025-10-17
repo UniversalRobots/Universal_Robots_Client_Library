@@ -101,8 +101,8 @@ tui thread is currently holding the lock. The new values will be available in a 
 
 .. note::
    The values reported from the robot are rotated to the base coordinate system of the robot.
-   Hence, they will not be the same as the ones sent to the robot. Align the robot's TCP the same
-   as the base coordinate frame
+   Hence, they will not be the same as the ones sent to the robot. For them to be the same, align
+   the TCP frame with robots base frame.
 
 Example output
 --------------
