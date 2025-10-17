@@ -70,6 +70,11 @@ int main(int argc, char* argv[])
   {
     policy = DashboardClient::ClientPolicy::G5;
   }
+  else if (version_information->minor < 11)
+  {
+    URCL_LOG_ERROR("DashboardClient examples require PolyScope version 10.11.0 or higher. Exiting now.");
+    return 0;
+  }
 
   // Connect to the robot Dashboard Server
   auto my_dashboard = std::make_unique<DashboardClient>(robot_ip, policy);
