@@ -128,7 +128,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
     {
       throw ToolCommNotAvailable("Tool communication setup requested, but this robot version does not support using "
                                  "the tool communication interface. Please check your configuration.",
-                                 5, robot_version_.major);
+                                 VersionInformation::fromString("5.0.0"), robot_version_);
     }
     begin_replace << "set_tool_voltage("
                   << static_cast<std::underlying_type<ToolVoltage>::type>(config.tool_comm_setup->getToolVoltage())

@@ -17,6 +17,8 @@
   <license file="LICENSE_apache_2_0">Apache-2.0</license>
   <license file="include/ur_client_library/queue/LICENSE.md">BSD-2-Clause</license>
   <license file="include/ur_client_library/queue/atomicops.h">Zlib</license>
+  <license file="3rdparty/urcl_3rdparty/httplib/LICENSE.txt">MIT</license>
+  <license file="3rdparty/urcl_3rdparty/nlohmann_json/LICENSE.MIT.txt">MIT</license>
 
   <url type="website">http://wiki.ros.org/ur_client_library</url>
   <url type="bugtracker">https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues</url>

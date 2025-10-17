@@ -45,6 +45,8 @@ add_library(urcl
     src/ur/ur_driver.cpp
     src/ur/calibration_checker.cpp
     src/ur/dashboard_client.cpp
+    src/ur/dashboard_client_implementation_g5.cpp
+    src/ur/dashboard_client_implementation_x.cpp
     src/ur/instruction_executor.cpp
     src/ur/tool_communication.cpp
     src/ur/robot_receive_timeout.cpp
@@ -84,6 +86,9 @@ target_include_directories(urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_include_directories(urcl PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty>
+)
 
 find_package(Threads REQUIRED)
 if(THREADS_HAVE_PTHREAD_ARG)
@@ -117,9 +122,6 @@ if(MSVC OR APPLE)
     FILES_MATCHING PATTERN "*.h"
   )
 endif()
-install(DIRECTORY 3rdparty/httplib/ DESTINATION include/${PROJECT_NAME}/3rdparty
-  FILES_MATCHING PATTERN "*.h"
-)
 
 install(EXPORT urcl_targets
   DESTINATION lib/cmake/ur_client_library
