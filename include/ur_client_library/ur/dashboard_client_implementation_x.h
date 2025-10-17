@@ -167,7 +167,7 @@ protected:
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) const override;
 
-  const std::string base_url_ = "/universal-robots/urcap-system-api";
+  const std::string base_url_ = "/universal-robots/robot-api";
 
   std::unique_ptr<httplib::Client> cli_;
 };
