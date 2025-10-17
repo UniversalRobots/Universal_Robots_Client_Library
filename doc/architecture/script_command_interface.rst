@@ -21,6 +21,7 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
   <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/tool_contact_example.cpp>`_
   for more information.
 - ``setFrictionCompensation()``: Set friction compensation for torque command.
+- ``ftRtdeInputEnable()``: Enable/disable FT RTDE input processing.
 
 Communication protocol
 ----------------------
@@ -50,6 +51,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 5: startToolContact
            - 6: endToolContact
            - 7: setFrictionCompensation
+           - 8: ftRtdeInputEnable
    1-27   data fields specific to the command
    =====  =====
 
@@ -132,11 +134,25 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    1      friction_compensation_enabled enable/disable friction compensation for torque command.
    =====  =====
 
+.. table:: With ftRtdeInputEnable command. See script manual for details.
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1      ft_rtde_input_enabled enable/disable FT RTDE input processing.
+   2      sensor_mass in kg (floating point)
+   3-5    sensor_mesurement_offset in m, displacement from the tool flange (3d floating point)
+   6-9    sensor_cog in m, displacement from the tool flange (3d floating point)
+   =====  =====
+
 .. note::
    In URScript the ``socket_read_binary_integer()`` function is used to read the data from the
    script command socket. The first index in that function's return value is the number of integers read,
-   so the actual data starts at index 1. The indices in the table above are shifted by one when
-   accessing the result array of the URScript function.
+   so the actual data starts at index 1. The first data entry is always the command type, hence the
+   indices in the table above are shifted by one when accessing the result array of the URScript
+   function. E.g. reading the boolean value for friction compensation in the
+   ``setFrictionCompensation`` command would be done by accessing index 2 of the result array.
 
    All floating point data is encoded into an integer representation and has to be divided by the
    ``MULT_JOINTSTATE`` constant to get the actual floating point value. This constant is defined in

@@ -23,6 +23,7 @@ may be running forever until manually stopped.
    examples/primary_pipeline
    examples/primary_pipeline_calibration
    examples/rtde_client
+   examples/external_fts_through_rtde
    examples/script_command_interface
    examples/script_sender
    examples/spline_example
