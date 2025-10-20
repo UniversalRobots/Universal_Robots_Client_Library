@@ -116,7 +116,7 @@ public:
    * \param timeout Timeout before the command is ultimately considered failed
    * \param retry_period Retries will be done with this period
    *
-   * \return True when both the requested command was receive with the expected reply as well as the resulting status
+   * \return True when both the requested command was received with the expected reply as well as the resulting status
    * also is as expected within the timeout time
    */
   bool retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
