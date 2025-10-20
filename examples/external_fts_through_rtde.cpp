@@ -114,15 +114,14 @@ void ftInputTui()
     std::cout << instructions << std::endl;
     char ch = getChar();
 
+    if (ch == '\0')
+    {
+      continue;
+    }
     std::cout << "<'" << ch << "' pressed>" << std::endl;
 
     switch (ch)
     {
-      case '\0':
-      {
-        // No input
-        continue;
-      }
       case 'x':
       {
         local_ft_vec[0] += 10;
