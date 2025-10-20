@@ -65,6 +65,7 @@ protected:
 
     void readMessage(int32_t& command, std::vector<int32_t>& message)
     {
+      message.clear();
       // Max message length is 28
       uint8_t buf[sizeof(int32_t) * 28];
       uint8_t* b_pos = buf;
@@ -446,6 +447,7 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
 
   // Test enabled
   bool received_enabled = static_cast<bool>(message[0]);
+  EXPECT_EQ(received_enabled, true);
 
   // Test sensor mass
   double received_sensor_mass = static_cast<double>(message[1]) / script_command_interface_->MULT_JOINTSTATE;
@@ -472,6 +474,12 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
   int32_t message_sum = std::accumulate(std::begin(message) + 8, std::end(message), 0);
   int32_t expected_message_sum = 0;
   EXPECT_EQ(message_sum, expected_message_sum);
+
+  // Disable ft rtde input
+  script_command_interface_->ftRtdeInputEnable(false, sensor_mass, sensor_measuring_offset, sensor_cog);
+  client_->readMessage(command, message);
+  received_enabled = static_cast<bool>(message[0]);
+  EXPECT_EQ(received_enabled, false);
 }
 
 int main(int argc, char* argv[])
