@@ -39,7 +39,7 @@ The robot initialization is handed off to the ``ExampleRobotWrapper`` class:
 
 .. literalinclude:: ../../examples/external_fts_through_rtde.cpp
    :language: c++
-   :caption: external_fts_through_rtde/freedrive_example.cpp
+   :caption: external_fts_through_rtde/external_fts_through_rtde.cpp
    :linenos:
    :lineno-match:
    :start-at: g_my_robot = std::make_unique
@@ -47,15 +47,15 @@ The robot initialization is handed off to the ``ExampleRobotWrapper`` class:
 
 In order to use the RTDE input for the FTS, we have to enable it first by calling the
 ``ft_rtde_input_enable`` function. This is done by sending a script to the robot through the
-``sendScript()`` method of the ``UrDriver`` class.
+``ftRtdeInputEnable()`` method of the ``UrDriver`` class.
 
 .. literalinclude:: ../../examples/external_fts_through_rtde.cpp
    :language: c++
-   :caption: external_fts_through_rtde/freedrive_example.cpp
+   :caption: external_fts_through_rtde/external_fts_through_rtde.cpp
    :linenos:
    :lineno-match:
    :start-at: // Enable using the force-torque
-   :end-at: g_my_robot->getPrimaryClient()->sendScript("ft_rtde_input_enable(True)");
+   :end-at: g_my_robot->getUrDriver()->ftRtdeInputEnable(true);
 
 RTDE communication is moved to a separate thread in order to use the main thread for handling
 keyboard input commands.
@@ -69,7 +69,7 @@ and Linux (and other unix-like systems), therefore the code is split using prepr
 
 .. literalinclude:: ../../examples/external_fts_through_rtde.cpp
    :language: c++
-   :caption: external_fts_through_rtde/freedrive_example.cpp
+   :caption: external_fts_through_rtde/external_fts_through_rtde.cpp
    :linenos:
    :lineno-match:
    :start-at: // Platform-specific implementation of getChar()
@@ -82,7 +82,7 @@ The result from the tui function is synchonized to the RTDE communication thread
 
 .. literalinclude:: ../../examples/external_fts_through_rtde.cpp
    :language: c++
-   :caption: external_fts_through_rtde/freedrive_example.cpp
+   :caption: external_fts_through_rtde/external_fts_through_rtde.cpp
    :linenos:
    :lineno-match:
    :start-at: std::scoped_lock<std::mutex> lock(g_FT_VEC_MUTEX);
@@ -90,7 +90,7 @@ The result from the tui function is synchonized to the RTDE communication thread
 
 .. literalinclude:: ../../examples/external_fts_through_rtde.cpp
    :language: c++
-   :caption: external_fts_through_rtde/freedrive_example.cpp
+   :caption: external_fts_through_rtde/external_fts_through_rtde.cpp
    :linenos:
    :lineno-match:
    :start-at: if (g_FT_VEC_MUTEX.try_lock())
