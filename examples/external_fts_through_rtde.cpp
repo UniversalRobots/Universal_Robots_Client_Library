@@ -28,6 +28,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
+#include <chrono>
 #include <cstdio>
 #include <mutex>
 
@@ -40,7 +41,7 @@
 char getChar()
 {
   char ch = '\0';
-  std::chrono::timepoint<std::chrono::steady_clock> start_time = std::chrono::steady_clock::now();
+  auto start_time = std::chrono::steady_clock::now();
   while (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() < 1)
   {
     if (_kbhit())
