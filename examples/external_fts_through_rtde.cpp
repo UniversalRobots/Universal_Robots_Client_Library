@@ -31,7 +31,6 @@
 #include <cstdio>
 #include <mutex>
 
-#include "ur_client_library/control/script_command_interface.h"
 #include "ur_client_library/example_robot_wrapper.h"
 #include "ur_client_library/types.h"
 
@@ -40,11 +39,22 @@
 #  include <conio.h>
 char getChar()
 {
-  return _getch();  // Windows-specific
+  char ch = '\0';
+  std::chrono::timepoint<std::chrono::steady_clock> start_time = std::chrono::steady_clock::now();
+  while (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() < 1)
+  {
+    if (_kbhit())
+    {
+      ch = _getch();
+    }
+  }
+  return ch;
 }
 #else
 #  include <termios.h>
 #  include <unistd.h>
+#  include <fcntl.h>
+#  include <sys/select.h>
 char getChar()
 {
   termios oldt, newt;
@@ -53,8 +63,31 @@ char getChar()
   newt = oldt;
   newt.c_lflag &= ~(ICANON | ECHO);
   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  std::ignore = read(STDIN_FILENO, &ch, 1);
+
+  int oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+  fd_set set;
+  FD_ZERO(&set);
+  FD_SET(STDIN_FILENO, &set);
+
+  struct timeval timeout;
+  timeout.tv_sec = 1;
+  timeout.tv_usec = 0;
+
+  // Wait for input with timeout
+  int rv = select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout);
+  if (rv > 0)
+  {
+    std::ignore = read(STDIN_FILENO, &ch, 1);
+  }
+  else
+  {
+    ch = '\0';  // No input
+  }
+
   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
   return ch;
 }
 #endif
@@ -85,6 +118,11 @@ void ftInputTui()
 
     switch (ch)
     {
+      case '\0':
+      {
+        // No input
+        continue;
+      }
       case 'x':
       {
         local_ft_vec[0] += 10;
@@ -164,6 +202,7 @@ void ftInputTui()
     }
     std::cout << "Artificial FT input: " << local_ft_vec << std::endl;
   }
+  std::cout << "FT input TUI thread finished." << std::endl;
 }
 
 void rtdeWorker(const int second_to_run)
@@ -172,10 +211,7 @@ void rtdeWorker(const int second_to_run)
 
   vector6d_t actual_tcp_force;
   auto start_time = std::chrono::steady_clock::now();
-  while (g_RUNNING &&
-         (second_to_run <= 0 ||
-          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
-              second_to_run))
+  while (g_RUNNING)
   {
     urcl::vector6d_t local_ft_vec = g_FT_VEC;
     std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
@@ -209,6 +245,12 @@ void rtdeWorker(const int second_to_run)
       // recipe.
       std::cout << "\033[1;31mSending RTDE data failed." << "\033[0m\n" << std::endl;
       return;
+    }
+    if (second_to_run > 0)
+    {
+      g_RUNNING =
+          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
+          second_to_run;
     }
   }
 }
@@ -246,8 +288,10 @@ int main(int argc, char* argv[])
   ftInputTui();
 
   g_RUNNING = false;
-  g_my_robot->getUrDriver()->stopControl();
-  rtde_thread.join();
+  if (rtde_thread.joinable())
+  {
+    rtde_thread.join();
+  }
 
   return 0;
 }
