@@ -30,7 +30,11 @@
 #define UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 
 #include <endian.h>
+#include <cstdint>
 #include <cstring>
+#include <string>
+
+#include "ur_client_library/types.h"
 
 namespace urcl
 {
@@ -71,8 +75,28 @@ public:
    */
   static size_t serialize(uint8_t* buffer, double val)
   {
+    static_assert(sizeof(double) == sizeof(uint64_t), "Unexpected double size");
     size_t size = sizeof(double);
     uint64_t inner;
+    std::memcpy(&inner, &val, size);
+    inner = encode(inner);
+    std::memcpy(buffer, &inner, size);
+    return size;
+  }
+
+  /*!
+   * \brief A serialization method for float values.
+   *
+   * \param buffer The buffer to write the serialization into.
+   * \param val The value to serialize.
+   *
+   * \returns Size in byte of the serialization.
+   */
+  static size_t serialize(uint8_t* buffer, float val)
+  {
+    static_assert(sizeof(float) == sizeof(uint32_t), "Unexpected float size");
+    size_t size = sizeof(float);
+    uint32_t inner;
     std::memcpy(&inner, &val, size);
     inner = encode(inner);
     std::memcpy(buffer, &inner, size);
@@ -96,6 +120,24 @@ public:
       buffer[i] = c_val[i];
     }
     return val.size();
+  }
+
+  /*!
+   * \brief A serialization method for std::arrays (works for urcl::vector6d_t, etc).
+   *
+   * \param buffer The buffer to write the serialization into.
+   * \param val The array to serialize.
+   *
+   * \returns Size in byte of the serialization.
+   */
+  template <typename T, size_t N>
+  static size_t serialize(uint8_t* buffer, const std::array<T, N>& val)
+  {
+    for (size_t i = 0; i < N; ++i)
+    {
+      serialize(buffer + i * sizeof(T), val[i]);
+    }
+    return N * sizeof(T);
   }
 
 private:

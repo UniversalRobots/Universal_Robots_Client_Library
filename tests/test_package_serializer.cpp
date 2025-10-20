@@ -69,7 +69,26 @@ TEST(package_serializer, serialize_int32)
 {
   uint8_t buffer[sizeof(int32_t)];
   size_t expected_size = sizeof(int32_t);
-  size_t actual_size = comm::PackageSerializer::serialize<int32_t>(buffer, 2341);
+  size_t actual_size = comm::PackageSerializer::serialize<int32_t>(buffer, -2341);
+
+  EXPECT_EQ(expected_size, actual_size);
+  int32_t val;
+  std::memcpy(&val, buffer, sizeof(int32_t));
+  int32_t decoded = be32toh(val);
+  EXPECT_EQ(decoded, -2341);
+
+  uint8_t expected_buffer[] = { 0xFF, 0xFF, 0xF6, 0xDB };
+  for (unsigned int i = 0; i < actual_size; ++i)
+  {
+    EXPECT_EQ(expected_buffer[i], buffer[i]);
+  }
+}
+
+TEST(package_serializer, serialize_uint32)
+{
+  uint8_t buffer[sizeof(uint32_t)];
+  size_t expected_size = sizeof(uint32_t);
+  size_t actual_size = comm::PackageSerializer::serialize<uint32_t>(buffer, 2341);
 
   EXPECT_EQ(expected_size, actual_size);
 
@@ -78,6 +97,149 @@ TEST(package_serializer, serialize_int32)
   {
     EXPECT_EQ(expected_buffer[i], buffer[i]);
   }
+}
+
+TEST(package_serializer, serialize_int16)
+{
+  uint8_t buffer[sizeof(int16_t)];
+  size_t expected_size = sizeof(int16_t);
+  size_t actual_size = comm::PackageSerializer::serialize<int16_t>(buffer, -2341);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  uint8_t expected_buffer[] = { 0xF6, 0xDB };
+  for (unsigned int i = 0; i < actual_size; ++i)
+  {
+    EXPECT_EQ(expected_buffer[i], buffer[i]);
+  }
+}
+
+TEST(package_serializer, serialize_uint16)
+{
+  uint8_t buffer[sizeof(uint16_t)];
+  size_t expected_size = sizeof(uint16_t);
+  size_t actual_size = comm::PackageSerializer::serialize<uint16_t>(buffer, 2341);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  uint8_t expected_buffer[] = { 0x09, 0x25 };
+  for (unsigned int i = 0; i < actual_size; ++i)
+  {
+    EXPECT_EQ(expected_buffer[i], buffer[i]);
+  }
+}
+
+TEST(package_serializer, serialize_vector6d)
+{
+  vector6d_t target{ 1.0, 3.14, 42, -2.345, 2.0, 0 };
+  uint8_t buffer[sizeof(vector6d_t)];
+  size_t expected_size = sizeof(vector6d_t);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  for (size_t i = 0; i < target.size(); ++i)
+  {
+    uint64_t tmp;
+    std::memcpy(&tmp, &buffer[i * sizeof(double)], sizeof(double));
+    uint64_t decoded = be64toh(tmp);
+    double decoded_double;
+    std::memcpy(&decoded_double, &decoded, sizeof(double));
+    EXPECT_DOUBLE_EQ(decoded_double, target[i]);
+  }
+}
+
+TEST(package_serializer, serialize_vector3d)
+{
+  vector3d_t target{ 1.0, 3.14, -42 };
+  uint8_t buffer[sizeof(vector3d_t)];
+  size_t expected_size = sizeof(vector3d_t);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  for (size_t i = 0; i < target.size(); ++i)
+  {
+    uint64_t tmp;
+    std::memcpy(&tmp, &buffer[i * sizeof(double)], sizeof(double));
+    uint64_t decoded = be64toh(tmp);
+    double decoded_double;
+    std::memcpy(&decoded_double, &decoded, sizeof(double));
+    EXPECT_DOUBLE_EQ(decoded_double, target[i]);
+  }
+}
+
+TEST(package_serializer, serialize_vector6int32)
+{
+  vector6int32_t target{ 1, 0, -42 };
+  uint8_t buffer[sizeof(target)];
+  size_t expected_size = sizeof(target);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  for (size_t i = 0; i < target.size(); ++i)
+  {
+    int32_t tmp;
+    std::memcpy(&tmp, &buffer[i * sizeof(int32_t)], sizeof(int32_t));
+    int32_t decoded = be32toh(tmp);
+    EXPECT_DOUBLE_EQ(decoded, target[i]);
+  }
+}
+
+TEST(package_serializer, serialize_vector6uint32)
+{
+  vector6uint32_t target{ 1, 0, 42 };
+  uint8_t buffer[sizeof(target)];
+  size_t expected_size = sizeof(target);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  for (size_t i = 0; i < target.size(); ++i)
+  {
+    uint32_t tmp;
+    std::memcpy(&tmp, &buffer[i * sizeof(uint32_t)], sizeof(uint32_t));
+    uint32_t decoded = be32toh(tmp);
+    EXPECT_DOUBLE_EQ(decoded, target[i]);
+  }
+}
+
+TEST(package_serializer, serialize_float)
+{
+  float target = -2.345f;
+  uint8_t buffer[sizeof(target)];
+  size_t expected_size = sizeof(target);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  uint32_t tmp;
+  std::memcpy(&tmp, &buffer, sizeof(uint32_t));
+  uint32_t decoded = be32toh(tmp);
+  float decoded_float;
+  std::memcpy(&decoded_float, &decoded, sizeof(float));
+  EXPECT_DOUBLE_EQ(decoded_float, target);
+}
+
+TEST(package_serializer, serialize_bool)
+{
+  bool target = false;
+  uint8_t buffer[sizeof(target)];
+  size_t expected_size = sizeof(target);
+  size_t actual_size = comm::PackageSerializer::serialize(buffer, target);
+
+  EXPECT_EQ(expected_size, actual_size);
+
+  bool decoded_bool;
+  std::memcpy(&decoded_bool, &buffer, sizeof(uint8_t));
+  EXPECT_DOUBLE_EQ(decoded_bool, target);
+
+  target = false;
+  actual_size = comm::PackageSerializer::serialize(buffer, target);
+  EXPECT_EQ(expected_size, actual_size);
+  std::memcpy(&decoded_bool, &buffer, sizeof(uint8_t));
+  EXPECT_DOUBLE_EQ(decoded_bool, target);
 }
 
 int main(int argc, char* argv[])

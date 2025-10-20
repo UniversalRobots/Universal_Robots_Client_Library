@@ -65,6 +65,7 @@ protected:
 
     void readMessage(int32_t& command, std::vector<int32_t>& message)
     {
+      message.clear();
       // Max message length is 28
       uint8_t buf[sizeof(int32_t) * 28];
       uint8_t* b_pos = buf;
@@ -424,6 +425,61 @@ TEST_F(ScriptCommandInterfaceTest, test_set_friction_compensation)
   message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
   expected_message_sum = 0;
   EXPECT_EQ(message_sum, expected_message_sum);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  double sensor_mass = 1.42;
+  vector3d_t sensor_measuring_offset = { 0.1, 0.2, 0.3 };
+  vector3d_t sensor_cog = { 0.01, 0.02, 0.03 };
+  script_command_interface_->ftRtdeInputEnable(true, sensor_mass, sensor_measuring_offset, sensor_cog);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 8 is ft rtde input enable
+  int32_t expected_command = 8;
+  EXPECT_EQ(command, expected_command);
+
+  // Test enabled
+  bool received_enabled = static_cast<bool>(message[0]);
+  EXPECT_EQ(received_enabled, true);
+
+  // Test sensor mass
+  double received_sensor_mass = static_cast<double>(message[1]) / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_sensor_mass, sensor_mass);
+
+  // Test sensor measuring offset
+  vector3d_t received_sensor_measuring_offset;
+  for (unsigned int i = 0; i < sensor_measuring_offset.size(); ++i)
+  {
+    received_sensor_measuring_offset[i] =
+        static_cast<double>(message[2 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_sensor_measuring_offset[i], sensor_measuring_offset[i]);
+  }
+
+  // Test sensor cog
+  vector3d_t received_sensor_cog;
+  for (unsigned int i = 0; i < sensor_cog.size(); ++i)
+  {
+    received_sensor_cog[i] = static_cast<double>(message[5 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_sensor_cog[i], sensor_cog[i]);
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 8, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+
+  // Disable ft rtde input
+  script_command_interface_->ftRtdeInputEnable(false, sensor_mass, sensor_measuring_offset, sensor_cog);
+  client_->readMessage(command, message);
+  received_enabled = static_cast<bool>(message[0]);
+  EXPECT_EQ(received_enabled, false);
 }
 
 int main(int argc, char* argv[])

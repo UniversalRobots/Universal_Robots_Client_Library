@@ -169,6 +169,26 @@ public:
   bool setFrictionCompensation(const bool friction_compensation_enabled);
 
   /*!
+   * \brief Enable or disable RTDE input for the force torque sensor.
+   *
+   * When enabled, the force torque sensor values will be read from the RTDE input registers instead of the actual
+   * sensor. This can be used to connect an external force torque sensor to the robot or to
+   * simulate a force torque sensor when using URSim.
+   *
+   * \param enabled Whether to enable or disable RTDE input for the force torque sensor.
+   * \param sensor_mass Mass of the force torque sensor in kilograms.
+   * \param sensor_measuring_offset The offset of the force torque sensor in meters, a vector [x, y, z] specifying the
+   * displacement from the tool flange frame.
+   * \param sensor_cog The center of gravity of the force torque sensor in meters, a vector [x, y, z] specifying the
+   * displacement from the tool flange frame.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool ftRtdeInputEnable(const bool enabled, const double sensor_mass = 0.0,
+                         const vector3d_t& sensor_measuring_offset = { 0.0, 0.0, 0.0 },
+                         const vector3d_t& sensor_cog = { 0.0, 0.0, 0.0 });
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -206,6 +226,7 @@ private:
     START_TOOL_CONTACT = 5,         ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,           ///< End detecting tool contact
     SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
+    FT_RTDE_INPUT_ENABLE = 8,       ///< Enable FT RTDE input
   };
 
   /*!

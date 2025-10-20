@@ -254,6 +254,45 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
+                                               const vector3d_t& sensor_measuring_offset, const vector3d_t& sensor_cog)
+{
+  const int message_length = 9;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::FT_RTDE_INPUT_ENABLE));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(enabled);
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(round(sensor_mass * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  for (auto const& mass_component : sensor_measuring_offset)
+  {
+    val = htobe32(static_cast<int32_t>(round(mass_component * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& cog_component : sensor_cog)
+  {
+    val = htobe32(static_cast<int32_t>(round(cog_component * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::clientConnected()
 {
   return client_connected_;
