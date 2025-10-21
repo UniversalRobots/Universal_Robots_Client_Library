@@ -96,9 +96,7 @@ void DashboardClientImplX::assertHasCommand(const std::string& command) const
 bool DashboardClientImplX::sendRequest(const std::string& command_str, const std::string& expected_response_pattern,
                                        const std::string& payload)
 {
-  assertHasCommand(command_str);
-  // std::string response = sendAndReceive(command_with_payload);
-  return true;
+  throw NotImplementedException("sendRequestis not implemented for DashboardClientImplX.");
 }
 
 std::string DashboardClientImplX::sendRequestString(const std::string& command_str,
