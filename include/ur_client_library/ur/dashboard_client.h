@@ -493,8 +493,8 @@ public:
    *
    * \return True succeeded
    */
-
   bool commandRobotMode(std::string& robot_mode);
+
   /*!
    * \brief Get Robot mode
    *

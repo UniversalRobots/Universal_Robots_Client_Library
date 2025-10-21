@@ -80,7 +80,7 @@ void DashboardClient::disconnect()
   }
   else
   {
-    throw UrException("DashboardClient::connect called, but impl_ is nullptr. This should not happen.");
+    throw UrException("DashboardClient::disconnect called, but impl_ is nullptr. This should not happen.");
   }
 }
 
@@ -106,7 +106,7 @@ std::string DashboardClient::sendRequestString(const std::string& command, const
 {
   if (impl_ == nullptr)
   {
-    throw UrException("DashboardClient::sendAndReceive called, but impl_ is nullptr. This should not happen.");
+    throw UrException("DashboardClient::sendRequestString called, but impl_ is nullptr. This should not happen.");
   }
   return impl_->sendRequestString(command, expected);
 }
@@ -200,6 +200,7 @@ bool DashboardClient::commandLoadInstallation(const std::string& installation_fi
 {
   return commandLoadInstallationWithResponse(installation_file_name).ok;
 }
+
 DashboardResponse DashboardClient::commandLoadInstallationWithResponse(const std::string& installation_file_name)
 {
   return impl_->commandLoadInstallation(installation_file_name);
@@ -228,6 +229,7 @@ bool DashboardClient::commandResume()
 {
   return commandResumeWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandResumeWithResponse()
 {
   return impl_->commandResume();
@@ -246,6 +248,7 @@ bool DashboardClient::commandClosePopup()
 {
   return commandClosePopupWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandClosePopupWithResponse()
 {
   return impl_->commandClosePopup();
@@ -255,6 +258,7 @@ bool DashboardClient::commandCloseSafetyPopup()
 {
   return commandCloseSafetyPopupWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandCloseSafetyPopupWithResponse()
 {
   return impl_->commandCloseSafetyPopup();
@@ -273,6 +277,7 @@ bool DashboardClient::commandUnlockProtectiveStop()
 {
   return commandUnlockProtectiveStopWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandUnlockProtectiveStopWithResponse()
 {
   return impl_->commandUnlockProtectiveStop();
@@ -282,6 +287,7 @@ bool DashboardClient::commandShutdown()
 {
   return commandShutdownWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandShutdownWithResponse()
 {
   return impl_->commandShutdown();
@@ -291,6 +297,7 @@ bool DashboardClient::commandQuit()
 {
   return commandQuitWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandQuitWithResponse()
 {
   return impl_->commandQuit();
@@ -312,6 +319,7 @@ bool DashboardClient::commandIsProgramSaved()
   auto response = impl_->commandIsProgramSaved();
   return response.ok && std::get<bool>(response.data["saved"]);
 }
+
 DashboardResponse DashboardClient::commandIsProgramSavedWithResponse()
 {
   return impl_->commandIsProgramSaved();
@@ -322,6 +330,7 @@ bool DashboardClient::commandIsInRemoteControl()
   auto response = impl_->commandIsInRemoteControl();
   return response.ok && std::get<bool>(response.data["remote_control"]);
 }
+
 DashboardResponse DashboardClient::commandIsInRemoteControlWithResponse()
 {
   return impl_->commandIsInRemoteControl();
@@ -331,6 +340,7 @@ bool DashboardClient::commandPopup(const std::string& popup_text)
 {
   return commandPopupWithResponse(popup_text).ok;
 }
+
 DashboardResponse DashboardClient::commandPopupWithResponse(const std::string& popup_text)
 {
   return impl_->commandPopup(popup_text);
@@ -340,6 +350,7 @@ bool DashboardClient::commandAddToLog(const std::string& log_text)
 {
   return commandAddToLogWithResponse(log_text).ok;
 }
+
 DashboardResponse DashboardClient::commandAddToLogWithResponse(const std::string& log_text)
 {
   return impl_->commandAddToLog(log_text);
@@ -384,6 +395,7 @@ bool DashboardClient::commandGetSerialNumber(std::string& serial_number)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandGetSerialNumberWithResponse()
 {
   return impl_->commandGetSerialNumber();

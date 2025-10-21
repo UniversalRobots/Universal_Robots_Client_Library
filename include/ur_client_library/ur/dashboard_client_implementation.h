@@ -99,7 +99,7 @@ public:
    * \brief Sends command and verifies that a valid answer is received.
    *
    * \param command Command that will be sent to the server.
-   * \param expected_response_patterh Expected response as a regex string.
+   * \param expected_response_pattern Expected response as a regex string.
    * \param payload Optional payload to be sent with the command.
    *
    * \return True if the reply to the command is as expected
