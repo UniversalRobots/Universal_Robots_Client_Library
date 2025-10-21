@@ -245,6 +245,8 @@ TEST_F(DashboardClientTestG5, cb3_version)
     GTEST_SKIP();
 
   DashboardResponse response;
+  // Get a defined starting state
+  dashboard_client_->commandSetUserRole("NONE");
   response = dashboard_client_->commandSetUserRole("PROGRAMMER");
   EXPECT_TRUE(response.ok);
   response = dashboard_client_->commandGetUserRole();
@@ -280,6 +282,7 @@ TEST_F(DashboardClientTestG5, cb3_version)
   dashboard_client_->setPolyscopeVersion("1.6.0");
   EXPECT_THROW(dashboard_client_->commandIsProgramSaved(), UrException);
   dashboard_client_->setPolyscopeVersion("1.8.0");
+  EXPECT_TRUE(dashboard_client_->commandLoadProgram("wait_program.urp").ok);
   response = dashboard_client_->commandIsProgramSaved();
   ASSERT_TRUE(response.ok);
   EXPECT_THROW(dashboard_client_->commandIsInRemoteControl(), UrException);
@@ -553,11 +556,8 @@ TEST_F(DashboardClientTestG5, operational_mode)
   }
   else
   {
-    std::string msg;
     EXPECT_THROW(response = dashboard_client_->commandGetOperationalMode(), UrException);
-    ASSERT_TRUE(response.ok);
     EXPECT_THROW(response = dashboard_client_->commandSetOperationalMode("NONE"), UrException);
-    ASSERT_TRUE(response.ok);
   }
 
   response = dashboard_client_->commandIsInRemoteControl();

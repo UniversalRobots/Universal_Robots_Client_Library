@@ -1116,6 +1116,7 @@ DashboardResponse DashboardClientImplG5::commandGetUserRole()
   try
   {
     response.message = sendRequestString("getUserRole");
+    response.data["user_role"] = response.message;
     response.ok = true;
   }
   catch (const UnexpectedResponse& e)

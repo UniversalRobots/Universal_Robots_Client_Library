@@ -641,8 +641,6 @@ public:
   /*!
    * \brief Send Set user role command (Only available for CB3)
    *
-   * \param user_role The user role to set on the robot
-   *
    * \throws an UrException when called on e-series robots
    */
   DashboardResponse commandSetUserRoleWithResponse(const std::string& user_role);
@@ -661,7 +659,9 @@ public:
   /*!
    * \brief Send Get user role command (Only available for CB3)
    *
-   * \param user_role The user role on the robot
+   * Stores the following entries in the data field:
+   *
+   *   - 'user_role': std::string
    *
    * \throws an UrException when called on e-series robots
    */
