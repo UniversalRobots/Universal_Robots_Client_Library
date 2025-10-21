@@ -81,10 +81,7 @@ public:
   void disconnect() override;
 
   /*!
-   * \brief Gets the configured receive timeout. If receive timeout is unconfigured "normal" socket timeout of 1 second
-   * will be returned
-   *
-   * \returns configured receive timeout
+   * \brief This function call is effectively not doing anything.
    */
   timeval getConfiguredReceiveTimeout() const override;
 
