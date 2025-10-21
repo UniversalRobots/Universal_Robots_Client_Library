@@ -133,6 +133,7 @@ TEST_F(DashboardClientTestG5, load_installation)
   DashboardResponse response;
   response = dashboard_client_->commandLoadInstallation("default.installation");
   ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["installation_name"]), "default.installation");
 }
 
 TEST_F(DashboardClientTestG5, not_connected)

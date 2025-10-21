@@ -147,7 +147,6 @@ TEST_F(DashboardClientTest, run_program)
     return DashboardResponse{ true, "Program loaded: " + str, { { "program_name", str } } };
   });
   EXPECT_CALL(*impl, commandPowerOn(std::chrono::duration<double>(1))).WillOnce(testing::Return(SUCCESS_RESPONSE));
-  EXPECT_CALL(*impl, commandClosePopup()).Times(2).WillRepeatedly(testing::Return(SUCCESS_RESPONSE));
   EXPECT_CALL(*impl, commandPlay()).Times(2).WillRepeatedly(testing::Return(SUCCESS_RESPONSE));
   EXPECT_CALL(*impl, commandPowerOff()).Times(2).WillRepeatedly(testing::Return(SUCCESS_RESPONSE));
   EXPECT_CALL(*impl, commandBrakeRelease()).WillOnce(testing::Return(SUCCESS_RESPONSE));
@@ -174,7 +173,6 @@ TEST_F(DashboardClientTest, run_program)
 
   EXPECT_TRUE(dashboard_client_->commandLoadProgram("wait_program.urp"));
   EXPECT_TRUE(dashboard_client_->commandPowerOff());
-  dashboard_client_->commandClosePopup();  // Necessary for CB3 test
   EXPECT_TRUE(dashboard_client_->commandPowerOn(std::chrono::duration<double>(1)));
   EXPECT_TRUE(dashboard_client_->commandBrakeRelease());
   EXPECT_TRUE(dashboard_client_->commandPlay());
@@ -184,7 +182,6 @@ TEST_F(DashboardClientTest, run_program)
   EXPECT_TRUE(dashboard_client_->commandStop());
   EXPECT_FALSE(dashboard_client_->commandRunning());
   EXPECT_TRUE(dashboard_client_->commandPowerOff());
-  dashboard_client_->commandClosePopup();  // Necessary for CB3 test
   EXPECT_TRUE(dashboard_client_->commandIsProgramSaved());
   EXPECT_TRUE(dashboard_client_->commandQuit());
   EXPECT_TRUE(dashboard_client_->commandShutdown());
