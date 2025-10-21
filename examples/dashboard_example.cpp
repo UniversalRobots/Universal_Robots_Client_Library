@@ -84,8 +84,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Bring the robot to a defined state being powered off. We're ignoring errors here since
-  // powering off an already powered off robot will return an error.
+  // Bring the robot to a defined state being powered off.
   if (version_information->major < 10)
   {
     if (!my_dashboard->commandPowerOff())
@@ -102,6 +101,8 @@ int main(int argc, char* argv[])
   }
   else
   {
+    // We're ignoring errors here since
+    // powering off an already powered off robot will return an error.
     my_dashboard->commandPowerOff();
   }
 

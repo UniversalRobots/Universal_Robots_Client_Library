@@ -62,19 +62,21 @@ public:
   std::string sendAndReceive(const std::string& command) override;
 
   /*!
-   * \brief Opens a connection to the dashboard server on the host as specified in the constructor.
+   * \brief Checks whether there is a Robot API endpoint at the configured IP address
    *
-   * \param max_num_tries Maximum number of connection attempts before counting the connection as
-   * failed. Unlimited number of attempts when set to 0.
-   * \param reconnection_time time in between connection attempts to the server
+   * To determine this, this function makes a test call to the "/system/v1/system-time/" endpoint.
+   * If the given IP address doesn't correspond to a robot with the minimal required software
+   * version, this call will fail.
    *
-   * \returns True on successful connection, false otherwise.
+   * Note: Calling this isn't required for making dashboard calls for a PolyScope X robot.
+   *
+   * \returns True on successful test call
    */
   bool connect(const size_t max_num_tries = 0,
                const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override;
 
   /*!
-   * \brief Makes sure no connection to the dashboard server is held inside the object.
+   * \brief This function call is effectively not doing anything.
    */
   void disconnect() override;
 

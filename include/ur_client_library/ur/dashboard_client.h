@@ -152,10 +152,6 @@ public:
   /*!
    * \brief Send Power off command
    *
-   * \return The response string returned by the server
-   *
-   * \throws UnexpectedResponse if the response is not as expected / does not confirm the robot has
-   * been powered off.
    */
   DashboardResponse commandPowerOffWithResponse();
 
@@ -393,7 +389,6 @@ public:
    */
   bool commandIsInRemoteControl();
 
-  DashboardResponse commandIsInRemoteControlWithResponse();
   /*!
    * \brief Send "Is in remote control" query command
    *
@@ -401,6 +396,7 @@ public:
    *
    *   - 'remote_control': bool
    */
+  DashboardResponse commandIsInRemoteControlWithResponse();
 
   /*!
    * \brief Send popup command
