@@ -136,6 +136,14 @@ TEST_F(DashboardClientTestG5, load_installation)
   ASSERT_EQ(std::get<std::string>(response.data["installation_name"]), "default.installation");
 }
 
+TEST_F(DashboardClientTestG5, load_program)
+{
+  EXPECT_TRUE(dashboard_client_->connect());
+  DashboardResponse response = dashboard_client_->commandLoadProgram("wait_program.urp");
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["program_name"]), "wait_program.urp");
+}
+
 TEST_F(DashboardClientTestG5, not_connected)
 {
   EXPECT_THROW(dashboard_client_->commandPowerOff(), UrException);

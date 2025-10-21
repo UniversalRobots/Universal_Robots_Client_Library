@@ -507,6 +507,7 @@ DashboardResponse DashboardClientImplG5::commandLoadInstallation(const std::stri
     response.message =
         sendRequestString("load installation", "(?:Loading installation: ).*(?:" + installation_file_name + ").*",
                           installation_file_name);
+    response.data["installation_name"] = installation_file_name;
     response.ok = true;
   }
   catch (const UnexpectedResponse& e)

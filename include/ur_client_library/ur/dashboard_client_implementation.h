@@ -153,6 +153,10 @@ public:
   /*!
    * \brief Send Load installation command
    *
+   * Stores the following entries in the data field:
+   *
+   *  - 'installation_name': std::string
+   *
    * \param installation_file_name The installation file name with the installation extension
    */
   virtual DashboardResponse commandLoadInstallation(const std::string& installation_file_name) = 0;
