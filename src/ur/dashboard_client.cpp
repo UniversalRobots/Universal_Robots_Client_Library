@@ -64,50 +64,27 @@ DashboardClient::DashboardClient(const std::string& host, const ClientPolicy cli
 
 bool DashboardClient::connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::connect called, but impl_ is nullptr. This should not happen.");
-  }
   bool success = impl_->connect(max_num_tries, reconnection_time);
   return success;
 }
 
 void DashboardClient::disconnect()
 {
-  if (impl_)
-  {
-    impl_->disconnect();
-  }
-  else
-  {
-    throw UrException("DashboardClient::disconnect called, but impl_ is nullptr. This should not happen.");
-  }
+  impl_->disconnect();
 }
 
 std::string DashboardClient::sendAndReceive(const std::string& text)
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::sendAndReceive called, but impl_ is nullptr. This should not happen.");
-  }
   return impl_->sendAndReceive(text);
 }
 
 bool DashboardClient::sendRequest(const std::string& command, const std::string& expected)
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::sendAndReceive called, but impl_ is nullptr. This should not happen.");
-  }
   return impl_->sendRequest(command, expected);
 }
 
 std::string DashboardClient::sendRequestString(const std::string& command, const std::string& expected)
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::sendRequestString called, but impl_ is nullptr. This should not happen.");
-  }
   return impl_->sendRequestString(command, expected);
 }
 
@@ -588,20 +565,11 @@ void DashboardClient::assertVersion(const std::string& e_series_min_ver, const s
 
 timeval DashboardClient::getConfiguredReceiveTimeout() const
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::getConfiguredReceiveTimeout called, but impl_ is nullptr. This should not "
-                      "happen.");
-  }
   return impl_->getConfiguredReceiveTimeout();
 }
 
 void DashboardClient::setReceiveTimeout(const timeval& timeout)
 {
-  if (impl_ == nullptr)
-  {
-    throw UrException("DashboardClient::setReceiveTimeout called, but impl_ is nullptr. This should not happen.");
-  }
   impl_->setReceiveTimeout(timeout);
 }
 }  // namespace urcl
