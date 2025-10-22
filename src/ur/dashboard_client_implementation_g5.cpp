@@ -551,6 +551,7 @@ DashboardResponse DashboardClientImplG5::commandPause()
     response.ok = true;
     if (!waitForReply("programState", "(?:PAUSED ).*"))
     {
+      response.ok = false;
       response.message = "Failed to pause program. Expected 'programState' to be 'PAUSED', but didn't receive such a "
                          "message.";
     }
