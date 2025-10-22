@@ -33,6 +33,8 @@
 #include <gtest/gtest.h>
 #include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/ur/version_information.h"
+#include "ur_client_library/control/reverse_interface.h"
+#include "ur_client_library/control/trajectory_point_interface.h"
 
 #include <fstream>
 
@@ -446,4 +448,45 @@ TEST_F(ScriptReaderTest, Example)
   processed_script = reader.readScriptFile(existing_script_file, data);
   expected_script = "  textmsg(\"torque control is a very cool feature!\")";
   EXPECT_EQ(processed_script, expected_script);
+}
+
+TEST_F(ScriptReaderTest, TestParsingExternalControl)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("3.12.1");
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  std::string expected_pattern = "enable_external_ft_sensor(enabled, sensor_mass, sensor_offset, sensor_cog)";
+  EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.8.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  expected_pattern = "enable_external_ft_sensor(enabled, sensor_mass, sensor_offset, sensor_cog)";
+  EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("3.14.1");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  expected_pattern = "ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)";
+  EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.9.1");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  expected_pattern = "ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)";
+  EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.7.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  expected_pattern = "ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)";
+  EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
 }

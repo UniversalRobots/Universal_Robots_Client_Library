@@ -803,7 +803,21 @@ thread script_commands():
             str_cat(sensor_mass, str_cat(", ",
               str_cat(to_str(sensor_offset), str_cat(", ",
                 str_cat(to_str(sensor_cog), ")"))))))))
+        {% if ROBOT_SOFTWARE_VERSION >= v5.9.1 %}
         ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)
+        {% elif ROBOT_SOFTWARE_VERSION < v5.0.0 %}
+          {% if ROBOT_SOFTWARE_VERSION >= v3.14.1 %}
+        ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)
+          {% else %}
+        # PolyScope earlier than 3.14.1
+        # This has a known error that the resulting torques are computed with opposite sign.
+        enable_external_ft_sensor(enabled, sensor_mass, sensor_offset, sensor_cog)
+          {% endif %}
+        {% else %}
+        # PolyScope 5.0.0 - 5.9.0
+        # This has a known error that the resulting torques are computed with opposite sign.
+        enable_external_ft_sensor(enabled, sensor_mass, sensor_offset, sensor_cog)
+        {% endif %}
       end
     end
   end
