@@ -553,16 +553,16 @@ TEST_F(DashboardClientTestG5, operational_mode)
           return std::get<std::string>(response.data["operational_mode"]) == "NONE";
         },
         std::chrono::milliseconds(500)));
+    response = dashboard_client_->commandIsInRemoteControl();
+    ASSERT_TRUE(response.ok);
+    ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
   }
   else
   {
     EXPECT_THROW(response = dashboard_client_->commandGetOperationalMode(), UrException);
     EXPECT_THROW(response = dashboard_client_->commandSetOperationalMode("NONE"), UrException);
+    EXPECT_THROW(response = dashboard_client_->commandIsInRemoteControl(), UrException);
   }
-
-  response = dashboard_client_->commandIsInRemoteControl();
-  ASSERT_TRUE(response.ok);
-  ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
 }
 
 TEST_F(DashboardClientTestG5, test_disconnect)
