@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.5.0 (2025-10-24)
+------------------
 * Polyscopex dashboard client (`#392 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/392>`_)
 * Use enable_external_ft_sensor on old software versions (`#395 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/395>`_)
 * Rtde external ft (`#388 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/388>`_)
