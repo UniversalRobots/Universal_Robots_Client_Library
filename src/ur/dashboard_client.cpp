@@ -140,6 +140,7 @@ bool DashboardClient::commandPowerOff()
 {
   return commandPowerOffWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandPowerOffWithResponse()
 {
   return impl_->commandPowerOff();
@@ -149,6 +150,7 @@ bool DashboardClient::commandPowerOn(const std::chrono::duration<double> timeout
 {
   return commandPowerOnWithResponse(timeout).ok;
 }
+
 DashboardResponse DashboardClient::commandPowerOnWithResponse(const std::chrono::duration<double> timeout)
 {
   return impl_->commandPowerOn(timeout);
@@ -158,6 +160,7 @@ bool DashboardClient::commandBrakeRelease()
 {
   return commandBrakeReleaseWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandBrakeReleaseWithResponse()
 {
   return impl_->commandBrakeRelease();
@@ -216,6 +219,7 @@ bool DashboardClient::commandStop()
 {
   return commandStopWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandStopWithResponse()
 {
   return impl_->commandStop();
@@ -245,6 +249,7 @@ bool DashboardClient::commandRestartSafety()
 {
   return commandRestartSafetyWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandRestartSafetyWithResponse()
 {
   return impl_->commandRestartSafety();
@@ -387,6 +392,7 @@ bool DashboardClient::commandRobotMode(std::string& robot_mode)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandRobotModeWithResponse()
 {
   return impl_->commandRobotMode();
@@ -401,6 +407,7 @@ bool DashboardClient::commandGetLoadedProgram(std::string& loaded_program)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandGetLoadedProgramWithResponse()
 {
   return impl_->commandGetLoadedProgram();
@@ -415,6 +422,7 @@ bool DashboardClient::commandSafetyMode(std::string& safety_mode)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandSafetyModeWithResponse()
 {
   return impl_->commandSafetyMode();
@@ -429,6 +437,7 @@ bool DashboardClient::commandSafetyStatus(std::string& safety_status)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandSafetyStatusWithResponse()
 {
   return impl_->commandSafetyStatus();
@@ -443,6 +452,7 @@ bool DashboardClient::commandProgramState(std::string& program_state)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandProgramStateWithResponse()
 {
   return impl_->commandProgramState();
@@ -457,6 +467,7 @@ bool DashboardClient::commandGetOperationalMode(std::string& operational_mode)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandGetOperationalModeWithResponse()
 {
   return impl_->commandGetOperationalMode();
@@ -466,6 +477,7 @@ bool DashboardClient::commandSetOperationalMode(const std::string& operational_m
 {
   return commandSetOperationalModeWithResponse(operational_mode).ok;
 }
+
 DashboardResponse DashboardClient::commandSetOperationalModeWithResponse(const std::string& operational_mode)
 {
   return impl_->commandSetOperationalMode(operational_mode);
@@ -484,6 +496,7 @@ bool DashboardClient::commandSetUserRole(const std::string& user_role)
 {
   return commandSetUserRoleWithResponse(user_role).ok;
 }
+
 DashboardResponse DashboardClient::commandSetUserRoleWithResponse(const std::string& user_role)
 {
   return impl_->commandSetUserRole(user_role);
@@ -498,6 +511,7 @@ bool DashboardClient::commandGetUserRole(std::string& user_role)
   }
   return response.ok;
 }
+
 DashboardResponse DashboardClient::commandGetUserRoleWithResponse()
 {
   return impl_->commandGetUserRole();
@@ -507,6 +521,7 @@ bool DashboardClient::commandGenerateFlightReport(const std::string& report_type
 {
   return commandGenerateFlightReportWithResponse(report_type).ok;
 }
+
 DashboardResponse DashboardClient::commandGenerateFlightReportWithResponse(const std::string& report_type)
 {
   return impl_->commandGenerateFlightReport(report_type);
@@ -516,6 +531,7 @@ bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
 {
   return commandGenerateSupportFileWithResponse(dir_path).ok;
 }
+
 DashboardResponse DashboardClient::commandGenerateSupportFileWithResponse(const std::string& dir_path)
 {
   return impl_->commandGenerateSupportFile(dir_path);
@@ -525,6 +541,7 @@ bool DashboardClient::commandSaveLog()
 {
   return commandSaveLogWithResponse().ok;
 }
+
 DashboardResponse DashboardClient::commandSaveLogWithResponse()
 {
   return impl_->commandSaveLog();
