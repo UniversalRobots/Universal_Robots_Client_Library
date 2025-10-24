@@ -4,5 +4,6 @@ codecov:
   strict_yaml_branch: default  # only use the latest YAML on stated branch
 
 ignore:
+  - "3rdparty/*"  # ignore examples
   - "examples/*"  # ignore examples
   - "tests/*"  # ignore unit tests

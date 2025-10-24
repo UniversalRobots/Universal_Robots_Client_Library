@@ -41,7 +41,9 @@ table below or checkout the latest tag before the breaking changes were introduc
    |polyscope| X doesn't support all features supported by this library for |polyscope| 5.
    Currently, the following components are known not to be supported:
 
-     - Dashboard client -- |polyscope| X doesn't have a dashboard server.
+     - Dashboard client -- |polyscope| X received the first implementation of the Robot API
+       replacing the Dashboard Server in version 10.11.0. It covers robot state control and loading
+       and playing programs.
      - Using external control on |polyscope| X requires another URCapX for making external control
        work. This is currently in the process of being created.
        See `Universal Robots External Control URCapX <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX>`_

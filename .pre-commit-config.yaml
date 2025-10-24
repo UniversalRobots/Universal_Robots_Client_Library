@@ -3,6 +3,8 @@ repos:
     rev: 'v19.1.5'
     hooks:
       - id: clang-format
+        exclude: ^3rdparty/
+
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.13.0
     hooks:

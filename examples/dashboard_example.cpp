@@ -50,7 +50,7 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 
 int main(int argc, char* argv[])
 {
-  urcl::setLogLevel(urcl::LogLevel::DEBUG);
+  urcl::setLogLevel(urcl::LogLevel::INFO);
 
   // Parse the ip arguments if given
   std::string robot_ip = DEFAULT_ROBOT_IP;
@@ -59,38 +59,52 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
+  // Query the robot information from the primary interface in order to select the correct
+  // implementation policy.
   urcl::comm::INotifier notifier;
   urcl::primary_interface::PrimaryClient primary_client(robot_ip, notifier);
   primary_client.start();
   auto version_information = primary_client.getRobotVersion();
-  if (version_information->major >= 10)
+  DashboardClient::ClientPolicy policy = DashboardClient::ClientPolicy::POLYSCOPE_X;
+  if (version_information->major < 10)
   {
-    std::stringstream ss;
-    ss << "Robot has version " << *version_information << ". This example is not compatible with PolyScope X";
-    URCL_LOG_ERROR(ss.str().c_str());
+    policy = DashboardClient::ClientPolicy::G5;
+  }
+  else if (version_information->minor < 11)
+  {
+    URCL_LOG_ERROR("DashboardClient examples require PolyScope version 10.11.0 or higher. Exiting now.");
     return 0;
   }
 
   // Connect to the robot Dashboard Server
-  auto my_dashboard = std::make_unique<DashboardClient>(robot_ip);
+  auto my_dashboard = std::make_unique<DashboardClient>(robot_ip, policy);
   if (!my_dashboard->connect())
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
     return 1;
   }
 
-  if (!my_dashboard->commandPowerOff())
+  // Bring the robot to a defined state being powered off.
+  if (version_information->major < 10)
   {
-    URCL_LOG_ERROR("Could not send power off");
-    return 1;
+    if (!my_dashboard->commandPowerOff())
+    {
+      URCL_LOG_ERROR("Could not send power off");
+      return 1;
+    }
+    // Get the PolyScope version
+    std::string version;
+    my_dashboard->commandPolyscopeVersion(version);
+    URCL_LOG_INFO(version.c_str());
+
+    my_dashboard->commandCloseSafetyPopup();
   }
-
-  // Get the PolyScope version
-  std::string version;
-  my_dashboard->commandPolyscopeVersion(version);
-  URCL_LOG_INFO(version.c_str());
-
-  my_dashboard->commandCloseSafetyPopup();
+  else
+  {
+    // We're ignoring errors here since
+    // powering off an already powered off robot will return an error.
+    my_dashboard->commandPowerOff();
+  }
 
   // Power it on
   if (!my_dashboard->commandPowerOn())
@@ -107,7 +121,12 @@ int main(int argc, char* argv[])
   }
 
   // Load existing program
-  const std::string program_file_name_to_be_loaded("wait_program.urp");
+  std::string program_file_name_to_be_loaded("wait_program.urp");
+  if (version_information->major >= 10)
+  {
+    // For PolyScope X, the program doesn't have an ending
+    program_file_name_to_be_loaded = "wait_program";
+  }
   if (!my_dashboard->commandLoadProgram(program_file_name_to_be_loaded))
   {
     URCL_LOG_ERROR("Could not load %s program", program_file_name_to_be_loaded.c_str());
@@ -130,11 +149,24 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Play loaded program
-  if (!my_dashboard->commandPlay())
+  // Continue
+  if (version_information->major >= 10)
   {
-    URCL_LOG_ERROR("Could not play program");
-    return 1;
+    // For PolyScope X, the command is called "resume"
+    if (!my_dashboard->commandResume())
+    {
+      URCL_LOG_ERROR("Could not resume program");
+      return 1;
+    }
+  }
+  else
+  {
+    // For e-Series, the command is called "play"
+    if (!my_dashboard->commandPlay())
+    {
+      URCL_LOG_ERROR("Could not resume program");
+      return 1;
+    }
   }
 
   // Stop program
@@ -151,20 +183,23 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Flush the log
-  if (!my_dashboard->commandSaveLog())
+  if (version_information->major < 10)
   {
-    URCL_LOG_ERROR("Could not send the save log command");
-    return 1;
+    // Flush the log
+    if (!my_dashboard->commandSaveLog())
+    {
+      URCL_LOG_ERROR("Could not send the save log command");
+      return 1;
+    }
+
+    // Make a raw request and save the response
+    std::string program_state = my_dashboard->sendAndReceive("programState");
+    URCL_LOG_INFO("Program state: %s", program_state.c_str());
+
+    // The response can be checked with a regular expression
+    bool success = my_dashboard->sendRequest("power off", "Powering off");
+    URCL_LOG_INFO("Power off command success: %d", success);
   }
-
-  // Make a raw request and save the response
-  std::string program_state = my_dashboard->sendAndReceive("programState");
-  URCL_LOG_INFO("Program state: %s", program_state.c_str());
-
-  // The response can be checked with a regular expression
-  bool success = my_dashboard->sendRequest("power off", "Powering off");
-  URCL_LOG_INFO("Power off command success: %d", success);
 
   return 0;
 }
