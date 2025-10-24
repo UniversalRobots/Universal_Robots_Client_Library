@@ -2,6 +2,17 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Polyscopex dashboard client (`#392 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/392>`_)
+* Use enable_external_ft_sensor on old software versions (`#395 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/395>`_)
+* Rtde external ft (`#388 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/388>`_)
+* Fixed auto reconnection to the RTDE server. (`#384 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/384>`_)
+* Refactor Rtde client test (`#389 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/389>`_)
+* Add release.yml for auto-generated changelogs (`#391 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/391>`_)
+* Allow an empty input recipe to the RTDE client (`#318 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/318>`_)
+* Contributors: Felix Exner, Mads Holm Peters, URJala
+
 2.4.0 (2025-10-13)
 ------------------
 * UR18 support (`#387 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/387>`_)
