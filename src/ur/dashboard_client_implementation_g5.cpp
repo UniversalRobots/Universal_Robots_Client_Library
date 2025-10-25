@@ -438,7 +438,7 @@ DashboardResponse DashboardClientImplG5::commandPowerOn(const std::chrono::durat
   DashboardResponse response;
   try
   {
-    response.message = retryCommandString("power on", "Powering on", "robotmode", "Robotmode: IDLE", timeout);
+    response.message = retryCommandString("power on", "Powering on", "robotmode", "Robotmode: (IDLE|RUNNING)", timeout);
     response.ok = true;
   }
   catch (const UnexpectedResponse& e)
