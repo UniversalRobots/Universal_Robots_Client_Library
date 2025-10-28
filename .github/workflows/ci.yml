@@ -90,7 +90,7 @@ jobs:
           mkdir -p ursim_logs/flightreports
           docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
@@ -98,7 +98,7 @@ jobs:
           if-no-files-found: error
           retention-days: 10
       - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always() && matrix.env.URSIM_VERSION != '10.7.0'
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
