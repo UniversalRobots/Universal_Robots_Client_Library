@@ -91,6 +91,43 @@ TEST_F(DashboardClientTestG5, connect)
   ASSERT_TRUE(response.ok);
 }
 
+TEST_F(DashboardClientTestG5, power_cycle)
+{
+  EXPECT_TRUE(dashboard_client_->connect());
+  DashboardResponse response;
+
+  // Cycle from POWER_OFF to IDLE to RUNNING
+  response = dashboard_client_->commandPowerOff();
+  EXPECT_TRUE(response.ok);
+  response = dashboard_client_->commandPowerOn(std::chrono::seconds(5));
+  EXPECT_TRUE(response.ok);
+  response = dashboard_client_->commandBrakeRelease();
+  EXPECT_TRUE(response.ok);
+
+  // Calling power_on on a brake-released robot should succeed
+  response = dashboard_client_->commandPowerOn(std::chrono::seconds(5));
+  EXPECT_TRUE(response.ok);
+
+  // Power off from brake-released state (RUNNING)
+  response = dashboard_client_->commandPowerOff();
+  EXPECT_TRUE(response.ok);
+
+  // Power off from powered_on state (IDLE)
+  dashboard_client_->commandPowerOn();
+  response = dashboard_client_->commandPowerOff();
+  EXPECT_TRUE(response.ok);
+
+  // Power off from powered_on state (IDLE)
+  dashboard_client_->commandPowerOff();
+  response = dashboard_client_->commandPowerOff();
+  EXPECT_TRUE(response.ok);
+
+  // Brake release from POWER_OFF should succeed
+  dashboard_client_->commandPowerOff();
+  response = dashboard_client_->commandBrakeRelease();
+  EXPECT_TRUE(response.ok);
+}
+
 TEST_F(DashboardClientTestG5, run_program)
 {
   EXPECT_TRUE(dashboard_client_->connect());
