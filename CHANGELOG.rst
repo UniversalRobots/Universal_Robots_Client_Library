@@ -2,6 +2,15 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* RTDEClient sendStart handle missed confirmation (`#403 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/403>`_)
+* Add enum value for 3PE input active to UrRtdeSafetyStatusBits (`#401 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/401>`_)
+* Save polyscope folder in local filesystem (`#399 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/399>`_)
+* Succeed power on command on PolyScope 5 when robot is running (`#397 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/397>`_)
+* Bump actions/upload-artifact from 4 to 5 (`#398 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/398>`_)
+* Contributors: Andrew C. Morrow, Felix Exner, dependabot[bot]
+
 2.5.0 (2025-10-24)
 ------------------
 * Polyscopex dashboard client (`#392 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/392>`_)
