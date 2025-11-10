@@ -18,7 +18,7 @@ drivers.
 ## Requirements
 
 * **Polyscope** (The software running on the robot controller) version **3.14.3** (for CB3-Series),
-  or **5.9.4** (for e-Series) or or **10.7.0** (For PolyScope X) or higher. If you use an older
+  or **5.9.4** (for e-Series) or **10.7.0** (For PolyScope X) or higher. If you use an older
   Polyscope version it is suggested to update your robot. If for some reason (please tell us in the
   issues why) you cannot upgrade your robot, please see the [version compatibility
   table](doc/polyscope_compatibility.rst) for a compatible tag.
