@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.6.0 (2025-11-10)
+------------------
 * RTDEClient sendStart handle missed confirmation (`#403 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/403>`_)
 * Add enum value for 3PE input active to UrRtdeSafetyStatusBits (`#401 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/401>`_)
 * Save polyscope folder in local filesystem (`#399 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/399>`_)
