@@ -74,7 +74,8 @@ enum class UrRtdeSafetyStatusBits
   IS_EMERGENCY_STOPPED = 7,
   IS_VIOLATION = 8,
   IS_FAULT = 9,
-  IS_STOPPED_DUE_TO_SAFETY = 10
+  IS_STOPPED_DUE_TO_SAFETY = 10,
+  IS_3PE_INPUT_ACTIVE = 11
 };
 
 enum class ClientState
