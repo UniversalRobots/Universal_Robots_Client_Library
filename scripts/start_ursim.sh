@@ -419,6 +419,7 @@ main() {
 
   URCAP_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+  POLYSCOPE_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/polyscope"
 
   strip_robot_model "$ROBOT_MODEL" "$ROBOT_SERIES"
 
@@ -481,6 +482,7 @@ main() {
     docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
       -v ${URCAP_STORAGE}:/urcaps \
       -v ${PROGRAM_STORAGE}:/ursim/programs \
+      -v ${POLYSCOPE_STORAGE}:/ursim/.polyscope \
       -e ROBOT_MODEL=${ROBOT_MODEL} \
       $PORT_FORWARDING \
       --name $CONTAINER_NAME \
