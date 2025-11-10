@@ -610,12 +610,20 @@ bool RTDEClient::sendStart()
     {
       return tmp->accepted_;
     }
+    else if (rtde_interface::DataPackage* tmp = dynamic_cast<rtde_interface::DataPackage*>(package.get()))
+    {
+      // There is a race condition whether the last received packet was the start confirmation or
+      // is already a data package. In that case consider the start as successful.
+      double timestamp;
+      return tmp->getData("timestamp", timestamp);
+    }
     else
     {
       std::stringstream ss;
       ss << "Did not receive answer to RTDE start request. Message received instead: " << std::endl
          << package->toString();
       URCL_LOG_WARN("%s", ss.str().c_str());
+      num_retries++;
     }
   }
   std::stringstream ss;
