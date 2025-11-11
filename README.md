@@ -18,18 +18,11 @@ drivers.
 ## Requirements
 
 * **Polyscope** (The software running on the robot controller) version **3.14.3** (for CB3-Series),
-  or **5.9.4** (for e-Series) or higher. If you use an older Polyscope version it is suggested to
-  update your robot. If for some reason (please tell us in the issues why) you cannot upgrade your
-  robot, please see the [version compatibility table](doc/polyscope_compatibility.rst) for a
-  compatible tag.
+  or **5.9.4** (for e-Series) or **10.7.0** (For PolyScope X) or higher. If you use an older
+  Polyscope version it is suggested to update your robot. If for some reason (please tell us in the
+  issues why) you cannot upgrade your robot, please see the [version compatibility
+  table](doc/polyscope_compatibility.rst) for a compatible tag.
 * The library requires an implementation of **POSIX threads** such as the `pthread` library
-* Socket communication is currently based on Linux sockets. Thus, this library will require Linux
-  for building and using.
-* The [master](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/master)
-  branch of this repository requires a C++17-compatible compiler. For building this library without
-  a C++17-requirement, please use the
-  [boost](https://github.com/UniversalRobots/Universal_Robots_Client_Library/tree/boost) branch
-  instead that requires the boost library.
 
 ## Build instructions
 

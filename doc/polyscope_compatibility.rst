@@ -7,7 +7,8 @@ Version-breaking changes
 ------------------------
 
 The table below shows breaking changes in the library compared to |polyscope| versions. Compatibility
-is listed for CB3 robots (versions 3.x.y) and e-Series robots (versions 5.x.y) respectively.
+is listed for CB3 robots (versions 3.x.y) and e-Series robots (versions 5.x.y) respectively. For
+PolyScope X (versions 10.x.y) all currently available versions are supported.
 
 It might be possible to use the library in a more recent version than the compatible versions listed
 below, but that might either require some manual modifications or not using a subset of features.
