@@ -264,8 +264,3 @@ application.
       If you select the External Control program node, you'll see a button "Update program"
       appearing next to it. With the external application started, press it to receive the script
       code.
-
-      .. warning::
-
-         Support for PolyScope X isn't fully developed, yet. Please consider using External Control
-         with PolyScope X as an open beta.
