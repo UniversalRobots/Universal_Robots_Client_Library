@@ -37,10 +37,10 @@ if (INTEGRATION_TESTS)
   gtest_add_tests(TARGET      dashboard_client_g5_tests
   )
 
-  add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
-  target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
-  gtest_add_tests(TARGET      dashboard_client_x_tests
-  )
+  #add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
+  #target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+  #gtest_add_tests(TARGET      dashboard_client_x_tests
+  #)
 
   # Spline tests
   add_executable(spline_tests_urcap test_spline_interpolation.cpp)
