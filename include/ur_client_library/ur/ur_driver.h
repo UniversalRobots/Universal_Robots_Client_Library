@@ -52,10 +52,12 @@ namespace urcl
  */
 struct UrDriverConfiguration
 {
-  std::string robot_ip;            //!< IP-address under which the robot is reachable.
-  std::string script_file;         //!< URScript file that should be sent to the robot.
-  std::string output_recipe_file;  //!< Filename where the output recipe is stored in.
-  std::string input_recipe_file;   //!< Filename where the input recipe is stored in.
+  std::string robot_ip;                    //!< IP-address under which the robot is reachable.
+  std::string script_file;                 //!< URScript file that should be sent to the robot.
+  std::string output_recipe_file;          //!< Filename where the output recipe is stored in.
+  std::string input_recipe_file;           //!< Filename where the input recipe is stored in.
+  std::vector<std::string> output_recipe;  //!< Vector with the output recipe fields.
+  std::vector<std::string> input_recipe;   //!< Vector with the input recipe fields.
 
   /*!
    * \brief Function handle to a callback on program state changes.

@@ -76,8 +76,11 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
-  rtde_client_.reset(
-      new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
+  if (config.output_recipe_file.empty() && config.input_recipe_file.empty())
+    rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe, config.input_recipe));
+  else
+    rtde_client_.reset(
+        new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
