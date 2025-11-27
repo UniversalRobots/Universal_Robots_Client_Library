@@ -76,6 +76,26 @@ public:
   ExampleRobotWrapper(const std::string& robot_ip, const std::string& output_recipe_file,
                       const std::string& input_recipe_file, const bool headless_mode = true,
                       const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE);
+  /*!
+   * \brief Construct a new Example Robot Wrapper object
+   *
+   * This will connect to a robot and initialize it. In headless mode the program will be running
+   * instantly, in teach pendant mode the from \p autostart_program will be started.
+   *
+   * Note: RTDE communication has to be started separately.
+   *
+   * \param robot_ip IP address of the robot to connect to
+   * \param output_recipe Output recipe vector for RTDE communication
+   * \param input_recipe Input recipe vector for RTDE communication
+   * \param headless_mode Should the driver be started in headless mode or not?
+   * \param autostart_program Program to start automatically after initialization when not in
+   * headless mode. This flag is ignored in headless mode.
+   * \param script_file URScript file to send to the robot. That should be script code
+   * communicating to the driver's reverse interface and trajectory interface.
+   */
+  ExampleRobotWrapper(const std::string& robot_ip, const std::vector<std::string> output_recipe,
+                      const std::vector<std::string> input_recipe, const bool headless_mode = true,
+                      const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE);
   ~ExampleRobotWrapper();
 
   /**
