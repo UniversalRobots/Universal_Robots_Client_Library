@@ -158,11 +158,11 @@ public:
   bool endToolContact();
 
   /*!
-   * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
-   * if false it will not.
+   * \brief Set friction compensation for the direct_torque command. If true the torque command will compensate for
+   * friction, if false it will not.
    *
    * \param friction_compensation_enabled Will set a friction_compensation_enabled variable in urscript, which will be
-   * used when calling torque_command
+   * used when calling direct_torque.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
@@ -187,6 +187,32 @@ public:
   bool ftRtdeInputEnable(const bool enabled, const double sensor_mass = 0.0,
                          const vector3d_t& sensor_measuring_offset = { 0.0, 0.0, 0.0 },
                          const vector3d_t& sensor_cog = { 0.0, 0.0, 0.0 });
+
+  /*!
+   * \brief Set gains for the PD controller running in the external control script. The PD controller computes joint
+   * torques based on either tcp poses or joint poses and applies the torques to the robot using the direct_torque
+   * function. The gains can be used to change the response of the controller. Be aware that changing the controller
+   * response can make it unstable.
+   * The PD controller can be used without explicitly defining those gains, as it contains a set of default gains for
+   * each robot model.
+   *
+   * \param kp A vector6d of proportional gains for each of the joints in the robot.
+   * \param kd A vector6d of derivative gains for each of the joints in the robot.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd);
+
+  /*!
+   * \brief Set the maximum joint torques for the PD controller running in the external control script. The PD
+   * controller will clamp the torques between +-max_joint_torques before aplying them to the robot using the
+   * direct_torque function.
+   *
+   * \param max_joint_torques A vector6d of the maximum joint torques for each of the joints.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setMaxJointTorques(const urcl::vector6d_t* max_joint_torques);
 
   /*!
    * \brief  Returns whether a client/robot is connected to this server.
@@ -227,6 +253,8 @@ private:
     END_TOOL_CONTACT = 6,           ///< End detecting tool contact
     SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
     FT_RTDE_INPUT_ENABLE = 8,       ///< Enable FT RTDE input
+    SET_PD_CONTROLLER_GAINS = 9,    ///< Set PD controller gains
+    SET_MAX_JOINT_TORQUES = 10,     ///< Set max joint torques
   };
 
   /*!
