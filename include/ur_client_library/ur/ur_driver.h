@@ -989,6 +989,7 @@ public:
 private:
   void init(const UrDriverConfiguration& config);
 
+  void handleRTDEReset(const UrDriverConfiguration& config);
   void initRTDE();
   void setupReverseInterface(const uint32_t reverse_port);
 

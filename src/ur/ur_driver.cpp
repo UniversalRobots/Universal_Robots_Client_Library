@@ -32,6 +32,7 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/ur/ur_driver.h"
+#include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
@@ -39,6 +40,8 @@
 #include "ur_client_library/helpers.h"
 #include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <filesystem>
 
 #include <ur_client_library/ur/calibration_checker.h>
 
@@ -76,11 +79,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
-  if (config.output_recipe_file.empty() && config.input_recipe_file.empty())
-    rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe, config.input_recipe));
-  else
-    rtde_client_.reset(
-        new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
+  handleRTDEReset(config);
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
@@ -129,7 +128,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   {
     if (robot_version_.major < 5)
     {
-      throw ToolCommNotAvailable("Tool communication setup requested, but this robot version does not support using "
+      throw ToolCommNotAvailable("Tool communication setup requested, but this robot version does not support "
+                                 "using "
                                  "the tool communication interface. Please check your configuration.",
                                  VersionInformation::fromString("5.0.0"), robot_version_);
     }
@@ -171,7 +171,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   {
     URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                   "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
-                  "notice is for application developers using this library. If you are only using an application using "
+                  "notice is for application developers using this library. If you are only using an application "
+                  "using "
                   "this library, you can ignore this message.");
     if (checkCalibration(config.calibration_checksum))
     {
@@ -179,11 +180,15 @@ void UrDriver::init(const UrDriverConfiguration& config)
     }
     else
     {
-      URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
-                     "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
-                     "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
+      URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given "
+                     "kinematics "
+                     "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. "
+                     "Use "
+                     "the ur_calibration tool to extract the correct calibration from the robot and pass that into "
+                     "the "
                      "description. See "
-                     "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
+                     "[https://github.com/UniversalRobots/"
+                     "Universal_Robots_ROS_Driver#extract-calibration-information] "
                      "for details.");
     }
   }
@@ -192,8 +197,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
-  // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
-  // loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
+  // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the
+  // control loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
   // something else (combined_robot_hw)
   std::chrono::milliseconds timeout(get_packet_timeout_);
 
@@ -258,7 +263,8 @@ bool UrDriver::zeroFTSensor()
   if (getVersion().major < 5)
   {
     std::stringstream ss;
-    ss << "Zeroing the Force-Torque sensor is only available for e-Series robots (Major version >= 5). This robot's "
+    ss << "Zeroing the Force-Torque sensor is only available for e-Series robots (Major version >= 5). This "
+          "robot's "
           "version is "
        << getVersion();
     URCL_LOG_ERROR(ss.str().c_str());
@@ -629,9 +635,11 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
 void UrDriver::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
-                "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
+                "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code "
+                "to "
                 "set the "
-                "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
+                "read timeout in the write commands directly. This keepalive count will overwrite the timeout "
+                "passed "
                 "to the write functions.");
 // TODO: Remove 2027-05
 #pragma GCC diagnostic push
@@ -687,4 +695,44 @@ std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
 {
   return primary_client_->getErrorCodes();
 }
+
+void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
+{
+  bool use_output_file = true;
+  if (config.output_recipe_file.empty() && config.output_recipe.size() == 0)
+    throw UrException("Neither output recipe file nor output recipe have been defined");
+  else if (!config.output_recipe_file.empty() && config.output_recipe.size() != 0)
+    URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe file");
+  else if (config.output_recipe_file.empty())
+    use_output_file = false;
+  if (use_output_file && !std::filesystem::exists(config.output_recipe_file))
+    throw UrException("Output recipe file does not exist: " + config.output_recipe_file);
+
+  bool use_input_file = true;
+  if (config.input_recipe_file.empty() && config.input_recipe.size() == 0)
+    throw UrException("Neither input recipe file nor input recipe have been defined");
+  else if (!config.input_recipe_file.empty() && config.input_recipe.size() != 0)
+    URCL_LOG_WARN("Both input recipe file and input recipe vector are  used. Defaulting to input recipe file");
+  else if (config.input_recipe_file.empty())
+    use_input_file = false;
+
+  if (use_input_file && !std::filesystem::exists(config.input_recipe_file))
+    throw UrException("Input recipe file does not exist: " + config.input_recipe_file);
+
+  if (use_input_file && use_output_file)
+    rtde_client_.reset(
+        new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
+  else
+  {
+    auto input_recipe = config.input_recipe;
+    auto output_recipe = config.output_recipe;
+    if (use_input_file)
+      input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
+    if (use_output_file)
+      output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
+
+    rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe));
+  }
+}
+
 }  // namespace urcl

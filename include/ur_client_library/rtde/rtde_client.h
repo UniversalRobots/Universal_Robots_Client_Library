@@ -222,6 +222,9 @@ public:
     return output_recipe_;
   }
 
+  // Reads output or input recipe from a file
+  static std::vector<std::string> readRecipe(const std::string& recipe_file);
+
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
@@ -246,9 +249,6 @@ private:
 
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
-
-  // Reads output or input recipe from a file
-  std::vector<std::string> readRecipe(const std::string& recipe_file) const;
 
   // Helper function to ensure that timestamp is present in the output recipe. The timestamp is needed to ensure that
   // the robot is booted.

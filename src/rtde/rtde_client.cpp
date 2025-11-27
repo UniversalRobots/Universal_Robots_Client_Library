@@ -664,7 +664,7 @@ bool RTDEClient::sendPause()
   throw UrException(ss.str());
 }
 
-std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file) const
+std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file)
 {
   std::vector<std::string> recipe;
   std::ifstream file(recipe_file);
