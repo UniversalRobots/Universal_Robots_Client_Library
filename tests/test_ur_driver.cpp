@@ -359,23 +359,32 @@ TEST(UrDriverInitTest, no_recipe_throws_error)
   EXPECT_THROW(UrDriver ur_driver(config), UrException);
 }
 
-TEST(UrDriverInitTest, non_existing_recipe_file_throws_exception)
+TEST(UrDriverInitTest, non_existing_output_recipe_file_throws_exception)
 {
   UrDriverConfiguration config;
   config.socket_reconnect_attempts = 1;
   config.socket_reconnection_timeout = std::chrono::milliseconds(200);
   config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
-  config.input_recipe_file = " ";
-  config.output_recipe_file = OUTPUT_RECIPE;
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = " ";
   config.headless_mode = g_HEADLESS;
 
   EXPECT_THROW(UrDriver ur_driver(config), UrException);
-
-  config.input_recipe_file = INPUT_RECIPE;
-  config.output_recipe_file = " ";
 }
 
-TEST(UrDriverInitTest, both_recipe_file_and_vector_select_file)
+TEST(UrDriverInitTest, non_existing_input_recipe_file_does_not_throw_exception)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+
+  EXPECT_NO_THROW(THROW(UrDriver ur_driver(config));
+}
+
+TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
 {
   UrDriverConfiguration config;
   config.socket_reconnect_attempts = 1;
@@ -389,10 +398,10 @@ TEST(UrDriverInitTest, both_recipe_file_and_vector_select_file)
 
   auto driver = UrDriver(config);
   auto output_recipe = driver.getRTDEOutputRecipe();
-  EXPECT_TRUE(std::find(output_recipe.begin(), output_recipe.end(), OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE) !=
+  EXPECT_TRUE(std::find(output_recipe.begin(), output_recipe.end(), OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
               output_recipe.end());
   auto input_recipe = driver.getRTDEInputRecipe();
-  EXPECT_TRUE(std::find(input_recipe.begin(), input_recipe.end(), INPUT_RECIPE_VECTOR_EXCLUDED_VALUE) !=
+  EXPECT_TRUE(std::find(input_recipe.begin(), input_recipe.end(), INPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
               output_recipe.end());
 }
 // TODO we should add more tests for the UrDriver class.
