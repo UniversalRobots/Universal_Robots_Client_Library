@@ -2,6 +2,16 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Ignore lists.apple link in link check (`#411 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/411>`_)
+* Bump actions/checkout from 5 to 6 (`#412 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/412>`_)
+* [Doc] Remove beta statement for External Control URCapX (`#407 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/407>`_)
+* Updated version check, as 5.23 has been released
+* Initialize dashboard client for PolyScopeX version 10.11.0 and above (`#409 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/409>`_)
+* Explicitly list PolyScope X compatibility (`#402 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/402>`_)
+* Contributors: Felix Exner, Mads Holm Peters, dependabot[bot]
+
 2.6.0 (2025-11-10)
 ------------------
 * RTDEClient sendStart handle missed confirmation (`#403 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/403>`_)
