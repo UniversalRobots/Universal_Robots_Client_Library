@@ -222,6 +222,16 @@ public:
     return output_recipe_;
   }
 
+  /*!
+   * \brief Getter for the RTDE input recipe.
+   *
+   * \returns The input recipe
+   */
+  std::vector<std::string> getInputRecipe()
+  {
+    return input_recipe_;
+  }
+
   // Reads output or input recipe from a file
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 

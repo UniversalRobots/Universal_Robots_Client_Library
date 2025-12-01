@@ -840,6 +840,13 @@ public:
   std::vector<std::string> getRTDEOutputRecipe();
 
   /*!
+   * \brief Getter for the RTDE input recipe used in the RTDE client.
+   *
+   * \returns The used RTDE input recipe
+   */
+  std::vector<std::string> getRTDEInputRecipe();
+
+  /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.

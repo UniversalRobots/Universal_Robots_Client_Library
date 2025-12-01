@@ -632,6 +632,11 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
   return rtde_client_->getOutputRecipe();
 }
 
+std::vector<std::string> UrDriver::getRTDEInputRecipe()
+{
+  return rtde_client_->getInputRecipe();
+}
+
 void UrDriver::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
