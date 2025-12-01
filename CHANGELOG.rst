@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.6.1 (2025-12-01)
+------------------
 * Ignore lists.apple link in link check (`#411 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/411>`_)
 * Bump actions/checkout from 5 to 6 (`#412 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/412>`_)
 * [Doc] Remove beta statement for External Control URCapX (`#407 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/407>`_)
