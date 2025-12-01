@@ -718,13 +718,17 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
     output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
   }
 
-  bool use_input_file = true;
-  if (config.input_recipe_file.empty() && config.input_recipe.size() == 0)
-    throw UrException("Neither input recipe file nor input recipe have been defined");
-  else if (!config.input_recipe_file.empty() && config.input_recipe.size() != 0)
-    URCL_LOG_WARN("Both input recipe file and input recipe vector are  used. Defaulting to input recipe file");
-  else if (config.input_recipe_file.empty())
-    use_input_file = false;
+  auto input_recipe = config.input_recipe;
+  if (!config.input_recipe_file.empty())
+  {
+    if (config.input_recipe.size() != 0)
+    {
+      URCL_LOG_WARN("Both input recipe file and input recipe vector are  used. Defaulting to input recipe vector.");
+    }
+    else
+    {
+      input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
+    }
 
   if (use_input_file && !std::filesystem::exists(config.input_recipe_file))
     throw UrException("Input recipe file does not exist: " + config.input_recipe_file);
