@@ -703,15 +703,20 @@ std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
 
 void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
 {
-  bool use_output_file = true;
+  auto output_recipe = config.output_recipe;
   if (config.output_recipe_file.empty() && config.output_recipe.size() == 0)
-    throw UrException("Neither output recipe file nor output recipe have been defined");
-  else if (!config.output_recipe_file.empty() && config.output_recipe.size() != 0)
-    URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe file");
-  else if (config.output_recipe_file.empty())
-    use_output_file = false;
-  if (use_output_file && !std::filesystem::exists(config.output_recipe_file))
-    throw UrException("Output recipe file does not exist: " + config.output_recipe_file);
+  {
+    throw UrException("Neither output recipe file nor output recipe have been defined. An output recipe is required.");
+  }
+  if (!config.output_recipe_file.empty())
+  {
+     if (config.output_recipe.size() != 0)
+    URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe vector");
+  }
+  else
+  {
+    output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
+  }
 
   bool use_input_file = true;
   if (config.input_recipe_file.empty() && config.input_recipe.size() == 0)
