@@ -730,21 +730,6 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
       input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
     }
 
-  if (use_input_file && !std::filesystem::exists(config.input_recipe_file))
-    throw UrException("Input recipe file does not exist: " + config.input_recipe_file);
-
-  if (use_input_file && use_output_file)
-    rtde_client_.reset(
-        new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
-  else
-  {
-    auto input_recipe = config.input_recipe;
-    auto output_recipe = config.output_recipe;
-    if (use_input_file)
-      input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
-    if (use_output_file)
-      output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
-
     rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe));
   }
 }
