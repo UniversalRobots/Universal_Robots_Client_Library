@@ -381,7 +381,7 @@ TEST(UrDriverInitTest, non_existing_input_recipe_file_does_not_throw_exception)
   config.output_recipe_file = OUTPUT_RECIPE;
   config.headless_mode = g_HEADLESS;
 
-  EXPECT_NO_THROW(THROW(UrDriver ur_driver(config));
+  EXPECT_NO_THROW(UrDriver ur_driver(config));
 }
 
 TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
