@@ -227,7 +227,10 @@ void ReverseInterface::connectionCallback(const socket_t filedescriptor)
   {
     URCL_LOG_INFO("Robot connected to reverse interface. Ready to receive control commands.");
     client_fd_ = filedescriptor;
-    handle_program_state_(true);
+    if (handle_program_state_)
+    {
+      handle_program_state_(true);
+    }
   }
   else
   {
@@ -240,7 +243,10 @@ void ReverseInterface::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Connection to reverse interface dropped.", filedescriptor);
   client_fd_ = INVALID_SOCKET;
-  handle_program_state_(false);
+  if (handle_program_state_)
+  {
+    handle_program_state_(false);
+  }
   for (auto handler : disconnect_callbacks_)
   {
     handler.function(filedescriptor);
