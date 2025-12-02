@@ -65,7 +65,7 @@ struct UrDriverConfiguration
    * For this to work, the URScript program will have to send keepalive signals to the \p
    * reverse_port.
    */
-  std::function<void(bool)> handle_program_state;
+  std::function<void(bool)> handle_program_state = nullptr;
   bool headless_mode;  //!< Parameter to control if the driver should be started in headless mode.
 
   std::unique_ptr<ToolCommSetup> tool_comm_setup = nullptr;  //!< Configuration for using the tool communication.

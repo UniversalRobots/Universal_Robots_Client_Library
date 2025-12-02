@@ -47,7 +47,10 @@ ReverseInterface::ReverseInterface(const ReverseInterfaceConfig& config)
   , step_time_(config.step_time)
   , keep_alive_count_modified_deprecated_(false)
 {
-  handle_program_state_(false);
+  if (handle_program_state_)
+  {
+    handle_program_state_(false);
+  }
   server_.setMessageCallback(std::bind(&ReverseInterface::messageCallback, this, std::placeholders::_1,
                                        std::placeholders::_2, std::placeholders::_3));
   server_.setConnectCallback(std::bind(&ReverseInterface::connectionCallback, this, std::placeholders::_1));
