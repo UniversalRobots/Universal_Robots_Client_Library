@@ -710,8 +710,8 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
   }
   if (!config.output_recipe_file.empty())
   {
-     if (config.output_recipe.size() != 0)
-    URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe vector");
+    if (config.output_recipe.size() != 0)
+      URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe vector");
   }
   else
   {
