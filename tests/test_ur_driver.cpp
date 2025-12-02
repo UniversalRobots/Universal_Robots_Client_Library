@@ -380,6 +380,7 @@ TEST(UrDriverInitTest, non_existing_input_recipe_file_does_not_throw_exception)
   config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
   config.output_recipe_file = OUTPUT_RECIPE;
   config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
 
   EXPECT_NO_THROW(UrDriver ur_driver(config));
 }
@@ -395,6 +396,7 @@ TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
   config.input_recipe = INPUT_RECIPE_VECTOR;
   config.output_recipe = OUTPUT_RECIPE_VECTOR;
   config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
 
   auto driver = UrDriver(config);
   auto output_recipe = driver.getRTDEOutputRecipe();
@@ -402,7 +404,7 @@ TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
               output_recipe.end());
   auto input_recipe = driver.getRTDEInputRecipe();
   EXPECT_TRUE(std::find(input_recipe.begin(), input_recipe.end(), INPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
-              output_recipe.end());
+              input_recipe.end());
 }
 // TODO we should add more tests for the UrDriver class.
 
