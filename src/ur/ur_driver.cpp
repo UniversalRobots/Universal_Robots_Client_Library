@@ -79,13 +79,12 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
-  handleRTDEReset(config);
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
 
-  initRTDE();
+  setupRTDEClient(config);
   setupReverseInterface(config.reverse_port);
 
   // Figure out the ip automatically if the user didn't provide it
@@ -701,7 +700,7 @@ std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
   return primary_client_->getErrorCodes();
 }
 
-void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
+void UrDriver::setupRTDEClient(const UrDriverConfiguration& config)
 {
   auto output_recipe = config.output_recipe;
   if (config.output_recipe_file.empty() && config.output_recipe.size() == 0)
@@ -733,7 +732,7 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
     }
   }
 
-  rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe));
+  resetRTDEClient(output_recipe, input_recipe);
 }
 
 }  // namespace urcl
