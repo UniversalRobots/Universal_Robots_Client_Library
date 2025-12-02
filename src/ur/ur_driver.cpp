@@ -711,11 +711,13 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
   if (!config.output_recipe_file.empty())
   {
     if (config.output_recipe.size() != 0)
+    {
       URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe vector");
-  }
-  else
-  {
-    output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
+    }
+    else
+    {
+      output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
+    }
   }
 
   auto input_recipe = config.input_recipe;
@@ -729,9 +731,9 @@ void UrDriver::handleRTDEReset(const UrDriverConfiguration& config)
     {
       input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
     }
-
-    rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe));
   }
+
+  rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe));
 }
 
 }  // namespace urcl
