@@ -127,8 +127,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   {
     if (robot_version_.major < 5)
     {
-      throw ToolCommNotAvailable("Tool communication setup requested, but this robot version does not support "
-                                 "using "
+      throw ToolCommNotAvailable("Tool communication setup requested, but this robot version does not support using "
                                  "the tool communication interface. Please check your configuration.",
                                  VersionInformation::fromString("5.0.0"), robot_version_);
     }
@@ -170,8 +169,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   {
     URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                   "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "
-                  "notice is for application developers using this library. If you are only using an application "
-                  "using "
+                  "notice is for application developers using this library. If you are only using an application using "
                   "this library, you can ignore this message.");
     if (checkCalibration(config.calibration_checksum))
     {
@@ -179,15 +177,11 @@ void UrDriver::init(const UrDriverConfiguration& config)
     }
     else
     {
-      URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given "
-                     "kinematics "
-                     "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. "
-                     "Use "
-                     "the ur_calibration tool to extract the correct calibration from the robot and pass that into "
-                     "the "
+      URCL_LOG_ERROR("The calibration parameters of the connected robot don't match the ones from the given kinematics "
+                     "config file. Please be aware that this can lead to critical inaccuracies of tcp positions. Use "
+                     "the ur_calibration tool to extract the correct calibration from the robot and pass that into the "
                      "description. See "
-                     "[https://github.com/UniversalRobots/"
-                     "Universal_Robots_ROS_Driver#extract-calibration-information] "
+                     "[https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#extract-calibration-information] "
                      "for details.");
     }
   }
@@ -196,8 +190,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
-  // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the
-  // control loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
+  // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
+  // loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
   // something else (combined_robot_hw)
   std::chrono::milliseconds timeout(get_packet_timeout_);
 
@@ -262,8 +256,7 @@ bool UrDriver::zeroFTSensor()
   if (getVersion().major < 5)
   {
     std::stringstream ss;
-    ss << "Zeroing the Force-Torque sensor is only available for e-Series robots (Major version >= 5). This "
-          "robot's "
+    ss << "Zeroing the Force-Torque sensor is only available for e-Series robots (Major version >= 5). This robot's "
           "version is "
        << getVersion();
     URCL_LOG_ERROR(ss.str().c_str());
@@ -639,11 +632,9 @@ std::vector<std::string> UrDriver::getRTDEInputRecipe()
 void UrDriver::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
-                "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code "
-                "to "
+                "RobotReceiveTimeout, to set the timeout directly in the write commands. Please change your code to "
                 "set the "
-                "read timeout in the write commands directly. This keepalive count will overwrite the timeout "
-                "passed "
+                "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                 "to the write functions.");
 // TODO: Remove 2027-05
 #pragma GCC diagnostic push
