@@ -10,7 +10,7 @@ jobs:
   check_links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Restore lychee cache
         id: restore-cache
         uses: actions/cache/restore@v4
@@ -34,6 +34,7 @@ jobs:
             --exclude 'releases/download/v\$%7BURCAP_VERSION%7D/externalcontrol-\$%7BURCAP_VERSION%7D\.jar'
             --exclude '^http://rosin-project\.eu'
             --exclude '2013181\/gdb-causes-sem-wait-to-fail-with-eintr-error'
+            --exclude 'https:\/\/lists\.apple\.com\/archives\/darwin-kernel\/2009\/Apr\/msg00010\.html'
             --max-concurrency 1
             './**/*.md' './**/*.html' './**/*.rst' './**/*.cpp' './**/*.h' './**/*.py'
       - name: Save lychee cache

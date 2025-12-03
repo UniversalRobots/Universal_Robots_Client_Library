@@ -46,9 +46,13 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   primary_client_->start();
 
   auto robot_version = primary_client_->getRobotVersion();
-  if (*robot_version < VersionInformation::fromString("10.0.0"))
+  if (*robot_version < VersionInformation::fromString("10.0.0") ||
+      *robot_version >= VersionInformation::fromString("10.11.0"))
   {
-    dashboard_client_ = std::make_shared<DashboardClient>(robot_ip);
+    const DashboardClient::ClientPolicy client_policy = *robot_version < VersionInformation::fromString("10.0.0") ?
+                                                            DashboardClient::ClientPolicy::G5 :
+                                                            DashboardClient::ClientPolicy::POLYSCOPE_X;
+    dashboard_client_ = std::make_shared<DashboardClient>(robot_ip, client_policy);
     // Connect the robot Dashboard
     if (!dashboard_client_->connect())
     {
@@ -107,8 +111,15 @@ bool ExampleRobotWrapper::clearProtectiveStop()
     URCL_LOG_INFO("Robot is in protective stop, trying to release it");
     if (dashboard_client_ != nullptr)
     {
-      dashboard_client_->commandClosePopup();
-      dashboard_client_->commandCloseSafetyPopup();
+      try
+      {
+        dashboard_client_->commandClosePopup();
+        dashboard_client_->commandCloseSafetyPopup();
+      }
+      catch (const NotImplementedException&)
+      {
+        // The command is not yet implemented for the dashboardClient in PolyscopeX, so we just ignore the exception
+      }
     }
     try
     {
