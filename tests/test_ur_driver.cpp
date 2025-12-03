@@ -359,6 +359,20 @@ TEST(UrDriverInitTest, no_recipe_throws_error)
   EXPECT_THROW(UrDriver ur_driver(config), UrException);
 }
 
+TEST(UrDriverInitTest, initialization_from_vectors)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.input_recipe = INPUT_RECIPE_VECTOR;
+  config.output_recipe = OUTPUT_RECIPE_VECTOR;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  EXPECT_NO_THROW(UrDriver ur_driver(config));
+}
+
 TEST(UrDriverInitTest, non_existing_output_recipe_file_throws_exception)
 {
   UrDriverConfiguration config;
