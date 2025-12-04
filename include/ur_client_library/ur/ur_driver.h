@@ -52,10 +52,12 @@ namespace urcl
  */
 struct UrDriverConfiguration
 {
-  std::string robot_ip;            //!< IP-address under which the robot is reachable.
-  std::string script_file;         //!< URScript file that should be sent to the robot.
-  std::string output_recipe_file;  //!< Filename where the output recipe is stored in.
-  std::string input_recipe_file;   //!< Filename where the input recipe is stored in.
+  std::string robot_ip;                    //!< IP-address under which the robot is reachable.
+  std::string script_file;                 //!< URScript file that should be sent to the robot.
+  std::string output_recipe_file;          //!< Filename where the output recipe is stored in.
+  std::string input_recipe_file;           //!< Filename where the input recipe is stored in.
+  std::vector<std::string> output_recipe;  //!< Vector with the output recipe fields.
+  std::vector<std::string> input_recipe;   //!< Vector with the input recipe fields.
 
   /*!
    * \brief Function handle to a callback on program state changes.
@@ -63,7 +65,7 @@ struct UrDriverConfiguration
    * For this to work, the URScript program will have to send keepalive signals to the \p
    * reverse_port.
    */
-  std::function<void(bool)> handle_program_state;
+  std::function<void(bool)> handle_program_state = nullptr;
   bool headless_mode;  //!< Parameter to control if the driver should be started in headless mode.
 
   std::unique_ptr<ToolCommSetup> tool_comm_setup = nullptr;  //!< Configuration for using the tool communication.
@@ -838,6 +840,13 @@ public:
   std::vector<std::string> getRTDEOutputRecipe();
 
   /*!
+   * \brief Getter for the RTDE input recipe used in the RTDE client.
+   *
+   * \returns The used RTDE input recipe
+   */
+  std::vector<std::string> getRTDEInputRecipe();
+
+  /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
    *
    * \param count Number of allowed timeout reads on the robot.
@@ -987,6 +996,7 @@ public:
 private:
   void init(const UrDriverConfiguration& config);
 
+  void setupRTDEClient(const UrDriverConfiguration& config);
   void initRTDE();
   void setupReverseInterface(const uint32_t reverse_port);
 

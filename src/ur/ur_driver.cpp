@@ -32,6 +32,7 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/ur/ur_driver.h"
+#include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
@@ -39,6 +40,8 @@
 #include "ur_client_library/helpers.h"
 #include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <filesystem>
 
 #include <ur_client_library/ur/calibration_checker.h>
 
@@ -76,14 +79,12 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
-  rtde_client_.reset(
-      new rtde_interface::RTDEClient(robot_ip_, notifier_, config.output_recipe_file, config.input_recipe_file));
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
 
-  initRTDE();
+  setupRTDEClient(config);
   setupReverseInterface(config.reverse_port);
 
   // Figure out the ip automatically if the user didn't provide it
@@ -623,6 +624,11 @@ std::vector<std::string> UrDriver::getRTDEOutputRecipe()
   return rtde_client_->getOutputRecipe();
 }
 
+std::vector<std::string> UrDriver::getRTDEInputRecipe()
+{
+  return rtde_client_->getInputRecipe();
+}
+
 void UrDriver::setKeepaliveCount(const uint32_t count)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Setting the keepalive count has been deprecated. Instead use the "
@@ -684,4 +690,40 @@ std::deque<urcl::primary_interface::ErrorCode> UrDriver::getErrorCodes()
 {
   return primary_client_->getErrorCodes();
 }
+
+void UrDriver::setupRTDEClient(const UrDriverConfiguration& config)
+{
+  auto output_recipe = config.output_recipe;
+  if (config.output_recipe_file.empty() && config.output_recipe.size() == 0)
+  {
+    throw UrException("Neither output recipe file nor output recipe have been defined. An output recipe is required.");
+  }
+  if (!config.output_recipe_file.empty())
+  {
+    if (config.output_recipe.size() != 0)
+    {
+      URCL_LOG_WARN("Both output recipe file and output recipe vector are  used. Defaulting to output recipe vector");
+    }
+    else
+    {
+      output_recipe = rtde_interface::RTDEClient::readRecipe(config.output_recipe_file);
+    }
+  }
+
+  auto input_recipe = config.input_recipe;
+  if (!config.input_recipe_file.empty())
+  {
+    if (config.input_recipe.size() != 0)
+    {
+      URCL_LOG_WARN("Both input recipe file and input recipe vector are  used. Defaulting to input recipe vector.");
+    }
+    else
+    {
+      input_recipe = rtde_interface::RTDEClient::readRecipe(config.input_recipe_file);
+    }
+  }
+
+  resetRTDEClient(output_recipe, input_recipe);
+}
+
 }  // namespace urcl

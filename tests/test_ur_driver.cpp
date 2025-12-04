@@ -33,6 +33,7 @@
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
+#include <algorithm>
 #include "test_utils.h"
 
 using namespace urcl;
@@ -40,6 +41,43 @@ using namespace urcl;
 const std::string SCRIPT_FILE = "../resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
+const std::vector<std::string> OUTPUT_RECIPE_VECTOR = { "timestamp",
+                                                        "actual_qd",
+                                                        "speed_scaling",
+                                                        "target_speed_fraction",
+                                                        "runtime_state",
+                                                        "actual_TCP_force",
+                                                        "actual_TCP_pose",
+                                                        "actual_digital_input_bits",
+                                                        "actual_digital_output_bits",
+                                                        "standard_analog_input0",
+                                                        "standard_analog_input1",
+                                                        "standard_analog_output0",
+                                                        "standard_analog_output1",
+                                                        "analog_io_types",
+                                                        "tool_mode",
+                                                        "tool_analog_input_types",
+                                                        "tool_analog_input0",
+                                                        "tool_analog_input1",
+                                                        "tool_output_voltage",
+                                                        "tool_output_current",
+                                                        "tool_temperature",
+                                                        "robot_mode",
+                                                        "safety_mode",
+                                                        "robot_status_bits",
+                                                        "safety_status_bits",
+                                                        "actual_current",
+                                                        "tcp_offset" };
+const std::vector<std::string> INPUT_RECIPE_VECTOR = {
+  "speed_slider_mask",           "standard_digital_output_mask",
+  "standard_digital_output",     "configurable_digital_output_mask",
+  "configurable_digital_output", "tool_digital_output_mask",
+  "tool_digital_output",         "standard_analog_output_mask",
+  "standard_analog_output_type", "standard_analog_output_0",
+  "standard_analog_output_1"
+};
+const std::string OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "actual_q";
+const std::string INPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "speed_slider_fraction";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string g_ROBOT_IP = "192.168.56.101";
 bool g_HEADLESS = true;
@@ -310,6 +348,78 @@ TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
   EXPECT_THROW(UrDriver ur_driver(config), UrException);
 }
 
+TEST(UrDriverInitTest, no_recipe_throws_error)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.headless_mode = g_HEADLESS;
+
+  EXPECT_THROW(UrDriver ur_driver(config), UrException);
+}
+
+TEST(UrDriverInitTest, initialization_from_vectors)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.input_recipe = INPUT_RECIPE_VECTOR;
+  config.output_recipe = OUTPUT_RECIPE_VECTOR;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  EXPECT_NO_THROW(UrDriver ur_driver(config));
+}
+
+TEST(UrDriverInitTest, non_existing_output_recipe_file_throws_exception)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = " ";
+  config.headless_mode = g_HEADLESS;
+
+  EXPECT_THROW(UrDriver ur_driver(config), UrException);
+}
+
+TEST(UrDriverInitTest, non_existing_input_recipe_file_does_not_throw_exception)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  EXPECT_NO_THROW(UrDriver ur_driver(config));
+}
+
+TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
+{
+  UrDriverConfiguration config;
+  config.socket_reconnect_attempts = 1;
+  config.socket_reconnection_timeout = std::chrono::milliseconds(200);
+  config.robot_ip = g_ROBOT_IP;  // That IP address should not exist on the test network
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.input_recipe = INPUT_RECIPE_VECTOR;
+  config.output_recipe = OUTPUT_RECIPE_VECTOR;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  auto driver = UrDriver(config);
+  auto output_recipe = driver.getRTDEOutputRecipe();
+  EXPECT_TRUE(std::find(output_recipe.begin(), output_recipe.end(), OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
+              output_recipe.end());
+  auto input_recipe = driver.getRTDEInputRecipe();
+  EXPECT_TRUE(std::find(input_recipe.begin(), input_recipe.end(), INPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
+              input_recipe.end());
+}
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])
