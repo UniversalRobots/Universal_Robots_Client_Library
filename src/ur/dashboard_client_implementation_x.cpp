@@ -60,7 +60,7 @@ bool DashboardClientImplX::connect(const size_t max_num_tries, const std::chrono
   // check call will assure that the endpoint for making Robot API calls exist. This could fail if
   // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
   // Quick check whether there is a dashboard client available at the given host.
-  if (auto res = cli_->Get(base_url_ + "/system/v1/system-time/"))
+  if (auto res = cli_->Get(base_url_ + "/system/v1/system-time"))
   {
     return res->status == 200;
   }
