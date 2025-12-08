@@ -122,17 +122,17 @@ bool DashboardClientImplX::retryCommand(const std::string& requestCommand, const
 
 DashboardResponse DashboardClientImplX::commandPowerOff()
 {
-  return put("/robotstate/v1/state/", R"({"action": "POWER_OFF"})");
+  return put("/robotstate/v1/state", R"({"action": "POWER_OFF"})");
 }
 
 DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
 {
-  return put("/robotstate/v1/state/", R"({"action": "POWER_ON"})");
+  return put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
 }
 
 DashboardResponse DashboardClientImplX::commandBrakeRelease()
 {
-  return put("/robotstate/v1/state/", R"({"action": "BRAKE_RELEASE"})");
+  return put("/robotstate/v1/state", R"({"action": "BRAKE_RELEASE"})");
 }
 
 DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& program_file_name)
@@ -178,12 +178,12 @@ DashboardResponse DashboardClientImplX::commandCloseSafetyPopup()
 
 DashboardResponse DashboardClientImplX::commandRestartSafety()
 {
-  return put("/robotstate/v1/state/", R"({"action": "RESTART_SAFETY"})");
+  return put("/robotstate/v1/state", R"({"action": "RESTART_SAFETY"})");
 }
 
 DashboardResponse DashboardClientImplX::commandUnlockProtectiveStop()
 {
-  return put("/robotstate/v1/state/", R"({"action": "UNLOCK_PROTECTIVE_STOP"})");
+  return put("/robotstate/v1/state", R"({"action": "UNLOCK_PROTECTIVE_STOP"})");
 }
 
 DashboardResponse DashboardClientImplX::commandShutdown()
