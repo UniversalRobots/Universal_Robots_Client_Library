@@ -209,7 +209,21 @@ DashboardResponse DashboardClientImplX::commandIsProgramSaved()
 
 DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 {
-  throw NotImplementedException("commandIsInRemoteControl is not implemented for DashboardClientImplX.");
+  auto response = get("/system/v1/controlmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["mode"] = std::string(json_data["mode"]);
+    if (std::string(json_data["mode"]) == "REMOTE")
+    {
+      response.data["remote_control"] = true;
+    }
+    else
+    {
+      response.data["remote_control"] = false;
+    }
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_text)
@@ -239,7 +253,13 @@ DashboardResponse DashboardClientImplX::commandGetSerialNumber()
 
 DashboardResponse DashboardClientImplX::commandRobotMode()
 {
-  throw NotImplementedException("commandRobotMode is not implemented for DashboardClientImplX.");
+  auto response = get("/robotstate/v1/robotmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["robot_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
@@ -249,7 +269,13 @@ DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 
 DashboardResponse DashboardClientImplX::commandSafetyMode()
 {
-  throw NotImplementedException("commandSafetyMode is not implemented for DashboardClientImplX.");
+  auto response = get("/robotstate/v1/safetymode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["safety_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSafetyStatus()
@@ -270,7 +296,13 @@ DashboardResponse DashboardClientImplX::commandProgramState()
 
 DashboardResponse DashboardClientImplX::commandGetOperationalMode()
 {
-  throw NotImplementedException("commandGetOperationalMode is not implemented for DashboardClientImplX.");
+  auto response = get("/system/v1/operationalmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["operational_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSetOperationalMode(const std::string& operational_mode)
