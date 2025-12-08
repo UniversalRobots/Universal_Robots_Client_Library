@@ -166,6 +166,8 @@ protected:
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) const override;
 
+  void addTrailingSlashIfVersionLessThan(const VersionInformation& version, std::string& endpoint) const;
+
   const std::string base_url_ = "/universal-robots/robot-api";
 
   std::unique_ptr<httplib::Client> cli_;

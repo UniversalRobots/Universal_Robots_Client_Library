@@ -748,8 +748,22 @@ public:
    */
   void setReceiveTimeout(const timeval& timeout);
 
+  /*!
+   * \brief Sets the polyscope version manually.
+   *
+   * If the dashboard client implementation is not able to query the version from the robot
+   * automatically, this function can be used to set it manually.
+   *
+   * \param version The version string as returned by the robot
+   */
+  void setPolyscopeVersion(const VersionInformation& version)
+  {
+    polyscope_version_ = version;
+  }
+
 protected:
   std::shared_ptr<DashboardClientImpl> impl_;
+  VersionInformation polyscope_version_;
 };
 }  // namespace urcl
 #endif  // ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED

@@ -44,33 +44,22 @@ using namespace std::chrono_literals;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
-class TestableDashboardClient : public DashboardClientImplX
-{
-public:
-  TestableDashboardClient(const std::string& host) : DashboardClientImplX(host)
-  {
-  }
-
-  void setPolyscopeVersion(const std::string& version)
-  {
-    polyscope_version_ = VersionInformation::fromString(version);
-  }
-};
-
 class DashboardClientTestX : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    if (robotVersionLessThan(g_ROBOT_IP, "10.11.0"))
-    {
-      GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
-    }
-
-    dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
+    auto version_information = primary_client_->getRobotVersion();
+
+    if (*version_information < urcl::VersionInformation::fromString("10.11.0"))
+    {
+      GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
+    }
+    dashboard_client_.reset(new DashboardClientImplX(g_ROBOT_IP));
+    dashboard_client_->setPolyscopeVersion(*version_information);
   }
 
   void TearDown()
@@ -84,7 +73,7 @@ protected:
     URCL_LOG_INFO("Robot has reached state %s", robotModeString(robot_mode).c_str());
   }
 
-  std::unique_ptr<TestableDashboardClient> dashboard_client_;
+  std::unique_ptr<DashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
 };
 
@@ -92,7 +81,7 @@ TEST_F(DashboardClientTestX, connect)
 {
   EXPECT_TRUE(dashboard_client_->connect());
 
-  auto dashboard_client = std::make_shared<TestableDashboardClient>("192.168.56.123");
+  auto dashboard_client = std::make_shared<DashboardClientImplX>("192.168.56.123");
   EXPECT_FALSE(dashboard_client->connect(2, std::chrono::milliseconds(500)));
 }
 

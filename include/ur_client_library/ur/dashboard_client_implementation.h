@@ -399,6 +399,11 @@ public:
     return polyscope_version_;
   }
 
+  void setPolyscopeVersion(const VersionInformation& version)
+  {
+    polyscope_version_ = version;
+  }
+
 protected:
   virtual void assertHasCommand(const std::string& command) const = 0;
 
