@@ -464,6 +464,8 @@ TEST_F(ScriptReaderTest, TestParsingExternalControl)
   data["SERVER_PORT_REPLACE"] = "50001";
   data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
   data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+  data["PD_CONTROLLER_GAINS_REPLACE"] = "struct(kp=100, kd=20)";
+  data["MAX_JOINT_TORQUE_REPLACE"] = "[150, 150, 150, 28, 28, 28]";
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("3.12.1");
   std::string processed_script = reader.readScriptFile(existing_script_file, data);

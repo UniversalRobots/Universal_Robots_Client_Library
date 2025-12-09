@@ -431,7 +431,6 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
 {
   // Wait for the client to connect to the server
   waitForClientConnection();
-
   double sensor_mass = 1.42;
   vector3d_t sensor_measuring_offset = { 0.1, 0.2, 0.3 };
   vector3d_t sensor_cog = { 0.01, 0.02, 0.03 };
@@ -480,6 +479,76 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
   client_->readMessage(command, message);
   received_enabled = static_cast<bool>(message[0]);
   EXPECT_EQ(received_enabled, false);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_pd_controller_gains)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  urcl::vector6d_t kp = { 220.2, 220.2, 300.0, 10.32, 10.32, 10.32 };
+  urcl::vector6d_t kd = { 29.68, 29.68, 35.0, 6.4, 6.4, 6.4 };
+  script_command_interface_->setPDControllerGains(&kp, &kd);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 8 is set PD controller gains
+  int32_t expected_command = 9;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t message_idx = 0;
+
+  for (auto& p_gain : kp)
+  {
+    const double received_gain = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(p_gain, received_gain);
+    message_idx = message_idx + 1;
+  }
+
+  for (auto& d_gain : kd)
+  {
+    const double received_gain = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(d_gain, received_gain);
+    message_idx = message_idx + 1;
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + message_idx, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_max_joint_torques)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  urcl::vector6d_t max_joint_torques = { 100.0, 150.0, 21.2, 10.32, 10.32, 10.32 };
+  script_command_interface_->setMaxJointTorques(&max_joint_torques);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 9 is set max joint torques
+  int32_t expected_command = 10;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t message_idx = 0;
+
+  for (auto& max_torque : max_joint_torques)
+  {
+    const double received_max_torque = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(max_torque, received_max_torque);
+    message_idx = message_idx + 1;
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + message_idx, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
 }
 
 int main(int argc, char* argv[])
