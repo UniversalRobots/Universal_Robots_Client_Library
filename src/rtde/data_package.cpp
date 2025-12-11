@@ -462,12 +462,14 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
 
 void rtde_interface::DataPackage::initEmpty()
 {
+  data_.clear();
+  data_.reserve(recipe_.size());
   for (auto& item : recipe_)
   {
     if (g_type_list.find(item) != g_type_list.end())
     {
       _rtde_type_variant entry = g_type_list[item];
-      data_[item] = entry;
+      data_.push_back({ item, entry });
     }
   }
 }
@@ -478,19 +480,9 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
   {
     bp.parse(recipe_id_);
   }
-  for (auto& item : recipe_)
+  for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    if (g_type_list.find(item) != g_type_list.end())
-    {
-      // _rtde_type_variant entry = g_type_list[item];
-      // _rtde_type_variant existing_entry = data_[item];
-
-      std::visit([&bp](auto&& arg) { bp.parse(arg); }, data_[item]);
-    }
-    else
-    {
-      return false;
-    }
+    std::visit([&bp](auto&& arg) { bp.parse(arg); }, data_[i].second);
   }
   return true;
 }
@@ -525,11 +517,11 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
   size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
-  for (auto& item : recipe_)
+  for (size_t i = 0; i < data_.size(); ++i)
   {
     size += std::visit(
         [&buffer, &size](auto&& arg) -> size_t { return comm::PackageSerializer::serialize(buffer + size, arg); },
-        data_[item]);
+        data_[i].second);
   }
 
   return size;
