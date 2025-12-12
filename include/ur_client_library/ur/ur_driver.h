@@ -597,6 +597,17 @@ public:
   bool setPayload(const float mass, const vector3d_t& cog);
 
   /*!
+   * \brief Set the gravity vector. Note: It requires the external control script to be running or
+   * the robot to be in headless mode.
+   *
+   * \param gravity Gravity, a vector [x, y, z] specifying the gravity vector (pointing towards
+   * the Earth's center) given in the robot's base frame
+   *
+   * \returns True on successful write.
+   */
+  bool setGravity(const vector3d_t& gravity);
+
+  /*!
    * \brief Set the tool voltage. Note: It requires the external control script to be running or the robot to be in
    * headless mode.
    *

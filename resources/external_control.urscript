@@ -56,6 +56,7 @@ START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_FRICTION_COMPENSATION = 7
 FT_RTDE_INPUT_ENABLE = 8
+SET_GRAVITY = 9
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -756,6 +757,9 @@ thread script_commands():
         mass = raw_command[2] / MULT_jointstate
         cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
         set_payload(mass, cog)
+      elif command == SET_GRAVITY:
+        gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
+        set_gravity(gravity)
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
         set_tool_voltage(tool_voltage)
