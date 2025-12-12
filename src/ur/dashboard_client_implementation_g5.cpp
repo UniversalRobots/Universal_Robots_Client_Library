@@ -167,10 +167,7 @@ std::string DashboardClientImplG5::read()
   {
     if (!TCPSocket::read((uint8_t*)&character, 1, read_chars))
     {
-      disconnect();
-      throw TimeoutException("Did not receive answer from dashboard server in time. Disconnecting from dashboard "
-                             "server.",
-                             *recv_timeout_);
+      throw TimeoutException("Did not receive answer from dashboard server in time.", *recv_timeout_);
     }
     result << character;
     if (character == '\n')
