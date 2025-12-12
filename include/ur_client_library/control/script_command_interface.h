@@ -94,7 +94,7 @@ public:
   /*!
    * \brief Set the gravity vector
    *
-   * \param gravity Gravity, a vector [x, y, z] specifying the acceleration experience by the robot (pointing away 
+   * \param gravity Gravity, a vector [x, y, z] specifying the acceleration experience by the robot (pointing away
    * from the Earth's center)
    *
    * \returns True, if the write was performed successfully, false otherwise.
