@@ -31,21 +31,14 @@
 
 #include <memory>
 
-#include "ur_client_library/comm/pipeline.h"
-#include "ur_client_library/rtde/package_header.h"
-#include "ur_client_library/rtde/rtde_package.h"
-#include "ur_client_library/comm/stream.h"
-#include "ur_client_library/rtde/rtde_parser.h"
 #include "ur_client_library/comm/producer.h"
+#include "ur_client_library/comm/stream.h"
 #include "ur_client_library/rtde/data_package.h"
-#include "ur_client_library/rtde/request_protocol_version.h"
-#include "ur_client_library/rtde/control_package_setup_outputs.h"
-#include "ur_client_library/rtde/control_package_start.h"
-#include "ur_client_library/log.h"
+#include "ur_client_library/rtde/rtde_package.h"
+#include "ur_client_library/rtde/rtde_parser.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 static const int UR_RTDE_PORT = 30004;
-static const std::string PIPELINE_NAME = "RTDE Data Pipeline";
 
 namespace urcl
 {
@@ -97,11 +90,11 @@ class RTDEClient
 public:
   RTDEClient() = delete;
   /*!
-   * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
+   * \brief Creates a new RTDEClient object, including a used URStream and Producer to handle the
    * communication with the robot.
    *
    * \param robot_ip The IP of the robot
-   * \param notifier The notifier to use in the pipeline
+   * \param notifier The notifier to notify of start and stop events
    * \param output_recipe_file Path to the file containing the output recipe
    * \param input_recipe_file Path to the file containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
@@ -114,11 +107,11 @@ public:
              bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
 
   /*!
-   * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
+   * \brief Creates a new RTDEClient object, including a used URStream and Producer to handle the
    * communication with the robot.
    *
    * \param robot_ip The IP of the robot
-   * \param notifier The notifier to use in the pipeline
+   * \param notifier The notifier to notify of start and stop events
    * \param output_recipe Vector containing the output recipe
    * \param input_recipe Vector containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
@@ -130,6 +123,7 @@ public:
              const std::vector<std::string>& input_recipe, double target_frequency = 0.0,
              bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
   ~RTDEClient();
+
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
    * used protocol version and setting of input and output recipes.
@@ -152,23 +146,52 @@ public:
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
+   * \param read_packages_in_background Whether to start a background thread to read packages from.
+   * If packages are read in the background, getDataPackage() will return the latest one received.
+   * If packages aren't read in the background, the application is required to call
+   * getDataPackageBlocking() frequently.
+   *
    * \returns Success of the requested start
    */
-  bool start();
+  bool start(const bool read_packages_in_background = true);
+
   /*!
    * \brief Pauses RTDE data package communication
    *
    * \returns Whether the RTDE data package communication was paused successfully
    */
   bool pause();
+
   /*!
-   * \brief Reads the pipeline to fetch the next data package.
+   * \brief Return the latest data package received
+   *
+   * When packages are read from the background thread, this will return the latest data package
+   * received from the robot. When no new data has been received since the last call to this
+   * function, it will wait for the time specified in the \p timeout parameter.
+   *
+   * When packages are not read from the background thread, this function will return nullptr and
+   * print an error message.
    *
    * \param timeout Time to wait if no data package is currently in the queue
    *
    * \returns Unique ptr to the package, if a package was fetched successfully, nullptr otherwise
    */
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage(std::chrono::milliseconds timeout);
+
+  /*!
+   * \brief Blocking call to get the next data package received from the robot.
+   *
+   * This function will block until a new data package is received from the robot and return it.
+   *
+   * \param data_package Reference to a unique ptr where the received data package will be stored.
+   * For optimal performance, the data package pointer should contain a pre-allocated data package
+   * that was initialized with the same output recipe as used in this RTDEClient. If it is not an
+   * initialized data package, a new one will be allocated internally which will have a negative
+   * performance impact and print a warning.
+   *
+   * \returns Whether a data package was received successfully
+   */
+  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package);
 
   /*!
    * \brief Getter for the maximum frequency the robot can publish RTDE data packages with.
@@ -235,13 +258,31 @@ public:
     return input_recipe_;
   }
 
-  // Reads output or input recipe from a file
+  /// Reads output or input recipe from a file and parses it into a vector of strings where each
+  /// string is a line from the file.
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 
   ClientState getClientState() const
   {
     return client_state_;
   }
+
+  /*! \brief Starts a background thread to read data packages from the robot.
+   *
+   * After calling this function, getDataPackage() can be used to get the latest data package
+   * received from the robot.
+   */
+  void startBackgroundRead();
+
+  /*! \brief Stops the background thread reading data packages from the robot.
+   *
+   * After calling this function, getDataPackageBlocking() must be used to get data packages
+   * from the robot.
+   *
+   * \note When getDataPackageBlocking() is not called frequently enough, the internal buffer
+   * of received data packages might fill up, causing the robot to shutdown the RTDE connection.
+   */
+  void stopBackgroundRead();
 
 private:
   comm::URStream<RTDEPackage> stream_;
@@ -251,7 +292,6 @@ private:
   RTDEParser parser_;
   std::unique_ptr<comm::URProducer<RTDEPackage>> prod_;
   comm::INotifier notifier_;
-  std::unique_ptr<comm::Pipeline<RTDEPackage>> pipeline_;
   RTDEWriter writer_;
   std::atomic<bool> reconnecting_;
   std::atomic<bool> stop_reconnection_;
@@ -262,6 +302,14 @@ private:
 
   double max_frequency_;
   double target_frequency_;
+
+  std::unique_ptr<RTDEPackage> data_buffer0_;
+  std::unique_ptr<RTDEPackage> data_buffer1_;
+  std::mutex read_mutex_;
+  std::mutex write_mutex_;
+  std::atomic<bool> new_data_ = false;
+  std::atomic<bool> background_read_running_ = false;
+  std::thread background_read_thread_;
 
   ClientState client_state_;
 
@@ -313,6 +361,8 @@ private:
   std::chrono::milliseconds reconnection_timeout_;
   size_t max_initialization_attempts_;
   std::chrono::milliseconds initialization_timeout_;
+
+  void backgroundReadThreadFunc();
 };
 
 }  // namespace rtde_interface

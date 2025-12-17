@@ -449,6 +449,21 @@ public:
    */
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage();
 
+  /*!
+   * \brief Blocking call to get the next data package received from the robot.
+   *
+   * This function will block until a new data package is received from the robot and return it.
+   *
+   * \param data_package Reference to a unique ptr where the received data package will be stored.
+   * For optimal performance, the data package pointer should contain a pre-allocated data package
+   * that was initialized with the same output recipe as used in this RTDEClient. If it is not an
+   * initialized data package, a new one will be allocated internally which will have a negative
+   * performance impact and print a warning.
+   *
+   * \returns Whether a data package was received successfully
+   */
+  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package);
+
   uint32_t getControlFrequency() const
   {
     return rtde_client_->getTargetFrequency();
@@ -778,8 +793,12 @@ public:
    *
    * After initialization, the cyclic RTDE communication is not started automatically, so that data
    * consumers can be started also at a later point.
+   *
+   * \param read_packages_in_background If true, RTDE packages will be read in a background thread.
+   * In this case use getDataPackage() to receive the latest package. If set to false,
+   * getDataPackageBlocking() has to be called frequently.
    */
-  void startRTDECommunication();
+  void startRTDECommunication(const bool read_packages_in_background = true);
 
   /*!
    * \brief Sends a stop command to the socket interface which will signal the program running on
@@ -1002,6 +1021,26 @@ public:
   std::shared_ptr<urcl::primary_interface::PrimaryClient> getPrimaryClient()
   {
     return primary_client_;
+  }
+
+  /*! \brief Enable or disable background reading of RTDE packages.
+   *
+   * When enabled, RTDE packages will be read in a background thread.
+   * In this case use getDataPackage() to receive the latest package. If set to false,
+   * getDataPackageBlocking() has to be called frequently if RTDE communication is active.
+   *
+   * \param enabled Whether background reading should be enabled or disabled.
+   */
+  void setRTDEBackgroundReadEnabled(const bool enabled)
+  {
+    if (enabled)
+    {
+      rtde_client_->startBackgroundRead();
+    }
+    else
+    {
+      rtde_client_->stopBackgroundRead();
+    }
   }
 
 private:

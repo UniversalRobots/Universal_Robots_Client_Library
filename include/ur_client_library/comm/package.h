@@ -35,9 +35,9 @@ namespace urcl
 namespace comm
 {
 /*!
- * \brief The URPackage a parent class. From that two implementations are inherited,
- * one for the primary, one for the rtde interface (primary_interface::primaryPackage;
- * rtde_interface::rtdePackage). The URPackage makes use of the template HeaderT.
+ * \brief The URPackage is an abstract class. From that two implementations are inherited,
+ * one for the primary, one for the RTDE interface (primary_interface::PrimaryPackage;
+ * rtde_interface::RTDEPackage). The URPackage makes use of the template HeaderT.
  */
 template <typename HeaderT>
 class URPackage

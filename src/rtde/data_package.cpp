@@ -482,9 +482,10 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
   {
     if (g_type_list.find(item) != g_type_list.end())
     {
-      _rtde_type_variant entry = g_type_list[item];
-      std::visit([&bp](auto&& arg) { bp.parse(arg); }, entry);
-      data_[item] = entry;
+      // _rtde_type_variant entry = g_type_list[item];
+      // _rtde_type_variant existing_entry = data_[item];
+
+      std::visit([&bp](auto&& arg) { bp.parse(arg); }, data_[item]);
     }
     else
     {
@@ -500,7 +501,14 @@ std::string rtde_interface::DataPackage::toString() const
   for (auto& item : data_)
   {
     ss << item.first << ": ";
-    std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+    if (std::holds_alternative<uint8_t>(item.second))
+    {
+      ss << int(std::get<uint8_t>(item.second));
+    }
+    else
+    {
+      std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+    }
     ss << std::endl;
   }
   return ss.str();
