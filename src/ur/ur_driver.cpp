@@ -198,6 +198,11 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
+bool UrDriver::getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package)
+{
+  return rtde_client_->getDataPackageBlocking(data_package);
+}
+
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
                                  const RobotReceiveTimeout& robot_receive_timeout)
 {
@@ -580,9 +585,9 @@ bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
   return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
 }
 
-void UrDriver::startRTDECommunication()
+void UrDriver::startRTDECommunication(const bool read_packages_in_background)
 {
-  rtde_client_->start();
+  rtde_client_->start(read_packages_in_background);
 }
 
 bool UrDriver::stopControl()
