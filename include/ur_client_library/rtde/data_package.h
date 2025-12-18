@@ -97,6 +97,7 @@ public:
   DataPackage(const std::vector<std::string>& recipe, const uint16_t& protocol_version = 2)
     : RTDEPackage(PackageType::RTDE_DATA_PACKAGE), recipe_(recipe), protocol_version_(protocol_version)
   {
+    initEmpty();
   }
 
   virtual ~DataPackage() = default;

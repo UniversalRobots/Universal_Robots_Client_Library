@@ -501,7 +501,6 @@ bool RTDEClient::isRobotBooted()
     return false;
 
   std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
-  dynamic_cast<rtde_interface::DataPackage*>(package.get())->initEmpty();
 
   double timestamp = 0;
   int reading_count = 0;
@@ -887,8 +886,6 @@ void RTDEClient::startBackgroundRead()
   background_read_running_ = true;
   data_buffer0_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_);
   data_buffer1_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_);
-  dynamic_cast<rtde_interface::DataPackage*>(data_buffer0_.get())->initEmpty();
-  dynamic_cast<rtde_interface::DataPackage*>(data_buffer1_.get())->initEmpty();
 
   background_read_thread_ = std::thread(&RTDEClient::backgroundReadThreadFunc, this);
 }
