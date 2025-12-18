@@ -33,8 +33,9 @@ namespace urcl
 namespace rtde_interface
 {
 RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<std::string>& recipe)
-  : stream_(stream), recipe_(recipe), recipe_id_(0), queue_{ 32 }, running_(false), package_(recipe_)
+  : stream_(stream), recipe_id_(0), queue_{ 32 }, running_(false), package_(recipe_)
 {
+  setInputRecipe(recipe);
 }
 
 void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
@@ -52,7 +53,6 @@ void RTDEWriter::init(uint8_t recipe_id)
     return;
   }
   recipe_id_ = recipe_id;
-  package_.initEmpty();
   running_ = true;
   writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
