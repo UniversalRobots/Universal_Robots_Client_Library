@@ -22,6 +22,7 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
   for more information.
 - ``setFrictionCompensation()``: Set friction compensation for torque command.
 - ``ftRtdeInputEnable()``: Enable/disable FT RTDE input processing.
+- ``setGravity()``: Set the gravity vector for the robot.
 
 Communication protocol
 ----------------------
@@ -52,6 +53,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 6: endToolContact
            - 7: setFrictionCompensation
            - 8: ftRtdeInputEnable
+           - 9: setGravity
    1-27   data fields specific to the command
    =====  =====
 
@@ -144,6 +146,15 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    2      sensor_mass in kg (floating point)
    3-5    sensor_mesurement_offset in m, displacement from the tool flange (3d floating point)
    6-9    sensor_cog in m, displacement from the tool flange (3d floating point)
+   =====  =====
+
+.. table:: With setGravity command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-3    The gravity vector (towards the Earth's center), represented in robot's base frame (floating point)
    =====  =====
 
 .. note::
