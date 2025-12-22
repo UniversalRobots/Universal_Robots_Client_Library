@@ -482,6 +482,35 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
   EXPECT_EQ(received_enabled, false);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_gravity)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  vector3d_t gravity = { 0.1, 0.2, -9.81 };
+  script_command_interface_->setGravity(&gravity);
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 9 is set gravity
+  int32_t expected_command = 9;
+  EXPECT_EQ(command, expected_command);
+
+  // Test gravity
+  vector3d_t received_gravity;
+  for (unsigned int i = 0; i < gravity.size(); ++i)
+  {
+    received_gravity[i] = (double)message[i] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_gravity[i], gravity[i]);
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 3, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
