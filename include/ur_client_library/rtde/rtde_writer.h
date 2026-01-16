@@ -33,8 +33,8 @@
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/data_package.h"
 #include "ur_client_library/comm/stream.h"
-#include "ur_client_library/queue/readerwriterqueue.h"
 #include "ur_client_library/ur/datatypes.h"
+#include <condition_variable>
 #include <thread>
 #include <mutex>
 
@@ -181,15 +181,26 @@ public:
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
 
 private:
+  void resetMasks(const std::shared_ptr<DataPackage>& buffer);
+
   uint8_t pinToMask(uint8_t pin);
   comm::URStream<RTDEPackage>* stream_;
   std::vector<std::string> recipe_;
   uint8_t recipe_id_;
-  moodycamel::BlockingReaderWriterQueue<std::unique_ptr<DataPackage>> queue_;
+  std::shared_ptr<DataPackage> data_buffer0_;
+  std::shared_ptr<DataPackage> data_buffer1_;
+  std::shared_ptr<DataPackage> current_store_buffer_;
+  std::shared_ptr<DataPackage> current_send_buffer_;
+  std::vector<std::string> used_masks_;
   std::thread writer_thread_;
-  bool running_;
-  DataPackage package_;
-  std::mutex package_mutex_;
+  std::atomic<bool> running_;
+  std::mutex store_mutex_;
+  std::atomic<bool> new_data_available_;
+  std::condition_variable data_available_cv_;
+
+  static std::vector<std::string> g_preallocated_input_bit_register_keys;
+  static std::vector<std::string> g_preallocated_input_int_register_keys;
+  static std::vector<std::string> g_preallocated_input_double_register_keys;
 };
 
 }  // namespace rtde_interface
