@@ -262,8 +262,6 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
 
 TEST_F(RTDEWriterTest, send_standard_analog_output_unknown_domain)
 {
-  waitForMessageCallback(1000);
-
   uint8_t expected_standard_analog_output_mask = 1;
 
   uint8_t pin = 0;
