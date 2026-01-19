@@ -39,7 +39,6 @@ using namespace urcl;
 const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
-const std::chrono::milliseconds READ_TIMEOUT{ 100 };
 
 void printFraction(const double fraction, const std::string& label, const size_t width = 20)
 {
@@ -84,7 +83,10 @@ int main(int argc, char* argv[])
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
-  my_client.start();
+  my_client.start(false);
+  const std::string key = "target_speed_fraction";
+  std::unique_ptr<rtde_interface::RTDEPackage> data_pkg =
+      std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
 
   auto start_time = std::chrono::steady_clock::now();
   while (second_to_run <= 0 ||
@@ -96,13 +98,13 @@ int main(int argc, char* argv[])
     // communication doesn't work in which case the user will be notified.
     // In a real-world application this thread should be scheduled with real-time priority in order
     // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
-    if (data_pkg)
+    bool success = my_client.getDataPackageBlocking(data_pkg);
+    if (success)
     {
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.
-      data_pkg->getData("target_speed_fraction", target_speed_fraction);
-      printFraction(target_speed_fraction, "target_speed_fraction");
+      dynamic_cast<rtde_interface::DataPackage*>(data_pkg.get())->getData(key, target_speed_fraction);
+      printFraction(target_speed_fraction, key);
     }
     else
     {
@@ -138,6 +140,8 @@ int main(int argc, char* argv[])
 
   // Resetting the speedslider back to 100%
   my_client.getWriter().sendSpeedSlider(1);
+
+  URCL_LOG_INFO("Exiting RTDE read/write example.");
 
   return 0;
 }

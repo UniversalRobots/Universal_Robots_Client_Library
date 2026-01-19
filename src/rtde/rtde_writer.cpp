@@ -112,10 +112,9 @@ void RTDEWriter::run()
   while (running_)
   {
     std::unique_lock<std::mutex> lock(store_mutex_);
-    auto res = data_available_cv_.wait_for(lock, std::chrono::milliseconds(1000));
-    if (res != std::cv_status::timeout)
+    data_available_cv_.wait(lock, [this] { return new_data_available_.load() || !running_.load(); });
     {
-      if (new_data_available_.load() == true && running_.load())
+      if (new_data_available_.load() && running_.load())
       {
         std::swap(current_store_buffer_, current_send_buffer_);
         new_data_available_ = false;
@@ -124,6 +123,10 @@ void RTDEWriter::run()
         stream_->write(buffer, size, written);
         resetMasks(current_send_buffer_);
       }
+      else
+      {
+        lock.unlock();
+      }
     }
   }
   URCL_LOG_DEBUG("Write thread ended.");
@@ -131,7 +134,11 @@ void RTDEWriter::run()
 
 void RTDEWriter::stop()
 {
-  running_ = false;
+  {
+    std::lock_guard<std::mutex> lock(store_mutex_);
+    running_ = false;
+    data_available_cv_.notify_one();
+  }
   if (writer_thread_.joinable())
   {
     writer_thread_.join();
