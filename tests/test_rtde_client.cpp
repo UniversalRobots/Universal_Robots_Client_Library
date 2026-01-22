@@ -196,27 +196,16 @@ TEST_F(RTDEClientTest, set_target_frequency)
   double expected_target_frequency = 1;
   EXPECT_EQ(client_->getTargetFrequency(), expected_target_frequency);
 
-  EXPECT_TRUE(client_->start());
+  EXPECT_TRUE(client_->start(false));
 
   // Test that we receive packages with a frequency of 2 Hz
-  const std::chrono::milliseconds read_timeout{ 10000 };
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
 
   double first_time_stamp = 0.0;
   data_pkg->getData("timestamp", first_time_stamp);
 
-  data_pkg = client_->getDataPackage(read_timeout);
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
-
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
   double second_time_stamp = 0.0;
   data_pkg->getData("timestamp", second_time_stamp);
 
