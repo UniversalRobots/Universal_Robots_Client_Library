@@ -462,7 +462,7 @@ public:
    *
    * \returns Whether a data package was received successfully
    */
-  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package);
+  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::DataPackage>& data_package);
 
   uint32_t getControlFrequency() const
   {

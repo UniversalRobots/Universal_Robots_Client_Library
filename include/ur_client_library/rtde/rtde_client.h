@@ -179,6 +179,24 @@ public:
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage(std::chrono::milliseconds timeout);
 
   /*!
+   * \brief Return the latest data package received
+   *
+   * When packages are read from the background thread, the latest data package
+   * received from the robot can be fetched with this. When no new data has been received since the last call to this
+   * function, it will wait for the time specified in the \p timeout parameter.
+   *
+   * When packages are not read from the background thread, this function will return false and
+   * print an error message.
+   *
+   * \param data_package Reference to a DataPackage where the received data package will be stored
+   * if a package was fetched successfully.
+   * \param timeout Time to wait if no data package is currently in the queue
+   *
+   * \returns Whether a data package was received successfully
+   */
+  bool getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout);
+
+  /*!
    * \brief Blocking call to get the next data package received from the robot.
    *
    * This function will block until a new data package is received from the robot and return it.
@@ -191,7 +209,7 @@ public:
    *
    * \returns Whether a data package was received successfully
    */
-  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package);
+  bool getDataPackageBlocking(std::unique_ptr<rtde_interface::DataPackage>& data_package);
 
   /*!
    * \brief Getter for the maximum frequency the robot can publish RTDE data packages with.

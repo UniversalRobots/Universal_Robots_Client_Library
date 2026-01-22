@@ -744,14 +744,26 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
   return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
 }
 
-bool RTDEClient::getDataPackageBlocking(std::unique_ptr<RTDEPackage>& data_package)
+bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
+{
+  if (auto package = getDataPackage(timeout))
+  {
+    data_package = *dynamic_cast<DataPackage*>(package.get());
+    return true;
+  }
+  return false;
+}
+
+bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_package)
 {
   // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
+  std::unique_ptr<RTDEPackage> base_package(data_package.release());
   if (reconnect_mutex_.try_lock())
   {
-    if (prod_->tryGet(data_package))
+    if (prod_->tryGet(base_package))
     {
       reconnect_mutex_.unlock();
+      data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
       return true;
     }
     reconnect_mutex_.unlock();
@@ -763,6 +775,7 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<RTDEPackage>& data_packa
     std::this_thread::sleep_for(period);
   }
 
+  data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
   return false;
 }
 

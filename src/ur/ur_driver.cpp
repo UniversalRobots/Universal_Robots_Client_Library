@@ -198,7 +198,7 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
-bool UrDriver::getDataPackageBlocking(std::unique_ptr<rtde_interface::RTDEPackage>& data_package)
+bool UrDriver::getDataPackageBlocking(std::unique_ptr<rtde_interface::DataPackage>& data_package)
 {
   return rtde_client_->getDataPackageBlocking(data_package);
 }
