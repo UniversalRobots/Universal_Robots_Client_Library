@@ -30,6 +30,7 @@
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <thread>
 #include "ur_client_library/ur/ur_driver.h"
 
 const std::string SCRIPT_FILE = "../resources/external_control.urscript";
@@ -44,46 +45,53 @@ void handleRobotProgramState(bool program_running)
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
 }
 
-TEST(UrDriverTestDeprecatedConstructor, sigA)
+void startDriver(std::function<std::shared_ptr<urcl::UrDriver>()> constructor_fun)
 {
-  std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
-  auto driver = std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
-                                                 std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
-                                                 std::move(tool_comm_setup));
+  auto driver = constructor_fun();
   driver->checkCalibration(CALIBRATION_CHECKSUM);
   auto version = driver->getVersion();
   ASSERT_TRUE(version.major > 0);
+}
+
+TEST(UrDriverTestDeprecatedConstructor, sigA)
+{
+  std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
+  startDriver([&tool_comm_setup]() {
+    return std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                            std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
+                                            std::move(tool_comm_setup));
+  });
 }
 
 TEST(UrDriverTestDeprecatedConstructor, sigB)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
-  auto driver = std::make_shared<urcl::UrDriver>(
-      g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE, std::bind(&handleRobotProgramState, std::placeholders::_1),
-      g_HEADLESS, std::move(tool_comm_setup), 50001, 50002, 2000, 0.03, false, "", 50003, 50004, 0.025, 0.5);
-  driver->checkCalibration(CALIBRATION_CHECKSUM);
-  auto version = driver->getVersion();
-  ASSERT_TRUE(version.major > 0);
+  startDriver([&tool_comm_setup]() {
+    return std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                            std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
+                                            std::move(tool_comm_setup), 50001, 50002, 2000, 0.03, false, "", 50003,
+                                            50004, 0.025, 0.5);
+  });
 }
 
 TEST(UrDriverTestDeprecatedConstructor, sigC)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
-  auto driver = std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
-                                                 std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
-                                                 std::move(tool_comm_setup), CALIBRATION_CHECKSUM);
-  auto version = driver->getVersion();
-  ASSERT_TRUE(version.major > 0);
+  startDriver([&tool_comm_setup]() {
+    return std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                            std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
+                                            std::move(tool_comm_setup), CALIBRATION_CHECKSUM);
+  });
 }
 
 TEST(UrDriverTestDeprecatedConstructor, sigD)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
-  auto driver = std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
-                                                 std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
-                                                 CALIBRATION_CHECKSUM);
-  auto version = driver->getVersion();
-  ASSERT_TRUE(version.major > 0);
+  startDriver([]() {
+    return std::make_shared<urcl::UrDriver>(g_ROBOT_IP, SCRIPT_FILE, OUTPUT_RECIPE, INPUT_RECIPE,
+                                            std::bind(&handleRobotProgramState, std::placeholders::_1), g_HEADLESS,
+                                            CALIBRATION_CHECKSUM);
+  });
 }
 
 int main(int argc, char* argv[])
