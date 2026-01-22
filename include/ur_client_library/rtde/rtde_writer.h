@@ -90,6 +90,18 @@ public:
   void stop();
 
   /*!
+   * \brief Sends a complete RTDEPackage to the robot.
+   *
+   * Use this if multiple values need to be sent at once. When using the other provided functions,
+   * an RTDE data package will be sent each time.
+   *
+   * \param package The package to send
+   *
+   * \returns Success of the package creation
+   */
+  bool sendPackage(const DataPackage& package);
+
+  /*!
    * \brief Creates a package to request setting a new value for the speed slider.
    *
    * \param speed_slider_fraction The new speed slider fraction as a value between 0.0 and 1.0
@@ -182,6 +194,7 @@ public:
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
+  void markStorageToBeSent();
 
   uint8_t pinToMask(uint8_t pin);
   comm::URStream<RTDEPackage>* stream_;
