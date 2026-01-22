@@ -162,7 +162,21 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
 
   if (input_recipe_.size() > 0)
   {
-    is_rtde_comm_setup = is_rtde_comm_setup && setupInputs();
+    try
+    {
+      is_rtde_comm_setup = is_rtde_comm_setup && setupInputs();
+    }
+    catch (const RTDEInputConflictException& exc)
+    {
+      /*
+       * If we are starting and shutting down the driver in quick succession, the robot might still
+       * have some old RTDE connections open. In this case conflicts might occur when we try reserve
+       * the same input fields again. To mitigate this, we try to setup communication again if
+       * that error occurs.
+       */
+      URCL_LOG_ERROR("Caught exception %s, while trying to setup RTDE inputs.", exc.what());
+      return false;
+    }
   }
   return is_rtde_comm_setup;
 }
@@ -442,14 +456,11 @@ bool RTDEClient::setupInputs()
         {
           std::string message = "Variable '" + input_recipe_[i] +
                                 "' not recognized by the robot. Probably your input recipe contains errors";
-          throw UrException(message);
+          throw RTDEInvalidKeyException(message);
         }
         else if (variable_types[i] == "IN_USE")
         {
-          std::string message = "Variable '" + input_recipe_[i] +
-                                "' is currently controlled by another RTDE client. The input recipe can't be used as "
-                                "configured";
-          throw UrException(message);
+          throw RTDEInputConflictException(input_recipe_[i]);
         }
       }
       writer_.init(tmp_input->input_recipe_id_);
