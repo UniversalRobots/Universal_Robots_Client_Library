@@ -201,7 +201,7 @@ public:
    * \returns True on success, false if the field cannot be found inside the package.
    */
   template <typename T>
-  bool setData(const std::string& name, T& val)
+  bool setData(const std::string& name, const T& val)
   {
     const auto it =
         std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
