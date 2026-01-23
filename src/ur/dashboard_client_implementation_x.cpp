@@ -145,7 +145,14 @@ DashboardResponse DashboardClientImplX::commandBrakeRelease()
 
 DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& program_file_name)
 {
-  return put("/program/v1/load", R"({"programName": ")" + program_file_name + R"("})");
+  std::string endpoint = "/program/v1/loaded";
+  std::string program_key = "name";
+  if (polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    endpoint = "/program/v1/load";
+    program_key = "programName";
+  }
+  return put(endpoint, R"({")" + program_key + R"(": ")" + program_file_name + R"("})");
 }
 
 DashboardResponse DashboardClientImplX::commandLoadInstallation(const std::string& installation_file_name)
