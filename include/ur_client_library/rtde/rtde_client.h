@@ -162,6 +162,9 @@ public:
   /*!
    * \brief Return the latest data package received
    *
+   * \deprecated This method allocates memory on each call. Please use the overload which takes a
+   * reference to an existing DataPackage instead. This function will be removed in May 2027.
+   *
    * When packages are read from the background thread, this will return the latest data package
    * received from the robot. When no new data has been received since the last call to this
    * function, it will wait for the time specified in the \p timeout parameter.
@@ -173,6 +176,8 @@ public:
    *
    * \returns Unique ptr to the package, if a package was fetched successfully, nullptr otherwise
    */
+  [[deprecated("This method allocates memory on each call. Please use the overload which takes a reference to an "
+               "existing DataPackage instead. This function will be removed in May 2027.")]]
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage(std::chrono::milliseconds timeout);
 
   /*!
@@ -320,6 +325,7 @@ private:
   std::atomic<bool> new_data_ = false;
   std::atomic<bool> background_read_running_ = false;
   std::thread background_read_thread_;
+  std::condition_variable background_read_cv_;
 
   ClientState client_state_;
 

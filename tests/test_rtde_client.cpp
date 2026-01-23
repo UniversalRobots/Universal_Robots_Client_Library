@@ -30,7 +30,6 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
-#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <iostream>
@@ -273,14 +272,17 @@ TEST_F(RTDEClientTest, recipe_compairson)
   }
 }
 
-TEST_F(RTDEClientTest, get_data_package)
+TEST_F(RTDEClientTest, get_data_package_w_background_deprecated)
 {
   client_->init();
   client_->start();
 
   // Test that we can receive a package and extract data from the received package
   const std::chrono::milliseconds read_timeout{ 100 };
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
+#pragma GCC diagnostic pop
   if (data_pkg == nullptr)
   {
     std::cout << "Failed to get data package from robot" << std::endl;
@@ -289,6 +291,30 @@ TEST_F(RTDEClientTest, get_data_package)
 
   urcl::vector6d_t actual_q;
   EXPECT_TRUE(data_pkg->getData("actual_q", actual_q));
+
+  client_->pause();
+}
+
+TEST_F(RTDEClientTest, get_data_package_w_background)
+{
+  client_->init();
+  client_->start();
+
+  // Test that we can receive a package and extract data from the received package
+  const std::chrono::milliseconds read_timeout{ 100 };
+
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+
+  urcl::vector6d_t actual_q;
+  EXPECT_TRUE(data_pkg.getData("actual_q", actual_q));
+
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+  // Trying to get data with a very short timeout should fail
+  ASSERT_FALSE(client_->getDataPackage(data_pkg, std::chrono::milliseconds(1)));
+
+  auto data_pkg_ptr = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  ASSERT_FALSE(client_->getDataPackageBlocking(data_pkg_ptr));
 
   client_->pause();
 }
@@ -303,15 +329,12 @@ TEST_F(RTDEClientTest, write_rtde_data)
 
   // Make sure that the data has been written to the robot
   const std::chrono::milliseconds read_timeout{ 100 };
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
+
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
   std::bitset<18> actual_dig_out_bits;
-  data_pkg->getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
+  data_pkg.getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
 
   // If we get the data package to soon the digital output might not have been updated, therefore we get the package a
   // couple of times
@@ -319,8 +342,8 @@ TEST_F(RTDEClientTest, write_rtde_data)
   int counter = 0;
   while (actual_dig_out_bits[0] != send_digital_output)
   {
-    data_pkg = client_->getDataPackage(read_timeout);
-    data_pkg->getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
+    ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+    data_pkg.getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
     if (counter == max_tries)
     {
       break;
@@ -395,16 +418,11 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 
   // Test that we can receive and parse the timestamp from the received package to prove the setup was successful
   const std::chrono::milliseconds read_timeout{ 100 };
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
-
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
   double timestamp;
-  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
 
   client_->pause();
 }
@@ -476,16 +494,11 @@ TEST_F(RTDEClientTest, empty_input_recipe)
 
   // Test that we can receive and parse the timestamp from the received package to prove the setup was successful
   const std::chrono::milliseconds read_timeout{ 100 };
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
-
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
   double timestamp;
-  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
 
   EXPECT_FALSE(client_->getWriter().sendStandardDigitalOutput(1, false));
 
@@ -495,14 +508,8 @@ TEST_F(RTDEClientTest, empty_input_recipe)
   client_->init();
   client_->start();
 
-  data_pkg = client_->getDataPackage(read_timeout);
-
-  if (data_pkg == nullptr)
-  {
-    std::cout << "Failed to get data package from robot" << std::endl;
-    GTEST_FAIL();
-  }
-  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
 
   EXPECT_FALSE(client_->getWriter().sendStandardDigitalOutput(1, false));
 

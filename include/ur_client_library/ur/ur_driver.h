@@ -444,10 +444,30 @@ public:
    * \brief Access function to receive the latest data package sent from the robot through RTDE
    * interface.
    *
+   * \deprecated This method allocates memory on each call. Please use the overload which takes a
+   * reference to an existing DataPackage instead. This function will be removed in May 2027.
+   *
    * \returns The latest data package on success, a nullptr if no package can be found inside a preconfigured time
    * window.
    */
+  [[deprecated("This method allocates memory on each call. Please use the overload which takes a reference to an "
+               "existing DataPackage instead. This function will be removed in May 2027.")]]
   std::unique_ptr<rtde_interface::DataPackage> getDataPackage();
+
+  /*!
+   * \brief Return the latest RTDE data package received
+   *
+   * When packages are read from the background thread, the latest data package
+   * received from the robot can be fetched with this.    *
+   * When packages are not read from the background thread, this function will return false and
+   * print an error message.
+   *
+   * \param data_package Reference to a DataPackage where the received data package will be stored
+   * if a package was fetched successfully.
+   *
+   * \returns Whether a data package was received successfully
+   */
+  bool getDataPackage(rtde_interface::DataPackage& data_package);
 
   /*!
    * \brief Blocking call to get the next data package received from the robot.
