@@ -7,17 +7,34 @@ RTDEClient
 
 The Real Time Data Exchange Client, ``RTDEClient``, class serves as a standalone
 `RTDE <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
-client. To use the RTDE-Client, you'll have to initialize and start it separately:
+client. To use the RTDE-Client, you'll have to initialize and start it separately. When starting
+it, it can be chosen whether data should be read in a background thread or if the user has to poll
+data in each cycle.
+
+- **Background read**: When background read is enabled (``start(true)``) (default), the RTDE client
+  will start a background thread that continuously reads data from the robot. The latest data
+  package can be fetched using the ``getDataPackage()`` method. This method returns immediately
+  with the latest data package received from the robot. If no data has been received since last
+  calling this function, it will block for a specified timeout waiting for new data to arrive.
+
+- **Blocking synchronous read**: When background read is not enabled (``start(false)``), data can
+  (and has to be) fetched using the ``getDataPackageBlocking()`` method. This call waits for a new
+  data package to arrive and parses that into the passed ``DataPackage`` object. This has to be
+  called with the RTDE control frequency, as the robot will shutdown RTDE communication if data is
+  not read by the client.
+
+The following example uses the background read method to fetch data from the RTDE interface. See
+the :ref:`rtde_client_example` for an example of the blocking read method.
 
 .. code-block:: c++
 
    rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE_FILE, INPUT_RECIPE_FILE);
    my_client.init();
-   my_client.start();
+   my_client.start(true); // Start background read
+   rtde_interface::DataPackage data_pkg(my_client.getOutputRecipe());
    while (true)
    {
-     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
-     if (data_pkg)
+     if (my_client.getDataPackage(data_pkg, READ_TIMEOUT))
      {
        std::cout << data_pkg->toString() << std::endl;
      }
@@ -28,27 +45,32 @@ outputs. Please refer to the `RTDE
 guide <https://www.universal-robots.com/articles/ur-articles/real-time-data-exchange-rtde-guide/>`_
 on which elements are available.
 
+The recipes can be either passed as a filename or as a list of strings directly. E.g. the
+following will work
+
+.. code-block:: c++
+
+   rtde_interface::RTDEClient my_client(
+     ROBOT_IP,
+     notifier,
+     {"timestamp", "actual_q"},
+     {"speed_slider_mask", "speed_slider_fraction"}
+   );
+
 .. note::
+   Remember, that ``timestamp`` always has to be part of the output recipe.
 
-   The recipes can be either passed as a filename or as a list of strings directly. E.g. the
-   following will work
+Reading data
+------------
 
-   .. code-block:: c++
+After calling ``my_client.start()``, data can be read from the
+``RTDEClient`` by calling ``getDataPackage()`` (with background thread running) or ``getDataPackageBlocking()`` (without background thread running) respectively.
 
-      rtde_interface::RTDEClient my_client(
-        ROBOT_IP,
-        notifier,
-        {"timestamp", "actual_q"},
-        {"speed_slider_mask", "speed_slider_fraction"}
-      );
+Remember that, when not using a background thread, data has to be polled regularly, as the robot
+will shutdown RTDE communication if the receiving side doesn't empty its buffer.
 
-Inside the ``RTDEclient`` data is received in a separate thread, parsed by the ``RTDEParser`` and
-added to a pipeline queue.
-
-Right after calling ``my_client.start()``, it should be made sure to read the buffer from the
-``RTDEClient`` by calling ``getDataPackage()`` frequently. The Client's queue can only contain a
-restricted number of items at a time, so a ``Pipeline producer overflowed!`` error will be raised
-if the buffer isn't read frequently enough.
+Writing data
+------------
 
 For writing data to the RTDE interface, use the ``RTDEWriter`` member of the ``RTDEClient``. It can be
 retrieved by calling ``getWriter()`` method. The ``RTDEWriter`` provides convenience methods to write
@@ -83,7 +105,7 @@ an empty input recipe, like this:
    // Alternatively, pass an empty filename when using recipe files
    // rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE_FILE, "");
    my_client.init();
-   my_client.start();
+   my_client.start(false);
    while (true)
    {
      std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
