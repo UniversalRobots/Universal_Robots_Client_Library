@@ -154,6 +154,41 @@ TEST(rtde_data_package, parse_and_get_bitset_data)
   EXPECT_EQ(expected_robot_status_bits, actual_robot_status_bits);
 }
 
+TEST(rtde_data_package, parse_incorrect_data_size)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  rtde_interface::DataPackage package(recipe);
+
+  // Data package with incorrect size (should be 56 bytes for the given recipe)
+  uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf };
+
+  comm::BinParser bp(data_package, sizeof(data_package));
+
+  EXPECT_THROW(package.parseWith(bp), UrException);
+}
+
+TEST(rtde_data_package, data_package_to_string)
+{
+  std::vector<std::string> recipe{ "speed_slider_mask", "speed_slider_fraction", "external_force_torque",
+                                   "standard_digital_output_mask", "actual_digital_output_bits" };
+  rtde_interface::DataPackage package(recipe);
+  package.setData("speed_slider_mask", 1);
+  package.setData("speed_slider_fraction", 0.5);
+  package.setData("external_force_torque", vector6d_t{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 });
+  package.setData<uint8_t>("standard_digital_output_mask", 1 << 7);
+  package.setData("actual_digital_output_bits", 1 << 7);
+
+  std::string pkg_str = package.toString();
+
+  std::string expected_str = "speed_slider_mask: 1\n"
+                             "speed_slider_fraction: 0.5\n"
+                             "external_force_torque: [-1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031]\n"
+                             "standard_digital_output_mask: 128\n"
+                             "actual_digital_output_bits: 128\n";
+  std::cout << "Package string:\n" << pkg_str << std::endl;
+  EXPECT_EQ(expected_str, pkg_str);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
