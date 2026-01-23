@@ -283,7 +283,17 @@ DashboardResponse DashboardClientImplX::commandRobotMode()
 
 DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
-  throw NotImplementedException("commandGetLoadedProgram is not implemented for DashboardClientImplX.");
+  if (polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    throw NotImplementedException("commandGetLoadedProgram is not implemented for PolyScope X < 10.12.0.");
+  }
+  auto response = get("/program/v1/loaded");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["loaded_program"] = std::string(json_data["name"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSafetyMode()

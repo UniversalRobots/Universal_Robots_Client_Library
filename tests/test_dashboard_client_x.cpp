@@ -52,14 +52,14 @@ protected:
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
-    auto version_information = primary_client_->getRobotVersion();
+    polyscope_version_ = primary_client_->getRobotVersion();
 
-    if (*version_information < urcl::VersionInformation::fromString("10.11.0"))
+    if (*polyscope_version_ < urcl::VersionInformation::fromString("10.11.0"))
     {
       GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
     }
     dashboard_client_.reset(new DashboardClientImplX(g_ROBOT_IP));
-    dashboard_client_->setPolyscopeVersion(*version_information);
+    dashboard_client_->setPolyscopeVersion(*polyscope_version_);
   }
 
   void TearDown()
@@ -75,6 +75,7 @@ protected:
 
   std::unique_ptr<DashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
+  std::shared_ptr<VersionInformation> polyscope_version_;
 };
 
 TEST_F(DashboardClientTestX, connect)
@@ -147,6 +148,11 @@ TEST_F(DashboardClientTestX, program_interaction)
   DashboardResponse response;
   response = dashboard_client_->commandLoadProgram("wait_program");
   ASSERT_TRUE(response.ok);
+  if (*polyscope_version_ >= VersionInformation::fromString("10.12.0"))
+  {
+    response = dashboard_client_->commandGetLoadedProgram();
+    ASSERT_EQ(std::get<std::string>(response.data["loaded_program"]), "wait_program");
+  }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
   response = dashboard_client_->commandBrakeRelease();
