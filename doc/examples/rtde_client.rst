@@ -44,25 +44,9 @@ omitted, RTDE communication will be established at the robot's control frequency
 Reading data from the RTDE client
 ---------------------------------
 
-To read data received by the RTDE client, it has to be polled. For this two modes are available:
-
-- **Background read**: When background read is enabled (default), the RTDE client will start a
-  background thread that continuously reads data from the robot. The latest data package can be
-  fetched using the ``getDataPackage()`` method. This method returns immediately with the latest
-  data package received from the robot. If no data has been received since last calling this
-  function, it will block for a specified timeout waiting for new data to arrive.
-
-  .. note:: This methods allocates a new data package on each call. We recommend using the blocking
-     read method explained below.
-- **Blocking synchronous read**: When background read is not enabled, data can (and has to be)
-  fetched using the ``getDataPackageBlocking()`` method. This call waits for a new data package to
-  arrive and parses that into the passed ``DataPackage`` object. This has to be called with the
-  RTDE control frequency, as the robot will shutdown RTDE communication if data is not read by the
-  client.
-
-Which of the above strategies is used can be specified when starting RTDE communication using the
-``start()`` method. In our example, we do not use background read and instead fetch data
-synchronously. Hence, we pass ``false`` to the ``start()`` method.
+To read data received by the RTDE client, it has to be polled. See the :ref:`rtde_client` section
+for details on two possible strategies. In this example, we do not use background read and instead
+fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
 
 .. literalinclude:: ../../examples/rtde_client.cpp
    :language: c++
@@ -111,4 +95,3 @@ initialize the RTDE client has to contain the keys necessary to send that specif
    want to modify more than one input at a time, it is recommended to use the ``sendPackage()``
    method. That allows setting up the complete data package with its input recipe and sending that
    to the robot at once.
-

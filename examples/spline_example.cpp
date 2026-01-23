@@ -139,12 +139,12 @@ int main(int argc, char* argv[])
 
   g_my_robot->getUrDriver()->startRTDECommunication();
 
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  if (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
 
-  if (data_pkg)
   {
     // Read current joint positions from robot data
-    if (!data_pkg->getData("actual_q", g_joint_positions))
+    if (!data_pkg.getData("actual_q", g_joint_positions))
     {
       // This throwing should never happen unless misconfigured
       std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
@@ -199,11 +199,10 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
-    if (data_pkg)
+    if (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
     {
       // Read current joint positions from robot data
-      if (!data_pkg->getData("actual_q", g_joint_positions))
+      if (!data_pkg.getData("actual_q", g_joint_positions))
       {
         // This throwing should never happen unless misconfigured
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
@@ -231,11 +230,10 @@ int main(int argc, char* argv[])
   g_trajectory_running = true;
   while (g_trajectory_running)
   {
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
-    if (data_pkg)
+    if (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
     {
       // Read current joint positions from robot data
-      if (!data_pkg->getData("actual_q", g_joint_positions))
+      if (!data_pkg.getData("actual_q", g_joint_positions))
       {
         // This throwing should never happen unless misconfigured
         std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";

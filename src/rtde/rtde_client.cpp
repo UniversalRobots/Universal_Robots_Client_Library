@@ -29,6 +29,7 @@
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
+#include "ur_client_library/rtde/data_package.h"
 #include <algorithm>
 #include <chrono>
 #include <string>
@@ -51,6 +52,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
+  , preallocated_data_pkg_(output_recipe_)
   , client_state_(ClientState::UNINITIALIZED)
 {
   if (!input_recipe_file.empty())
@@ -75,6 +77,7 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
   , stop_reconnection_(false)
   , max_frequency_(URE_MAX_FREQUENCY)
   , target_frequency_(target_frequency)
+  , preallocated_data_pkg_(output_recipe_)
   , client_state_(ClientState::UNINITIALIZED)
 {
 }
@@ -306,6 +309,7 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
+  preallocated_data_pkg_ = DataPackage(output_recipe_);
 
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
@@ -718,30 +722,43 @@ std::vector<std::string> RTDEClient::ensureTimestampIsPresent(const std::vector<
 
 std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chrono::milliseconds timeout)
 {
-  // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
+  if (getDataPackage(preallocated_data_pkg_, timeout))
+  {
+    // Return a copy of the cached one
+    return std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
+  }
+
+  return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
+}
+
+bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
+{
+  if (!background_read_running_)
+  {
+    URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
+                   "reading or use getDataPackageBlocking(...).");
+    return false;
+  }
+
   if (reconnect_mutex_.try_lock())
   {
-    if (background_read_running_)
+    if (new_data_.load())
     {
-      auto start = std::chrono::steady_clock::now();
-
-      do
-      {
-        if (new_data_.load())
-        {
-          std::lock_guard<std::mutex> guard(read_mutex_);
-          reconnect_mutex_.unlock();
-          DataPackage* temp = dynamic_cast<DataPackage*>(data_buffer0_.get());
-          new_data_.store(false);
-          return std::make_unique<rtde_interface::DataPackage>(*temp);
-        }
-
-      } while ((std::chrono::steady_clock::now() - start) <= timeout);
+      std::lock_guard<std::mutex> guard(read_mutex_);
+      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
+      new_data_.store(false);
     }
     else
     {
-      URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
-                     "reading or use getDataPackageBlocking(...).");
+      std::unique_lock<std::mutex> lock(read_mutex_);
+      auto wait_result = background_read_cv_.wait_for(lock, timeout);
+      if (wait_result == std::cv_status::timeout)
+      {
+        reconnect_mutex_.unlock();
+        return false;
+      }
+      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
+      new_data_.store(false);
     }
     reconnect_mutex_.unlock();
   }
@@ -750,23 +767,20 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
     URCL_LOG_WARN("Unable to get data package while reconnecting to the RTDE interface");
     auto period = std::chrono::duration<double>(1.0 / target_frequency_);
     std::this_thread::sleep_for(period);
+    return false;
   }
-
-  return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
-}
-
-bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
-{
-  if (auto package = getDataPackage(timeout))
-  {
-    data_package = *dynamic_cast<DataPackage*>(package.get());
-    return true;
-  }
-  return false;
+  return true;
 }
 
 bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_package)
 {
+  if (background_read_running_)
+  {
+    URCL_LOG_ERROR("Background reading is running, cannot get data package in blocking mode. Please either stop "
+                   "background reading or use getDataPackage(...).");
+    return false;
+  }
+
   // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
   std::unique_ptr<RTDEPackage> base_package(data_package.release());
   if (reconnect_mutex_.try_lock())
@@ -917,6 +931,7 @@ void RTDEClient::startBackgroundRead()
 void RTDEClient::stopBackgroundRead()
 {
   background_read_running_ = false;
+  background_read_cv_.notify_one();
   if (background_read_thread_.joinable())
   {
     background_read_thread_.join();
@@ -938,6 +953,7 @@ void RTDEClient::backgroundReadThreadFunc()
         }
 
         new_data_.store(true);
+        background_read_cv_.notify_one();
       }
       else if (data_buffer1_->getType() == PackageType::RTDE_TEXT_MESSAGE)
       {

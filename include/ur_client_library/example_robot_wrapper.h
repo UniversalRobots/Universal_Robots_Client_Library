@@ -112,33 +112,9 @@ public:
    *
    * @param consume_data Once the RTDE client is started, it's data has to be consumed. If you
    * don't actually care about that data, this class can silently consume RTDE data when `true` is
-   * passed. This can be stopped and started at any time using the startConsumingRTDEData() and
-   * stopConsumingRTDEData() methods.
+   * passed.
    */
   void startRTDECommununication(const bool consume_data = false);
-
-  /**
-   * @brief Start consuming RTDE data in the background.
-   */
-  void startConsumingRTDEData();
-
-  /**
-   * @brief Stop consuming RTDE data in the background. Note that data has to be consumed manually
-   * using readDataPackage().
-   */
-  void stopConsumingRTDEData();
-
-  /**
-   * @brief Get the latest RTDE package.
-   *
-   * Do not call this, while RTDE data is being consumed in the background. In doubt, call
-   * stopConsumingRTDEData() before calling this function.
-   *
-   * @param[out] data_pkg The data package will be stored in that object
-   * @return true on a successful read, false if no package can be read or when RTDE data is
-   * already being consumed in the background.
-   */
-  bool readDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_pkg);
 
   /**
    * @brief Blocks until there is a robot program connected to the driver's reverse interface or
@@ -217,9 +193,6 @@ private:
   comm::INotifier notifier_;
 
   std::atomic<bool> rtde_communication_started_ = false;
-  std::atomic<bool> consume_rtde_packages_ = false;
-  std::mutex read_package_mutex_;
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg_;
 
   bool robot_initialized_ = false;
 
@@ -228,8 +201,6 @@ private:
   std::condition_variable program_not_running_cv_;
   std::mutex program_running_mutex_;
   std::mutex program_not_running_mutex_;
-
-  std::thread rtde_consumer_thread_;
 
   bool headless_mode_;
   std::string autostart_program_;
