@@ -148,6 +148,8 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     setTargetFrequency();
   }
 
+  prod_->startProducer();
+
   is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version);
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
@@ -492,6 +494,7 @@ void RTDEClient::disconnect()
   }
   client_state_ = ClientState::UNINITIALIZED;
   prod_->stopProducer();
+  stopBackgroundRead();
   notifier_.stopped("RTDE communication stopped");
 }
 
@@ -547,7 +550,6 @@ bool RTDEClient::start(const bool read_packages_in_background)
 
   if (sendStart())
   {
-    prod_->startProducer();
     if (read_packages_in_background)
     {
       startBackgroundRead();
@@ -718,6 +720,12 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
   return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
 }
 
+bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_package,
+                                std::chrono::milliseconds timeout)
+{
+  return getDataPackage(*data_package, timeout);
+}
+
 bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
 {
   if (!background_read_running_)
@@ -819,6 +827,7 @@ void RTDEClient::reconnect()
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
   ClientState cur_client_state = client_state_;
+  bool background_read_was_running = background_read_running_;
   disconnect();
 
   const size_t max_initialization_attempts = 3;
@@ -889,7 +898,7 @@ void RTDEClient::reconnect()
     return;
   }
 
-  start();
+  start(background_read_was_running);
   if (cur_client_state == ClientState::PAUSED)
   {
     pause();
@@ -964,6 +973,8 @@ void RTDEClient::backgroundReadThreadFunc()
       std::this_thread::sleep_for(period);
     }
   }
+  new_data_.store(false);
+  URCL_LOG_INFO("RTDE background read thread stopped");
 }
 
 }  // namespace rtde_interface
