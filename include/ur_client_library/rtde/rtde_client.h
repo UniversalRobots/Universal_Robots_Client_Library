@@ -200,6 +200,7 @@ public:
    * \returns Whether a data package was received successfully
    */
   bool getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout);
+  bool getDataPackage(std::unique_ptr<DataPackage>& data_package, std::chrono::milliseconds timeout);
 
   /*!
    * \brief Blocking call to get the next data package received from the robot.
@@ -307,7 +308,7 @@ public:
    */
   void stopBackgroundRead();
 
-private:
+protected:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
   bool ignore_unavailable_outputs_;

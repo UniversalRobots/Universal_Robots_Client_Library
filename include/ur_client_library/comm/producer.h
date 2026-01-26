@@ -67,7 +67,7 @@ private:
       }
 
       if (!running_)
-        return true;
+        return false;
 
       if (stream_.getState() == SocketState::Connected)
       {

@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: start ursim
         run: |
-          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
         env:
           DOCKER_RUN_OPTS: --network ursim_net
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
