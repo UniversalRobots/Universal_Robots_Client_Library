@@ -172,11 +172,11 @@ TEST(rtde_data_package, data_package_to_string)
   std::vector<std::string> recipe{ "speed_slider_mask", "speed_slider_fraction", "external_force_torque",
                                    "standard_digital_output_mask", "actual_digital_output_bits" };
   rtde_interface::DataPackage package(recipe);
-  package.setData("speed_slider_mask", 1);
-  package.setData("speed_slider_fraction", 0.5);
-  package.setData("external_force_torque", vector6d_t{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 });
-  package.setData<uint8_t>("standard_digital_output_mask", 1 << 7);
-  package.setData("actual_digital_output_bits", 1 << 7);
+  ASSERT_TRUE(package.setData<uint32_t>("speed_slider_mask", 1));
+  ASSERT_TRUE(package.setData<double>("speed_slider_fraction", 0.5));
+  ASSERT_TRUE(package.setData("external_force_torque", vector6d_t{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 }));
+  ASSERT_TRUE(package.setData<uint8_t>("standard_digital_output_mask", 1 << 7));
+  ASSERT_TRUE(package.setData<uint64_t>("actual_digital_output_bits", 1 << 7));
 
   std::string pkg_str = package.toString();
 

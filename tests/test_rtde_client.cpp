@@ -330,7 +330,7 @@ TEST_F(RTDEClientTest, get_data_package_w_background)
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   double timestamp;
   EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
-  data_pkg.setData("timestamp", 0.0);
+  ASSERT_TRUE(data_pkg.setData("timestamp", 0.0));
 
   ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
@@ -344,7 +344,7 @@ TEST_F(RTDEClientTest, get_data_package_w_background)
 
   // Check the second signature
   auto data_pkg_ptr = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
-  data_pkg_ptr->setData("timestamp", 0.0);
+  ASSERT_TRUE(data_pkg_ptr->setData("timestamp", 0.0));
   ASSERT_TRUE(client_->getDataPackage(data_pkg_ptr, std::chrono::milliseconds(100)));
   EXPECT_TRUE(data_pkg_ptr->getData("timestamp", timestamp));
   EXPECT_GT(timestamp, 0.0);
@@ -369,7 +369,7 @@ TEST_F(RTDEClientTest, get_data_package_wo_background)
   client_->start(false);
 
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
-  data_pkg->setData("timestamp", 0.0);
+  ASSERT_TRUE(data_pkg->setData("timestamp", 0.0));
   ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
 
   urcl::vector6d_t actual_q;
@@ -402,7 +402,7 @@ TEST_F(RTDEClientTest, reconnect_rtde_client)
   // Test that we can receive a package and extract data from the received package
   const std::chrono::milliseconds read_timeout{ 100 };
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  data_pkg.setData("timestamp", 0.0);
+  ASSERT_TRUE(data_pkg.setData("timestamp", 0.0));
   ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
   double timestamp;
@@ -423,8 +423,6 @@ TEST_F(RTDEClientTest, reconnect_rtde_client)
   double timestamp_2;
   EXPECT_TRUE(data_pkg.getData("timestamp", timestamp_2));
   EXPECT_GT(timestamp_2, timestamp);
-
-  std::this_thread::sleep_for(std::chrono::seconds(2));
 
   client_->pause();
 }

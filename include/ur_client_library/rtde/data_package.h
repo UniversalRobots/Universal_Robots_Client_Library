@@ -209,6 +209,13 @@ public:
         });
     if (it != data_.end())
     {
+      if (!std::holds_alternative<T>(it->second))
+      {
+        // TODO: It might be better to replace the return type by void and use exceptions for the
+        // error case.
+        URCL_LOG_ERROR("Type of passed data doesn't match type of existing field for index '%s'", name.c_str());
+        return false;
+      }
       it->second = val;
     }
     else
