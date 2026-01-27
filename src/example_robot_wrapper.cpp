@@ -98,10 +98,6 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
 
 ExampleRobotWrapper::~ExampleRobotWrapper()
 {
-  if (rtde_communication_started_)
-  {
-    stopConsumingRTDEData();
-  }
 }
 
 bool ExampleRobotWrapper::clearProtectiveStop()
@@ -236,55 +232,9 @@ void ExampleRobotWrapper::startRTDECommununication(const bool consume_data)
 {
   if (!rtde_communication_started_)
   {
-    ur_driver_->startRTDECommunication();
+    ur_driver_->startRTDECommunication(consume_data);
     rtde_communication_started_ = true;
   }
-  if (consume_data)
-  {
-    startConsumingRTDEData();
-  }
-}
-
-void ExampleRobotWrapper::startConsumingRTDEData()
-{
-  consume_rtde_packages_ = true;
-  rtde_consumer_thread_ = std::thread([this]() {
-    while (consume_rtde_packages_)
-    {
-      // Consume package to prevent pipeline overflow
-      std::lock_guard<std::mutex> lk(read_package_mutex_);
-      data_pkg_ = ur_driver_->getDataPackage();
-    }
-  });
-}
-
-void ExampleRobotWrapper::stopConsumingRTDEData()
-{
-  if (consume_rtde_packages_)
-  {
-    consume_rtde_packages_ = false;
-    if (rtde_consumer_thread_.joinable())
-    {
-      rtde_consumer_thread_.join();
-    }
-  }
-}
-
-bool ExampleRobotWrapper::readDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_pkg)
-{
-  if (consume_rtde_packages_ == true)
-  {
-    URCL_LOG_ERROR("Unable to read packages while consuming, this should not happen!");
-    return false;
-  }
-  std::lock_guard<std::mutex> lk(read_package_mutex_);
-  data_pkg = ur_driver_->getDataPackage();
-  if (data_pkg == nullptr)
-  {
-    URCL_LOG_ERROR("Timed out waiting for a new package from the robot");
-    return false;
-  }
-  return true;
 }
 
 bool ExampleRobotWrapper::waitForProgramRunning(int milliseconds)

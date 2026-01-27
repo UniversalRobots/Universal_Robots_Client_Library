@@ -27,32 +27,79 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/rtde/rtde_writer.h"
+#include <mutex>
+#include "ur_client_library/log.h"
 
 namespace urcl
 {
 namespace rtde_interface
 {
+std::vector<std::string> RTDEWriter::g_preallocated_input_bit_register_keys;
+std::vector<std::string> RTDEWriter::g_preallocated_input_int_register_keys;
+std::vector<std::string> RTDEWriter::g_preallocated_input_double_register_keys;
+
 RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<std::string>& recipe)
-  : stream_(stream), recipe_(recipe), recipe_id_(0), queue_{ 32 }, running_(false), package_(recipe_)
+  : stream_(stream), recipe_id_(0), running_(false)
 {
+  setInputRecipe(recipe);
+
+  g_preallocated_input_bit_register_keys.resize(128);
+  for (size_t i = 0; i < 128; ++i)
+  {
+    g_preallocated_input_bit_register_keys[i] = "input_bit_register_" + std::to_string(i);
+  }
+
+  g_preallocated_input_int_register_keys.resize(48);
+  for (size_t i = 0; i < 48; ++i)
+  {
+    g_preallocated_input_int_register_keys[i] = "input_int_register_" + std::to_string(i);
+  }
+
+  g_preallocated_input_double_register_keys.resize(48);
+  for (size_t i = 0; i < 48; ++i)
+  {
+    g_preallocated_input_double_register_keys[i] = "input_double_register_" + std::to_string(i);
+  }
+
+  for (const auto& field : recipe)
+  {
+    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
+    {
+      used_masks_.push_back(field);
+    }
+  }
 }
 
 void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
 {
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  if (running_)
+  {
+    throw UrException("Requesting to change the input recipe while the RTDEWriter is running. The writer has to be "
+                      "stopped before setting the recipe.");
+  }
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
   recipe_ = recipe;
-  package_ = DataPackage(recipe_);
-  package_.initEmpty();
+  data_buffer0_ = std::make_shared<DataPackage>(recipe_);
+  data_buffer1_ = std::make_shared<DataPackage>(recipe_);
+
+  current_store_buffer_ = data_buffer0_;
+  current_send_buffer_ = data_buffer1_;
 }
 
 void RTDEWriter::init(uint8_t recipe_id)
 {
   if (running_)
   {
-    return;
+    throw UrException("Requesting to init a RTDEWriter while it is running. The writer has to be "
+                      "stopped before initializing it.");
+  }
+  {
+    std::lock_guard<std::mutex> lock_guard(store_mutex_);
+    data_buffer0_->setRecipeID(recipe_id);
+    data_buffer1_->setRecipeID(recipe_id);
   }
   recipe_id_ = recipe_id;
-  package_.initEmpty();
+  new_data_available_ = false;
   running_ = true;
   writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
@@ -62,14 +109,24 @@ void RTDEWriter::run()
   uint8_t buffer[4096];
   size_t size;
   size_t written;
-  std::unique_ptr<DataPackage> package;
   while (running_)
   {
-    if (queue_.waitDequeTimed(package, 1000000))
+    std::unique_lock<std::mutex> lock(store_mutex_);
+    data_available_cv_.wait(lock, [this] { return new_data_available_.load() || !running_.load(); });
     {
-      package->setRecipeID(recipe_id_);
-      size = package->serializePackage(buffer);
-      stream_->write(buffer, size, written);
+      if (new_data_available_.load() && running_.load())
+      {
+        std::swap(current_store_buffer_, current_send_buffer_);
+        new_data_available_ = false;
+        lock.unlock();
+        size = current_send_buffer_->serializePackage(buffer);
+        stream_->write(buffer, size, written);
+        resetMasks(current_send_buffer_);
+      }
+      else
+      {
+        lock.unlock();
+      }
     }
   }
   URCL_LOG_DEBUG("Write thread ended.");
@@ -77,11 +134,22 @@ void RTDEWriter::run()
 
 void RTDEWriter::stop()
 {
-  running_ = false;
+  {
+    std::lock_guard<std::mutex> lock(store_mutex_);
+    running_ = false;
+    data_available_cv_.notify_one();
+  }
   if (writer_thread_.joinable())
   {
     writer_thread_.join();
   }
+}
+
+bool RTDEWriter::sendPackage(const DataPackage& package)
+{
+  *current_store_buffer_ = package;
+  markStorageToBeSent();
+  return true;
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
@@ -95,21 +163,15 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  static const std::string key = "speed_slider_fraction";
+  static const std::string mask_key = "speed_slider_mask";
+  std::lock_guard<std::mutex> guard(store_mutex_);
   uint32_t mask = 1;
   bool success = true;
-  success = package_.setData("speed_slider_mask", mask);
-  success = success && package_.setData("speed_slider_fraction", speed_slider_fraction);
+  success = current_store_buffer_->setData(mask_key, mask);
+  success = success && current_store_buffer_->setData(key, speed_slider_fraction);
+  markStorageToBeSent();
 
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
-  mask = 0;
-  success = package_.setData("speed_slider_mask", mask);
   return success;
 }
 
@@ -123,7 +185,9 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  static const std::string key_mask = "standard_digital_output_mask";
+  static const std::string key_output = "standard_digital_output";
+  std::lock_guard<std::mutex> guard(store_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -135,18 +199,10 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
   {
     digital_output = 0;
   }
-  success = package_.setData("standard_digital_output_mask", mask);
-  success = success && package_.setData("standard_digital_output", digital_output);
+  success = current_store_buffer_->setData(key_mask, mask);
+  success = success && current_store_buffer_->setData(key_output, digital_output);
+  markStorageToBeSent();
 
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
-  mask = 0;
-  success = package_.setData("standard_digital_output_mask", mask);
   return success;
 }
 
@@ -161,7 +217,10 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  URCL_LOG_INFO("Write thread started.");
+  static const std::string key_mask = "configurable_digital_output_mask";
+  static const std::string key_output = "configurable_digital_output";
+  std::lock_guard<std::mutex> guard(store_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -173,18 +232,10 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
   {
     digital_output = 0;
   }
-  success = package_.setData("configurable_digital_output_mask", mask);
-  success = success && package_.setData("configurable_digital_output", digital_output);
+  success = current_store_buffer_->setData(key_mask, mask);
+  success = success && current_store_buffer_->setData(key_output, digital_output);
+  markStorageToBeSent();
 
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
-  mask = 0;
-  success = package_.setData("configurable_digital_output_mask", mask);
   return success;
 }
 
@@ -198,7 +249,9 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  static const std::string key_mask = "tool_digital_output_mask";
+  static const std::string key_output = "tool_digital_output";
+  std::lock_guard<std::mutex> guard(store_mutex_);
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -210,18 +263,10 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
   {
     digital_output = 0;
   }
-  success = package_.setData("tool_digital_output_mask", mask);
-  success = success && package_.setData("tool_digital_output", digital_output);
+  success = current_store_buffer_->setData(key_mask, mask);
+  success = success && current_store_buffer_->setData(key_output, digital_output);
+  markStorageToBeSent();
 
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
-  mask = 0;
-  success = package_.setData("tool_digital_output_mask", mask);
   return success;
 }
 
@@ -242,29 +287,25 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
+  std::lock_guard<std::mutex> guard(store_mutex_);
   uint8_t mask = pinToMask(output_pin);
 
   bool success = true;
-  success = package_.setData("standard_analog_output_mask", mask);
+  static const std::string key_mask = "standard_analog_output_mask";
+  success = current_store_buffer_->setData(key_mask, mask);
   if (type != AnalogOutputType::SET_ON_TEACH_PENDANT)
   {
+    static const std::string key_type = "standard_analog_output_type";
     auto output_type_bits = [](const uint8_t pin, const uint8_t type) { return type << pin; };
     uint8_t output_type = output_type_bits(output_pin, toUnderlying(type));
-    success = success && package_.setData("standard_analog_output_type", output_type);
+    success = success && current_store_buffer_->setData(key_type, output_type);
   }
-  success = success && package_.setData("standard_analog_output_0", value);
-  success = success && package_.setData("standard_analog_output_1", value);
+  static const std::string key_output_0 = "standard_analog_output_0";
+  success = success && current_store_buffer_->setData(key_output_0, value);
+  static const std::string key_output_1 = "standard_analog_output_1";
+  success = success && current_store_buffer_->setData(key_output_1, value);
+  markStorageToBeSent();
 
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
-  mask = 0;
-  success = package_.setData("standard_analog_output_mask", mask);
   return success;
 }
 
@@ -288,19 +329,10 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
-  std::stringstream ss;
-  ss << "input_bit_register_" << register_id;
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  bool success = current_store_buffer_->setData(g_preallocated_input_bit_register_keys[register_id], value);
+  markStorageToBeSent();
 
-  bool success = package_.setData(ss.str(), value);
-
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
   return success;
 }
 
@@ -314,19 +346,10 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
-  std::stringstream ss;
-  ss << "input_int_register_" << register_id;
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  bool success = current_store_buffer_->setData(g_preallocated_input_int_register_keys[register_id], value);
+  markStorageToBeSent();
 
-  bool success = package_.setData(ss.str(), value);
-
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
   return success;
 }
 
@@ -340,34 +363,46 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
     return false;
   }
 
-  std::lock_guard<std::mutex> guard(package_mutex_);
-  std::stringstream ss;
-  ss << "input_double_register_" << register_id;
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  bool success = current_store_buffer_->setData(g_preallocated_input_double_register_keys[register_id], value);
+  markStorageToBeSent();
 
-  bool success = package_.setData(ss.str(), value);
-
-  if (success)
-  {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
-    {
-      return false;
-    }
-  }
   return success;
 }
 
 bool RTDEWriter::sendExternalForceTorque(const vector6d_t& external_force_torque)
 {
-  std::lock_guard<std::mutex> guard(package_mutex_);
-  bool success = package_.setData("external_force_torque", external_force_torque);
-  if (success)
+  static const std::string key = "external_force_torque";
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  bool success = current_store_buffer_->setData(key, external_force_torque);
+  markStorageToBeSent();
+  return success;
+}
+
+void RTDEWriter::resetMasks(const std::shared_ptr<DataPackage>& buffer)
+{
+  for (const auto& mask_name : used_masks_)
   {
-    if (!queue_.tryEnqueue(std::unique_ptr<DataPackage>(new DataPackage(package_))))
+    // "speed_slider_mask" is uint32_t, all others are uint8_t
+    // If we reset it to the wrong type, serialization will be wrong
+    if (mask_name == "speed_slider_mask")
+
     {
-      return false;
+      uint32_t mask = 0;
+      buffer->setData<uint32_t>(mask_name, mask);
+    }
+    else
+    {
+      uint8_t mask = 0;
+      buffer->setData<uint8_t>(mask_name, mask);
     }
   }
-  return success;
+}
+
+void RTDEWriter::markStorageToBeSent()
+{
+  new_data_available_ = true;
+  data_available_cv_.notify_one();
 }
 
 }  // namespace rtde_interface

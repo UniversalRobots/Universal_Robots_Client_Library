@@ -516,6 +516,14 @@ setup() {
   [ "$port_forwarding" = "-p 1234:1234 -p 50001-50004:60001-60004" ]
 }
 
+@test "disable_port_forwarding" {
+  run main -t -f "DISABLED"
+  echo "$output"
+  [ $status -eq 0 ]
+  docker_line=$(echo "$output" | tail -n -1)
+  grep -v -E "\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?" <<< "$docker_line"
+}
+
 @test "default_container_name" {
   run main -t
   echo "$output"

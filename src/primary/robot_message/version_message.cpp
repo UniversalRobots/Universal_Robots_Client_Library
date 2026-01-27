@@ -57,9 +57,11 @@ bool VersionMessage ::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string VersionMessage::toString() const
 {
   std::stringstream ss;
+  ss << "VersionMessage:" << std::endl;
   ss << "project name: " << project_name_ << std::endl;
   ss << "version: " << unsigned(major_version_) << "." << unsigned(minor_version_) << "." << svn_version_ << std::endl;
-  ss << "build date: " << build_date_;
+  ss << "build date: " << build_date_ << std::endl;
+  ss << "build number: " << build_number_ << std::endl;
 
   return ss.str();
 }

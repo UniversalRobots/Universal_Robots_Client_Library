@@ -41,12 +41,27 @@ public:
   virtual ~Parser() = default;
 
   /*!
-   * \brief Declares the parse function.
+   * \brief Parses data from a binary parser into a vector of packages.
+   *
+   * This will create new packages and push them to the results vector, thus new memory will be
+   * allocated for each package. Do not use this in a real-time context.
    *
    * \param bp Instance of class binaryParser
-   * \param results A unique pointer
+   * \param results A vector of unique pointers to packages
    */
   virtual bool parse(BinParser& bp, std::vector<std::unique_ptr<T>>& results) = 0;
+
+  /*!
+   * \brief Parses data from a binary parser into a single package.
+   *
+   * This implementation may try to store data in the passed package instance to avoid memory
+   * allocations. Thus, this function may be used in a real-time context. Refer to the specific
+   * implementation and parser for details.
+   *
+   * \param bp Instance of class binaryParser
+   * \param result A unique pointer to a package where parsed data should be stored.
+   */
+  virtual bool parse(BinParser& bp, std::unique_ptr<T>& result) = 0;
 
 private:
   typename T::HeaderType header_;
