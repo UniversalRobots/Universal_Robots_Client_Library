@@ -47,7 +47,7 @@ bool RobotState::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string RobotState::toString() const
 {
   std::stringstream ss;
-  ss << "Type: " << static_cast<int>(state_type_) << std::endl;
+  ss << "RobotStateType: " << static_cast<int>(state_type_) << std::endl;
   ss << PrimaryPackage::toString();
   return ss.str();
 }
