@@ -383,8 +383,19 @@ void RTDEWriter::resetMasks(const std::shared_ptr<DataPackage>& buffer)
 {
   for (const auto& mask_name : used_masks_)
   {
-    uint8_t mask = 0;
-    buffer->setData<uint8_t>(mask_name, mask);
+    // "speed_slider_mask" is uint32_t, all others are uint8_t
+    // If we reset it to the wrong type, serialization will be wrong
+    if (mask_name == "speed_slider_mask")
+
+    {
+      uint32_t mask = 0;
+      buffer->setData<uint32_t>(mask_name, mask);
+    }
+    else
+    {
+      uint8_t mask = 0;
+      buffer->setData<uint8_t>(mask_name, mask);
+    }
   }
 }
 

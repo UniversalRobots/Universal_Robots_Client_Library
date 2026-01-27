@@ -458,6 +458,40 @@ TEST_F(RTDEWriterTest, send_external_force_torque)
   EXPECT_EQ(send_external_force_torque[5], received_external_force_torque[5]);
 }
 
+TEST_F(RTDEWriterTest, send_data_package)
+{
+  const uint32_t send_speed_slider_mask = 1;
+  const double send_speed_slider_fraction = 0.7;
+  const bool standard_digital_output_value = true;
+  const uint8_t standard_digital_output_mask = 0b00000001;  // pin 1
+
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", send_speed_slider_fraction));
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", send_speed_slider_mask));
+  ASSERT_TRUE(
+      data_package.setData("standard_digital_output", static_cast<uint8_t>(standard_digital_output_value ? 255 : 0)));
+  ASSERT_TRUE(data_package.setData("standard_digital_output_mask", standard_digital_output_mask));
+
+  EXPECT_TRUE(writer_->sendPackage(data_package));
+
+  waitForMessageCallback(1000);
+
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  ASSERT_TRUE(dataFieldExist("speed_slider_mask"));
+  ASSERT_TRUE(dataFieldExist("standard_digital_output"));
+  ASSERT_TRUE(dataFieldExist("standard_digital_output_mask"));
+
+  double received_speed_slider_fraction = std::get<double>(parsed_data_["speed_slider_fraction"]);
+  uint32_t received_speed_slider_mask = std::get<uint32_t>(parsed_data_["speed_slider_mask"]);
+  bool received_standard_digital_output_value = std::get<uint8_t>(parsed_data_["standard_digital_output"]) != 0;
+  uint8_t received_standard_digital_output_mask = std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]);
+
+  EXPECT_EQ(send_speed_slider_fraction, received_speed_slider_fraction);
+  EXPECT_EQ(send_speed_slider_mask, received_speed_slider_mask);
+  EXPECT_EQ(standard_digital_output_value, received_standard_digital_output_value);
+  EXPECT_EQ(standard_digital_output_mask, received_standard_digital_output_mask);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
