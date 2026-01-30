@@ -58,6 +58,7 @@ protected:
     {
       GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
     }
+
     dashboard_client_.reset(new DashboardClientImplX(g_ROBOT_IP));
     dashboard_client_->setPolyscopeVersion(*polyscope_version_);
   }
@@ -177,6 +178,86 @@ TEST_F(DashboardClientTestX, program_interaction)
   ASSERT_TRUE(response.ok);
   response = dashboard_client_->commandProgramState();
   ASSERT_EQ(std::get<std::string>(response.data["program_state"]), "STOPPED");
+}
+
+TEST_F(DashboardClientTestX, get_control_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response = dashboard_client_->commandIsInRemoteControl();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<bool>(response.data["remote_control"]), true);
+}
+
+TEST_F(DashboardClientTestX, get_operational_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response = dashboard_client_->commandGetOperationalMode();
+  ASSERT_TRUE(response.ok);
+  EXPECT_PRED3([](auto str, auto s1, auto s2) { return (str == s1 || str == s2); },
+               std::get<std::string>(response.data["operational_mode"]), "AUTOMATIC", "MANUAL");
+}
+
+TEST_F(DashboardClientTestX, get_safety_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response;
+  dashboard_client_->commandPowerOff();
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+  response = dashboard_client_->commandPowerOn();
+  ASSERT_TRUE(response.ok);
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+  response = dashboard_client_->commandBrakeRelease();
+  ASSERT_TRUE(response.ok);
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+  primary_client_->sendScript("protective_stop()");
+  std::this_thread::sleep_for(1000ms);
+  response = dashboard_client_->commandSafetyMode();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
+  response = dashboard_client_->commandUnlockProtectiveStop();
+  ASSERT_TRUE(response.ok);
+  response = dashboard_client_->commandSafetyMode();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+}
+
+TEST_F(DashboardClientTestX, get_robot_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response;
+  dashboard_client_->commandPowerOff();
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+  response = dashboard_client_->commandRobotMode();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
+  response = dashboard_client_->commandPowerOn();
+  ASSERT_TRUE(response.ok);
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+  response = dashboard_client_->commandRobotMode();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
+  response = dashboard_client_->commandBrakeRelease();
+  ASSERT_TRUE(response.ok);
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+  response = dashboard_client_->commandRobotMode();
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
 }
 
 int main(int argc, char* argv[])
