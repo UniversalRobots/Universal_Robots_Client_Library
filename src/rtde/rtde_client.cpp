@@ -762,6 +762,7 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
       auto wait_result = background_read_cv_.wait_for(lock, timeout);
       if (wait_result == std::cv_status::timeout)
       {
+        URCL_LOG_ERROR("RTDE package receive timeout passed without a new package. Timeout was %d ms", timeout.count());
         reconnect_mutex_.unlock();
         return false;
       }
