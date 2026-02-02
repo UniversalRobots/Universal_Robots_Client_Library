@@ -91,6 +91,7 @@ bool urcl::InstructionExecutor::executeMotion(
   if (!cancel_requested_)
   {
     std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
+    driver_->writeJointCommand({ 0, 0, 0, 0, 0, 0 }, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(0));
     URCL_LOG_INFO("Trajectory done with result %s", control::trajectoryResultToString(trajectory_result_).c_str());
     return trajectory_result_ == urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS;
   }
