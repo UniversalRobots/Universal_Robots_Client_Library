@@ -182,7 +182,7 @@ private:
       case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
         return new ErrorCodeMessage(timestamp, source);
       default:
-        return new RobotMessage(timestamp, source);
+        return new RobotMessage(timestamp, source, type);
     }
   }
 };

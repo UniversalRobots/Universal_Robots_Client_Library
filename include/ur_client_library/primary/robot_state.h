@@ -50,8 +50,45 @@ enum class RobotStateType : uint8_t
   CONFIGURATION_DATA = 6,
   FORCE_MODE_DATA = 7,
   ADDITIONAL_INFO = 8,
-  CALIBRATION_DATA = 9
+  CALIBRATION_DATA = 9,
+  SAFETY_DATA = 10,
+  TOOL_COMM_INFO = 11,
+  TOOL_MODE_INFO = 12
 };
+
+inline const char* robotStateString(const RobotStateType state_type)
+{
+  switch (state_type)
+  {
+    case RobotStateType::ROBOT_MODE_DATA:
+      return "ROBOT_MODE_DATA";
+    case RobotStateType::JOINT_DATA:
+      return "JOINT_DATA";
+    case RobotStateType::TOOL_DATA:
+      return "TOOL_DATA";
+    case RobotStateType::MASTERBOARD_DATA:
+      return "MASTERBOARD_DATA";
+    case RobotStateType::CARTESIAN_INFO:
+      return "CARTESIAN_INFO";
+    case RobotStateType::KINEMATICS_INFO:
+      return "KINEMATICS_INFO";
+    case RobotStateType::CONFIGURATION_DATA:
+      return "CONFIGURATION_DATA";
+    case RobotStateType::FORCE_MODE_DATA:
+      return "FORCE_MODE_DATA";
+    case RobotStateType::ADDITIONAL_INFO:
+      return "ADDITIONAL_INFO";
+    case RobotStateType::CALIBRATION_DATA:
+      return "CALIBRATION_DATA";
+    case RobotStateType::SAFETY_DATA:
+      return "SAFETY_DATA";
+    case RobotStateType::TOOL_COMM_INFO:
+      return "TOOL_COMM_INFO";
+    case RobotStateType::TOOL_MODE_INFO:
+      return "TOOL_MODE_INFO";
+  }
+  return "";
+}
 
 /*!
  * \brief Base class for a RobotState data packages will be used directly.

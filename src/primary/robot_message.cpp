@@ -34,6 +34,7 @@ namespace primary_interface
 {
 bool RobotMessage::parseWith(comm::BinParser& bp)
 {
+  bp.rawData(buffer_, buffer_length_);
   return true;
 }
 
@@ -48,6 +49,7 @@ std::string RobotMessage::toString() const
   ss << "timestamp: " << timestamp_ << std::endl;
   ss << "source: " << static_cast<int>(source_) << std::endl;
   ss << "message_type: " << static_cast<int>(message_type_) << std::endl;
+  ss << PrimaryPackage::toString();
 
   return ss.str();
 }
