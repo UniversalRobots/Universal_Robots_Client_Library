@@ -24,6 +24,7 @@
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/comm/parser.h"
 #include "ur_client_library/primary/package_header.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
 #include "ur_client_library/primary/robot_state.h"
 #include "ur_client_library/primary/robot_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
@@ -181,6 +182,8 @@ private:
         return new VersionMessage(timestamp, source);
       case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
         return new ErrorCodeMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
+        return new KeyMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source);
     }

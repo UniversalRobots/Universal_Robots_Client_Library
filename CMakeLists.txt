@@ -26,9 +26,10 @@ add_library(urcl
     src/primary/primary_package.cpp
     src/primary/primary_client.cpp
     src/primary/robot_message.cpp
-    src/primary/robot_state.cpp
-    src/primary/robot_message/version_message.cpp
     src/primary/robot_message/error_code_message.cpp
+    src/primary/robot_message/key_message.cpp
+    src/primary/robot_message/version_message.cpp
+    src/primary/robot_state.cpp
     src/primary/robot_state/kinematics_info.cpp
     src/primary/robot_state/robot_mode_data.cpp
     src/primary/robot_state/configuration_data.cpp
