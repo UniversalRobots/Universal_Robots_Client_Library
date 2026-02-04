@@ -34,6 +34,8 @@
 #include <ur_client_library/ur/calibration_checker.h>
 #include <chrono>
 #include <memory>
+#include <queue>
+#include <stdexcept>
 #include <thread>
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
@@ -41,6 +43,46 @@
 using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
+
+class RobotMessageConsumer : public comm::IConsumer<primary_interface::PrimaryPackage>
+{
+public:
+  RobotMessageConsumer() = default;
+  virtual ~RobotMessageConsumer() = default;
+
+  virtual bool consume(std::shared_ptr<primary_interface::PrimaryPackage> product)
+  {
+    auto message_ptr = std::dynamic_pointer_cast<primary_interface::RobotMessage>(product);
+
+    if (message_ptr != nullptr)
+    {
+      std::lock_guard<std::mutex> lock(data_lock_);
+      package_queue_.push(message_ptr);
+      URCL_LOG_INFO("%s", message_ptr->toString().c_str());
+      data_cv_.notify_one();
+      return true;
+    }
+    return true;
+  }
+
+  std::shared_ptr<primary_interface::RobotMessage>
+  getOrWaitForMessage(const std::chrono::milliseconds timeout = std::chrono::milliseconds(1000))
+  {
+    std::unique_lock<std::mutex> lock(data_lock_);
+    if (!package_queue_.empty() || data_cv_.wait_for(lock, timeout) == std::cv_status::no_timeout)
+    {
+      auto data = package_queue_.front();
+      package_queue_.pop();
+      return data;
+    }
+    throw TimeoutException("Did not receive RobotMessage in time", timeout);
+  }
+
+private:
+  std::queue<std::shared_ptr<primary_interface::RobotMessage>> package_queue_;
+  std::condition_variable data_cv_;
+  std::mutex data_lock_;
+};
 
 class PrimaryClientTest : public ::testing::Test
 {
@@ -198,6 +240,102 @@ TEST_F(PrimaryClientTest, test_configuration_data)
 
   // Robot type should no longer be undefined once we have received configuration data.
   EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
+}
+
+TEST_F(PrimaryClientTest, test_program_execution)
+{
+  auto consumer = std::make_shared<RobotMessageConsumer>();
+
+  client_->addPrimaryConsumer(consumer);
+
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  const std::string script_code = "def test_fun():\n"
+                                  "  textmsg(\"still running\")\n"
+                                  "  sleep(0.1)\n"
+                                  "  sync()\n"
+                                  "end";
+
+  EXPECT_TRUE(client_->sendScript(script_code));
+
+  {  // we get a key message that the program started
+    bool answer_received = false;
+    while (!answer_received)
+    {
+      auto message = consumer->getOrWaitForMessage();
+      auto key_message = std::dynamic_pointer_cast<primary_interface::KeyMessage>(message);
+      if (key_message)
+      {
+        answer_received = true;
+        EXPECT_EQ(key_message->title_, "PROGRAM_XXX_STARTED");
+        EXPECT_EQ(key_message->text_, "test_fun");
+      }
+    }
+  }
+
+  {  // we get the textmessage of the program
+    bool answer_received = false;
+    while (!answer_received)
+    {
+      auto message = consumer->getOrWaitForMessage();
+      auto text_message = std::dynamic_pointer_cast<primary_interface::TextMessage>(message);
+      if (text_message)
+      {
+        answer_received = true;
+        EXPECT_EQ(text_message->text_, "still running");
+      }
+    }
+  }
+
+  {  // we get a key message that the program stopped
+    bool answer_received = false;
+    while (!answer_received)
+    {
+      auto message = consumer->getOrWaitForMessage();
+      auto key_message = std::dynamic_pointer_cast<primary_interface::KeyMessage>(message);
+      if (key_message)
+      {
+        answer_received = true;
+        EXPECT_EQ(key_message->title_, "PROGRAM_XXX_STOPPED");
+        EXPECT_EQ(key_message->text_, "test_fun");
+      }
+    }
+  }
+}
+
+TEST_F(PrimaryClientTest, test_program_execution_reports_exception)
+{
+  auto consumer = std::make_shared<RobotMessageConsumer>();
+
+  client_->addPrimaryConsumer(consumer);
+
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  const std::string script_code = "def illegal_fun():\n"
+                                  "  calldoesntexist()\n"
+                                  "end";
+
+  EXPECT_TRUE(client_->sendScript(script_code));
+
+  {  // we get a RuntimeException message saying that out function doesn't exist
+    bool answer_received = false;
+    while (!answer_received)
+    {
+      auto message = consumer->getOrWaitForMessage();
+      auto typed_msg = std::dynamic_pointer_cast<primary_interface::RuntimeExceptionMessage>(message);
+      if (typed_msg)
+      {
+        answer_received = true;
+        EXPECT_EQ(typed_msg->line_number_, 2);
+        EXPECT_EQ(typed_msg->column_number_, 3);
+        EXPECT_EQ(typed_msg->text_, "compile_error_name_not_found:calldoesntexist:");
+      }
+    }
+  }
 }
 
 int main(int argc, char* argv[])
