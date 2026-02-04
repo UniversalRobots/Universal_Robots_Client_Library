@@ -106,7 +106,7 @@ public:
   virtual std::string toString() const;
 
   uint64_t timestamp_;
-  uint8_t source_;
+  int8_t source_;
   RobotMessagePackageType message_type_;
 };
 

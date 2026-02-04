@@ -185,7 +185,7 @@ private:
       case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
         return new KeyMessage(timestamp, source);
       default:
-        return new RobotMessage(timestamp, source);
+        return new RobotMessage(timestamp, source, type);
     }
   }
 };
