@@ -25,6 +25,7 @@
 #include "ur_client_library/comm/parser.h"
 #include "ur_client_library/primary/package_header.h"
 #include "ur_client_library/primary/robot_message/key_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
 #include "ur_client_library/primary/robot_state.h"
 #include "ur_client_library/primary/robot_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
@@ -184,6 +185,8 @@ private:
         return new ErrorCodeMessage(timestamp, source);
       case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
         return new KeyMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_RUNTIME_EXCEPTION:
+        return new RuntimeExceptionMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source, type);
     }

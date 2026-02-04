@@ -162,6 +162,26 @@ const unsigned char KEY_MESSAGE[] = {
   0x53, 0x54, 0x41, 0x52, 0x54, 0x45, 0x44, 0x74, 0x65, 0x78, 0x74, 0x6d, 0x73, 0x67
 };
 
+const unsigned char RUNTIME_EXCEPTION_MESSAGE[] = {
+  // message size
+  0x00, 0x00, 0x00, 0x39,
+  // message type robot message
+  0x14,
+  // timestamp
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  // source
+  0xfd,
+  // robot_message_type RUNTIME_EXCEPTION_MESSAGE
+  0x0a,
+  // line number
+  0x00, 0x00, 0x00, 0x03,
+  // column number
+  0x00, 0x00, 0x00, 0x01,
+  // message: "compile_error_name_not_found:txtmsg:"
+  0x63, 0x6f, 0x6d, 0x70, 0x69, 0x6c, 0x65, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x5f,
+  0x6e, 0x6f, 0x74, 0x5f, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x3a, 0x74, 0x78, 0x74, 0x6d, 0x73, 0x67, 0x3a
+};
+
 TEST(primary_parser, parse_calibration_data)
 {
   unsigned char raw_data[sizeof(ROBOT_STATE)];
@@ -233,6 +253,31 @@ TEST(primary_parser, parse_key_message)
   else
   {
     FAIL() << "Parsed package is not of type KeyMessage";
+  }
+}
+
+TEST(primary_parser, parse_runtime_exception_message)
+{
+  unsigned char raw_data[sizeof(RUNTIME_EXCEPTION_MESSAGE)];
+  memcpy(raw_data, RUNTIME_EXCEPTION_MESSAGE, sizeof(RUNTIME_EXCEPTION_MESSAGE));
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  primary_interface::PrimaryParser parser;
+  ASSERT_TRUE(parser.parse(bp, products));
+
+  EXPECT_EQ(products.size(), 1);
+
+  if (primary_interface::RuntimeExceptionMessage* data =
+          dynamic_cast<primary_interface::RuntimeExceptionMessage*>(products[0].get()))
+  {
+    EXPECT_EQ(data->line_number_, 3);
+    EXPECT_EQ(data->column_number_, 1);
+    EXPECT_EQ(data->text_, "compile_error_name_not_found:txtmsg:");
+  }
+  else
+  {
+    FAIL() << "Parsed package is not of type RuntimeExceptionMessage";
   }
 }
 
