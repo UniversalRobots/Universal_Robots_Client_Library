@@ -30,6 +30,7 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <future>
 #include <iostream>
 #include <thread>
 #include "ur_client_library/ur/instruction_executor.h"
@@ -453,6 +454,27 @@ TEST_F(InstructionExecutorTest, optimovel_with_illegal_parameters_fails)
   ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 1.2));
   // Negative blend radius
   ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, -0.1));
+}
+
+TEST_F(InstructionExecutorTest, no_new_trajectory_doesnt_stop_execution)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  // The internal keepalive of the instruction executor is 200 ms
+  // The program should keep running.
+  ASSERT_FALSE(g_my_robot->waitForProgramNotRunning(500));
+
+  auto op = [this]() mutable { return executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, -2.2 }); };
+  auto result = std::async(std::launch::async, op);
+
+  // Give motion some time to start, then cancel
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  executor_->cancelMotion();
+
+  result.wait();
+  ASSERT_FALSE(result.get());
+  ASSERT_FALSE(g_my_robot->waitForProgramNotRunning(500));
 }
 
 int main(int argc, char* argv[])
