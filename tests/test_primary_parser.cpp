@@ -31,6 +31,7 @@
 
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/primary/primary_parser.h>
+#include "ur_client_library/primary/robot_message/key_message.h"
 
 using namespace urcl;
 
@@ -145,6 +146,22 @@ const unsigned char VERSION_MESSAGE[] = {
   0x33, 0x33
 };
 
+const unsigned char KEY_MESSAGE[] = {
+  // message size
+  0x00, 0x00, 0x00, 0x32,
+  // message type
+  0x14,
+  // timestamp
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  // source
+  0xfe,
+  // robot_message_type
+  0x07,
+  // payload
+  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x13, 0x50, 0x52, 0x4f, 0x47, 0x52, 0x41, 0x4d, 0x5f, 0x58, 0x58, 0x58, 0x5f,
+  0x53, 0x54, 0x41, 0x52, 0x54, 0x45, 0x44, 0x74, 0x65, 0x78, 0x74, 0x6d, 0x73, 0x67
+};
+
 TEST(primary_parser, parse_calibration_data)
 {
   unsigned char raw_data[sizeof(ROBOT_STATE)];
@@ -191,6 +208,31 @@ TEST(primary_parser, parse_version_message)
   else
   {
     FAIL() << "Parsed package is not of type VersionMessage";
+  }
+}
+
+TEST(primary_parser, parse_key_message)
+{
+  unsigned char raw_data[sizeof(KEY_MESSAGE)];
+  memcpy(raw_data, KEY_MESSAGE, sizeof(KEY_MESSAGE));
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  primary_interface::PrimaryParser parser;
+  ASSERT_TRUE(parser.parse(bp, products));
+
+  ASSERT_EQ(products.size(), 1);
+  if (auto data = dynamic_cast<primary_interface::KeyMessage*>(products[0].get()))
+  {
+    EXPECT_EQ(data->message_code_, 0);
+    EXPECT_EQ(data->message_argument_, 0);
+    EXPECT_EQ(data->title_length_, 19);
+    EXPECT_EQ(data->title_, "PROGRAM_XXX_STARTED");
+    EXPECT_EQ(data->text_, "textmsg");
+  }
+  else
+  {
+    FAIL() << "Parsed package is not of type KeyMessage";
   }
 }
 
