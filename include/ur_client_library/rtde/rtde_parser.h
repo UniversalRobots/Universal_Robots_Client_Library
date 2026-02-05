@@ -80,6 +80,8 @@ public:
    * \returns True, if the byte stream could successfully be parsed as RTDE packages, false
    * otherwise
    */
+  [[deprecated("This method allocates memory on each call. Please use the overload which takes a single unique ptr to "
+               "a pre-allocated package. This function will be removed in May 2027.")]]
   bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results) override;
 
   void setProtocolVersion(uint16_t protocol_version)
