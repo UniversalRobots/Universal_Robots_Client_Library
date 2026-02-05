@@ -58,7 +58,7 @@ following will work
    );
 
 .. note::
-   Remember, that ``timestamp`` always has to be part of the output recipe.
+   ``timestamp`` will always be a part of the output recipe and will be added afterwards, if not defined. As the ``timestamp`` used for verifying the connectivity.
 
 Reading data
 ------------
