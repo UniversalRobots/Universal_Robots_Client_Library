@@ -30,6 +30,15 @@ namespace rtde_interface
 
 bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
 {
+  static bool warning_printed = false;
+  if (!warning_printed)
+  {
+    URCL_LOG_WARN("Calling RTDEParser::parse(...) with a vector of products is deprecated. It will allocate memory in "
+                  "each cycle in order to create parsed packages. Please use the overloaded function that accepts a "
+                  "pre-allocated unique pointer to a package. This message is for application developers using this "
+                  "function.");
+    warning_printed = true;
+  }
   PackageType type;
   try
   {
@@ -80,7 +89,16 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
 
 bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result)
 {
-  PackageType type = getPackageTypeFromHeader(bp);
+  PackageType type;
+  try
+  {
+    type = getPackageTypeFromHeader(bp);
+  }
+  catch (const UrException& e)
+  {
+    URCL_LOG_ERROR("Exception during RTDE package parsing: %s", e.what());
+    return false;
+  }
 
   switch (type)
   {
@@ -105,6 +123,8 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
     {
       if (result == nullptr || result->getType() != type)
       {
+        // For all non data-packages real-time communication isn't critical. Hence, we silently
+        // allocate a new package if preallocation isn't given.
         result = std::unique_ptr<RTDEPackage>(createNewPackageFromType(type));
       }
       if (!result->parseWith(bp))
