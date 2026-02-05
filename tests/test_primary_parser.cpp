@@ -249,6 +249,14 @@ TEST(primary_parser, parse_key_message)
     EXPECT_EQ(data->title_length_, 19);
     EXPECT_EQ(data->title_, "PROGRAM_XXX_STARTED");
     EXPECT_EQ(data->text_, "textmsg");
+    //
+    // verify that copying a message works correctly
+    primary_interface::KeyMessage clone = *data;
+    EXPECT_EQ(data->message_code_, clone.message_code_);
+    EXPECT_EQ(data->message_argument_, clone.message_argument_);
+    EXPECT_EQ(data->title_length_, clone.title_length_);
+    EXPECT_EQ(data->title_, clone.title_);
+    EXPECT_EQ(data->text_, clone.text_);
   }
   else
   {
@@ -274,6 +282,12 @@ TEST(primary_parser, parse_runtime_exception_message)
     EXPECT_EQ(data->line_number_, 3);
     EXPECT_EQ(data->column_number_, 1);
     EXPECT_EQ(data->text_, "compile_error_name_not_found:txtmsg:");
+
+    // verify that copying a message works correctly
+    primary_interface::RuntimeExceptionMessage clone = *data;
+    EXPECT_EQ(data->line_number_, clone.line_number_);
+    EXPECT_EQ(data->column_number_, clone.column_number_);
+    EXPECT_EQ(data->text_, clone.text_);
   }
   else
   {
