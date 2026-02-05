@@ -160,6 +160,10 @@ public:
   DashboardResponse commandShutdown() override;
   DashboardResponse commandStop() override;
   DashboardResponse commandUnlockProtectiveStop() override;
+  DashboardResponse commandGetProgramList() override;
+  DashboardResponse commandUploadProgram(const std::string& file_path) override;
+  DashboardResponse commandUpdateProgram(const std::string& file_path) override;
+  DashboardResponse commandDownloadProgram(const std::string& filename, const std::string& save_path) override;
 
   void setReceiveTimeout(const timeval& timeout) override
   {

@@ -722,6 +722,50 @@ public:
   DashboardResponse commandSaveLogWithResponse();
 
   /*!
+   * \brief Get the list of programs on the robot
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'programs': std::vector<ProgramInformation>
+   */
+  DashboardResponse commandGetProgramListWithResponse();
+
+  /*!
+   * \brief Upload a new program to the robot
+   *
+   * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
+   * be uploaded to the root of the programs directory on the robot.
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_name': std::string
+   */
+  DashboardResponse commandUploadProgramWithResponse(const std::string& file_path);
+
+  /*!
+   * \brief Update an existing program on the robot
+   *
+   * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
+   * be uploaded to the root of the programs directory on the robot and override an already existing file with the same
+   * name.
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_name': std::string
+   */
+  DashboardResponse commandUpdateProgramWithResponse(const std::string& file_path);
+
+  /*!
+   * \brief Download a program from the robot
+   *
+   * \param filename The name of the program file on the robot. This is the name as returned by
+   * commandGetProgramListWithResponse. \param save_path The path where the program file should be saved on the machine
+   * where the dashboard client is running.
+   *
+   */
+  DashboardResponse commandDownloadProgramWithResponse(const std::string& filename, const std::string& save_path);
+
+  /*!
    * \brief Makes sure that the dashboard_server's version is above the required version
    *
    * \param e_series_min_ver SW version for e-Series

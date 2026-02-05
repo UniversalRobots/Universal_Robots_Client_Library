@@ -38,6 +38,7 @@
 #include "ur_client_library/ur/dashboard_client_implementation_x.h"
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/ur/dashboard_client.h>
+#include <ur_client_library/ur/dashboard_client_implementation.h>
 
 using namespace urcl;
 using namespace std::chrono_literals;
@@ -53,7 +54,6 @@ protected:
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
     polyscope_version_ = primary_client_->getRobotVersion();
-
     if (*polyscope_version_ < urcl::VersionInformation::fromString("10.11.0"))
     {
       GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
@@ -258,6 +258,74 @@ TEST_F(DashboardClientTestX, get_robot_mode)
   response = dashboard_client_->commandRobotMode();
   ASSERT_TRUE(response.ok);
   ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+}
+
+TEST_F(DashboardClientTestX, get_program_list)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandGetProgramList();
+  ASSERT_TRUE(response.ok);
+}
+
+TEST_F(DashboardClientTestX, upload_program_from_file)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+  ASSERT_TRUE(response.ok);
+}
+
+TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
+  ASSERT_TRUE(response.ok);
+
+  response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
+  ASSERT_TRUE(response.ok);
+}
+
+TEST_F(DashboardClientTestX, download_program)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  // Make sure the target program exists. This call might fail, that's ok.
+  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+  response = dashboard_client_->commandDownloadProgram("test upload", "/tmp/downloaded.urpx");
+  ASSERT_TRUE(response.ok);
+
+  // TODO: The following doesn't work, as the uploaded program might get another ID and will get another creation date.
+  // We would need to parse the json data for relevant parts in order to compare them.
+
+  /*
+  std::ifstream orig_file("resources/upload_prog.urpx");
+  std::stringstream orig_content;
+  orig_content << orig_file.rdbuf();
+  std::ifstream downloaded_file("/tmp/downloaded.urpx");
+  std::stringstream downloaded_content;
+  downloaded_content << downloaded_file.rdbuf();
+  ASSERT_EQ(orig_content.str(), downloaded_content.str());
+  */
+
+  response = dashboard_client_->commandDownloadProgram("non_existent_program", "/tmp/downloaded.urpx");
+  ASSERT_FALSE(response.ok);
+
+  response = dashboard_client_->commandDownloadProgram("test upload", "/non_existent_dir/downloaded.urpx");
+  ASSERT_FALSE(response.ok);
 }
 
 int main(int argc, char* argv[])

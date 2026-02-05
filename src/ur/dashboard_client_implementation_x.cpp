@@ -29,6 +29,8 @@
 #include <regex>
 #include <string>
 #include <thread>
+#include <fstream>
+#include <ios>
 
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
@@ -161,7 +163,6 @@ DashboardResponse DashboardClientImplX::commandLoadInstallation(const std::strin
 }
 
 DashboardResponse DashboardClientImplX::commandPlay()
-
 {
   return put("/program/v1/state", R"({"action": "play"})");
 }
@@ -369,15 +370,124 @@ DashboardResponse DashboardClientImplX::commandSaveLog()
   throw NotImplementedException("commandSaveLog is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const std::string& json_data)
+DashboardResponse DashboardClientImplX::commandGetProgramList()
+{
+  auto response = get("/programs/v1/");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    std::vector<ProgramInformation> programs;
+    for (auto prog : json_data["programs"])
+    {
+      unsigned int last_modified = 0;
+      if (!prog["lastModifiedDate"].is_null())
+      {
+        last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
+      }
+
+      unsigned int last_saved = 0;
+      if (!prog["lastSavedDate"].is_null())
+      {
+        last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
+      }
+
+      ProgramInformation pi(prog["createdDate"], prog["description"], last_modified, last_saved, prog["name"],
+                            prog["programState"]);
+      programs.push_back(pi);
+    }
+    response.data["programs"] = programs;
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::performProgramUpload(
+    const std::string& file_path,
+    std::function<DashboardResponse(const std::string&, const httplib::UploadFormDataItems&)> upload_func)
+{
+  std::ifstream file(file_path, std::ios_base::in);
+  if (!file.is_open())
+  {
+    DashboardResponse response;
+    response.ok = false;
+    response.message = "URPX File not found: " + file_path;
+    URCL_LOG_ERROR(response.message.c_str());
+    return response;
+  }
+  std::string line;
+  std::string content;
+  while (getline(file, line, '\n'))
+  {
+    content.append(line + '\n');
+  }
+
+  httplib::UploadFormDataItems form_data = { { "file", content, "filename", "text/plain" } };
+  auto response = upload_func("/programs/v1/", form_data);
+  auto json_data = json::parse(response.message);
+  if (response.ok && json_data.contains("programName") && json_data["programName"].is_string())
+  {
+    response.data["program_name"] = std::string(json_data["programName"]);
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::commandUploadProgram(const std::string& file_path)
+{
+  return performProgramUpload(
+      file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return post(e, f); });
+}
+
+DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& file_path)
+{
+  return performProgramUpload(
+      file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return put(e, f); });
+}
+
+DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& filename,
+                                                               const std::string& save_path)
+{
+  auto response = get("/programs/v1/" + filename, false);  // The json response is pretty long. Don't print it.
+  if (response.ok)
+  {
+    std::ofstream save_file(save_path, std::ios_base::out);
+    if (!save_file.is_open())
+    {
+      DashboardResponse response;
+      response.ok = false;
+      response.message = "Failed to open file for saving: " + save_path;
+      URCL_LOG_ERROR(response.message.c_str());
+      return response;
+    }
+    save_file << response.message;
+
+    response.message = "Downloaded program to " + save_path;
+  }
+  else
+  {
+    URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::handleHttpResult(const httplib::Result& res, const bool debug)
 {
   DashboardResponse response;
-  if (auto res = cli_->Put(base_url_ + endpoint, json_data, "application/json"))
+  if (debug)
   {
     URCL_LOG_INFO(res->body.c_str());
-    response.message = res->body;
-    response.data["status_code"] = res->status;
-    response.ok = res->status == 200;
+  }
+  response.message = res->body;
+  response.data["status_code"] = res->status;
+  response.ok = res->status == 200;
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::post(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                                             const bool debug)
+{
+  DashboardResponse response;
+  if (auto res = cli_->Post(base_url_ + endpoint, form_data))
+  {
+    response = handleHttpResult(res, debug);
   }
   else
   {
@@ -386,14 +496,56 @@ DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const s
   return response;
 }
 
-DashboardResponse DashboardClientImplX::get(const std::string& endpoint)
+DashboardResponse DashboardClientImplX::post(const std::string& endpoint, const std::string& json_data,
+                                             const bool debug)
+{
+  DashboardResponse response;
+  if (auto res = cli_->Post(base_url_ + endpoint, json_data, "application/json"))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const std::string& json_data, const bool debug)
+{
+  DashboardResponse response;
+  if (auto res = cli_->Put(base_url_ + endpoint, json_data, "application/json"))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                                            const bool debug)
+{
+  DashboardResponse response;
+  if (auto res = cli_->Put(base_url_ + endpoint, form_data))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::get(const std::string& endpoint, const bool debug)
 {
   DashboardResponse response;
   if (auto res = cli_->Get(base_url_ + endpoint))
   {
-    response.message = res->body;
-    response.data["status_code"] = res->status;
-    response.ok = res->status == 200;
+    response = handleHttpResult(res, debug);
   }
   else
   {

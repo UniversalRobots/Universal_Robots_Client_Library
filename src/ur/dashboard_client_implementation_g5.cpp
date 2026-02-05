@@ -1186,6 +1186,27 @@ DashboardResponse DashboardClientImplG5::commandSaveLog()
   return response;
 }
 
+DashboardResponse DashboardClientImplG5::commandGetProgramList()
+{
+  throw NotImplementedException("commandGetProgramList is not implemented for DashboardClientImplG5.");
+}
+
+DashboardResponse DashboardClientImplG5::commandUploadProgram(const std::string& program_file_name)
+{
+  throw NotImplementedException("commandUploadProgram is not implemented for DashboardClientImplG5.");
+}
+
+DashboardResponse DashboardClientImplG5::commandUpdateProgram(const std::string& program_file_name)
+{
+  throw NotImplementedException("commandUpdateProgram is not implemented for DashboardClientImplG5.");
+}
+
+DashboardResponse DashboardClientImplG5::commandDownloadProgram(const std::string& program_file_name,
+                                                                const std::string& destination_path)
+{
+  throw NotImplementedException("commandDownloadProgram is not implemented for DashboardClientImplG5.");
+}
+
 std::string DashboardClientImplG5::replacePayload(const std::string& command, const std::string& payload)
 {
   std::regex pattern("<.*>");

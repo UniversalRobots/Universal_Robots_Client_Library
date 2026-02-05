@@ -35,7 +35,10 @@
 namespace httplib
 {
 class Client;
-}
+struct UploadFormData;
+using UploadFormDataItems = std::vector<UploadFormData>;
+class Result;
+}  // namespace httplib
 
 namespace urcl
 {
@@ -155,14 +158,27 @@ public:
   DashboardResponse commandShutdown() override;
   DashboardResponse commandStop() override;
   DashboardResponse commandUnlockProtectiveStop() override;
+  DashboardResponse commandGetProgramList() override;
+  DashboardResponse commandUploadProgram(const std::string& file_path) override;
+  DashboardResponse commandUpdateProgram(const std::string& file_path) override;
+  DashboardResponse commandDownloadProgram(const std::string& filename, const std::string& save_path) override;
 
   void setReceiveTimeout(const timeval& timeout) override
   {
   }
 
 protected:
-  DashboardResponse put(const std::string& endpoint, const std::string& json_data);
-  DashboardResponse get(const std::string& endpoint);
+  DashboardResponse performProgramUpload(
+      const std::string& file_path,
+      std::function<DashboardResponse(const std::string&, const httplib::UploadFormDataItems&)> upload_func);
+  DashboardResponse handleHttpResult(const httplib::Result& res, const bool debug = true);
+  DashboardResponse post(const std::string& endpoint, const std::string& json_data, const bool debug = true);
+  DashboardResponse post(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                         const bool debug = true);
+  DashboardResponse put(const std::string& endpoint, const std::string& json_data, const bool debug = true);
+  DashboardResponse put(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                        const bool debug = true);
+  DashboardResponse get(const std::string& endpoint, const bool debug = true);
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) const override;
 

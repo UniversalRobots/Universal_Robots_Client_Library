@@ -31,17 +31,57 @@
 #include <chrono>
 #include <string>
 #include <variant>
+#include <vector>
+#include <iostream>
 
 #include <ur_client_library/exceptions.h>
 
 namespace urcl
 {
 
+struct ProgramInformation
+{
+  unsigned int createdDate;
+  std::string description;
+  unsigned int lastModifiedDate;
+  unsigned int lastSavedDate;
+  std::string name;
+  std::string programState;
+  ProgramInformation(const unsigned int created, const std::string& desc, const unsigned int last_mod,
+                     const unsigned int last_saved, const std::string& name, const std::string& state)
+    : createdDate(created)
+    , description(desc)
+    , lastModifiedDate(last_mod)
+    , lastSavedDate(last_saved)
+    , name(name)
+    , programState(state)
+  {
+  }
+};
+
+inline std::ostream& operator<<(std::ostream& os, const ProgramInformation& pi)
+{
+  os << "Program Information: { "
+     << "\nCreated Date: " << pi.createdDate << "\nDescription: " << pi.description
+     << "\nLast Modified Date: " << pi.lastModifiedDate << "\nLast Saved Date: " << pi.lastSavedDate
+     << "\nName: " << pi.name << "\nProgram State: " << pi.programState << "\n} \n";
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const std::vector<ProgramInformation> v)
+{
+  for (auto i : v)
+  {
+    os << i;
+  }
+  return os;
+}
+
 struct DashboardResponse
 {
   bool ok = false;
   std::string message;
-  std::unordered_map<std::string, std::variant<std::string, int, bool>> data;
+  std::unordered_map<std::string, std::variant<std::string, int, bool, std::vector<ProgramInformation>>> data;
 };
 
 class DashboardClientImpl
@@ -393,6 +433,14 @@ public:
    * \brief Flush the polyscope log to the log_history.txt file
    */
   virtual DashboardResponse commandSaveLog() = 0;
+
+  virtual DashboardResponse commandGetProgramList() = 0;
+
+  virtual DashboardResponse commandUploadProgram(const std::string& file_path) = 0;
+
+  virtual DashboardResponse commandUpdateProgram(const std::string& file_path) = 0;
+
+  virtual DashboardResponse commandDownloadProgram(const std::string& filename, const std::string& save_path) = 0;
 
   const VersionInformation& getPolyscopeVersion() const
   {
