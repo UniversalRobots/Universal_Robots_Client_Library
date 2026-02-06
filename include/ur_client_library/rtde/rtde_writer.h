@@ -211,9 +211,10 @@ private:
   std::atomic<bool> new_data_available_;
   std::condition_variable data_available_cv_;
 
-  static std::vector<std::string> g_preallocated_input_bit_register_keys;
-  static std::vector<std::string> g_preallocated_input_int_register_keys;
-  static std::vector<std::string> g_preallocated_input_double_register_keys;
+  static const std::vector<std::string> g_preallocated_input_bit_register_keys;
+  static const std::vector<std::string> g_preallocated_input_int_register_keys;
+  static const std::vector<std::string> g_preallocated_input_double_register_keys;
+  static const std::vector<std::string> initializePreallocatedKeys(const std::string& prefix, const size_t size);
 };
 
 }  // namespace rtde_interface

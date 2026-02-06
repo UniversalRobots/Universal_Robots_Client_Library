@@ -34,32 +34,27 @@ namespace urcl
 {
 namespace rtde_interface
 {
-std::vector<std::string> RTDEWriter::g_preallocated_input_bit_register_keys;
-std::vector<std::string> RTDEWriter::g_preallocated_input_int_register_keys;
-std::vector<std::string> RTDEWriter::g_preallocated_input_double_register_keys;
+const std::vector<std::string> RTDEWriter::g_preallocated_input_bit_register_keys =
+    RTDEWriter::initializePreallocatedKeys("input_bit_register_", 128);
+const std::vector<std::string> RTDEWriter::g_preallocated_input_int_register_keys =
+    RTDEWriter::initializePreallocatedKeys("input_int_register_", 48);
+const std::vector<std::string> RTDEWriter::g_preallocated_input_double_register_keys =
+    RTDEWriter::initializePreallocatedKeys("input_double_register_", 48);
+
+const std::vector<std::string> RTDEWriter::initializePreallocatedKeys(const std::string& prefix, const size_t size)
+{
+  std::vector<std::string> keys(size);
+  for (size_t i = 0; i < size; ++i)
+  {
+    keys[i] = prefix + std::to_string(i);
+  }
+  return keys;
+}
 
 RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<std::string>& recipe)
   : stream_(stream), recipe_id_(0), running_(false)
 {
   setInputRecipe(recipe);
-
-  g_preallocated_input_bit_register_keys.resize(128);
-  for (size_t i = 0; i < 128; ++i)
-  {
-    g_preallocated_input_bit_register_keys[i] = "input_bit_register_" + std::to_string(i);
-  }
-
-  g_preallocated_input_int_register_keys.resize(48);
-  for (size_t i = 0; i < 48; ++i)
-  {
-    g_preallocated_input_int_register_keys[i] = "input_int_register_" + std::to_string(i);
-  }
-
-  g_preallocated_input_double_register_keys.resize(48);
-  for (size_t i = 0; i < 48; ++i)
-  {
-    g_preallocated_input_double_register_keys[i] = "input_double_register_" + std::to_string(i);
-  }
 
   for (const auto& field : recipe)
   {
