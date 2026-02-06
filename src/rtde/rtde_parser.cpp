@@ -106,10 +106,20 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
     {
       if (result == nullptr || result->getType() != PackageType::RTDE_DATA_PACKAGE)
       {
+        if (result == nullptr)
+        {
+          URCL_LOG_WARN("The passed result pointer is empty. A new DataPackage will "
+                        "have to be allocated. Please pass a pre-allocated DataPackage if you expect a DataPackage "
+                        "would be sent.");
+        }
+        else
+        {
+          URCL_LOG_WARN("Passed a pre-allocated RTDE package of type %u while a DataPackage was received. A new "
+                        "DataPackage will have to be allocated. Please pass a pre-allocated DataPackage if you expect "
+                        "a DataPackage would be sent.",
+                        result->getType());
+        }
         result = std::make_unique<DataPackage>(recipe_, protocol_version_);
-        URCL_LOG_WARN("The passed result pointer is empty or does not contain a DataPackage. A new DataPackage will "
-                      "have to be allocated. Please pass a pre-allocated DataPackage if you expect a DataPackage "
-                      "would be sent.");
       }
 
       if (!dynamic_cast<DataPackage*>(result.get())->parseWith(bp))
