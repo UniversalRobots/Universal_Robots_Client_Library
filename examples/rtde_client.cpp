@@ -83,11 +83,11 @@ int main(int argc, char* argv[])
   double target_speed_fraction = 1.0;
   double speed_slider_increment = 0.01;
 
-  rtde_interface::DataPackage data_pkg(my_client.getOutputRecipe());
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
-  my_client.start(true);  // false -> do not start background read thread.
+  my_client.start(false);  // false -> do not start background read thread.
 
   auto start_time = std::chrono::steady_clock::now();
   while (second_to_run <= 0 ||
@@ -96,13 +96,13 @@ int main(int argc, char* argv[])
   {
     // Wait for a DataPackage. In a real-world application this thread should be scheduled with real-time priority in
     // order to ensure that this is called in time.
-    bool success = my_client.getDataPackage(data_pkg, std::chrono::milliseconds(100));
+    bool success = my_client.getDataPackageBlocking(data_pkg);
     if (success)
     {
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.
       // We preallocated the string TARGET_SPEED_FRACTION to avoid allocations in the main loop.
-      data_pkg.getData(TARGET_SPEED_FRACTION, target_speed_fraction);
+      data_pkg->getData(TARGET_SPEED_FRACTION, target_speed_fraction);
       printFraction(target_speed_fraction, TARGET_SPEED_FRACTION);
     }
     else
