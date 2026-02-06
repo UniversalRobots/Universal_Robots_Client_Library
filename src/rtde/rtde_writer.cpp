@@ -55,14 +55,6 @@ RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<st
   : stream_(stream), recipe_id_(0), running_(false)
 {
   setInputRecipe(recipe);
-
-  for (const auto& field : recipe)
-  {
-    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
-    {
-      used_masks_.push_back(field);
-    }
-  }
 }
 
 void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
@@ -74,6 +66,13 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   }
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
   recipe_ = recipe;
+  for (const auto& field : recipe)
+  {
+    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
+    {
+      used_masks_.push_back(field);
+    }
+  }
   data_buffer0_ = std::make_shared<DataPackage>(recipe_);
   data_buffer1_ = std::make_shared<DataPackage>(recipe_);
 
