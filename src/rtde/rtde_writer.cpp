@@ -166,7 +166,10 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
   bool success = true;
   success = current_store_buffer_->setData(mask_key, mask);
   success = success && current_store_buffer_->setData(key, speed_slider_fraction);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -197,7 +200,10 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
   }
   success = current_store_buffer_->setData(key_mask, mask);
   success = success && current_store_buffer_->setData(key_output, digital_output);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -229,7 +235,10 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
   }
   success = current_store_buffer_->setData(key_mask, mask);
   success = success && current_store_buffer_->setData(key_output, digital_output);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -260,7 +269,10 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
   }
   success = current_store_buffer_->setData(key_mask, mask);
   success = success && current_store_buffer_->setData(key_output, digital_output);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -299,7 +311,10 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
   success = success && current_store_buffer_->setData(key_output_0, value);
   static const std::string key_output_1 = "standard_analog_output_1";
   success = success && current_store_buffer_->setData(key_output_1, value);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -326,7 +341,10 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
 
   std::lock_guard<std::mutex> guard(store_mutex_);
   bool success = current_store_buffer_->setData(g_preallocated_input_bit_register_keys[register_id], value);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -343,7 +361,10 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
 
   std::lock_guard<std::mutex> guard(store_mutex_);
   bool success = current_store_buffer_->setData(g_preallocated_input_int_register_keys[register_id], value);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -360,7 +381,10 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
 
   std::lock_guard<std::mutex> guard(store_mutex_);
   bool success = current_store_buffer_->setData(g_preallocated_input_double_register_keys[register_id], value);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
 
   return success;
 }
@@ -370,7 +394,10 @@ bool RTDEWriter::sendExternalForceTorque(const vector6d_t& external_force_torque
   static const std::string key = "external_force_torque";
   std::lock_guard<std::mutex> guard(store_mutex_);
   bool success = current_store_buffer_->setData(key, external_force_torque);
-  markStorageToBeSent();
+  if (success)
+  {
+    markStorageToBeSent();
+  }
   return success;
 }
 
