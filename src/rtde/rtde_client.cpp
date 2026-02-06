@@ -270,6 +270,22 @@ bool RTDEClient::queryURControlVersion()
       URCL_LOG_INFO("Received URControl version %s", urcontrol_version_.toString().c_str());
       return true;
     }
+    else if (rtde_interface::TextMessage* tmp_text_msg = dynamic_cast<rtde_interface::TextMessage*>(package.get()))
+    {
+      // PolyScope X simulators seem to send a text message on every connect until they have been
+      // switched on.
+      if (tmp_text_msg->message_.find("SafetySetup has not been confirmed yet") != std::string::npos)
+      {
+        // silently retry
+      }
+      else
+      {
+        URCL_LOG_WARN("Received unexpected message from robot while querying URControl version. "
+                      "Message:\n%s\nRetrying...",
+                      tmp_text_msg->message_.c_str());
+      }
+      num_retries++;
+    }
     else
     {
       std::stringstream ss;
