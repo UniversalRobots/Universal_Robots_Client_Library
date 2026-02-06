@@ -466,6 +466,10 @@ void rtde_interface::DataPackage::initEmpty()
   data_.reserve(recipe_.size());
   for (auto& item : recipe_)
   {
+    if (g_type_list.find(item) == g_type_list.end())
+    {
+      throw RTDEInvalidKeyException("Unknown item in recipe: " + item);
+    }
     _rtde_type_variant entry = g_type_list[item];
     data_.push_back({ item, entry });
   }

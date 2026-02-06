@@ -278,8 +278,9 @@ TEST_F(RTDEClientTest, input_recipe_with_invalid_key)
   std::vector<std::string> actual_input_recipe = resources_input_recipe_;
   actual_input_recipe.push_back("i_do_not_exist");
 
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe));
-  EXPECT_THROW(client_->init(), RTDEInvalidKeyException);
+  EXPECT_THROW(
+      client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe)),
+      RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientTest, recipe_comparison)
@@ -678,14 +679,25 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
   incorrect_output_recipe.push_back("unknown_rtde_variable");
 
   // If unknown variables are not ignored, initialization should fail
-  client_.reset(
-      new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_, 0.0, false));
-  EXPECT_THROW(client_->init(), UrException);
+  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                    resources_input_recipe_, 0.0, false)),
+               RTDEInvalidKeyException);
 
-  // Unknown variables can be ignored, so initialization should succeed
-  client_.reset(
-      new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe, resources_input_recipe_, 0.0, true));
-  EXPECT_TRUE(client_->init());
+  // Unknown variables (by the control box) can be ignored, so initialization should succeed
+  if ((client_->getVersion().major == 5 && client_->getVersion().minor < 23) ||
+      (client_->getVersion().major == 10 && client_->getVersion().minor < 11))
+  {
+    std::vector<std::string> output_recipe = client_->getOutputRecipe();
+    output_recipe.push_back("actual_robot_energy_consumed");  // That has been added in 5.23.0 / 10.11.0
+    client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe, resources_input_recipe_, 0.0, true));
+    EXPECT_TRUE(client_->init());
+  }
+
+  // Passing a completely unknown variable should still lead to an exception, even if unknown
+  // variables are ignored.
+  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                    resources_input_recipe_, 0.0, true)),
+               RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientTest, empty_input_recipe)
