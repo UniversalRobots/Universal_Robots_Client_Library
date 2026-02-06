@@ -816,6 +816,12 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
     if (prod_->tryGet(base_package))
     {
       reconnect_mutex_.unlock();
+      auto package_type = base_package->getType();
+      if (package_type != PackageType::RTDE_DATA_PACKAGE)
+      {
+        URCL_LOG_ERROR("Received package from RTDE interface is not a data package, but of type %d", package_type);
+        return false;
+      }
       data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
       return true;
     }

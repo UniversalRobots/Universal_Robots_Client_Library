@@ -66,6 +66,7 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   }
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
   recipe_ = recipe;
+  used_masks_.clear();
   for (const auto& field : recipe)
   {
     if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
