@@ -53,7 +53,7 @@ fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
    :caption: examples/rtde_client.cpp
    :linenos:
    :lineno-match:
-   :start-at: std::unique_ptr<rtde_interface::DataPackage> data_pkg =
+   :start-at: auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
    :end-before: // Change the speed slider
 
 In our main loop, we wait for a new data package to arrive using the blocking read method. Once
