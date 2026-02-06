@@ -782,8 +782,11 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
         reconnect_mutex_.unlock();
         return false;
       }
-      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
-      new_data_.store(false);
+      if (new_data_.load())
+      {
+        data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
+        new_data_.store(false);
+      }
     }
     reconnect_mutex_.unlock();
   }
