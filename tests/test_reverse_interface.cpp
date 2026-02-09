@@ -209,12 +209,6 @@ protected:
 
   bool waitForProgramState(int milliseconds = 100, bool program_state = true)
   {
-    // If the expected state is given already, return immediately
-    if (program_state_ == program_state)
-    {
-      return true;
-    }
-
     // Wait for new state until timeout has elapsed
     std::unique_lock<std::mutex> lk(program_running_mutex_);
     std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
@@ -234,7 +228,7 @@ protected:
         }
       }
     }
-    return false;
+    return program_state_ == program_state;
   }
 
   std::unique_ptr<TestableReverseInterface> reverse_interface_;
