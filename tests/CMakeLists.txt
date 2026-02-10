@@ -14,6 +14,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+add_executable(fake_rtde_server fake_rtde_server.cpp fake_rtde_server_main.cpp)
+target_link_libraries(fake_rtde_server PRIVATE ur_client_library::urcl)
+
 include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
@@ -25,7 +28,7 @@ if (INTEGRATION_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
   add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
-  add_executable(rtde_tests test_rtde_client.cpp)
+  add_executable(rtde_tests test_rtde_client.cpp fake_rtde_server.cpp)
   add_dependencies(rtde_tests generate_outputs)
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      rtde_tests
