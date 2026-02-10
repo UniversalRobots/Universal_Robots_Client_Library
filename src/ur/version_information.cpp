@@ -27,24 +27,11 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/exceptions.h>
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/ur/version_information.h>
 
 namespace urcl
 {
-std::vector<std::string> splitString(std::string input, const std::string& delimiter)
-{
-  std::vector<std::string> result;
-  size_t pos = 0;
-  std::string substring;
-  while ((pos = input.find(delimiter)) != std::string::npos)
-  {
-    substring = input.substr(0, pos);
-    result.push_back(substring);
-    input.erase(0, pos + delimiter.length());
-  }
-  result.push_back(input);
-  return result;
-}
 
 VersionInformation::VersionInformation()
 {
@@ -58,7 +45,7 @@ VersionInformation::VersionInformation()
 
 VersionInformation VersionInformation::fromString(const std::string& str)
 {
-  auto components = splitString(str);
+  auto components = splitString(str, ".");
   VersionInformation info;
   if (components.size() >= 2)
   {

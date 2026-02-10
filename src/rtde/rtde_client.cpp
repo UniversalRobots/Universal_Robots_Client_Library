@@ -348,7 +348,7 @@ bool RTDEClient::setupOutputs(const uint16_t protocol_version)
             dynamic_cast<rtde_interface::ControlPackageSetupOutputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitVariableTypes(tmp_output->variable_types_);
+      std::vector<std::string> variable_types = splitString(tmp_output->variable_types_, ",");
       std::vector<std::string> available_variables;
       std::vector<std::string> unavailable_variables;
       assert(output_recipe_.size() == variable_types.size());
@@ -441,7 +441,7 @@ bool RTDEClient::setupInputs()
             dynamic_cast<rtde_interface::ControlPackageSetupInputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitVariableTypes(tmp_input->variable_types_);
+      std::vector<std::string> variable_types = splitString(tmp_input->variable_types_, ",");
       assert(input_recipe_.size() == variable_types.size());
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
@@ -745,21 +745,10 @@ RTDEWriter& RTDEClient::getWriter()
   return writer_;
 }
 
-std::vector<std::string> RTDEClient::splitVariableTypes(const std::string& variable_types) const
-{
-  std::vector<std::string> result;
-  std::stringstream ss(variable_types);
-  std::string substr = "";
-  while (getline(ss, substr, ','))
-  {
-    result.push_back(substr);
-  }
-  return result;
-}
-
 void RTDEClient::reconnect()
 {
   URCL_LOG_INFO("Reconnecting to the RTDE interface");
+  client_state_ = ClientState::UNINITIALIZED;
   // Locking mutex to ensure that calling getDataPackage doesn't influence the communication needed for reconfiguring
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);

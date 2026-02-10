@@ -140,4 +140,22 @@ bool parseBoolean(const std::string& str)
     throw UrException(ss.str().c_str());
   }
 }
+
+std::vector<std::string> splitString(const std::string& input, const std::string& delimiter)
+{
+  std::vector<std::string> result;
+  size_t pos = 0;
+  size_t pos_end = pos;
+  std::string substring;
+  while ((pos_end = input.find(delimiter, pos)) != std::string::npos)
+  {
+    substring = input.substr(pos, pos_end - pos);
+    result.push_back(substring);
+    pos = pos_end + delimiter.length();
+  }
+  substring = input.substr(pos);
+  result.push_back(substring);
+  return result;
+}
+
 }  // namespace urcl

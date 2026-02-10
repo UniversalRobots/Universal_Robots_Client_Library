@@ -296,16 +296,6 @@ private:
   bool sendPause();
 
   /*!
-   * \brief Splits a variable_types string as reported from the robot into single variable type
-   * strings
-   *
-   * \param variable_types String as reported from the robot
-   *
-   * \returns A vector of variable variable_names
-   */
-  std::vector<std::string> splitVariableTypes(const std::string& variable_types) const;
-
-  /*!
    * \brief Reconnects to the RTDE interface and set the input and output recipes again.
    */
   void reconnect();

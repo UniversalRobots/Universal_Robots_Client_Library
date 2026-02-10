@@ -99,5 +99,15 @@ void waitFor(std::function<bool()> condition, const std::chrono::milliseconds ti
  */
 bool parseBoolean(const std::string& str);
 
+/*!
+ * \brief Splits a at each delimiter found
+ *
+ * \param string_to_split String containing the delimiter and other characters
+ * \param delimiter Chars at which the string should be split
+ *
+ * \returns A vector of characters that were between the delimiters
+ */
+std::vector<std::string> splitString(const std::string& string_to_split, const std::string& delimiter = ",");
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
