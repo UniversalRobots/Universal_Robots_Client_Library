@@ -21,6 +21,8 @@ public:
   void startSendingDataPackages();
   void stopSendingDataPackages();
 
+  void setStartTime(const std::chrono::steady_clock::time_point& start_time);
+
 private:
   std::vector<std::string> input_recipe_;
   std::vector<std::string> output_recipe_;

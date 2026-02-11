@@ -84,7 +84,8 @@ enum class ClientState
   INITIALIZING = 1,
   INITIALIZED = 2,
   RUNNING = 3,
-  PAUSED = 4
+  PAUSED = 4,
+  CONNECTION_LOST = 5
 };
 
 /*!
@@ -237,6 +238,11 @@ public:
   // Reads output or input recipe from a file
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 
+  ClientState getClientState() const
+  {
+    return client_state_;
+  }
+
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
@@ -302,6 +308,11 @@ private:
    */
   void reconnect();
   void reconnectCallback();
+
+  size_t max_connection_attempts_;
+  std::chrono::milliseconds reconnection_timeout_;
+  size_t max_initialization_attempts_;
+  std::chrono::milliseconds initialization_timeout_;
 };
 
 }  // namespace rtde_interface

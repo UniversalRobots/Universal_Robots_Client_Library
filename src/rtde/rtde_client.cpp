@@ -105,6 +105,11 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
     return true;
   }
 
+  max_connection_attempts_ = max_connection_attempts;
+  reconnection_timeout_ = reconnection_timeout;
+  max_initialization_attempts_ = max_initialization_attempts;
+  initialization_timeout_ = initialization_timeout;
+
   prod_->setReconnectionCallback(nullptr);
 
   unsigned int attempts = 0;
@@ -135,23 +140,25 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
 bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   // The state initializing is used inside disconnect to stop the pipeline again.
-  client_state_ = ClientState::INITIALIZING;
   // A running pipeline is needed inside setup.
+  client_state_ = ClientState::UNINITIALIZED;
   try
   {
     pipeline_->init(max_num_tries, reconnection_time);
   }
   catch (const UrException& exc)
   {
-    URCL_LOG_ERROR("Caught exception %s, while trying to initialize pipeline", exc.what());
+    URCL_LOG_ERROR("Caught exception '%s', while trying to initialize pipeline", exc.what());
     return false;
   }
   pipeline_->run();
 
+  client_state_ = ClientState::INITIALIZING;
   uint16_t protocol_version = negotiateProtocolVersion();
   // Protocol version must be above zero
   if (protocol_version == 0)
   {
+    client_state_ = ClientState::UNINITIALIZED;
     return false;
   }
 
@@ -751,22 +758,21 @@ RTDEWriter& RTDEClient::getWriter()
 void RTDEClient::reconnect()
 {
   URCL_LOG_INFO("Reconnecting to the RTDE interface");
-  client_state_ = ClientState::UNINITIALIZED;
   // Locking mutex to ensure that calling getDataPackage doesn't influence the communication needed for reconfiguring
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
   ClientState cur_client_state = client_state_;
+  client_state_ = ClientState::CONNECTION_LOST;
   disconnect();
 
-  const size_t max_initialization_attempts = 3;
   size_t cur_initialization_attempt = 0;
   bool client_reconnected = false;
-  while (cur_initialization_attempt < max_initialization_attempts)
+  while (cur_initialization_attempt < max_initialization_attempts_)
   {
     bool is_communication_setup = false;
     try
     {
-      is_communication_setup = setupCommunication(1, std::chrono::milliseconds{ 10000 });
+      is_communication_setup = setupCommunication(max_connection_attempts_, reconnection_timeout_);
     }
     catch (const UrException& exc)
     {
@@ -789,24 +795,22 @@ void RTDEClient::reconnect()
       break;
     }
 
-    auto duration = std::chrono::seconds(1);
     if (stream_.getState() != comm::SocketState::Connected)
     {
       // We don't wanna count it as an initialization attempt if we cannot connect to the socket and we want to wait
       // longer before reconnecting.
-      duration = std::chrono::seconds(10);
-      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", duration.count());
+      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", reconnection_timeout_.count());
     }
     else
     {
-      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", duration.count());
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", initialization_timeout_.count());
       cur_initialization_attempt += 1;
     }
 
     disconnect();
 
     auto start_time = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start_time < duration)
+    while (std::chrono::steady_clock::now() - start_time < initialization_timeout_)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
       if (stop_reconnection_)
@@ -820,11 +824,13 @@ void RTDEClient::reconnect()
   if (client_reconnected == false)
   {
     URCL_LOG_ERROR("Failed to initialize RTDE client after %i attempts, unable to reconnect",
-                   max_initialization_attempts);
+                   max_initialization_attempts_);
     disconnect();
     reconnecting_ = false;
     return;
   }
+
+  URCL_LOG_INFO("Successfully reconnected to the RTDE interface, starting communication again");
 
   start();
   if (cur_client_state == ClientState::PAUSED)

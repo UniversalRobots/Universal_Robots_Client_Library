@@ -230,4 +230,9 @@ void RTDEServer::actOnInput()
   }
 }
 
+void RTDEServer::setStartTime(const std::chrono::steady_clock::time_point& start_time)
+{
+  start_time_ = start_time;
+}
+
 }  // namespace urcl
