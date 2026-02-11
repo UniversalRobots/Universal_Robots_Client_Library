@@ -370,6 +370,7 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
     read_data_thread.join();
   }
   EXPECT_FALSE(read_success);
+  // If the read just would have timeouted, the client state would still be connected.
   EXPECT_EQ(client.getState(), comm::SocketState::Disconnected);
 }
 
