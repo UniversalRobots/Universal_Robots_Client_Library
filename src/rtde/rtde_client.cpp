@@ -139,8 +139,6 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
 
 bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
-  // The state initializing is used inside disconnect to stop the pipeline again.
-  // A running pipeline is needed inside setup.
   client_state_ = ClientState::UNINITIALIZED;
   try
   {
@@ -151,9 +149,12 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     URCL_LOG_ERROR("Caught exception '%s', while trying to initialize pipeline", exc.what());
     return false;
   }
+  // The state initializing is used inside disconnect to stop the pipeline again.
+  // A running pipeline is needed inside setup.
+  client_state_ = ClientState::INITIALIZING;
+
   pipeline_->run();
 
-  client_state_ = ClientState::INITIALIZING;
   uint16_t protocol_version = negotiateProtocolVersion();
   // Protocol version must be above zero
   if (protocol_version == 0)
