@@ -202,22 +202,33 @@ protected:
   void handleProgramState(bool program_state)
   {
     std::lock_guard<std::mutex> lk(program_running_mutex_);
-    program_running_.notify_one();
+    new_program_state_received_ = true;
     program_state_ = program_state;
+    program_running_.notify_one();
   }
 
   bool waitForProgramState(int milliseconds = 100, bool program_state = true)
   {
+    // Wait for new state until timeout has elapsed
     std::unique_lock<std::mutex> lk(program_running_mutex_);
-    if (program_running_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        program_state_ == program_state)
+    std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
+    while (
+        program_state_ != program_state &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count() <
+            milliseconds)
     {
-      if (program_state_ == program_state)
+      if (program_running_.wait_for(lk, std::chrono::milliseconds(milliseconds / 10),
+                                    [this] { return new_program_state_received_.load(); }))
       {
-        return true;
+        new_program_state_received_ = false;
+        // Check whether the new state matches the expected state
+        if (program_state_ == program_state)
+        {
+          return true;
+        }
       }
     }
-    return false;
+    return program_state_ == program_state;
   }
 
   std::unique_ptr<TestableReverseInterface> reverse_interface_;
@@ -225,6 +236,7 @@ protected:
 
 private:
   std::atomic<bool> program_state_ = ATOMIC_VAR_INIT(false);
+  std::atomic<bool> new_program_state_received_ = ATOMIC_VAR_INIT(false);
   std::condition_variable program_running_;
   std::mutex program_running_mutex_;
 };
