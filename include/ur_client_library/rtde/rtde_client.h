@@ -84,7 +84,8 @@ enum class ClientState
   INITIALIZING = 1,
   INITIALIZED = 2,
   RUNNING = 3,
-  PAUSED = 4
+  PAUSED = 4,
+  CONNECTION_LOST = 5
 };
 
 /*!
@@ -105,11 +106,12 @@ public:
    * \param input_recipe_file Path to the file containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * \param port Optionally specify a different port
    * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
              const std::string& input_recipe_file, double target_frequency = 0.0,
-             bool ignore_unavailable_outputs = false);
+             bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
 
   /*!
    * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
@@ -121,11 +123,12 @@ public:
    * \param input_recipe Vector containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * \param port Optionally specify a different port
    * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
              const std::vector<std::string>& input_recipe, double target_frequency = 0.0,
-             bool ignore_unavailable_outputs = false);
+             bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the
@@ -235,6 +238,11 @@ public:
   // Reads output or input recipe from a file
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 
+  ClientState getClientState() const
+  {
+    return client_state_;
+  }
+
 private:
   comm::URStream<RTDEPackage> stream_;
   std::vector<std::string> output_recipe_;
@@ -296,20 +304,15 @@ private:
   bool sendPause();
 
   /*!
-   * \brief Splits a variable_types string as reported from the robot into single variable type
-   * strings
-   *
-   * \param variable_types String as reported from the robot
-   *
-   * \returns A vector of variable variable_names
-   */
-  std::vector<std::string> splitVariableTypes(const std::string& variable_types) const;
-
-  /*!
    * \brief Reconnects to the RTDE interface and set the input and output recipes again.
    */
   void reconnect();
   void reconnectCallback();
+
+  size_t max_connection_attempts_;
+  std::chrono::milliseconds reconnection_timeout_;
+  size_t max_initialization_attempts_;
+  std::chrono::milliseconds initialization_timeout_;
 };
 
 }  // namespace rtde_interface

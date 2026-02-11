@@ -29,8 +29,9 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
-#include <optional>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <iostream>
@@ -39,16 +40,20 @@
 #include <ur_client_library/rtde/rtde_client.h>
 #include <ur_client_library/ur/version_information.h>
 
+#include "fake_rtde_server.h"
+
 using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
+uint32_t g_FAKE_RTDE_PORT = 13875;
 
 class RTDEClientTest : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_));
+    client_.reset(
+        new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_));
   }
 
   void TearDown()
@@ -302,6 +307,97 @@ TEST_F(RTDEClientTest, get_data_package)
   EXPECT_TRUE(data_pkg->getData("actual_q", actual_q));
 
   client_->pause();
+}
+
+TEST_F(RTDEClientTest, get_data_package_fake_server)
+{
+  auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  // Skip the bootup check. If uptime is less then 40 seconds, data is read for one second to
+  // check for safety reset.
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+  client_->init();
+  client_->start();
+
+  // Test that we can receive a package and extract data from the received package
+  const std::chrono::milliseconds read_timeout{ 100 };
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
+  if (data_pkg == nullptr)
+  {
+    std::cout << "Failed to get data package from robot" << std::endl;
+    GTEST_FAIL();
+  }
+
+  urcl::vector6d_t actual_q;
+  EXPECT_TRUE(data_pkg->getData("actual_q", actual_q));
+
+  URCL_LOG_INFO("Received data package from fake server: %s", data_pkg->toString().c_str());
+  client_.reset();
+}
+
+TEST_F(RTDEClientTest, reconnect_fake_server)
+{
+  auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  // Skip the bootup check. If uptime is less then 40 seconds, data is read for one second to
+  // check for safety reset.
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+  client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100));
+  URCL_LOG_INFO("Client initiliazed");
+  client_->start();
+
+  std::atomic<bool> keep_running = true;
+  std::thread data_consumer_thread([this, &keep_running]() {
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+    const std::chrono::milliseconds read_timeout{ 100 };
+    while (keep_running)
+    {
+      data_pkg = client_->getDataPackage(read_timeout);
+      if (data_pkg)
+      {
+        URCL_LOG_INFO(data_pkg->toString().c_str());
+      }
+      else
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  fake_rtde_server.reset();
+  auto start_time = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start_time < std::chrono::seconds(10) &&
+         client_->getClientState() != rtde_interface::ClientState::UNINITIALIZED)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  URCL_LOG_INFO("Resetting rtde_server");
+  fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(52));
+
+  start_time = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start_time < std::chrono::seconds(10) &&
+         client_->getClientState() != rtde_interface::ClientState::RUNNING)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::RUNNING);
+
+  if (data_consumer_thread.joinable())
+  {
+    keep_running = false;
+    data_consumer_thread.join();
+  }
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(std::chrono::milliseconds(100));
+  ASSERT_NE(data_pkg, nullptr);
+  URCL_LOG_INFO(data_pkg->toString().c_str());
+
+  client_.reset();
+  URCL_LOG_INFO("Done");
 }
 
 TEST_F(RTDEClientTest, write_rtde_data)

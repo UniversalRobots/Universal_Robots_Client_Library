@@ -31,14 +31,16 @@
 #include "ur_client_library/log.h"
 #include <algorithm>
 #include <chrono>
+#include <string>
 
 namespace urcl
 {
 namespace rtde_interface
 {
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-                       const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs)
-  : stream_(robot_ip, UR_RTDE_PORT)
+                       const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs,
+                       const uint32_t port)
+  : stream_(robot_ip, port)
   , output_recipe_(ensureTimestampIsPresent(readRecipe(output_recipe_file)))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , parser_(output_recipe_)
@@ -61,8 +63,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
                        const std::vector<std::string>& input_recipe, double target_frequency,
-                       bool ignore_unavailable_outputs)
-  : stream_(robot_ip, UR_RTDE_PORT)
+                       bool ignore_unavailable_outputs, const uint32_t port)
+  : stream_(robot_ip, port)
   , output_recipe_(ensureTimestampIsPresent(output_recipe))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , input_recipe_(input_recipe)
@@ -103,6 +105,11 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
     return true;
   }
 
+  max_connection_attempts_ = max_connection_attempts;
+  reconnection_timeout_ = reconnection_timeout;
+  max_initialization_attempts_ = max_initialization_attempts;
+  initialization_timeout_ = initialization_timeout;
+
   prod_->setReconnectionCallback(nullptr);
 
   unsigned int attempts = 0;
@@ -132,24 +139,27 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
 
 bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
-  // The state initializing is used inside disconnect to stop the pipeline again.
-  client_state_ = ClientState::INITIALIZING;
-  // A running pipeline is needed inside setup.
+  client_state_ = ClientState::UNINITIALIZED;
   try
   {
     pipeline_->init(max_num_tries, reconnection_time);
   }
   catch (const UrException& exc)
   {
-    URCL_LOG_ERROR("Caught exception %s, while trying to initialize pipeline", exc.what());
+    URCL_LOG_ERROR("Caught exception '%s', while trying to initialize pipeline", exc.what());
     return false;
   }
+  // The state initializing is used inside disconnect to stop the pipeline again.
+  // A running pipeline is needed inside setup.
+  client_state_ = ClientState::INITIALIZING;
+
   pipeline_->run();
 
   uint16_t protocol_version = negotiateProtocolVersion();
   // Protocol version must be above zero
   if (protocol_version == 0)
   {
+    client_state_ = ClientState::UNINITIALIZED;
     return false;
   }
 
@@ -286,7 +296,8 @@ void RTDEClient::setTargetFrequency()
   else if (target_frequency_ <= 0.0 || target_frequency_ > max_frequency_)
   {
     // Target frequency outside valid range
-    throw UrException("Invalid target frequency of RTDE connection");
+    std::string error = "Invalid target frequency of RTDE connection: " + std::to_string(target_frequency_);
+    throw UrException(error.c_str());
   }
 }
 
@@ -348,7 +359,7 @@ bool RTDEClient::setupOutputs(const uint16_t protocol_version)
             dynamic_cast<rtde_interface::ControlPackageSetupOutputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitVariableTypes(tmp_output->variable_types_);
+      std::vector<std::string> variable_types = splitString(tmp_output->variable_types_, ",");
       std::vector<std::string> available_variables;
       std::vector<std::string> unavailable_variables;
       assert(output_recipe_.size() == variable_types.size());
@@ -441,7 +452,7 @@ bool RTDEClient::setupInputs()
             dynamic_cast<rtde_interface::ControlPackageSetupInputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitVariableTypes(tmp_input->variable_types_);
+      std::vector<std::string> variable_types = splitString(tmp_input->variable_types_, ",");
       assert(input_recipe_.size() == variable_types.size());
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
@@ -745,18 +756,6 @@ RTDEWriter& RTDEClient::getWriter()
   return writer_;
 }
 
-std::vector<std::string> RTDEClient::splitVariableTypes(const std::string& variable_types) const
-{
-  std::vector<std::string> result;
-  std::stringstream ss(variable_types);
-  std::string substr = "";
-  while (getline(ss, substr, ','))
-  {
-    result.push_back(substr);
-  }
-  return result;
-}
-
 void RTDEClient::reconnect()
 {
   URCL_LOG_INFO("Reconnecting to the RTDE interface");
@@ -764,17 +763,17 @@ void RTDEClient::reconnect()
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
   ClientState cur_client_state = client_state_;
+  client_state_ = ClientState::CONNECTION_LOST;
   disconnect();
 
-  const size_t max_initialization_attempts = 3;
   size_t cur_initialization_attempt = 0;
   bool client_reconnected = false;
-  while (cur_initialization_attempt < max_initialization_attempts)
+  while (cur_initialization_attempt < max_initialization_attempts_)
   {
     bool is_communication_setup = false;
     try
     {
-      is_communication_setup = setupCommunication(1, std::chrono::milliseconds{ 10000 });
+      is_communication_setup = setupCommunication(max_connection_attempts_, reconnection_timeout_);
     }
     catch (const UrException& exc)
     {
@@ -797,24 +796,22 @@ void RTDEClient::reconnect()
       break;
     }
 
-    auto duration = std::chrono::seconds(1);
     if (stream_.getState() != comm::SocketState::Connected)
     {
       // We don't wanna count it as an initialization attempt if we cannot connect to the socket and we want to wait
       // longer before reconnecting.
-      duration = std::chrono::seconds(10);
-      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", duration.count());
+      URCL_LOG_ERROR("Failed to connect to the RTDE server, retrying in %i seconds", reconnection_timeout_.count());
     }
     else
     {
-      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", duration.count());
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %i second", initialization_timeout_.count());
       cur_initialization_attempt += 1;
     }
 
     disconnect();
 
     auto start_time = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start_time < duration)
+    while (std::chrono::steady_clock::now() - start_time < initialization_timeout_)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
       if (stop_reconnection_)
@@ -828,11 +825,13 @@ void RTDEClient::reconnect()
   if (client_reconnected == false)
   {
     URCL_LOG_ERROR("Failed to initialize RTDE client after %i attempts, unable to reconnect",
-                   max_initialization_attempts);
+                   max_initialization_attempts_);
     disconnect();
     reconnecting_ = false;
     return;
   }
+
+  URCL_LOG_INFO("Successfully reconnected to the RTDE interface, starting communication again");
 
   start();
   if (cur_client_state == ClientState::PAUSED)

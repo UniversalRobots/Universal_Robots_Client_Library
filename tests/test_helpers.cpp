@@ -59,3 +59,30 @@ TEST(TestHelpers, test_parse_boolean)
   EXPECT_FALSE(parseBoolean("0"));
   EXPECT_THROW(parseBoolean("notabool"), urcl::UrException);
 }
+
+TEST(TestHelpers, splitString)
+{
+  std::vector<std::string> test_vec{ "this", "is", "very", "simple" };
+  {
+    std::string combined = test_vec[0];
+    for (std::size_t i = 1; i < test_vec.size(); ++i)
+    {
+      combined += "," + test_vec[i];
+    }
+
+    EXPECT_EQ(test_vec, urcl::splitString(combined, ","));
+  }
+  {
+    std::string combined = test_vec[0];
+    for (std::size_t i = 1; i < test_vec.size(); ++i)
+    {
+      combined += "--?--" + test_vec[i];
+    }
+
+    EXPECT_EQ(test_vec, urcl::splitString(combined, "--?--"));
+  }
+
+  const std::string version_string1 = "5.12.0.1101319";
+  std::vector<std::string> expected = { "5", "12", "0", "1101319" };
+  EXPECT_EQ(expected, splitString(version_string1, "."));
+}
