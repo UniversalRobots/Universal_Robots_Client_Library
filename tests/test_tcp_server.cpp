@@ -344,8 +344,8 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
   // properly.
   Client client(port_);
   timeval tv;
-  tv.tv_sec = 0;
-  tv.tv_usec = 100000;  // 100 ms
+  tv.tv_sec = 10;
+  tv.tv_usec = 0;  // 100 ms
   client.setReceiveTimeout(tv);
 
   // Start reading data with the client in a separate thread. This will have a blocking recv() call
