@@ -65,11 +65,13 @@ protected:
       size_t read_chars = 99;
       while (read_chars > 0)
       {
-        TCPSocket::read((uint8_t*)&character, 1, read_chars);
-        result << character;
-        if (character == '\n')
+        if (TCPSocket::read((uint8_t*)&character, 1, read_chars))
         {
-          break;
+          result << character;
+          if (character == '\n')
+          {
+            break;
+          }
         }
       }
       return result.str();
@@ -331,6 +333,45 @@ TEST_F(TCPServerTest, check_address_already_in_use)
   comm::TCPServer blocking_server(12321);
 
   EXPECT_THROW(comm::TCPServer test_server(12321, 2, std::chrono::milliseconds(500)), std::system_error);
+}
+
+TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
+{
+  auto server = std::make_unique<comm::TCPServer>(port_);
+  server->start();
+
+  // Use a client with a read timeout so we don't hang forever if the server doesn't shut down
+  // properly.
+  Client client(port_);
+  timeval tv;
+  tv.tv_sec = 10;
+  tv.tv_usec = 0;  // 100 ms
+  client.setReceiveTimeout(tv);
+
+  // Start reading data with the client in a separate thread. This will have a blocking recv() call
+  // that should be interrupted when the server is shut down. In that case the
+  bool read_success = true;
+  std::thread read_data_thread([&client, &read_success]() {
+    while (read_success)
+    {
+      // As we aren't sending any data, this will block until the server is shut down and the
+      // connection is closed. At that point, recv() should return an empty string, which we
+      // interpret as a successful shutdown of the server.
+      read_success = (client.recv() != "");
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  server.reset();
+
+  if (read_data_thread.joinable())
+  {
+    read_data_thread.join();
+  }
+  EXPECT_FALSE(read_success);
+  // If the read just would have timeouted, the client state would still be connected.
+  EXPECT_EQ(client.getState(), comm::SocketState::Disconnected);
 }
 
 int main(int argc, char* argv[])

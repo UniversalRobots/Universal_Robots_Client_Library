@@ -58,7 +58,6 @@ TCPServer::~TCPServer()
 {
   URCL_LOG_DEBUG("Destroying TCPServer object.");
   shutdown();
-  ur_close(listen_fd_);
 }
 
 void TCPServer::init()
@@ -115,6 +114,13 @@ void TCPServer::shutdown()
     worker_thread_.join();
     URCL_LOG_DEBUG("Worker thread joined.");
   }
+
+  for (const auto& client_fd : client_fds_)
+  {
+    ur_close(client_fd);
+  }
+  ur_close(shutdown_socket);
+  ur_close(listen_fd_);
 }
 
 void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
