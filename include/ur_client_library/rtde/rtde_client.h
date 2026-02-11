@@ -105,11 +105,12 @@ public:
    * \param input_recipe_file Path to the file containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * \param port Optionally specify a different port
    * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
              const std::string& input_recipe_file, double target_frequency = 0.0,
-             bool ignore_unavailable_outputs = false);
+             bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
 
   /*!
    * \brief Creates a new RTDEClient object, including a used URStream and Pipeline to handle the
@@ -121,11 +122,12 @@ public:
    * \param input_recipe Vector containing the input recipe
    * \param target_frequency Frequency to run at. Defaults to 0.0 which means maximum frequency.
    * \param ignore_unavailable_outputs Configure the behaviour when a variable of the output recipe is not available
+   * \param port Optionally specify a different port
    * from the robot: output is silently ignored if true, a UrException is raised otherwise.
    */
   RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
              const std::vector<std::string>& input_recipe, double target_frequency = 0.0,
-             bool ignore_unavailable_outputs = false);
+             bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT);
   ~RTDEClient();
   /*!
    * \brief Sets up RTDE communication with the robot. The handshake includes negotiation of the

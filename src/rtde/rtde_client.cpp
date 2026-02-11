@@ -31,14 +31,16 @@
 #include "ur_client_library/log.h"
 #include <algorithm>
 #include <chrono>
+#include <string>
 
 namespace urcl
 {
 namespace rtde_interface
 {
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
-                       const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs)
-  : stream_(robot_ip, UR_RTDE_PORT)
+                       const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs,
+                       const uint32_t port)
+  : stream_(robot_ip, port)
   , output_recipe_(ensureTimestampIsPresent(readRecipe(output_recipe_file)))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , parser_(output_recipe_)
@@ -61,8 +63,8 @@ RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const st
 
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
                        const std::vector<std::string>& input_recipe, double target_frequency,
-                       bool ignore_unavailable_outputs)
-  : stream_(robot_ip, UR_RTDE_PORT)
+                       bool ignore_unavailable_outputs, const uint32_t port)
+  : stream_(robot_ip, port)
   , output_recipe_(ensureTimestampIsPresent(output_recipe))
   , ignore_unavailable_outputs_(ignore_unavailable_outputs)
   , input_recipe_(input_recipe)
@@ -286,7 +288,8 @@ void RTDEClient::setTargetFrequency()
   else if (target_frequency_ <= 0.0 || target_frequency_ > max_frequency_)
   {
     // Target frequency outside valid range
-    throw UrException("Invalid target frequency of RTDE connection");
+    std::string error = "Invalid target frequency of RTDE connection: " + std::to_string(target_frequency_);
+    throw UrException(error.c_str());
   }
 }
 
