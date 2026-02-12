@@ -42,29 +42,20 @@
 #include <ur_client_library/ur/version_information.h>
 
 #include "fake_rtde_server.h"
+#include "ur_client_library/helpers.h"
 
 using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 uint32_t g_FAKE_RTDE_PORT = 13875;
 
-class TestableRTDEClient : public rtde_interface::RTDEClient
-{
-public:
-  using RTDEClient::RTDEClient;
-
-  void triggerReconnect()
-  {
-    this->reconnect();
-  }
-};
-
 class RTDEClientTest : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_));
+    client_.reset(
+        new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_));
   }
 
   void TearDown()
@@ -79,7 +70,7 @@ protected:
   std::string docs_output_recipe_file_ = "resources/docs_rtde_output_recipe.txt";
   std::string input_recipe_file_ = "resources/rtde_input_recipe.txt";
   comm::INotifier notifier_;
-  std::unique_ptr<TestableRTDEClient> client_;
+  std::unique_ptr<rtde_interface::RTDEClient> client_;
 
   std::vector<std::string> resources_output_recipe_ = { "timestamp",
                                                         "actual_q",
@@ -133,14 +124,16 @@ TEST_F(RTDEClientTest, no_recipe)
 {
   std::string output_recipe_file = "";
   std::string input_recipe_file = "";
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
-               UrException);
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      UrException);
 
   // Only input recipe is unconfigured
-  EXPECT_NO_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)));
+  EXPECT_NO_THROW(
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)));
 
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_,
-                                                    "/i/do/not/exist/urclrtdetest.txt")),
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_,
+                                                            "/i/do/not/exist/urclrtdetest.txt")),
                UrException);
 }
 
@@ -148,22 +141,26 @@ TEST_F(RTDEClientTest, empty_recipe_file)
 {
   std::string output_recipe_file = "resources/empty.txt";
   std::string input_recipe_file = "resources/empty.txt";
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
-               UrException);
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file)),
+      UrException);
 
   // Only input recipe is empty
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
-               UrException);
+  EXPECT_THROW(
+      client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file)),
+      UrException);
 }
 
 TEST_F(RTDEClientTest, invalid_target_frequency)
 {
   // Setting target frequency below 0 or above 500, should throw an exception
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0, false));
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, -1.0, false));
 
   EXPECT_THROW(client_->init(), UrException);
 
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000, false));
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, 1000, false));
 
   EXPECT_THROW(client_->init(), UrException);
 }
@@ -186,8 +183,8 @@ TEST_F(RTDEClientTest, set_target_frequency)
   // Since we check timestamp differences, we need to make sure that the target frequency is
   // achievable. 25 Hz is a factor of both 125 Hz and 500 Hz.
   const double target_frequency = 25.0;
-  client_.reset(
-      new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_, target_frequency, false));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, input_recipe_file_,
+                                               target_frequency, false));
   client_->init();
 
   // Maximum frequency should still be equal to the robot's maximum frequency
@@ -278,9 +275,9 @@ TEST_F(RTDEClientTest, input_recipe_with_invalid_key)
   std::vector<std::string> actual_input_recipe = resources_input_recipe_;
   actual_input_recipe.push_back("i_do_not_exist");
 
-  EXPECT_THROW(
-      client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe)),
-      RTDEInvalidKeyException);
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_,
+                                                            actual_input_recipe)),
+               RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientTest, recipe_comparison)
@@ -395,47 +392,14 @@ TEST_F(RTDEClientTest, get_data_package_wo_background)
   client_->pause();
 }
 
-TEST_F(RTDEClientTest, reconnect_rtde_client)
-{
-  client_->init();
-  client_->start();
-
-  // Test that we can receive a package and extract data from the received package
-  const std::chrono::milliseconds read_timeout{ 100 };
-  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(data_pkg.setData("timestamp", 0.0));
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
-
-  double timestamp;
-  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
-  EXPECT_GT(timestamp, 0.0);
-
-  std::thread reconnection_thread([this]() { client_->triggerReconnect(); });
-
-  // Give some time to ensure that the reconnection has started. TODO: A proper thread sync
-  // mechanism would be better here.
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  // Trying to get data packages while disconnected should fail
-  ASSERT_FALSE(client_->getDataPackage(data_pkg, read_timeout));
-
-  reconnection_thread.join();
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
-  double timestamp_2;
-  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp_2));
-  EXPECT_GT(timestamp_2, timestamp);
-
-  client_->pause();
-}
-
 TEST_F(RTDEClientTest, get_data_package_fake_server)
 {
   auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
   // Skip the bootup check. If uptime is less then 40 seconds, data is read for one second to
   // check for safety reset.
   fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
-  client_.reset(new TestableRTDEClient("localhost", notifier_, resources_output_recipe_, resources_input_recipe_, 100,
-                                       false, g_FAKE_RTDE_PORT));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
   client_->init();
   client_->start();
 
@@ -455,14 +419,14 @@ TEST_F(RTDEClientTest, get_data_package_fake_server)
   client_.reset();
 }
 
-TEST_F(RTDEClientTest, reconnect_fake_server)
+TEST_F(RTDEClientTest, reconnect_fake_server_background_read)
 {
   auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
   // Skip the bootup check. If uptime is less then 40 seconds, data is read for one second to
   // check for safety reset.
   fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
-  client_.reset(new TestableRTDEClient("localhost", notifier_, resources_output_recipe_, resources_input_recipe_, 100,
-                                       false, g_FAKE_RTDE_PORT));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
   client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100));
   URCL_LOG_INFO("Client initiliazed");
   client_->start();
@@ -475,7 +439,7 @@ TEST_F(RTDEClientTest, reconnect_fake_server)
     {
       if (client_->getDataPackage(data_pkg, read_timeout))
       {
-        URCL_LOG_INFO(data_pkg.toString().c_str());
+        // URCL_LOG_INFO(data_pkg.toString().c_str());
       }
       else
       {
@@ -513,6 +477,68 @@ TEST_F(RTDEClientTest, reconnect_fake_server)
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   ASSERT_TRUE(client_->getDataPackage(data_pkg, std::chrono::milliseconds(100)));
   URCL_LOG_INFO(data_pkg.toString().c_str());
+
+  client_.reset();
+  URCL_LOG_INFO("Done");
+}
+
+TEST_F(RTDEClientTest, reconnect_fake_server_blocking_read)
+{
+  auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  // Skip the bootup check. If uptime is less then 40 seconds, data is read for one second to
+  // check for safety reset.
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+  client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100));
+  URCL_LOG_INFO("Client initiliazed");
+  client_->start(false);
+
+  std::atomic<bool> keep_running = true;
+  std::thread data_consumer_thread([this, &keep_running]() {
+    auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+    while (keep_running)
+    {
+      if (client_->getDataPackageBlocking(data_pkg))
+      {
+        URCL_LOG_INFO(data_pkg->toString().c_str());
+      }
+      else
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  fake_rtde_server.reset();
+  auto start_time = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start_time < std::chrono::seconds(10) &&
+         client_->getClientState() != rtde_interface::ClientState::UNINITIALIZED)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  URCL_LOG_INFO("Resetting rtde_server");
+  fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(52));
+
+  start_time = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start_time < std::chrono::seconds(10) &&
+         client_->getClientState() != rtde_interface::ClientState::RUNNING)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::RUNNING);
+
+  if (data_consumer_thread.joinable())
+  {
+    keep_running = false;
+    data_consumer_thread.join();
+  }
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
+  URCL_LOG_INFO(data_pkg->toString().c_str());
 
   client_.reset();
   URCL_LOG_INFO("Done");
@@ -558,7 +584,7 @@ TEST_F(RTDEClientTest, write_rtde_data)
 TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 {
   std::string output_recipe_file = "resources/rtde_output_recipe_without_timestamp.txt";
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file, input_recipe_file_));
 
   std::vector<std::string> actual_output_recipe_from_file = client_->getOutputRecipe();
   const std::string timestamp = "timestamp";
@@ -576,7 +602,8 @@ TEST_F(RTDEClientTest, output_recipe_without_timestamp)
 TEST_F(RTDEClientTest, connect_non_running_robot)
 {
   // Make sure that there's no simulator running exposing RTDE on localhost.
-  client_.reset(new TestableRTDEClient("127.0.0.1", notifier_, resources_output_recipe_, resources_input_recipe_));
+  client_.reset(
+      new rtde_interface::RTDEClient("127.0.0.1", notifier_, resources_output_recipe_, resources_input_recipe_));
   auto start = std::chrono::system_clock::now();
   EXPECT_THROW(client_->init(2, std::chrono::milliseconds(50), 1), UrException);
   auto end = std::chrono::system_clock::now();
@@ -608,8 +635,8 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_->init();
 
   // Ignore unknown output variables to account for variables not available in old urcontrol versions.
-  client_.reset(
-      new TestableRTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_, input_recipe_file_, 0.0, false));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,
+                                               input_recipe_file_, 0.0, false));
 
   EXPECT_TRUE(client_->init());
   client_->start();
@@ -679,8 +706,8 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
   incorrect_output_recipe.push_back("unknown_rtde_variable");
 
   // If unknown variables are not ignored, initialization should fail
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
-                                                    resources_input_recipe_, 0.0, false)),
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                            resources_input_recipe_, 0.0, false)),
                RTDEInvalidKeyException);
 
   // Unknown variables (by the control box) can be ignored, so initialization should succeed
@@ -689,21 +716,22 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
   {
     std::vector<std::string> output_recipe = client_->getOutputRecipe();
     output_recipe.push_back("actual_robot_energy_consumed");  // That has been added in 5.23.0 / 10.11.0
-    client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe, resources_input_recipe_, 0.0, true));
+    client_.reset(
+        new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe, resources_input_recipe_, 0.0, true));
     EXPECT_TRUE(client_->init());
   }
 
   // Passing a completely unknown variable should still lead to an exception, even if unknown
   // variables are ignored.
-  EXPECT_THROW(client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
-                                                    resources_input_recipe_, 0.0, true)),
+  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                            resources_input_recipe_, 0.0, true)),
                RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientTest, empty_input_recipe)
 {
   std::vector<std::string> empty_input_recipe = {};
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, empty_input_recipe));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, empty_input_recipe));
   client_->init();
   client_->start();
 
@@ -719,7 +747,7 @@ TEST_F(RTDEClientTest, empty_input_recipe)
 
   client_->pause();
 
-  client_.reset(new TestableRTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, ""));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe_file_, ""));
   client_->init();
   client_->start();
 
@@ -747,7 +775,7 @@ TEST_F(RTDEClientTest, test_initialization)
   // since the last attempt doesn't wait after failing.
 
   URCL_LOG_INFO("Starting initialization timing test");
-  client_.reset(new TestableRTDEClient("127.0.0.1", notifier_, resources_output_recipe_, {}));
+  client_.reset(new rtde_interface::RTDEClient("127.0.0.1", notifier_, resources_output_recipe_, {}));
   auto start = std::chrono::system_clock::now();
   EXPECT_THROW(client_->init(2, std::chrono::milliseconds(10), 2, std::chrono::milliseconds(10)), UrException);
   auto end = std::chrono::system_clock::now();
