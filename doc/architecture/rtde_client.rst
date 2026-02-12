@@ -105,11 +105,11 @@ an empty input recipe, like this:
    // Alternatively, pass an empty filename when using recipe files
    // rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE_FILE, "");
    my_client.init();
-   my_client.start(false);
+   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client->getOutputRecipe());
+   my_client.start();
    while (true)
    {
-     std::unique_ptr<rtde_interface::DataPackage> data_pkg = my_client.getDataPackage(READ_TIMEOUT);
-     if (data_pkg)
+     if (my_client.getDataPackage(data_package, READ_TIMEOUT))
      {
        std::cout << data_pkg->toString() << std::endl;
      }
