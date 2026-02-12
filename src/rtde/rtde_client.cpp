@@ -627,7 +627,9 @@ bool RTDEClient::sendStart()
     return false;
   }
 
-  std::unique_ptr<RTDEPackage> package;
+  // Worst case we get a data package as part of a race condition in the communication. If we
+  // didn't preallocate that, it might print a warning.
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
   unsigned int num_retries = 0;
   while (num_retries < MAX_REQUEST_RETRIES)
   {
@@ -675,7 +677,9 @@ bool RTDEClient::sendPause()
     URCL_LOG_ERROR("Sending RTDE pause command failed!");
     return false;
   }
-  std::unique_ptr<RTDEPackage> package;
+  // Worst case we get a data package as part of a race condition in the communication. If we
+  // didn't preallocate that, it might print a warning.
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
   std::chrono::time_point start = std::chrono::steady_clock::now();
   int seconds = 5;
   while (std::chrono::steady_clock::now() - start < std::chrono::seconds(seconds))
@@ -757,6 +761,11 @@ bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& da
 
 bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
 {
+  if (reconnecting_)
+  {
+    URCL_LOG_WARN("Currently reconnecting to the RTDE interface, unable to get data package");
+    return false;
+  }
   if (!background_read_running_)
   {
     URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
@@ -764,37 +773,25 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
     return false;
   }
 
-  if (reconnect_mutex_.try_lock())
+  if (new_data_.load())
   {
-    if (new_data_.load())
-    {
-      std::lock_guard<std::mutex> guard(read_mutex_);
-      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
-      new_data_.store(false);
-    }
-    else
-    {
-      std::unique_lock<std::mutex> lock(read_mutex_);
-      auto wait_result = background_read_cv_.wait_for(lock, timeout);
-      if (wait_result == std::cv_status::timeout)
-      {
-        reconnect_mutex_.unlock();
-        return false;
-      }
-      if (new_data_.load())
-      {
-        data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
-        new_data_.store(false);
-      }
-    }
-    reconnect_mutex_.unlock();
+    std::lock_guard<std::mutex> guard(read_mutex_);
+    data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
+    new_data_.store(false);
   }
   else
   {
-    URCL_LOG_WARN("Unable to get data package while reconnecting to the RTDE interface");
-    auto period = std::chrono::duration<double>(1.0 / target_frequency_);
-    std::this_thread::sleep_for(period);
-    return false;
+    std::unique_lock<std::mutex> lock(read_mutex_);
+    auto wait_result = background_read_cv_.wait_for(lock, timeout);
+    if (wait_result == std::cv_status::timeout)
+    {
+      return false;
+    }
+    if (new_data_.load())
+    {
+      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
+      new_data_.store(false);
+    }
   }
   return true;
 }
@@ -850,6 +847,7 @@ RTDEWriter& RTDEClient::getWriter()
 void RTDEClient::reconnect()
 {
   URCL_LOG_INFO("Reconnecting to the RTDE interface");
+  reconnecting_ = true;
   // Locking mutex to ensure that calling getDataPackage doesn't influence the communication needed for reconfiguring
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
@@ -944,7 +942,6 @@ void RTDEClient::reconnectCallback()
   {
     reconnecting_thread_.join();
   }
-  reconnecting_ = true;
   reconnecting_thread_ = std::thread(&RTDEClient::reconnect, this);
 }
 
@@ -976,27 +973,38 @@ void RTDEClient::backgroundReadThreadFunc()
 {
   while (background_read_running_)
   {
-    if (prod_->tryGet(data_buffer1_))
+    if (reconnect_mutex_.try_lock())
     {
-      rtde_interface::DataPackage* data_pkg = dynamic_cast<rtde_interface::DataPackage*>(data_buffer1_.get());
-      if (data_pkg != nullptr)
+      if (prod_->tryGet(data_buffer1_))
       {
+        reconnect_mutex_.unlock();
+        rtde_interface::DataPackage* data_pkg = dynamic_cast<rtde_interface::DataPackage*>(data_buffer1_.get());
+        if (data_pkg != nullptr)
         {
-          std::scoped_lock lock(read_mutex_, write_mutex_);
-          std::swap(data_buffer0_, data_buffer1_);
-        }
+          {
+            std::scoped_lock lock(read_mutex_, write_mutex_);
+            std::swap(data_buffer0_, data_buffer1_);
+          }
 
-        new_data_.store(true);
-        background_read_cv_.notify_one();
+          new_data_.store(true);
+          background_read_cv_.notify_one();
+        }
+        else if (data_buffer1_->getType() == PackageType::RTDE_TEXT_MESSAGE)
+        {
+          URCL_LOG_INFO(data_buffer1_->toString().c_str());
+        }
       }
-      else if (data_buffer1_->getType() == PackageType::RTDE_TEXT_MESSAGE)
+      else
       {
-        URCL_LOG_INFO(data_buffer1_->toString().c_str());
+        reconnect_mutex_.unlock();
+        auto period = std::chrono::duration<double>(1.0 / target_frequency_);
+        std::this_thread::sleep_for(period);
       }
     }
     else
     {
-      auto period = std::chrono::duration<double>(1.0 / target_frequency_);
+      URCL_LOG_WARN("Unable to get data package while reconnecting to the RTDE interface");
+      auto period = std::chrono::duration<double>(2.0 / target_frequency_);
       std::this_thread::sleep_for(period);
     }
   }
