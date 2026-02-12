@@ -807,11 +807,12 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
 
   // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
   std::unique_ptr<RTDEPackage> base_package(data_package.release());
-  if (reconnect_mutex_.try_lock())
+  std::unique_lock<std::mutex> lock(reconnect_mutex_, std::defer_lock);
+  if (lock.try_lock())
   {
     if (prod_->tryGet(base_package))
     {
-      reconnect_mutex_.unlock();
+      lock.unlock();
       auto package_type = base_package->getType();
       if (package_type != PackageType::RTDE_DATA_PACKAGE)
       {
@@ -821,7 +822,7 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
       data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
       return true;
     }
-    reconnect_mutex_.unlock();
+    lock.unlock();
   }
   else
   {
@@ -973,7 +974,8 @@ void RTDEClient::backgroundReadThreadFunc()
 {
   while (background_read_running_)
   {
-    if (reconnect_mutex_.try_lock())
+    std::unique_lock<std::mutex> lock(reconnect_mutex_, std::defer_lock);
+    if (lock.try_lock())
     {
       if (prod_->tryGet(data_buffer1_))
       {
@@ -996,7 +998,7 @@ void RTDEClient::backgroundReadThreadFunc()
       }
       else
       {
-        reconnect_mutex_.unlock();
+        lock.unlock();
         auto period = std::chrono::duration<double>(1.0 / target_frequency_);
         std::this_thread::sleep_for(period);
       }
