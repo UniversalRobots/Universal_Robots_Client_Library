@@ -650,10 +650,6 @@ bool RTDEClient::sendStart()
       double timestamp;
       return tmp->getData("timestamp", timestamp);
     }
-    else if (dynamic_cast<rtde_interface::DataPackage*>(package.get()))
-    {
-      // silently ignore, as this can happen that packages are still queued.
-    }
     else
     {
       std::stringstream ss;
