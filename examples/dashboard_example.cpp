@@ -104,6 +104,7 @@ int main(int argc, char* argv[])
     // We're ignoring errors here since
     // powering off an already powered off robot will return an error.
     my_dashboard->commandPowerOff();
+    my_dashboard->setPolyscopeVersion(*version_information);
   }
 
   // Power it on
