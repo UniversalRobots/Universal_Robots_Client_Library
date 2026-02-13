@@ -64,7 +64,7 @@ TEST(rtde_parser, request_protocol_version)
     parser.parse(bp, product2);
   }
   if (rtde_interface::RequestProtocolVersion* data =
-          dynamic_cast<rtde_interface::RequestProtocolVersion*>(product.get()))
+          dynamic_cast<rtde_interface::RequestProtocolVersion*>(product2.get()))
   {
     EXPECT_EQ(data->accepted_, true);
   }

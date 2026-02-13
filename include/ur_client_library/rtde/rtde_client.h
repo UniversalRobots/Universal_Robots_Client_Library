@@ -340,6 +340,8 @@ protected:
 
   ClientState client_state_;
 
+  uint16_t protocol_version_;
+
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
 
@@ -352,7 +354,7 @@ protected:
   uint16_t negotiateProtocolVersion();
   bool queryURControlVersion();
   void setTargetFrequency();
-  bool setupOutputs(const uint16_t protocol_version);
+  bool setupOutputs();
   bool setupInputs();
   void disconnect();
 

@@ -143,9 +143,9 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   prod_->setupProducer(max_num_tries, reconnection_time);
   client_state_ = ClientState::INITIALIZING;
 
-  uint16_t protocol_version = negotiateProtocolVersion();
+  protocol_version_ = negotiateProtocolVersion();
   // Protocol version must be above zero
-  if (protocol_version == 0)
+  if (protocol_version_ == 0)
   {
     client_state_ = ClientState::UNINITIALIZED;
     return false;
@@ -161,7 +161,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
 
   prod_->startProducer();
 
-  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs(protocol_version);
+  is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs();
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
 
@@ -327,13 +327,13 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
-  preallocated_data_pkg_ = DataPackage(output_recipe_);
+  preallocated_data_pkg_ = DataPackage(output_recipe_, protocol_version_);
 
   parser_ = RTDEParser(output_recipe_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
 }
 
-bool RTDEClient::setupOutputs(const uint16_t protocol_version)
+bool RTDEClient::setupOutputs()
 {
   unsigned int num_retries = 0;
   size_t size;
@@ -344,7 +344,7 @@ bool RTDEClient::setupOutputs(const uint16_t protocol_version)
   while (num_retries < MAX_REQUEST_RETRIES)
   {
     URCL_LOG_DEBUG("Sending output recipe");
-    if (protocol_version == 2)
+    if (protocol_version_ == 2)
     {
       size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, target_frequency_, output_recipe_);
     }
@@ -534,7 +534,7 @@ bool RTDEClient::isRobotBooted()
   if (!sendStart())
     return false;
 
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
 
   double timestamp = 0;
   int reading_count = 0;
@@ -629,7 +629,7 @@ bool RTDEClient::sendStart()
 
   // Worst case we get a data package as part of a race condition in the communication. If we
   // didn't preallocate that, it might print a warning.
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
   unsigned int num_retries = 0;
   while (num_retries < MAX_REQUEST_RETRIES)
   {
@@ -679,7 +679,7 @@ bool RTDEClient::sendPause()
   }
   // Worst case we get a data package as part of a race condition in the communication. If we
   // didn't preallocate that, it might print a warning.
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_);
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
   std::chrono::time_point start = std::chrono::steady_clock::now();
   int seconds = 5;
   while (std::chrono::steady_clock::now() - start < std::chrono::seconds(seconds))
@@ -954,8 +954,8 @@ void RTDEClient::startBackgroundRead()
     return;
   }
   background_read_running_ = true;
-  data_buffer0_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_);
-  data_buffer1_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_);
+  data_buffer0_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_, protocol_version_);
+  data_buffer1_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_, protocol_version_);
 
   background_read_thread_ = std::thread(&RTDEClient::backgroundReadThreadFunc, this);
 }
@@ -979,7 +979,7 @@ void RTDEClient::backgroundReadThreadFunc()
     {
       if (prod_->tryGet(data_buffer1_))
       {
-        reconnect_mutex_.unlock();
+        lock.unlock();
         rtde_interface::DataPackage* data_pkg = dynamic_cast<rtde_interface::DataPackage*>(data_buffer1_.get());
         if (data_pkg != nullptr)
         {
