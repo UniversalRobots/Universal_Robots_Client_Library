@@ -47,6 +47,10 @@ namespace urcl
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
 {
   cli_ = std::make_unique<httplib::Client>("http://" + host);
+
+  // Some targets have changed between versions redirecting to the correct endpoint. For this to
+  // work, we'll have to follow redirects, which is not the default for httplib.
+  cli_->set_follow_location(true);
 }
 
 std::string DashboardClientImplX::sendAndReceive(const std::string& text)
