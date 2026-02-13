@@ -43,19 +43,6 @@ using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
-class TestableDashboardClient : public DashboardClientImplG5
-{
-public:
-  TestableDashboardClient(const std::string& host) : DashboardClientImplG5(host)
-  {
-  }
-
-  void setPolyscopeVersion(const std::string& version)
-  {
-    polyscope_version_ = VersionInformation::fromString(version);
-  }
-};
-
 class DashboardClientTestG5 : public ::testing::Test
 {
 protected:
@@ -66,7 +53,7 @@ protected:
       GTEST_SKIP_("G5 DashboardClient tests are only applicable for robots with a G5 dashboard server.");
     }
 
-    dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
+    dashboard_client_.reset(new DashboardClientImplG5(g_ROBOT_IP));
     // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
     // here.
     timeval tv;
@@ -80,7 +67,7 @@ protected:
     dashboard_client_.reset();
   }
 
-  std::unique_ptr<TestableDashboardClient> dashboard_client_;
+  std::unique_ptr<DashboardClientImplG5> dashboard_client_;
 };
 
 TEST_F(DashboardClientTestG5, connect)
@@ -264,9 +251,9 @@ TEST_F(DashboardClientTestG5, e_series_version)
   EXPECT_TRUE(dashboard_client_->connect());
   if (!dashboard_client_->getPolyscopeVersion().isESeries())
     GTEST_SKIP();
-  dashboard_client_->setPolyscopeVersion("5.0.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("5.0.0"));
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(), UrException);
-  dashboard_client_->setPolyscopeVersion("5.5.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("5.5.0"));
   DashboardResponse response;
   response = dashboard_client_->commandSafetyStatus();
   ASSERT_TRUE(response.ok);
@@ -316,9 +303,9 @@ TEST_F(DashboardClientTestG5, cb3_version)
 
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(), UrException);
 
-  dashboard_client_->setPolyscopeVersion("1.6.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("1.6.0"));
   EXPECT_THROW(dashboard_client_->commandIsProgramSaved(), UrException);
-  dashboard_client_->setPolyscopeVersion("1.8.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("1.8.0"));
   EXPECT_TRUE(dashboard_client_->commandLoadProgram("wait_program.urp").ok);
   response = dashboard_client_->commandIsProgramSaved();
   ASSERT_TRUE(response.ok);

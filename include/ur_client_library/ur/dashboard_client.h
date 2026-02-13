@@ -802,12 +802,11 @@ public:
    */
   void setPolyscopeVersion(const VersionInformation& version)
   {
-    polyscope_version_ = version;
+    impl_->setPolyscopeVersion(version);
   }
 
 protected:
   std::shared_ptr<DashboardClientImpl> impl_;
-  VersionInformation polyscope_version_;
 };
 }  // namespace urcl
 #endif  // ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
