@@ -328,7 +328,8 @@ TEST_F(UrDriverTest, read_error_code)
   // Wait for after PSTOP before clearing it
   std::this_thread::sleep_for(std::chrono::seconds(6));
 
-  if (g_my_robot->getDashboardClient() != nullptr)
+  if (g_my_robot->getDashboardClient() != nullptr &&
+      *(g_my_robot->getPrimaryClient()->getRobotVersion()) < urcl::VersionInformation::fromString("10.0.0"))
   {
     EXPECT_TRUE(g_my_robot->getDashboardClient()->commandCloseSafetyPopup());
   }
