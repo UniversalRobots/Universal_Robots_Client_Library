@@ -70,4 +70,4 @@ To send the control command, the robot's :ref:`reverse_interface` is used via th
    :linenos:
    :lineno-match:
    :start-at: // Setting the RobotReceiveTimeout
-   :end-before: URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
+   :end-before: URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());

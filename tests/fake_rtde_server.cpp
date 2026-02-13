@@ -192,10 +192,11 @@ void RTDEServer::startSendingDataPackages()
 
 void RTDEServer::stopSendingDataPackages()
 {
-  URCL_LOG_INFO("Stop sending data.");
+  std::lock_guard<std::mutex> thread_lock(thread_control_mutex_);
   send_loop_running_ = false;
   if (send_thread_.joinable())
   {
+    URCL_LOG_INFO("Stop sending data.");
     send_thread_.join();
   }
 }

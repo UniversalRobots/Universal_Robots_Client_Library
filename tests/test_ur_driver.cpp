@@ -217,66 +217,62 @@ TEST_F(UrDriverTest, stop_robot_control)
 
 TEST_F(UrDriverTest, target_outside_limits_servoj)
 {
-  g_my_robot->stopConsumingRTDEData();
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  g_my_robot->readDataPackage(data_pkg);
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
 
   urcl::vector6d_t joint_positions_before;
-  ASSERT_TRUE(data_pkg->getData("actual_q", joint_positions_before));
+  ASSERT_TRUE(data_pkg.getData("actual_q", joint_positions_before));
 
   // Create physically unfeasible target
   urcl::vector6d_t joint_target = joint_positions_before;
   joint_target[5] -= 2.5;
 
   // Send unfeasible targets to the robot
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   g_my_robot->getUrDriver()->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
                                                RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   urcl::vector6d_t joint_positions;
-  ASSERT_TRUE(data_pkg->getData("actual_q", joint_positions));
+  ASSERT_TRUE(data_pkg.getData("actual_q", joint_positions));
   for (unsigned int i = 0; i < 6; ++i)
   {
     EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions[i]);
   }
 
   // Make sure the program is stopped
-  g_my_robot->startConsumingRTDEData();
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
 
 TEST_F(UrDriverTest, target_outside_limits_pose)
 {
-  g_my_robot->stopConsumingRTDEData();
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  g_my_robot->readDataPackage(data_pkg);
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
 
   urcl::vector6d_t tcp_pose_before;
-  ASSERT_TRUE(data_pkg->getData("actual_TCP_pose", tcp_pose_before));
+  ASSERT_TRUE(data_pkg.getData("actual_TCP_pose", tcp_pose_before));
 
   // Create physically unfeasible target
   urcl::vector6d_t tcp_target = tcp_pose_before;
   tcp_target[2] += 0.3;
 
   // Send unfeasible targets to the robot
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   g_my_robot->getUrDriver()->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE,
                                                RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   urcl::vector6d_t tcp_pose;
-  ASSERT_TRUE(data_pkg->getData("actual_TCP_pose", tcp_pose));
+  ASSERT_TRUE(data_pkg.getData("actual_TCP_pose", tcp_pose));
   for (unsigned int i = 0; i < 6; ++i)
   {
     EXPECT_FLOAT_EQ(tcp_pose_before[i], tcp_pose[i]);
   }
 
   // Make sure the program is stopped
-  g_my_robot->startConsumingRTDEData();
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
@@ -299,7 +295,6 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 
 TEST_F(UrDriverTest, reset_rtde_client)
 {
-  g_my_robot->stopConsumingRTDEData();
   double target_frequency = 50;
   g_my_robot->getUrDriver()->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
   ASSERT_EQ(g_my_robot->getUrDriver()->getControlFrequency(), target_frequency);

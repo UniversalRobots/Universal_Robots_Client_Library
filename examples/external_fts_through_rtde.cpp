@@ -211,11 +211,12 @@ void rtdeWorker(const int second_to_run)
 
   vector6d_t actual_tcp_force;
   auto start_time = std::chrono::steady_clock::now();
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg =
+      std::make_unique<rtde_interface::DataPackage>(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
   while (g_RUNNING)
   {
     urcl::vector6d_t local_ft_vec = g_FT_VEC;
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
-    if (data_pkg)
+    if (g_my_robot->getUrDriver()->getDataPackageBlocking(data_pkg))
     {
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.

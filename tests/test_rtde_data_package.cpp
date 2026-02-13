@@ -36,7 +36,6 @@ TEST(rtde_data_package, serialize_pkg)
 {
   std::vector<std::string> recipe{ "speed_slider_mask" };
   rtde_interface::DataPackage package(recipe);
-  package.initEmpty();
 
   uint32_t value = 1;
   package.setData("speed_slider_mask", value);
@@ -59,7 +58,6 @@ TEST(rtde_data_package, parse_pkg_protocolv2)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage package(recipe);
-  package.initEmpty();
 
   uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
                              0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe, 0x68,
@@ -93,7 +91,6 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage package(recipe, 1);
-  package.initEmpty();
 
   uint8_t data_package[] = { 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
                              0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe,
@@ -126,7 +123,6 @@ TEST(rtde_data_package, get_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage package(recipe);
-  package.initEmpty();
 
   uint32_t speed_slider_mask;
   EXPECT_FALSE(package.getData("speed_slider_mask", speed_slider_mask));
@@ -136,7 +132,6 @@ TEST(rtde_data_package, set_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage package(recipe);
-  package.initEmpty();
 
   uint32_t speed_slider_mask = 1;
   EXPECT_FALSE(package.setData("speed_slider_mask", speed_slider_mask));
@@ -146,7 +141,6 @@ TEST(rtde_data_package, parse_and_get_bitset_data)
 {
   std::vector<std::string> recipe{ "robot_status_bits" };
   rtde_interface::DataPackage package(recipe);
-  package.initEmpty();
 
   uint8_t data_package[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x40, 0xb2, 0x3d, 0xa9, 0xfb, 0xe7, 0x6c, 0x8b };
   comm::BinParser bp(data_package, sizeof(data_package));
@@ -158,6 +152,41 @@ TEST(rtde_data_package, parse_and_get_bitset_data)
   package.getData<uint32_t>("robot_status_bits", actual_robot_status_bits);
 
   EXPECT_EQ(expected_robot_status_bits, actual_robot_status_bits);
+}
+
+TEST(rtde_data_package, parse_incorrect_data_size)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  rtde_interface::DataPackage package(recipe);
+
+  // Data package with incorrect size (should be 56 bytes for the given recipe)
+  uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf };
+
+  comm::BinParser bp(data_package, sizeof(data_package));
+
+  EXPECT_THROW(package.parseWith(bp), UrException);
+}
+
+TEST(rtde_data_package, data_package_to_string)
+{
+  std::vector<std::string> recipe{ "speed_slider_mask", "speed_slider_fraction", "external_force_torque",
+                                   "standard_digital_output_mask", "actual_digital_output_bits" };
+  rtde_interface::DataPackage package(recipe);
+  ASSERT_TRUE(package.setData<uint32_t>("speed_slider_mask", 1));
+  ASSERT_TRUE(package.setData<double>("speed_slider_fraction", 0.5));
+  ASSERT_TRUE(package.setData("external_force_torque", vector6d_t{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 }));
+  ASSERT_TRUE(package.setData<uint8_t>("standard_digital_output_mask", 1 << 7));
+  ASSERT_TRUE(package.setData<uint64_t>("actual_digital_output_bits", 1 << 7));
+
+  std::string pkg_str = package.toString();
+
+  std::string expected_str = "speed_slider_mask: 1\n"
+                             "speed_slider_fraction: 0.5\n"
+                             "external_force_torque: [-1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031]\n"
+                             "standard_digital_output_mask: 128\n"
+                             "actual_digital_output_bits: 128\n";
+  std::cout << "Package string:\n" << pkg_str << std::endl;
+  EXPECT_EQ(expected_str, pkg_str);
 }
 
 int main(int argc, char* argv[])

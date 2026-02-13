@@ -47,6 +47,57 @@ private:
 
   bool running_;
 
+  template <typename ProductT>
+  bool tryGetImpl(ProductT& product)
+  {
+    // TODO This function has become really ugly! That should be refactored!
+
+    // 4KB should be enough to hold any packet received from UR
+    uint8_t buf[4096];
+    size_t read = 0;
+    // expoential backoff reconnects
+    while (true)
+    {
+      if (stream_.read(buf, sizeof(buf), read))
+      {
+        // reset sleep amount
+        timeout_ = std::chrono::seconds(1);
+        BinParser bp(buf, read);
+        return parser_.parse(bp, product);
+      }
+
+      if (!running_)
+        return false;
+
+      if (stream_.getState() == SocketState::Connected)
+      {
+        continue;
+      }
+
+      if (stream_.closed())
+        return false;
+
+      if (on_reconnect_cb_)
+      {
+        URCL_LOG_WARN("Failed to read from stream, invoking on reconnect callback and stopping the producer");
+        on_reconnect_cb_();
+        return false;
+      }
+
+      URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
+      std::this_thread::sleep_for(timeout_);
+
+      if (stream_.connect())
+        continue;
+
+      auto next = timeout_ * 2;
+      if (next <= std::chrono::seconds(120))
+        timeout_ = next;
+    }
+
+    return false;
+  }
+
 public:
   /*!
    * \brief Creates a URProducer object, registering a stream and a parser.
@@ -106,52 +157,22 @@ public:
    */
   bool tryGet(std::vector<std::unique_ptr<T>>& products) override
   {
-    // TODO This function has become really ugly! That should be refactored!
+    return tryGetImpl(products);
+  }
 
-    // 4KB should be enough to hold any packet received from UR
-    uint8_t buf[4096];
-    size_t read = 0;
-    // expoential backoff reconnects
-    while (true)
-    {
-      if (stream_.read(buf, sizeof(buf), read))
-      {
-        // reset sleep amount
-        timeout_ = std::chrono::seconds(1);
-        BinParser bp(buf, read);
-        return parser_.parse(bp, products);
-      }
-
-      if (!running_)
-        return true;
-
-      if (stream_.getState() == SocketState::Connected)
-      {
-        continue;
-      }
-
-      if (stream_.closed())
-        return false;
-
-      if (on_reconnect_cb_)
-      {
-        URCL_LOG_WARN("Failed to read from stream, invoking on reconnect callback and stopping the producer");
-        on_reconnect_cb_();
-        return false;
-      }
-
-      URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
-      std::this_thread::sleep_for(timeout_);
-
-      if (stream_.connect())
-        continue;
-
-      auto next = timeout_ * 2;
-      if (next <= std::chrono::seconds(120))
-        timeout_ = next;
-    }
-
-    return false;
+  /*!
+   * \brief Attempts to read byte stream from the robot and parse it as a URPackage.
+   *
+   * If supported by the parser, this function will try to reuse existing memory in the passed
+   * unique pointer.
+   *
+   * \param product Unique pointer to hold the produced package
+   *
+   * \returns Success of reading and parsing the package
+   */
+  bool tryGet(std::unique_ptr<T>& product) override
+  {
+    return tryGetImpl(product);
   }
 
   /*!
