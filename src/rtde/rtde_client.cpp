@@ -848,7 +848,6 @@ RTDEWriter& RTDEClient::getWriter()
 void RTDEClient::reconnect()
 {
   URCL_LOG_INFO("Reconnecting to the RTDE interface");
-  reconnecting_ = true;
   // Locking mutex to ensure that calling getDataPackage doesn't influence the communication needed for reconfiguring
   // the RTDE connection
   std::lock_guard<std::mutex> lock(reconnect_mutex_);
@@ -943,6 +942,7 @@ void RTDEClient::reconnectCallback()
   {
     reconnecting_thread_.join();
   }
+  reconnecting_ = true;
   reconnecting_thread_ = std::thread(&RTDEClient::reconnect, this);
 }
 
