@@ -1188,23 +1188,27 @@ DashboardResponse DashboardClientImplG5::commandSaveLog()
 
 DashboardResponse DashboardClientImplG5::commandGetProgramList()
 {
-  throw NotImplementedException("commandGetProgramList is not implemented for DashboardClientImplG5.");
+  throw NotImplementedException("commandGetProgramList is not available for PolyScope " +
+                                polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
 DashboardResponse DashboardClientImplG5::commandUploadProgram(const std::string& program_file_name)
 {
-  throw NotImplementedException("commandUploadProgram is not implemented for DashboardClientImplG5.");
+  throw NotImplementedException("commandUploadProgram is not available for PolyScope " + polyscope_version_.toString() +
+                                ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
 DashboardResponse DashboardClientImplG5::commandUpdateProgram(const std::string& program_file_name)
 {
-  throw NotImplementedException("commandUpdateProgram is not implemented for DashboardClientImplG5.");
+  throw NotImplementedException("commandUpdateProgram is not available for PolyScope " + polyscope_version_.toString() +
+                                ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
 DashboardResponse DashboardClientImplG5::commandDownloadProgram(const std::string& program_file_name,
                                                                 const std::string& destination_path)
 {
-  throw NotImplementedException("commandDownloadProgram is not implemented for DashboardClientImplG5.");
+  throw NotImplementedException("commandDownloadProgram is not available for PolyScope " +
+                                polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
 std::string DashboardClientImplG5::replacePayload(const std::string& command, const std::string& payload)
