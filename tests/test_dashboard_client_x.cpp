@@ -30,6 +30,7 @@
 
 #include <gtest/gtest.h>
 #include <ur_client_library/exceptions.h>
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include "gtest/gtest.h"
@@ -38,39 +39,34 @@
 #include "ur_client_library/ur/dashboard_client_implementation_x.h"
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/ur/dashboard_client.h>
+#include <ur_client_library/ur/dashboard_client_implementation.h>
 
 using namespace urcl;
 using namespace std::chrono_literals;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
-class TestableDashboardClient : public DashboardClientImplX
-{
-public:
-  TestableDashboardClient(const std::string& host) : DashboardClientImplX(host)
-  {
-  }
-
-  void setPolyscopeVersion(const std::string& version)
-  {
-    polyscope_version_ = VersionInformation::fromString(version);
-  }
-};
-
 class DashboardClientTestX : public ::testing::Test
 {
 protected:
   void SetUp()
   {
-    if (robotVersionLessThan(g_ROBOT_IP, "10.11.0"))
+#ifdef POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL
+#  if POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL == 1
+    skip_remote_control_tests = false;
+#  endif
+#endif
+    urcl::comm::INotifier notifier;
+    primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
+    primary_client_->start();
+    polyscope_version_ = primary_client_->getRobotVersion();
+    if (*polyscope_version_ < urcl::VersionInformation::fromString("10.11.0"))
     {
       GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
     }
 
-    dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
-    urcl::comm::INotifier notifier;
-    primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
-    primary_client_->start();
+    dashboard_client_.reset(new DashboardClientImplX(g_ROBOT_IP));
+    dashboard_client_->setPolyscopeVersion(*polyscope_version_);
   }
 
   void TearDown()
@@ -84,20 +80,27 @@ protected:
     URCL_LOG_INFO("Robot has reached state %s", robotModeString(robot_mode).c_str());
   }
 
-  std::unique_ptr<TestableDashboardClient> dashboard_client_;
+  std::unique_ptr<DashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
+  std::shared_ptr<VersionInformation> polyscope_version_;
+  bool skip_remote_control_tests = true;
+  int error_code_exists = 400;
 };
 
 TEST_F(DashboardClientTestX, connect)
 {
   EXPECT_TRUE(dashboard_client_->connect());
 
-  auto dashboard_client = std::make_shared<TestableDashboardClient>("192.168.56.123");
+  auto dashboard_client = std::make_shared<DashboardClientImplX>("192.168.56.123");
   EXPECT_FALSE(dashboard_client->connect(2, std::chrono::milliseconds(500)));
 }
 
 TEST_F(DashboardClientTestX, power_cycle)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
@@ -115,6 +118,10 @@ TEST_F(DashboardClientTestX, power_cycle)
 
 TEST_F(DashboardClientTestX, unlock_protective_stop)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOn();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
@@ -153,11 +160,20 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
 
 TEST_F(DashboardClientTestX, program_interaction)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
   DashboardResponse response;
   response = dashboard_client_->commandLoadProgram("wait_program");
   ASSERT_TRUE(response.ok);
+  if (*polyscope_version_ >= VersionInformation::fromString("10.12.0"))
+  {
+    response = dashboard_client_->commandGetLoadedProgram();
+    ASSERT_EQ(std::get<std::string>(response.data["loaded_program"]), "wait_program");
+  }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
   response = dashboard_client_->commandBrakeRelease();
@@ -182,6 +198,193 @@ TEST_F(DashboardClientTestX, program_interaction)
   ASSERT_TRUE(response.ok);
   response = dashboard_client_->commandProgramState();
   ASSERT_EQ(std::get<std::string>(response.data["program_state"]), "STOPPED");
+}
+
+TEST_F(DashboardClientTestX, get_control_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response = dashboard_client_->commandIsInRemoteControl();
+  ASSERT_TRUE(response.ok);
+  if (skip_remote_control_tests)
+  {
+    ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
+  }
+  else
+  {
+    ASSERT_TRUE(std::get<bool>(response.data["remote_control"]));
+  }
+}
+
+TEST_F(DashboardClientTestX, get_operational_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  DashboardResponse response = dashboard_client_->commandGetOperationalMode();
+  ASSERT_TRUE(response.ok);
+  EXPECT_PRED3([](auto str, auto s1, auto s2) { return (str == s1 || str == s2); },
+               std::get<std::string>(response.data["operational_mode"]), "AUTOMATIC", "MANUAL");
+}
+
+TEST_F(DashboardClientTestX, get_safety_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  const std::vector<std::string> valid_states = { "NORMAL", "REDUCED", "FAULT", "PROTECTIVE_STOP", "EMERGENCY_STOP" };
+  auto response = dashboard_client_->commandSafetyMode();
+  ASSERT_TRUE(response.ok);
+  const std::string safety_mode = std::get<std::string>(response.data["safety_mode"]);
+  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                          [&safety_mode](const std::string& val) { return val == safety_mode; }));
+
+  if (!skip_remote_control_tests)
+  {
+    ASSERT_TRUE(dashboard_client_->connect());
+    DashboardResponse response;
+    dashboard_client_->commandPowerOff();
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+    response = dashboard_client_->commandPowerOn();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+    response = dashboard_client_->commandBrakeRelease();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+    primary_client_->sendScript("protective_stop()");
+    std::this_thread::sleep_for(1000ms);
+    response = dashboard_client_->commandSafetyMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
+    response = dashboard_client_->commandUnlockProtectiveStop();
+    ASSERT_TRUE(response.ok);
+    response = dashboard_client_->commandSafetyMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+  }
+}
+
+TEST_F(DashboardClientTestX, get_robot_mode)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  const std::vector<std::string> valid_states = { "NO_CONTROLLER", "DISCONNECTED", "CONFIRM_SAFETY", "BOOTING",
+                                                  "POWER_OFF",     "POWER_ON",     "IDLE",           "BACKDRIVE",
+                                                  "RUNNING",       "UPDATING" };
+  auto response = dashboard_client_->commandRobotMode();
+  ASSERT_TRUE(response.ok);
+  const std::string robot_mode = std::get<std::string>(response.data["robot_mode"]);
+  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                          [&robot_mode](const std::string& val) { return val == robot_mode; }));
+
+  if (!skip_remote_control_tests)
+  {
+    ASSERT_TRUE(dashboard_client_->connect());
+    DashboardResponse response;
+    dashboard_client_->commandPowerOff();
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
+    response = dashboard_client_->commandPowerOn();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
+    response = dashboard_client_->commandBrakeRelease();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+  }
+}
+
+TEST_F(DashboardClientTestX, get_program_list)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandGetProgramList();
+  ASSERT_TRUE(response.ok);
+}
+
+TEST_F(DashboardClientTestX, upload_program_from_file)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+
+  // Either the upload succeeded, or it failed because the program already exists. Both cases are
+  // ok, as we just want to verify that the upload functionality works in principle, and we don't
+  // cannot clean up the uploaded program after the test.
+  if (!response.ok)
+  {
+    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+  }
+}
+
+TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
+  if (!response.ok)
+  {
+    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+  }
+
+  response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
+  ASSERT_TRUE(response.ok);
+}
+
+TEST_F(DashboardClientTestX, download_program)
+{
+  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  {
+    GTEST_SKIP();
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  // Make sure the target program exists. This call might fail, that's ok.
+  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+  response = dashboard_client_->commandDownloadProgram("test upload", "/tmp/downloaded.urpx");
+  ASSERT_TRUE(response.ok);
+
+  // TODO: The following doesn't work, as the uploaded program might get another ID and will get another creation date.
+  // We would need to parse the json data for relevant parts in order to compare them.
+
+  /*
+  std::ifstream orig_file("resources/upload_prog.urpx");
+  std::stringstream orig_content;
+  orig_content << orig_file.rdbuf();
+  std::ifstream downloaded_file("/tmp/downloaded.urpx");
+  std::stringstream downloaded_content;
+  downloaded_content << downloaded_file.rdbuf();
+  ASSERT_EQ(orig_content.str(), downloaded_content.str());
+  */
+
+  response = dashboard_client_->commandDownloadProgram("non_existent_program", "/tmp/downloaded.urpx");
+  ASSERT_FALSE(response.ok);
+
+  response = dashboard_client_->commandDownloadProgram("test upload", "/non_existent_dir/downloaded.urpx");
+  ASSERT_FALSE(response.ok);
 }
 
 int main(int argc, char* argv[])

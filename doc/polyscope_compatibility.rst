@@ -45,6 +45,7 @@ table below or checkout the latest tag before the breaking changes were introduc
      - Dashboard client -- |polyscope| X received the first implementation of the Robot API
        replacing the Dashboard Server in version 10.11.0. It covers robot state control and loading
        and playing programs.
+       From version 10.12, it also supports uploading programs to the robot and downloading programs from the robot, as well as listing existing programs on the robot.
      - Using external control on |polyscope| X requires another URCapX for making external control
        work. This is currently in the process of being created.
        See `Universal Robots External Control URCapX <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX>`_
