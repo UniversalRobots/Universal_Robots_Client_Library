@@ -30,6 +30,7 @@
 
 #include <gtest/gtest.h>
 #include <ur_client_library/exceptions.h>
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include "gtest/gtest.h"
@@ -50,6 +51,11 @@ class DashboardClientTestX : public ::testing::Test
 protected:
   void SetUp()
   {
+#ifdef POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL
+#  if POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL == 1
+    skip_remote_control_tests = false;
+#  endif
+#endif
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
@@ -77,6 +83,8 @@ protected:
   std::unique_ptr<DashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::shared_ptr<VersionInformation> polyscope_version_;
+  bool skip_remote_control_tests = true;
+  int error_code_exists = 400;
 };
 
 TEST_F(DashboardClientTestX, connect)
@@ -89,6 +97,10 @@ TEST_F(DashboardClientTestX, connect)
 
 TEST_F(DashboardClientTestX, power_cycle)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
@@ -106,6 +118,10 @@ TEST_F(DashboardClientTestX, power_cycle)
 
 TEST_F(DashboardClientTestX, unlock_protective_stop)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOn();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
@@ -144,6 +160,10 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
 
 TEST_F(DashboardClientTestX, program_interaction)
 {
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
   DashboardResponse response;
@@ -189,7 +209,14 @@ TEST_F(DashboardClientTestX, get_control_mode)
   ASSERT_TRUE(dashboard_client_->connect());
   DashboardResponse response = dashboard_client_->commandIsInRemoteControl();
   ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<bool>(response.data["remote_control"]), true);
+  if (skip_remote_control_tests)
+  {
+    ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
+  }
+  else
+  {
+    ASSERT_TRUE(std::get<bool>(response.data["remote_control"]));
+  }
 }
 
 TEST_F(DashboardClientTestX, get_operational_mode)
@@ -211,26 +238,36 @@ TEST_F(DashboardClientTestX, get_safety_mode)
   {
     GTEST_SKIP();
   }
-  ASSERT_TRUE(dashboard_client_->connect());
-  DashboardResponse response;
-  dashboard_client_->commandPowerOff();
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
-  response = dashboard_client_->commandPowerOn();
+  const std::vector<std::string> valid_states = { "NORMAL", "REDUCED", "FAULT", "PROTECTIVE_STOP", "EMERGENCY_STOP" };
+  auto response = dashboard_client_->commandSafetyMode();
   ASSERT_TRUE(response.ok);
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
-  response = dashboard_client_->commandBrakeRelease();
-  ASSERT_TRUE(response.ok);
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
-  primary_client_->sendScript("protective_stop()");
-  std::this_thread::sleep_for(1000ms);
-  response = dashboard_client_->commandSafetyMode();
-  ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
-  response = dashboard_client_->commandUnlockProtectiveStop();
-  ASSERT_TRUE(response.ok);
-  response = dashboard_client_->commandSafetyMode();
-  ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+  const std::string safety_mode = std::get<std::string>(response.data["safety_mode"]);
+  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                          [&safety_mode](const std::string& val) { return val == safety_mode; }));
+
+  if (!skip_remote_control_tests)
+  {
+    ASSERT_TRUE(dashboard_client_->connect());
+    DashboardResponse response;
+    dashboard_client_->commandPowerOff();
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+    response = dashboard_client_->commandPowerOn();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+    response = dashboard_client_->commandBrakeRelease();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+    primary_client_->sendScript("protective_stop()");
+    std::this_thread::sleep_for(1000ms);
+    response = dashboard_client_->commandSafetyMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
+    response = dashboard_client_->commandUnlockProtectiveStop();
+    ASSERT_TRUE(response.ok);
+    response = dashboard_client_->commandSafetyMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+  }
 }
 
 TEST_F(DashboardClientTestX, get_robot_mode)
@@ -239,25 +276,37 @@ TEST_F(DashboardClientTestX, get_robot_mode)
   {
     GTEST_SKIP();
   }
-  ASSERT_TRUE(dashboard_client_->connect());
-  DashboardResponse response;
-  dashboard_client_->commandPowerOff();
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
-  response = dashboard_client_->commandRobotMode();
+  const std::vector<std::string> valid_states = { "NO_CONTROLLER", "DISCONNECTED", "CONFIRM_SAFETY", "BOOTING",
+                                                  "POWER_OFF",     "POWER_ON",     "IDLE",           "BACKDRIVE",
+                                                  "RUNNING",       "UPDATING" };
+  auto response = dashboard_client_->commandRobotMode();
   ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
-  response = dashboard_client_->commandPowerOn();
-  ASSERT_TRUE(response.ok);
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
-  response = dashboard_client_->commandRobotMode();
-  ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
-  response = dashboard_client_->commandBrakeRelease();
-  ASSERT_TRUE(response.ok);
-  ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
-  response = dashboard_client_->commandRobotMode();
-  ASSERT_TRUE(response.ok);
-  ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+  const std::string robot_mode = std::get<std::string>(response.data["robot_mode"]);
+  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                          [&robot_mode](const std::string& val) { return val == robot_mode; }));
+
+  if (!skip_remote_control_tests)
+  {
+    ASSERT_TRUE(dashboard_client_->connect());
+    DashboardResponse response;
+    dashboard_client_->commandPowerOff();
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
+    response = dashboard_client_->commandPowerOn();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
+    response = dashboard_client_->commandBrakeRelease();
+    ASSERT_TRUE(response.ok);
+    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+    response = dashboard_client_->commandRobotMode();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+  }
 }
 
 TEST_F(DashboardClientTestX, get_program_list)
@@ -279,7 +328,14 @@ TEST_F(DashboardClientTestX, upload_program_from_file)
   }
   ASSERT_TRUE(dashboard_client_->connect());
   auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
-  ASSERT_TRUE(response.ok);
+
+  // Either the upload succeeded, or it failed because the program already exists. Both cases are
+  // ok, as we just want to verify that the upload functionality works in principle, and we don't
+  // cannot clean up the uploaded program after the test.
+  if (!response.ok)
+  {
+    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+  }
 }
 
 TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
@@ -290,7 +346,10 @@ TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
   }
   ASSERT_TRUE(dashboard_client_->connect());
   auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
-  ASSERT_TRUE(response.ok);
+  if (!response.ok)
+  {
+    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+  }
 
   response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
   ASSERT_TRUE(response.ok);
