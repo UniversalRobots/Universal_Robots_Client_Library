@@ -43,6 +43,19 @@ using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
+class TestableDashboardClientImplG5 : public DashboardClientImplG5
+{
+public:
+  TestableDashboardClientImplG5(const std::string& host) : DashboardClientImplG5(host)
+  {
+  }
+
+  void setPolyscopeVersion(const VersionInformation& version)
+  {
+    polyscope_version_ = version;
+  }
+};
+
 class DashboardClientTestG5 : public ::testing::Test
 {
 protected:
@@ -53,7 +66,7 @@ protected:
       GTEST_SKIP_("G5 DashboardClient tests are only applicable for robots with a G5 dashboard server.");
     }
 
-    dashboard_client_.reset(new DashboardClientImplG5(g_ROBOT_IP));
+    dashboard_client_.reset(new TestableDashboardClientImplG5(g_ROBOT_IP));
     // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
     // here.
     timeval tv;
@@ -67,7 +80,7 @@ protected:
     dashboard_client_.reset();
   }
 
-  std::unique_ptr<DashboardClientImplG5> dashboard_client_;
+  std::unique_ptr<TestableDashboardClientImplG5> dashboard_client_;
 };
 
 TEST_F(DashboardClientTestG5, connect)

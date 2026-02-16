@@ -1,6 +1,4 @@
 // Copyright 2025 Universal Robots A/S
-//
-// Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
 //    * Redistributions of source code must retain the above copyright
@@ -26,9 +24,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <regex>
 #include <string>
-#include <thread>
 #include <fstream>
 #include <ios>
 
@@ -62,15 +58,21 @@ std::string DashboardClientImplX::sendAndReceive(const std::string& text)
 
 bool DashboardClientImplX::connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
-  std::string endpoint = base_url_ + "/system/v1/system-time";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
+  std::string endpoint = base_url_ + "/openapi.json";
   // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
   // check call will assure that the endpoint for making Robot API calls exist. This could fail if
   // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
-  // Quick check whether there is a dashboard client available at the given host.
   if (auto res = cli_->Get(endpoint))
   {
-    return res->status == 200;
+    auto db_res = handleHttpResult(res, false);
+    auto json_data = json::parse(db_res.message);
+    if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
+        json_data["info"]["version"].is_string())
+    {
+      robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
+      return true;
+    }
   }
   return false;
 }
@@ -131,21 +133,18 @@ bool DashboardClientImplX::retryCommand(const std::string& requestCommand, const
 DashboardResponse DashboardClientImplX::commandPowerOff()
 {
   std::string endpoint = "/robotstate/v1/state";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
   return put(endpoint, R"({"action": "POWER_OFF"})");
 }
 
 DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
 {
   std::string endpoint = "/robotstate/v1/state";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
   return put(endpoint, R"({"action": "POWER_ON"})");
 }
 
 DashboardResponse DashboardClientImplX::commandBrakeRelease()
 {
   std::string endpoint = "/robotstate/v1/state";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
   return put(endpoint, R"({"action": "BRAKE_RELEASE"})");
 }
 
@@ -153,7 +152,7 @@ DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& pr
 {
   std::string endpoint = "/program/v1/loaded";
   std::string program_key = "name";
-  if (polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
   {
     endpoint = "/program/v1/load";
     program_key = "programName";
@@ -199,14 +198,12 @@ DashboardResponse DashboardClientImplX::commandCloseSafetyPopup()
 DashboardResponse DashboardClientImplX::commandRestartSafety()
 {
   std::string endpoint = "/robotstate/v1/state";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
   return put(endpoint, R"({"action": "RESTART_SAFETY"})");
 }
 
 DashboardResponse DashboardClientImplX::commandUnlockProtectiveStop()
 {
   std::string endpoint = "/robotstate/v1/state";
-  addTrailingSlashIfVersionLessThan(VersionInformation::fromString("10.12.0"), endpoint);
   return put(endpoint, R"({"action": "UNLOCK_PROTECTIVE_STOP"})");
 }
 
@@ -288,9 +285,10 @@ DashboardResponse DashboardClientImplX::commandRobotMode()
 
 DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
-  if (polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
   {
-    throw NotImplementedException("commandGetLoadedProgram is not implemented for PolyScope X < 10.12.0.");
+    throw NotImplementedException("commandGetLoadedProgram is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
   }
   auto response = get("/program/v1/loaded");
   auto json_data = json::parse(response.message);
@@ -562,18 +560,6 @@ DashboardClientImplX::~DashboardClientImplX()
 {
   // We need to keep the implementation in the cpp file due to the unique_ptr of the incomplete
   // type httplib::Client.
-}
-
-void DashboardClientImplX::addTrailingSlashIfVersionLessThan(const VersionInformation& version,
-                                                             std::string& endpoint) const
-{
-  if (polyscope_version_ < version)
-  {
-    if (endpoint.back() != '/')
-    {
-      endpoint += '/';
-    }
-  }
 }
 
 }  // namespace urcl

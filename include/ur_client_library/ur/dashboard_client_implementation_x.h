@@ -29,7 +29,6 @@
 #pragma once
 
 #include <ur_client_library/ur/dashboard_client_implementation.h>
-#include <unordered_map>
 #include "ur_client_library/ur/version_information.h"
 
 namespace httplib
@@ -182,11 +181,10 @@ protected:
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) const override;
 
-  void addTrailingSlashIfVersionLessThan(const VersionInformation& version, std::string& endpoint) const;
-
   const std::string base_url_ = "/universal-robots/robot-api";
 
   std::unique_ptr<httplib::Client> cli_;
+  VersionInformation robot_api_version_;
 };
 
 }  // namespace urcl

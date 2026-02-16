@@ -46,6 +46,19 @@ using namespace std::chrono_literals;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
+class TestableDashboardClientImplX : public DashboardClientImplX
+{
+public:
+  TestableDashboardClientImplX(const std::string& host) : DashboardClientImplX(host)
+  {
+  }
+
+  const VersionInformation& getRobotApiVersion() const
+  {
+    return robot_api_version_;
+  }
+};
+
 class DashboardClientTestX : public ::testing::Test
 {
 protected:
@@ -65,8 +78,7 @@ protected:
       GTEST_SKIP_("Running DashboardClient tests only supported from version 10.11.0 on.");
     }
 
-    dashboard_client_.reset(new DashboardClientImplX(g_ROBOT_IP));
-    dashboard_client_->setPolyscopeVersion(*polyscope_version_);
+    dashboard_client_.reset(new TestableDashboardClientImplX(g_ROBOT_IP));
   }
 
   void TearDown()
@@ -80,7 +92,7 @@ protected:
     URCL_LOG_INFO("Robot has reached state %s", robotModeString(robot_mode).c_str());
   }
 
-  std::unique_ptr<DashboardClientImplX> dashboard_client_;
+  std::unique_ptr<TestableDashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::shared_ptr<VersionInformation> polyscope_version_;
   bool skip_remote_control_tests = true;
@@ -169,7 +181,7 @@ TEST_F(DashboardClientTestX, program_interaction)
   DashboardResponse response;
   response = dashboard_client_->commandLoadProgram("wait_program");
   ASSERT_TRUE(response.ok);
-  if (*polyscope_version_ >= VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     response = dashboard_client_->commandGetLoadedProgram();
     ASSERT_EQ(std::get<std::string>(response.data["loaded_program"]), "wait_program");
@@ -202,7 +214,7 @@ TEST_F(DashboardClientTestX, program_interaction)
 
 TEST_F(DashboardClientTestX, get_control_mode)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -221,7 +233,7 @@ TEST_F(DashboardClientTestX, get_control_mode)
 
 TEST_F(DashboardClientTestX, get_operational_mode)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -234,7 +246,7 @@ TEST_F(DashboardClientTestX, get_operational_mode)
 
 TEST_F(DashboardClientTestX, get_safety_mode)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -272,7 +284,7 @@ TEST_F(DashboardClientTestX, get_safety_mode)
 
 TEST_F(DashboardClientTestX, get_robot_mode)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -311,7 +323,7 @@ TEST_F(DashboardClientTestX, get_robot_mode)
 
 TEST_F(DashboardClientTestX, get_program_list)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -322,7 +334,7 @@ TEST_F(DashboardClientTestX, get_program_list)
 
 TEST_F(DashboardClientTestX, upload_program_from_file)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -340,7 +352,7 @@ TEST_F(DashboardClientTestX, upload_program_from_file)
 
 TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
@@ -357,7 +369,7 @@ TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
 
 TEST_F(DashboardClientTestX, download_program)
 {
-  if (*polyscope_version_ < VersionInformation::fromString("10.12.0"))
+  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
     GTEST_SKIP();
   }
