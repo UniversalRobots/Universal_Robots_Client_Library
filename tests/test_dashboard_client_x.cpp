@@ -214,189 +214,215 @@ TEST_F(DashboardClientTestX, program_interaction)
 
 TEST_F(DashboardClientTestX, get_control_mode)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  DashboardResponse response = dashboard_client_->commandIsInRemoteControl();
-  ASSERT_TRUE(response.ok);
-  if (skip_remote_control_tests)
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
   {
-    ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
+    ASSERT_THROW(dashboard_client_->commandIsInRemoteControl(), NotImplementedException);
   }
   else
   {
-    ASSERT_TRUE(std::get<bool>(response.data["remote_control"]));
+    DashboardResponse response = dashboard_client_->commandIsInRemoteControl();
+    ASSERT_TRUE(response.ok);
+    if (skip_remote_control_tests)
+    {
+      ASSERT_FALSE(std::get<bool>(response.data["remote_control"]));
+    }
+    else
+    {
+      ASSERT_TRUE(std::get<bool>(response.data["remote_control"]));
+    }
   }
 }
 
 TEST_F(DashboardClientTestX, get_operational_mode)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  DashboardResponse response = dashboard_client_->commandGetOperationalMode();
-  ASSERT_TRUE(response.ok);
-  EXPECT_PRED3([](auto str, auto s1, auto s2) { return (str == s1 || str == s2); },
-               std::get<std::string>(response.data["operational_mode"]), "AUTOMATIC", "MANUAL");
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetOperationalMode(), NotImplementedException);
+  }
+  else
+  {
+    DashboardResponse response = dashboard_client_->commandGetOperationalMode();
+    ASSERT_TRUE(response.ok);
+    EXPECT_PRED3([](auto str, auto s1, auto s2) { return (str == s1 || str == s2); },
+                 std::get<std::string>(response.data["operational_mode"]), "AUTOMATIC", "MANUAL");
+  }
 }
 
 TEST_F(DashboardClientTestX, get_safety_mode)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
+  ASSERT_TRUE(dashboard_client_->connect());
   const std::vector<std::string> valid_states = { "NORMAL", "REDUCED", "FAULT", "PROTECTIVE_STOP", "EMERGENCY_STOP" };
-  auto response = dashboard_client_->commandSafetyMode();
-  ASSERT_TRUE(response.ok);
-  const std::string safety_mode = std::get<std::string>(response.data["safety_mode"]);
-  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
-                          [&safety_mode](const std::string& val) { return val == safety_mode; }));
-
-  if (!skip_remote_control_tests)
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
   {
-    ASSERT_TRUE(dashboard_client_->connect());
-    DashboardResponse response;
-    dashboard_client_->commandPowerOff();
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
-    response = dashboard_client_->commandPowerOn();
+    ASSERT_THROW(dashboard_client_->commandSafetyMode(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandSafetyMode();
     ASSERT_TRUE(response.ok);
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
-    response = dashboard_client_->commandBrakeRelease();
-    ASSERT_TRUE(response.ok);
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
-    primary_client_->sendScript("protective_stop()");
-    std::this_thread::sleep_for(1000ms);
-    response = dashboard_client_->commandSafetyMode();
-    ASSERT_TRUE(response.ok);
-    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
-    response = dashboard_client_->commandUnlockProtectiveStop();
-    ASSERT_TRUE(response.ok);
-    response = dashboard_client_->commandSafetyMode();
-    ASSERT_TRUE(response.ok);
-    ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+    const std::string safety_mode = std::get<std::string>(response.data["safety_mode"]);
+    ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                            [&safety_mode](const std::string& val) { return val == safety_mode; }));
+
+    if (!skip_remote_control_tests)
+    {
+      DashboardResponse response;
+      dashboard_client_->commandPowerOff();
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+      response = dashboard_client_->commandPowerOn();
+      ASSERT_TRUE(response.ok);
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+      response = dashboard_client_->commandBrakeRelease();
+      ASSERT_TRUE(response.ok);
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+      primary_client_->sendScript("protective_stop()");
+      std::this_thread::sleep_for(1000ms);
+      response = dashboard_client_->commandSafetyMode();
+      ASSERT_TRUE(response.ok);
+      ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "PROTECTIVE_STOP");
+      response = dashboard_client_->commandUnlockProtectiveStop();
+      ASSERT_TRUE(response.ok);
+      response = dashboard_client_->commandSafetyMode();
+      ASSERT_TRUE(response.ok);
+      ASSERT_EQ(std::get<std::string>(response.data["safety_mode"]), "NORMAL");
+    }
   }
 }
 
 TEST_F(DashboardClientTestX, get_robot_mode)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   const std::vector<std::string> valid_states = { "NO_CONTROLLER", "DISCONNECTED", "CONFIRM_SAFETY", "BOOTING",
                                                   "POWER_OFF",     "POWER_ON",     "IDLE",           "BACKDRIVE",
                                                   "RUNNING",       "UPDATING" };
-  auto response = dashboard_client_->commandRobotMode();
-  ASSERT_TRUE(response.ok);
-  const std::string robot_mode = std::get<std::string>(response.data["robot_mode"]);
-  ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
-                          [&robot_mode](const std::string& val) { return val == robot_mode; }));
-
-  if (!skip_remote_control_tests)
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
   {
-    ASSERT_TRUE(dashboard_client_->connect());
-    DashboardResponse response;
-    dashboard_client_->commandPowerOff();
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
-    response = dashboard_client_->commandRobotMode();
+    ASSERT_THROW(dashboard_client_->commandRobotMode(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandRobotMode();
     ASSERT_TRUE(response.ok);
-    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
-    response = dashboard_client_->commandPowerOn();
-    ASSERT_TRUE(response.ok);
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
-    response = dashboard_client_->commandRobotMode();
-    ASSERT_TRUE(response.ok);
-    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
-    response = dashboard_client_->commandBrakeRelease();
-    ASSERT_TRUE(response.ok);
-    ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
-    response = dashboard_client_->commandRobotMode();
-    ASSERT_TRUE(response.ok);
-    ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+    const std::string robot_mode = std::get<std::string>(response.data["robot_mode"]);
+    ASSERT_TRUE(std::any_of(valid_states.begin(), valid_states.end(),
+                            [&robot_mode](const std::string& val) { return val == robot_mode; }));
+
+    if (!skip_remote_control_tests)
+    {
+      DashboardResponse response;
+      dashboard_client_->commandPowerOff();
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
+      response = dashboard_client_->commandRobotMode();
+      ASSERT_TRUE(response.ok);
+      ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "POWER_OFF");
+      response = dashboard_client_->commandPowerOn();
+      ASSERT_TRUE(response.ok);
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
+      response = dashboard_client_->commandRobotMode();
+      ASSERT_TRUE(response.ok);
+      ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "IDLE");
+      response = dashboard_client_->commandBrakeRelease();
+      ASSERT_TRUE(response.ok);
+      ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
+      response = dashboard_client_->commandRobotMode();
+      ASSERT_TRUE(response.ok);
+      ASSERT_EQ(std::get<std::string>(response.data["robot_mode"]), "RUNNING");
+    }
   }
 }
 
 TEST_F(DashboardClientTestX, get_program_list)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  auto response = dashboard_client_->commandGetProgramList();
-  ASSERT_TRUE(response.ok);
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetProgramList(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetProgramList();
+    ASSERT_TRUE(response.ok);
+  }
 }
 
 TEST_F(DashboardClientTestX, upload_program_from_file)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
-
-  // Either the upload succeeded, or it failed because the program already exists. Both cases are
-  // ok, as we just want to verify that the upload functionality works in principle, and we don't
-  // cannot clean up the uploaded program after the test.
-  if (!response.ok)
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
   {
-    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+    ASSERT_THROW(dashboard_client_->commandUploadProgram("resources/upload_prog.urpx"), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+
+    // Either the upload succeeded, or it failed because the program already exists. Both cases are
+    // ok, as we just want to verify that the upload functionality works in principle, and we don't
+    // cannot clean up the uploaded program after the test.
+    if (!response.ok)
+    {
+      URCL_LOG_INFO("status code: %d", std::get<int>(response.data["status_code"]));
+      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+    }
   }
 }
 
 TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
-  if (!response.ok)
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
   {
-    ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+    ASSERT_THROW(dashboard_client_->commandUploadProgram("resources/update_prog.urpx"), NotImplementedException);
   }
+  else
+  {
+    auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
+    if (!response.ok)
+    {
+      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+    }
 
-  response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
-  ASSERT_TRUE(response.ok);
+    response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
+    ASSERT_TRUE(response.ok);
+  }
 }
 
 TEST_F(DashboardClientTestX, download_program)
 {
-  if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
-  {
-    GTEST_SKIP();
-  }
   ASSERT_TRUE(dashboard_client_->connect());
-  // Make sure the target program exists. This call might fail, that's ok.
-  auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
-  response = dashboard_client_->commandDownloadProgram("test upload", "/tmp/downloaded.urpx");
-  ASSERT_TRUE(response.ok);
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
+  {
+    ASSERT_THROW(dashboard_client_->commandDownloadProgram("test upload", "/tmp/downloaded.urpx"),
+                 NotImplementedException);
+  }
+  else
+  {
+    // Make sure the target program exists. This call might fail, that's ok.
+    auto response = dashboard_client_->commandUploadProgram("resources/upload_prog.urpx");
+    response = dashboard_client_->commandDownloadProgram("test upload", "/tmp/downloaded.urpx");
+    ASSERT_TRUE(response.ok);
 
-  // TODO: The following doesn't work, as the uploaded program might get another ID and will get another creation date.
-  // We would need to parse the json data for relevant parts in order to compare them.
+    // TODO: The following doesn't work, as the uploaded program might get another ID and will get another creation
+    // date. We would need to parse the json data for relevant parts in order to compare them.
 
-  /*
-  std::ifstream orig_file("resources/upload_prog.urpx");
-  std::stringstream orig_content;
-  orig_content << orig_file.rdbuf();
-  std::ifstream downloaded_file("/tmp/downloaded.urpx");
-  std::stringstream downloaded_content;
-  downloaded_content << downloaded_file.rdbuf();
-  ASSERT_EQ(orig_content.str(), downloaded_content.str());
-  */
+    /*
+    std::ifstream orig_file("resources/upload_prog.urpx");
+    std::stringstream orig_content;
+    orig_content << orig_file.rdbuf();
+    std::ifstream downloaded_file("/tmp/downloaded.urpx");
+    std::stringstream downloaded_content;
+    downloaded_content << downloaded_file.rdbuf();
+    ASSERT_EQ(orig_content.str(), downloaded_content.str());
+    */
 
-  response = dashboard_client_->commandDownloadProgram("non_existent_program", "/tmp/downloaded.urpx");
-  ASSERT_FALSE(response.ok);
+    response = dashboard_client_->commandDownloadProgram("non_existent_program", "/tmp/downloaded.urpx");
+    ASSERT_FALSE(response.ok);
 
-  response = dashboard_client_->commandDownloadProgram("test upload", "/non_existent_dir/downloaded.urpx");
-  ASSERT_FALSE(response.ok);
+    response = dashboard_client_->commandDownloadProgram("test upload", "/non_existent_dir/downloaded.urpx");
+    ASSERT_FALSE(response.ok);
+  }
 }
 
 int main(int argc, char* argv[])
