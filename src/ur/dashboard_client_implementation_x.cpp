@@ -64,6 +64,11 @@ bool DashboardClientImplX::connect(const size_t max_num_tries, const std::chrono
   // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
   if (auto res = cli_->Get(endpoint))
   {
+    if (res->status != 200)
+    {
+      URCL_LOG_ERROR("Received non-200 response code when connecting to Robot API: %d", res->status);
+      return false;
+    }
     auto db_res = handleHttpResult(res, false);
     auto json_data = json::parse(db_res.message);
     if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
