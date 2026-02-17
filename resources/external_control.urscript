@@ -936,7 +936,8 @@ while control_mode > MODE_STOPPED:
     end
   else:
     textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
-    control_mode = MODE_STOPPED
+    stopj(STOPJ_ACCELERATION)
+    halt
   end
   exit_critical
 end
