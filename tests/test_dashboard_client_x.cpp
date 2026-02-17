@@ -107,6 +107,22 @@ TEST_F(DashboardClientTestX, connect)
   EXPECT_FALSE(dashboard_client->connect(2, std::chrono::milliseconds(500)));
 }
 
+TEST_F(DashboardClientTestX, get_loaded_program)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("3.1.4"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetLoadedProgram(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetLoadedProgram();
+    ASSERT_TRUE(response.ok);
+    ASSERT_EQ(std::get<std::string>(response.data["loaded_program"]), "Default program");
+  }
+}
+
 TEST_F(DashboardClientTestX, power_cycle)
 {
   if (skip_remote_control_tests)
