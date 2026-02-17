@@ -48,6 +48,15 @@ jobs:
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
       - name: install-pips
         run: pip install pandas lxml
+      - id: check_polyscopex
+        run: |
+          if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
+            echo "is_polyscopex=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_polyscopex=false" >> $GITHUB_OUTPUT
+          fi
+      - name: setup chrome
+        uses: browser-actions/setup-chrome@v2
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
@@ -58,6 +67,9 @@ jobs:
         run: cmake --build build --config Debug
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts
+      - name: Access PolyScope
+        if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
+        run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
         env:
@@ -80,13 +92,6 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
-      - id: check_polyscopex
-        run: |
-          if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
-            echo "is_polyscopex=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_polyscopex=false" >> $GITHUB_OUTPUT
-          fi
       - name: Generate URSim log files
         if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         run: |
