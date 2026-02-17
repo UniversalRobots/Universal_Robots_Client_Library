@@ -92,6 +92,10 @@ public:
   MOCK_METHOD(DashboardResponse, commandShutdown, (), (override));
   MOCK_METHOD(DashboardResponse, commandStop, (), (override));
   MOCK_METHOD(DashboardResponse, commandUnlockProtectiveStop, (), (override));
+  MOCK_METHOD(DashboardResponse, commandGetProgramList, (), (override));
+  MOCK_METHOD(DashboardResponse, commandUploadProgram, (const std::string&), (override));
+  MOCK_METHOD(DashboardResponse, commandUpdateProgram, (const std::string&), (override));
+  MOCK_METHOD(DashboardResponse, commandDownloadProgram, (const std::string&, const std::string&), (override));
 
   void setPolyscopeVersion(const std::string& version)
   {
@@ -341,6 +345,50 @@ TEST_F(DashboardClientTest, set_receive_timeout)
   timeval actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
   EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
   EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+}
+
+TEST_F(DashboardClientTest, X_program_api)
+{
+  EXPECT_TRUE(dashboard_client_->connect());
+  const auto impl = dashboard_client_->getImplPtr();
+
+  EXPECT_CALL(*impl, commandUploadProgram("test_prog")).WillOnce([]() {
+    DashboardResponse response;
+    response.ok = true;
+    return response;
+  });
+  EXPECT_TRUE(dashboard_client_->commandUploadProgramWithResponse("test_prog").ok);
+
+  EXPECT_CALL(*impl, commandUpdateProgram("test_prog")).WillOnce([]() {
+    DashboardResponse response;
+    response.ok = true;
+    return response;
+  });
+  EXPECT_TRUE(dashboard_client_->commandUpdateProgramWithResponse("test_prog").ok);
+
+  EXPECT_CALL(*impl, commandDownloadProgram("test_prog", "/tmp/test_prog.urpx")).WillOnce([]() {
+    DashboardResponse response;
+    response.ok = true;
+    return response;
+  });
+  EXPECT_TRUE(dashboard_client_->commandDownloadProgramWithResponse("test_prog", "/tmp/test_prog.urpx").ok);
+
+  EXPECT_CALL(*impl, commandGetProgramList()).WillOnce([]() {
+    DashboardResponse response;
+    response.ok = true;
+    response.data["programs"] =
+        std::vector<urcl::ProgramInformation>{ { 123, "this is no program", 456, 789, "fake prog", "FINAL" } };
+    return response;
+  });
+  auto response = dashboard_client_->commandGetProgramListWithResponse();
+  EXPECT_TRUE(response.ok);
+  auto prog = std::get<std::vector<urcl::ProgramInformation>>(response.data["programs"])[0];
+  EXPECT_EQ(prog.createdDate, 123);
+  EXPECT_EQ(prog.description, "this is no program");
+  EXPECT_EQ(prog.lastModifiedDate, 456);
+  EXPECT_EQ(prog.lastSavedDate, 789);
+  EXPECT_EQ(prog.name, "fake prog");
+  EXPECT_EQ(prog.programState, "FINAL");
 }
 
 int main(int argc, char* argv[])
