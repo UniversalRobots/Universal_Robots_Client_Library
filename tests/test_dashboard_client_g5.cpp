@@ -637,8 +637,6 @@ TEST_F(DashboardClientTestG5, unknown_command_throws)
 
 TEST_F(DashboardClientTestG5, run_commands_through_client)
 {
-  auto dashboard_client = std::make_shared<DashboardClient>(g_ROBOT_IP);
-
   ASSERT_TRUE(dashboard_client_->connect());
 
   ASSERT_TRUE(dashboard_client_->sendRequest("power off"));
@@ -648,6 +646,16 @@ TEST_F(DashboardClientTestG5, run_commands_through_client)
   EXPECT_THROW(dashboard_client_->sendRequestString("brake release", "non-existing-response"), UrException);
 
   dashboard_client_->disconnect();
+}
+
+TEST_F(DashboardClientTestG5, all_x_only_commands_throw)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  EXPECT_THROW(dashboard_client_->commandGetProgramList(), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandUploadProgram(""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandUpdateProgram(""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandDownloadProgram("", ""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandResume(), NotImplementedException);
 }
 
 int main(int argc, char* argv[])
