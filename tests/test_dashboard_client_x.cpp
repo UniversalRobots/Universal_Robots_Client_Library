@@ -382,6 +382,10 @@ TEST_F(DashboardClientTestX, upload_program_from_file)
       URCL_LOG_INFO("status code: %d", std::get<int>(response.data["status_code"]));
       ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
     }
+
+    response = dashboard_client_->commandUploadProgram("non_existent_file.urpx");
+    ASSERT_FALSE(response.ok);
+    ASSERT_EQ(response.message, "URPX File not found: non_existent_file.urpx");
   }
 }
 
