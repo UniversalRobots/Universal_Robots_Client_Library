@@ -70,9 +70,10 @@ int main(int argc, char* argv[])
   {
     policy = DashboardClient::ClientPolicy::G5;
   }
-  else if (version_information->minor < 11)
+  else if (version_information->minor < 12)
   {
-    URCL_LOG_ERROR("DashboardClient examples require PolyScope version 10.11.0 or higher. Exiting now.");
+    // We need isInRemoteControl for PolyScope X, which is only supported from version 10.12.0 on.
+    URCL_LOG_ERROR("DashboardClient examples require PolyScope version 10.12.0 or higher. Exiting now.");
     return 0;
   }
 
@@ -82,6 +83,13 @@ int main(int argc, char* argv[])
   {
     URCL_LOG_ERROR("Could not connect to dashboard");
     return 1;
+  }
+
+  bool robot_in_remote_control = false;
+  // CB3 doesn't have remote control
+  if (version_information->major >= 5)
+  {
+    robot_in_remote_control = my_dashboard->commandIsInRemoteControl();
   }
 
   // Bring the robot to a defined state being powered off.
@@ -99,7 +107,7 @@ int main(int argc, char* argv[])
 
     my_dashboard->commandCloseSafetyPopup();
   }
-  else
+  else if (robot_in_remote_control)
   {
     // We're ignoring errors here since
     // powering off an already powered off robot will return an error.
@@ -107,98 +115,101 @@ int main(int argc, char* argv[])
   }
 
   // Power it on
-  if (!my_dashboard->commandPowerOn())
+  if (version_information->major < 10 || robot_in_remote_control)
   {
-    URCL_LOG_ERROR("Could not send Power on command");
-    return 1;
-  }
-
-  // Release the brakes
-  if (!my_dashboard->commandBrakeRelease())
-  {
-    URCL_LOG_ERROR("Could not send BrakeRelease command");
-    return 1;
-  }
-
-  // Load existing program
-  std::string program_file_name_to_be_loaded("wait_program.urp");
-  if (version_information->major >= 10)
-  {
-    // For PolyScope X, the program doesn't have an ending
-    program_file_name_to_be_loaded = "wait_program";
-  }
-  if (!my_dashboard->commandLoadProgram(program_file_name_to_be_loaded))
-  {
-    URCL_LOG_ERROR("Could not load %s program", program_file_name_to_be_loaded.c_str());
-    return 1;
-  }
-
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  // Play loaded program
-  if (!my_dashboard->commandPlay())
-  {
-    URCL_LOG_ERROR("Could not play program");
-    return 1;
-  }
-
-  // Pause running program
-  if (!my_dashboard->commandPause())
-  {
-    URCL_LOG_ERROR("Could not pause program");
-    return 1;
-  }
-
-  // Continue
-  if (version_information->major >= 10)
-  {
-    // For PolyScope X, the command is called "resume"
-    if (!my_dashboard->commandResume())
+    if (!my_dashboard->commandPowerOn())
     {
-      URCL_LOG_ERROR("Could not resume program");
+      URCL_LOG_ERROR("Could not send Power on command");
       return 1;
     }
-  }
-  else
-  {
-    // For e-Series, the command is called "play"
+
+    // Release the brakes
+    if (!my_dashboard->commandBrakeRelease())
+    {
+      URCL_LOG_ERROR("Could not send BrakeRelease command");
+      return 1;
+    }
+
+    // Load existing program
+    std::string program_file_name_to_be_loaded("wait_program.urp");
+    if (version_information->major >= 10)
+    {
+      // For PolyScope X, the program doesn't have an ending
+      program_file_name_to_be_loaded = "wait_program";
+    }
+    if (!my_dashboard->commandLoadProgram(program_file_name_to_be_loaded))
+    {
+      URCL_LOG_ERROR("Could not load %s program", program_file_name_to_be_loaded.c_str());
+      return 1;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // Play loaded program
     if (!my_dashboard->commandPlay())
     {
-      URCL_LOG_ERROR("Could not resume program");
+      URCL_LOG_ERROR("Could not play program");
       return 1;
     }
-  }
 
-  // Stop program
-  if (!my_dashboard->commandStop())
-  {
-    URCL_LOG_ERROR("Could not stop program");
-    return 1;
-  }
-
-  // Power it off
-  if (!my_dashboard->commandPowerOff())
-  {
-    URCL_LOG_ERROR("Could not send Power off command");
-    return 1;
-  }
-
-  if (version_information->major < 10)
-  {
-    // Flush the log
-    if (!my_dashboard->commandSaveLog())
+    // Pause running program
+    if (!my_dashboard->commandPause())
     {
-      URCL_LOG_ERROR("Could not send the save log command");
+      URCL_LOG_ERROR("Could not pause program");
       return 1;
     }
 
-    // Make a raw request and save the response
-    std::string program_state = my_dashboard->sendAndReceive("programState");
-    URCL_LOG_INFO("Program state: %s", program_state.c_str());
+    // Continue
+    if (version_information->major >= 10)
+    {
+      // For PolyScope X, the command is called "resume"
+      if (!my_dashboard->commandResume())
+      {
+        URCL_LOG_ERROR("Could not resume program");
+        return 1;
+      }
+    }
+    else
+    {
+      // For e-Series, the command is called "play"
+      if (!my_dashboard->commandPlay())
+      {
+        URCL_LOG_ERROR("Could not resume program");
+        return 1;
+      }
+    }
 
-    // The response can be checked with a regular expression
-    bool success = my_dashboard->sendRequest("power off", "Powering off");
-    URCL_LOG_INFO("Power off command success: %d", success);
+    // Stop program
+    if (!my_dashboard->commandStop())
+    {
+      URCL_LOG_ERROR("Could not stop program");
+      return 1;
+    }
+
+    // Power it off
+    if (!my_dashboard->commandPowerOff())
+    {
+      URCL_LOG_ERROR("Could not send Power off command");
+      return 1;
+    }
+
+    if (version_information->major < 10)
+    {
+      // Flush the log
+      if (!my_dashboard->commandSaveLog())
+      {
+        URCL_LOG_ERROR("Could not send the save log command");
+        return 1;
+      }
+
+      // Make a raw request and save the response
+      std::string program_state = my_dashboard->sendAndReceive("programState");
+      URCL_LOG_INFO("Program state: %s", program_state.c_str());
+
+      // The response can be checked with a regular expression
+      bool success = my_dashboard->sendRequest("power off", "Powering off");
+      URCL_LOG_INFO("Power off command success: %d", success);
+    }
   }
 
   return 0;

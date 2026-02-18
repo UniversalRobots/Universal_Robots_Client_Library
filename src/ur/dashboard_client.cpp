@@ -547,6 +547,27 @@ DashboardResponse DashboardClient::commandSaveLogWithResponse()
   return impl_->commandSaveLog();
 }
 
+DashboardResponse DashboardClient::commandGetProgramListWithResponse()
+{
+  return impl_->commandGetProgramList();
+}
+
+DashboardResponse DashboardClient::commandUploadProgramWithResponse(const std::string& file_path)
+{
+  return impl_->commandUploadProgram(file_path);
+}
+
+DashboardResponse DashboardClient::commandUpdateProgramWithResponse(const std::string& file_path)
+{
+  return impl_->commandUpdateProgram(file_path);
+}
+
+DashboardResponse DashboardClient::commandDownloadProgramWithResponse(const std::string& filename,
+                                                                      const std::string& save_path)
+{
+  return impl_->commandDownloadProgram(filename, save_path);
+}
+
 void DashboardClient::assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,
                                     const std::string& required_call)
 {

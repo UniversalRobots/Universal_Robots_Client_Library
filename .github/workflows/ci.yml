@@ -29,6 +29,12 @@ jobs:
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.7.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.12.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
 
     steps:
       - uses: actions/checkout@v6
@@ -42,6 +48,15 @@ jobs:
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
       - name: install-pips
         run: pip install pandas lxml
+      - id: check_polyscopex
+        run: |
+          if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
+            echo "is_polyscopex=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_polyscopex=false" >> $GITHUB_OUTPUT
+          fi
+      - name: setup chrome
+        uses: browser-actions/setup-chrome@v2
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1 -DWITH_ASAN=ON
         env:
@@ -52,6 +67,9 @@ jobs:
         run: cmake --build build --config Debug
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts
+      - name: Access PolyScope
+        if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
+        run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
         env:
@@ -75,7 +93,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
       - name: Generate URSim log files
-        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         run: |
           nc -q 1 192.168.56.101 29999 <<END
           saveLog
@@ -85,13 +103,13 @@ jobs:
           docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
           docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
       - name: Copy flight reports
-        if: failure() && matrix.env.URSIM_VERSION != '10.7.0'
+        if: ${{ failure() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         run: |
           mkdir -p ursim_logs/flightreports
           docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
         uses: actions/upload-artifact@v6
-        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: ursim_logs
@@ -99,7 +117,7 @@ jobs:
           retention-days: 10
       - name: Upload test artifacts
         uses: actions/upload-artifact@v6
-        if: always() && matrix.env.URSIM_VERSION != '10.7.0'
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
           path: test_artifacts

@@ -43,16 +43,16 @@ using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
-class TestableDashboardClient : public DashboardClientImplG5
+class TestableDashboardClientImplG5 : public DashboardClientImplG5
 {
 public:
-  TestableDashboardClient(const std::string& host) : DashboardClientImplG5(host)
+  TestableDashboardClientImplG5(const std::string& host) : DashboardClientImplG5(host)
   {
   }
 
-  void setPolyscopeVersion(const std::string& version)
+  void setPolyscopeVersion(const VersionInformation& version)
   {
-    polyscope_version_ = VersionInformation::fromString(version);
+    polyscope_version_ = version;
   }
 };
 
@@ -66,7 +66,7 @@ protected:
       GTEST_SKIP_("G5 DashboardClient tests are only applicable for robots with a G5 dashboard server.");
     }
 
-    dashboard_client_.reset(new TestableDashboardClient(g_ROBOT_IP));
+    dashboard_client_.reset(new TestableDashboardClientImplG5(g_ROBOT_IP));
     // In CI we the dashboard client times out for no obvious reason. Hence we increase the timeout
     // here.
     timeval tv;
@@ -80,7 +80,7 @@ protected:
     dashboard_client_.reset();
   }
 
-  std::unique_ptr<TestableDashboardClient> dashboard_client_;
+  std::unique_ptr<TestableDashboardClientImplG5> dashboard_client_;
 };
 
 TEST_F(DashboardClientTestG5, connect)
@@ -264,9 +264,9 @@ TEST_F(DashboardClientTestG5, e_series_version)
   EXPECT_TRUE(dashboard_client_->connect());
   if (!dashboard_client_->getPolyscopeVersion().isESeries())
     GTEST_SKIP();
-  dashboard_client_->setPolyscopeVersion("5.0.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("5.0.0"));
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(), UrException);
-  dashboard_client_->setPolyscopeVersion("5.5.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("5.5.0"));
   DashboardResponse response;
   response = dashboard_client_->commandSafetyStatus();
   ASSERT_TRUE(response.ok);
@@ -316,9 +316,9 @@ TEST_F(DashboardClientTestG5, cb3_version)
 
   EXPECT_THROW(dashboard_client_->commandSafetyStatus(), UrException);
 
-  dashboard_client_->setPolyscopeVersion("1.6.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("1.6.0"));
   EXPECT_THROW(dashboard_client_->commandIsProgramSaved(), UrException);
-  dashboard_client_->setPolyscopeVersion("1.8.0");
+  dashboard_client_->setPolyscopeVersion(VersionInformation::fromString("1.8.0"));
   EXPECT_TRUE(dashboard_client_->commandLoadProgram("wait_program.urp").ok);
   response = dashboard_client_->commandIsProgramSaved();
   ASSERT_TRUE(response.ok);
@@ -637,8 +637,6 @@ TEST_F(DashboardClientTestG5, unknown_command_throws)
 
 TEST_F(DashboardClientTestG5, run_commands_through_client)
 {
-  auto dashboard_client = std::make_shared<DashboardClient>(g_ROBOT_IP);
-
   ASSERT_TRUE(dashboard_client_->connect());
 
   ASSERT_TRUE(dashboard_client_->sendRequest("power off"));
@@ -648,6 +646,16 @@ TEST_F(DashboardClientTestG5, run_commands_through_client)
   EXPECT_THROW(dashboard_client_->sendRequestString("brake release", "non-existing-response"), UrException);
 
   dashboard_client_->disconnect();
+}
+
+TEST_F(DashboardClientTestG5, all_x_only_commands_throw)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  EXPECT_THROW(dashboard_client_->commandGetProgramList(), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandUploadProgram(""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandUpdateProgram(""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandDownloadProgram("", ""), NotImplementedException);
+  EXPECT_THROW(dashboard_client_->commandResume(), NotImplementedException);
 }
 
 int main(int argc, char* argv[])

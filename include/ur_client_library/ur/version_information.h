@@ -61,6 +61,14 @@ public:
 
   bool isESeries() const;
 
+  /*!
+   * \brief Checks whether the version information is empty (all fields zero)
+   */
+  bool isEmpty() const
+  {
+    return major == 0 && minor == 0 && bugfix == 0 && build == 0;
+  }
+
   friend bool operator==(const VersionInformation& v1, const VersionInformation& v2);
   friend bool operator!=(const VersionInformation& v1, const VersionInformation& v2);
   friend bool operator<(const VersionInformation& v1, const VersionInformation& v2);

@@ -1,6 +1,4 @@
 // Copyright 2025 Universal Robots A/S
-//
-// Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
 //    * Redistributions of source code must retain the above copyright
@@ -26,9 +24,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <regex>
 #include <string>
-#include <thread>
+#include <fstream>
+#include <ios>
 
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
@@ -47,6 +45,10 @@ namespace urcl
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
 {
   cli_ = std::make_unique<httplib::Client>("http://" + host);
+
+  // Some targets have changed between versions redirecting to the correct endpoint. For this to
+  // work, we'll have to follow redirects, which is not the default for httplib.
+  cli_->set_follow_location(true);
 }
 
 std::string DashboardClientImplX::sendAndReceive(const std::string& text)
@@ -56,13 +58,26 @@ std::string DashboardClientImplX::sendAndReceive(const std::string& text)
 
 bool DashboardClientImplX::connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
+  std::string endpoint = base_url_ + "/openapi.json";
   // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
   // check call will assure that the endpoint for making Robot API calls exist. This could fail if
   // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
-  // Quick check whether there is a dashboard client available at the given host.
-  if (auto res = cli_->Get(base_url_ + "/system/v1/system-time/"))
+  if (auto res = cli_->Get(endpoint))
   {
-    return res->status == 200;
+    if (res->status != 200)
+    {
+      URCL_LOG_ERROR("Received non-200 response code when connecting to Robot API: %d", res->status);
+      return false;
+    }
+    auto db_res = handleHttpResult(res, false);
+    auto json_data = json::parse(db_res.message);
+    if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
+        json_data["info"]["version"].is_string())
+    {
+      robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
+      return true;
+    }
   }
   return false;
 }
@@ -122,22 +137,29 @@ bool DashboardClientImplX::retryCommand(const std::string& requestCommand, const
 
 DashboardResponse DashboardClientImplX::commandPowerOff()
 {
-  return put("/robotstate/v1/state/", R"({"action": "POWER_OFF"})");
+  return put("/robotstate/v1/state", R"({"action": "POWER_OFF"})");
 }
 
 DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
 {
-  return put("/robotstate/v1/state/", R"({"action": "POWER_ON"})");
+  return put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
 }
 
 DashboardResponse DashboardClientImplX::commandBrakeRelease()
 {
-  return put("/robotstate/v1/state/", R"({"action": "BRAKE_RELEASE"})");
+  return put("/robotstate/v1/state", R"({"action": "BRAKE_RELEASE"})");
 }
 
 DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& program_file_name)
 {
-  return put("/program/v1/load", R"({"programName": ")" + program_file_name + R"("})");
+  std::string endpoint = "/program/v1/loaded";
+  std::string program_key = "name";
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    endpoint = "/program/v1/load";
+    program_key = "programName";
+  }
+  return put(endpoint, R"({")" + program_key + R"(": ")" + program_file_name + R"("})");
 }
 
 DashboardResponse DashboardClientImplX::commandLoadInstallation(const std::string& installation_file_name)
@@ -146,7 +168,6 @@ DashboardResponse DashboardClientImplX::commandLoadInstallation(const std::strin
 }
 
 DashboardResponse DashboardClientImplX::commandPlay()
-
 {
   return put("/program/v1/state", R"({"action": "play"})");
 }
@@ -178,12 +199,12 @@ DashboardResponse DashboardClientImplX::commandCloseSafetyPopup()
 
 DashboardResponse DashboardClientImplX::commandRestartSafety()
 {
-  return put("/robotstate/v1/state/", R"({"action": "RESTART_SAFETY"})");
+  return put("/robotstate/v1/state", R"({"action": "RESTART_SAFETY"})");
 }
 
 DashboardResponse DashboardClientImplX::commandUnlockProtectiveStop()
 {
-  return put("/robotstate/v1/state/", R"({"action": "UNLOCK_PROTECTIVE_STOP"})");
+  return put("/robotstate/v1/state", R"({"action": "UNLOCK_PROTECTIVE_STOP"})");
 }
 
 DashboardResponse DashboardClientImplX::commandShutdown()
@@ -209,7 +230,26 @@ DashboardResponse DashboardClientImplX::commandIsProgramSaved()
 
 DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 {
-  throw NotImplementedException("commandIsInRemoteControl is not implemented for DashboardClientImplX.");
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandIsInRemoteControl is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/system/v1/controlmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["mode"] = std::string(json_data["mode"]);
+    if (std::string(json_data["mode"]) == "REMOTE")
+    {
+      response.data["remote_control"] = true;
+    }
+    else
+    {
+      response.data["remote_control"] = false;
+    }
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_text)
@@ -239,17 +279,50 @@ DashboardResponse DashboardClientImplX::commandGetSerialNumber()
 
 DashboardResponse DashboardClientImplX::commandRobotMode()
 {
-  throw NotImplementedException("commandRobotMode is not implemented for DashboardClientImplX.");
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandRobotMode is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/robotstate/v1/robotmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["robot_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
-  throw NotImplementedException("commandGetLoadedProgram is not implemented for DashboardClientImplX.");
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandGetLoadedProgram is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/program/v1/loaded");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["loaded_program"] = std::string(json_data["name"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSafetyMode()
 {
-  throw NotImplementedException("commandSafetyMode is not implemented for DashboardClientImplX.");
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandSafetyMode is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/robotstate/v1/safetymode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["safety_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSafetyStatus()
@@ -270,7 +343,18 @@ DashboardResponse DashboardClientImplX::commandProgramState()
 
 DashboardResponse DashboardClientImplX::commandGetOperationalMode()
 {
-  throw NotImplementedException("commandGetOperationalMode is not implemented for DashboardClientImplX.");
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandGetOperationalMode is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/system/v1/operationalmode");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["operational_mode"] = std::string(json_data["mode"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandSetOperationalMode(const std::string& operational_mode)
@@ -308,15 +392,149 @@ DashboardResponse DashboardClientImplX::commandSaveLog()
   throw NotImplementedException("commandSaveLog is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const std::string& json_data)
+DashboardResponse DashboardClientImplX::commandGetProgramList()
+{
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandGetProgramList is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/programs/v1/");
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    std::vector<ProgramInformation> programs;
+    for (auto prog : json_data["programs"])
+    {
+      unsigned int last_modified = 0;
+      if (!prog["lastModifiedDate"].is_null())
+      {
+        last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
+      }
+
+      unsigned int last_saved = 0;
+      if (!prog["lastSavedDate"].is_null())
+      {
+        last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
+      }
+
+      ProgramInformation pi(prog["createdDate"], prog["description"], last_modified, last_saved, prog["name"],
+                            prog["programState"]);
+      programs.push_back(pi);
+    }
+    response.data["programs"] = programs;
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::performProgramUpload(
+    const std::string& file_path,
+    std::function<DashboardResponse(const std::string&, const httplib::UploadFormDataItems&)> upload_func)
+{
+  std::ifstream file(file_path, std::ios_base::in);
+  if (!file.is_open())
+  {
+    DashboardResponse response;
+    response.ok = false;
+    response.message = "URPX File not found: " + file_path;
+    URCL_LOG_ERROR(response.message.c_str());
+    return response;
+  }
+  std::string line;
+  std::string content;
+  while (getline(file, line, '\n'))
+  {
+    content.append(line + '\n');
+  }
+
+  httplib::UploadFormDataItems form_data = { { "file", content, "filename", "text/plain" } };
+  auto response = upload_func("/programs/v1/", form_data);
+  auto json_data = json::parse(response.message);
+  if (response.ok && json_data.contains("programName") && json_data["programName"].is_string())
+  {
+    response.data["program_name"] = std::string(json_data["programName"]);
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::commandUploadProgram(const std::string& file_path)
+{
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandUploadProgram is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  URCL_LOG_INFO("Uploading program from file: %s", file_path.c_str());
+  return performProgramUpload(
+      file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return post(e, f, true); });
+}
+
+DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& file_path)
+{
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandUpdateProgram is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  return performProgramUpload(
+      file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return put(e, f); });
+}
+
+DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& filename,
+                                                               const std::string& save_path)
+{
+  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
+  {
+    throw NotImplementedException("commandDownloadProgram is not implemented for Robot API version < 3.1.4. Please "
+                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
+  }
+  auto response = get("/programs/v1/" + filename, false);  // The json response is pretty long. Don't print it.
+  if (response.ok)
+  {
+    std::ofstream save_file(save_path, std::ios_base::out);
+    if (!save_file.is_open())
+    {
+      DashboardResponse response;
+      response.ok = false;
+      response.message = "Failed to open file for saving: " + save_path;
+      URCL_LOG_ERROR(response.message.c_str());
+      return response;
+    }
+    save_file << response.message;
+
+    response.message = "Downloaded program to " + save_path;
+  }
+  else
+  {
+    URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::handleHttpResult(const httplib::Result& res, const bool debug)
 {
   DashboardResponse response;
-  if (auto res = cli_->Put(base_url_ + endpoint, json_data, "application/json"))
+  if (debug)
   {
     URCL_LOG_INFO(res->body.c_str());
-    response.message = res->body;
-    response.data["status_code"] = res->status;
-    response.ok = res->status == 200;
+  }
+  response.message = res->body;
+  response.data["status_code"] = res->status;
+  response.ok = res->status == 200;
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::post(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                                             const bool debug)
+{
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
+  DashboardResponse response;
+  if (auto res = cli_->Post(base_url_ + endpoint, form_data))
+  {
+    response = handleHttpResult(res, debug);
   }
   else
   {
@@ -325,14 +543,72 @@ DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const s
   return response;
 }
 
-DashboardResponse DashboardClientImplX::get(const std::string& endpoint)
+DashboardResponse DashboardClientImplX::post(const std::string& endpoint, const std::string& json_data,
+                                             const bool debug)
 {
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
+  DashboardResponse response;
+  if (auto res = cli_->Post(base_url_ + endpoint, json_data, "application/json"))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const std::string& json_data, const bool debug)
+{
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
+  DashboardResponse response;
+  if (auto res = cli_->Put(base_url_ + endpoint, json_data, "application/json"))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::put(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
+                                            const bool debug)
+{
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
+  DashboardResponse response;
+  if (auto res = cli_->Put(base_url_ + endpoint, form_data))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::get(const std::string& endpoint, const bool debug)
+{
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
   DashboardResponse response;
   if (auto res = cli_->Get(base_url_ + endpoint))
   {
-    response.message = res->body;
-    response.data["status_code"] = res->status;
-    response.ok = res->status == 200;
+    response = handleHttpResult(res, debug);
   }
   else
   {
