@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.7.0 (2026-02-18)
+------------------
 * Add more RobotAPI commands to PolyScope X Dashboard Client (`#435 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/435>`_)
 * [RTDE client] Test reconnect (`#433 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/433>`_)
 * [TCPServer] Close all filedescriptors on shutdown (`#432 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/432>`_)
