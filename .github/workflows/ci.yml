@@ -127,6 +127,14 @@ jobs:
           path: test_artifacts
           if-no-files-found: error
           retention-days: 10
+      - name: Upload generated scripts
+        uses: actions/upload-artifact@v6
+        if: ${{ always() }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_generated_scripts
+          path: test_artifacts/generated_scripts
+          if-no-files-found: warn
+          retention-days: 10
 
   test_start_ursim:
     runs-on: ubuntu-latest

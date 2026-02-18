@@ -29,6 +29,24 @@
 #include <ur_client_library/control/script_command_interface.h>
 #include <math.h>
 
+namespace
+{
+urcl::vector6d_t clampScalesToUnitRange(const urcl::vector6d_t& scale)
+{
+  urcl::vector6d_t result = scale;
+  for (size_t i = 0; i < result.size(); ++i)
+  {
+    if (scale[i] < 0.0)
+      result[i] = 0.0;
+    else if (scale[i] > 1.0)
+      result[i] = 1.0;
+    else
+      result[i] = scale[i];
+  }
+  return result;
+}
+}  // namespace
+
 namespace urcl
 {
 namespace control
@@ -269,6 +287,45 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::setFrictionScales(const vector6d_t& viscous_scale, const vector6d_t& coulomb_scale)
+{
+  if (!robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.25.1"),
+                                         urcl::VersionInformation::fromString("10.12.1"), __func__))
+  {
+    return false;
+  }
+  const int message_length = 13;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_SCALES));
+  b_pos += append(b_pos, val);
+
+  // Clamp the scales to the range [0-1]
+  vector6d_t clamped_viscous_scale = clampScalesToUnitRange(viscous_scale);
+  vector6d_t clamped_coulomb_scale = clampScalesToUnitRange(coulomb_scale);
+
+  for (auto const& scale : clamped_viscous_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+  for (auto const& scale : clamped_coulomb_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
   for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
   {
     val = htobe32(0);

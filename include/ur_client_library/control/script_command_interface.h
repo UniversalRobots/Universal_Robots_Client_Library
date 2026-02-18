@@ -177,15 +177,28 @@ public:
   bool setTcpOffset(const vector6d_t& offset);
 
   /*!
-   * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
-   * if false it will not.
+   * \brief Set friction compensation for the direct_torque. If true the direct_torque command will compensate for
+   * friction, if false it will not.
    *
    * \param friction_compensation_enabled Will set a friction_compensation_enabled variable in urscript, which will be
-   * used when calling torque_command
+   * used when calling direct_torque.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool setFrictionCompensation(const bool friction_compensation_enabled);
+
+  /*!
+   * \brief Set viscous and Coulomb friction scale factors for direct_torque (per joint, range [0-1]).
+   *
+   * Requires PolyScope 5.25.1 / PolyScope X 10.12.1 or later. To disable friction compensation, pass both
+   * arrays as all zeros.
+   *
+   * \param viscous_scale Scale of viscous compensation per joint, range [0-1].
+   * \param coulomb_scale Scale of Coulomb compensation per joint, range [0-1].
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setFrictionScales(const vector6d_t& viscous_scale, const vector6d_t& coulomb_scale);
 
   /*!
    * \brief Enable or disable RTDE input for the force torque sensor.
@@ -248,6 +261,7 @@ private:
     FT_RTDE_INPUT_ENABLE = 8,       ///< Enable FT RTDE input
     SET_GRAVITY = 9,                ///< Set gravity vector
     SET_TCP_OFFSET = 10,            ///< Set TCP offset
+    SET_FRICTION_SCALES = 11,       ///< Set viscous and Coulomb friction scales for direct_torque
   };
 
   /*!

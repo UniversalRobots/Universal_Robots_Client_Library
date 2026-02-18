@@ -541,6 +541,109 @@ TEST_F(ScriptCommandInterfaceTest, test_set_tcp_offset)
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales)
+{
+  waitForClientConnection();
+
+  vector6d_t viscous_scale = { 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 };
+  vector6d_t coulomb_scale = { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 };
+  bool result = script_command_interface_->setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_TRUE(result);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  int32_t expected_command = 11;
+  EXPECT_EQ(command, expected_command);
+
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_viscous = static_cast<double>(message[i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_viscous, viscous_scale[i]);
+  }
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_coulomb = static_cast<double>(message[6 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_coulomb, coulomb_scale[i]);
+  }
+
+  int32_t message_sum = std::accumulate(std::begin(message) + 12, std::end(message), 0);
+  EXPECT_EQ(message_sum, 0);
+
+  vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  script_command_interface_->setFrictionScales(zeros, zeros);
+  message.clear();
+  client_->readMessage(command, message);
+  EXPECT_EQ(command, expected_command);
+  for (size_t i = 0; i < 12; ++i)
+  {
+    EXPECT_EQ(message[i], 0);
+  }
+  message_sum = std::accumulate(std::begin(message) + 12, std::end(message), 0);
+  EXPECT_EQ(message_sum, 0);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_clamps_to_valid_range)
+{
+  waitForClientConnection();
+
+  // Values outside [0, 1]: negative, > 1, and in-range
+  vector6d_t viscous_scale = { -0.1, 0.5, 1.2, 0.0, 1.0, 0.9 };
+  vector6d_t coulomb_scale = { 0.3, -0.5, 1.5, 0.0, 1.0, 0.8 };
+  vector6d_t expected_viscous = { 0.0, 0.5, 1.0, 0.0, 1.0, 0.9 };
+  vector6d_t expected_coulomb = { 0.3, 0.0, 1.0, 0.0, 1.0, 0.8 };
+
+  bool result = script_command_interface_->setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_TRUE(result);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  EXPECT_EQ(command, 11);
+
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_viscous = static_cast<double>(message[i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_viscous, expected_viscous[i]) << "viscous_scale[" << i << "] should be clamped to [0, 1]";
+  }
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_coulomb = static_cast<double>(message[6 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_coulomb, expected_coulomb[i]) << "coulomb_scale[" << i << "] should be clamped to [0, 1]";
+  }
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old_version)
+{
+  control::ReverseInterfaceConfig config;
+  config.port = 50005;
+  config.robot_software_version = VersionInformation::fromString("5.24.0");
+  control::ScriptCommandInterface old_version_interface(config);
+  std::unique_ptr<Client> old_client(new Client(50005));
+
+  const std::chrono::duration<double> wait_period = std::chrono::milliseconds(50);
+  std::chrono::duration<double> time_done(0);
+  while (time_done < std::chrono::milliseconds(1000))
+  {
+    if (old_version_interface.clientConnected())
+    {
+      break;
+    }
+    std::this_thread::sleep_for(wait_period);
+    time_done += wait_period;
+  }
+  ASSERT_TRUE(old_version_interface.clientConnected());
+
+  vector6d_t viscous_scale = { 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 };
+  vector6d_t coulomb_scale = { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 };
+  bool result = old_version_interface.setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_FALSE(result);
+
+  old_client->close();
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

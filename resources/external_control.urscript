@@ -58,6 +58,7 @@ SET_FRICTION_COMPENSATION = 7
 FT_RTDE_INPUT_ENABLE = 8
 SET_GRAVITY = 9
 SET_TCP_OFFSET = 10
+SET_FRICTION_SCALES = 11
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -75,6 +76,11 @@ MAX_JOINT_SPEED = 6.283185
 # Any motion commands resulting in a velocity higher than that will be ignored.
 JOINT_IGNORE_SPEED = 20.0
 
+# Friction compensation mode: which set command was received last (or NotSet if none)
+FRICTION_COMP_MODE_NOT_SET = 0
+FRICTION_COMP_MODE_FRICTION_COMP = 1
+FRICTION_COMP_MODE_FRICTION_SCALES = 2
+
 #Global variables are also showed in the Teach pendants variable list
 global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
@@ -91,7 +97,10 @@ global spline_qdd = [0, 0, 0, 0, 0, 0]
 global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
 global trajectory_result = 0
-global friction_compensation_enabled = True
+global friction_compensation_mode = FRICTION_COMP_MODE_NOT_SET
+global deprecated_friction_compensation_enabled = True
+global viscous_scale = [0.9, 0.9, 0.8, 0.9, 0.9, 0.9]
+global coulomb_scale = [0.8, 0.8, 0.7, 0.8, 0.8, 0.8]
 
 # Global thread variables
 thread_move = 0
@@ -246,16 +255,36 @@ thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
   while control_mode == MODE_TORQUE:
     torque = cmd_torque
-    {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
-      {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-    direct_torque(torque, friction_comp=friction_compensation_enabled)
-      {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
-    direct_torque(torque, friction_comp=friction_compensation_enabled)
+    {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+      {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
+    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+        {% if ROBOT_SOFTWARE_VERSION < v5.25.1 %}
+      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1. This robot runs an older version.", error=True, blocking=True)
+        {% else %}
+      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+        {% endif %}
+    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_COMP:
+      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
+    else:
+      direct_torque(torque) # Uses robot defaults
+    end
       {% else %}
-    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
-      {% endif %}
-    {% else %}
     popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
+      {% endif %}
+    {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+      {% if ROBOT_SOFTWARE_VERSION < v10.12.1 %}
+      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X 10.12.1. This robot runs an older version.", error=True, blocking=True)
+      {% else %}
+      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+      {% endif %}
+    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_COMP:
+      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
+    else:
+      direct_torque(torque) # Uses robot defaults
+    end
+    {% else %}
+    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
     {% endif %}
   end
   textmsg("ExternalControl: torque thread ended")
@@ -789,11 +818,12 @@ thread script_commands():
         end
         tool_contact_running = False
       elif command == SET_FRICTION_COMPENSATION:
-        if raw_command[2] == 0:
-          friction_compensation_enabled = False
-        else:
-          friction_compensation_enabled = True
-        end
+        friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_COMP
+        deprecated_friction_compensation_enabled = (raw_command[2] != 0)
+      elif command == SET_FRICTION_SCALES:
+        friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_SCALES
+        viscous_scale = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
+        coulomb_scale = [raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate, raw_command[12] / MULT_jointstate, raw_command[13] / MULT_jointstate]
       elif command == FT_RTDE_INPUT_ENABLE:
         if raw_command[2] == 0:
           enabled = False

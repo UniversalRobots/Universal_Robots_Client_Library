@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
 
   // Increment depends on robot version
   double increment_constant = 0.0005;
+  std::cout << "Robot version: " << g_my_robot->getUrDriver()->getVersion().toString() << std::endl;
   if (g_my_robot->getUrDriver()->getVersion().major < 5)
   {
     increment_constant = 0.002;
@@ -137,7 +138,7 @@ int main(int argc, char* argv[])
                                                             RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
-      URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+      URCL_LOG_ERROR("The connection timed out. Is the robot in remote control or is the connection over WIFI?");
       return 1;
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());

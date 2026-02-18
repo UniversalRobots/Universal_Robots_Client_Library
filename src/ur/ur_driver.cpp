@@ -537,7 +537,7 @@ bool UrDriver::startToolContact()
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to enable tool contact mode.");
-    return 0;
+    return false;
   }
 }
 
@@ -560,7 +560,7 @@ bool UrDriver::endToolContact()
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
-    return 0;
+    return false;
   }
 }
 
@@ -573,7 +573,20 @@ bool UrDriver::setFrictionCompensation(const bool friction_compensation_enabled)
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to set friction compensation.");
-    return 0;
+    return false;
+  }
+}
+
+bool UrDriver::setFrictionScales(const vector6d_t& viscous_scale, const vector6d_t& coulomb_scale)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setFrictionScales(viscous_scale, coulomb_scale);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set friction scales.");
+    return false;
   }
 }
 
@@ -587,7 +600,7 @@ bool UrDriver::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
   else
   {
     URCL_LOG_ERROR("Script command interface is not running. Unable to set ft_rtde_input_enable.");
-    return 0;
+    return false;
   }
 }
 
