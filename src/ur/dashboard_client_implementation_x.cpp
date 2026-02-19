@@ -304,7 +304,7 @@ DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
   auto json_data = json::parse(response.message);
   if (response.ok)
   {
-    response.data["loaded_program"] = std::string(json_data["name"]);
+    response.data["program_name"] = std::string(json_data["name"]);
   }
   return response;
 }
