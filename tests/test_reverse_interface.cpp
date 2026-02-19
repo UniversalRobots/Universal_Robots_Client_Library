@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <endian/portable_endian.h>
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/exceptions.h>

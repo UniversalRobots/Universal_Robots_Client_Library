@@ -1,5 +1,5 @@
 //
-// endian.h
+// portable_endian.h
 //
 // https://gist.github.com/panzi/6856583
 //

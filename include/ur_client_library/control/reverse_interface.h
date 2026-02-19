@@ -36,7 +36,6 @@
 #include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/ur/version_information.h"
 #include <cstring>
-#include <endian.h>
 #include <condition_variable>
 #include <list>
 
