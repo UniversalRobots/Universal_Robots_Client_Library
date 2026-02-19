@@ -29,7 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_PACKAGE_SERIALIZER_H_INCLUDED
 
-#include <endian.h>
+#include <endian/portable_endian.h>
 #include <cstdint>
 #include <cstring>
 #include <string>
