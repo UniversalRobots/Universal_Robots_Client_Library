@@ -170,7 +170,7 @@ public:
   /*!
    * \brief Set the TCP offset
    *
-   * \param offset TCP offset
+   * \param offset TCP offset as [x, y, z, rx, ry, rz] given in the flange coordinate system.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
