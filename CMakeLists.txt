@@ -66,9 +66,7 @@ target_compile_features(urcl PUBLIC cxx_std_17)
 
 if(MSVC)
   target_link_libraries(urcl ws2_32)
-endif()
-
-if(NOT MSVC)
+else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
   target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
