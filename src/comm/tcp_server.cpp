@@ -185,6 +185,20 @@ void TCPServer::handleConnect()
     throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
   }
 
+  char addr_str[INET6_ADDRSTRLEN];
+  void* addr;
+  // Determine address type and set addr pointer accordingly
+  if (client_addr.ss_family == AF_INET)
+  {
+    addr = &((struct sockaddr_in*)&client_addr)->sin_addr;
+  }
+  else
+  {
+    addr = &((struct sockaddr_in6*)&client_addr)->sin6_addr;
+  }
+  inet_ntop(client_addr.ss_family, addr, addr_str, sizeof(addr_str));
+  URCL_LOG_DEBUG("Accepted new connection on port %d with from client %s", port_, addr_str);
+
   if (client_fds_.size() < max_clients_allowed_ || max_clients_allowed_ == 0)
   {
     client_fds_.push_back(client_fd);
