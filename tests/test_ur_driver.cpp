@@ -34,6 +34,7 @@
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
 #include <algorithm>
+#include <thread>
 #include "test_utils.h"
 
 using namespace urcl;
@@ -329,6 +330,46 @@ TEST_F(UrDriverTest, read_error_code)
     EXPECT_TRUE(g_my_robot->getDashboardClient()->commandCloseSafetyPopup());
   }
   EXPECT_NO_THROW(g_my_robot->getPrimaryClient()->commandUnlockProtectiveStop());
+}
+
+TEST_F(UrDriverTest, set_tcp_offset)
+{
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset({ 0, 0, 0, 0, 0, 0 }));
+
+  vector6d_t tcp_offset = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
+
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  vector6d_t tcp_offset_received;
+  for (int i = 0; i < 10; ++i)
+  {
+    ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
+
+    data_pkg.getData("tcp_offset", tcp_offset_received);
+    if (tcp_offset_received == tcp_offset)
+    {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  g_my_robot->getUrDriver()->getDataPackage(data_pkg);
+  for (unsigned int i = 0; i < tcp_offset.size(); ++i)
+  {
+    EXPECT_DOUBLE_EQ(tcp_offset_received[i], tcp_offset[i]);
+  }
+
+  // Stop program on robot
+  g_my_robot->getUrDriver()->stopControl();
+  g_my_robot->waitForProgramNotRunning(1000);
+
+  // TODO (feex): We cannot see from the outside whether the script command interface is connected. There is a race
+  // condition between the reverse interface disconnection callback and the script_command_interface disconnect
+  // callback. For now, we will just have to wait a bit to ensure that the script command interface
+  // is disconnected before trying to use the script command interface.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  // Check that we can't set TCP offset when the program isn't running
+  ASSERT_FALSE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)

@@ -269,7 +269,7 @@ private:
   bool robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
                                          const VersionInformation& min_polyscopeX, const std::string& command_name);
 
-  bool client_connected_;
+  std::atomic<bool> client_connected_;
   static const int MAX_MESSAGE_LENGTH = 28;
 
   std::function<void(ToolContactResult)> handle_tool_contact_result_;
