@@ -87,20 +87,20 @@ int main(int argc, char* argv[])
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
   g_my_robot->getUrDriver()->startRTDECommunication();
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
   while (!(passed_positive_part && passed_negative_part))
   {
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
     // robot will effectively be in charge of setting the frequency of this loop.
     // In a real-world application this thread should be scheduled with real-time priority in order
     // to ensure that this is called in time.
-    std::unique_ptr<rtde_interface::DataPackage> data_pkg = g_my_robot->getUrDriver()->getDataPackage();
-    if (!data_pkg)
+    if (!g_my_robot->getUrDriver()->getDataPackage(data_pkg))
     {
       URCL_LOG_WARN("Could not get fresh data package from robot");
       return 1;
     }
     // Read current joint positions from robot data
-    if (!data_pkg->getData("actual_q", g_joint_positions))
+    if (!data_pkg.getData("actual_q", g_joint_positions))
     {
       // This throwing should never happen unless misconfigured
       std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
       URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
       return 1;
     }
-    URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg->toString().c_str());
+    URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());
   }
   g_my_robot->getUrDriver()->stopControl();
   URCL_LOG_INFO("Movement done");

@@ -245,6 +245,17 @@ public:
    * \returns Success of the package production.
    */
   virtual bool tryGet(std::vector<std::unique_ptr<T>>& products) = 0;
+
+  /*!
+   * \brief Reads a single package from some source and produces the corresponding object.
+   *
+   * If possible this function should try to reuse existing memory in the passed unique pointer.
+   *
+   * \param product Unique pointer to be set to the produced package.
+   *
+   * \returns Success of the package production.
+   */
+  virtual bool tryGet(std::unique_ptr<T>& product) = 0;
 };
 
 /*!

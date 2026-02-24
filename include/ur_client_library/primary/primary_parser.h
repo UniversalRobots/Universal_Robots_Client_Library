@@ -58,7 +58,7 @@ public:
    * \returns True, if the byte stream could successfully be parsed as primary packages, false
    * otherwise
    */
-  bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<PrimaryPackage>>& results)
+  bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<PrimaryPackage>>& results) override
   {
     int32_t packet_size;
     RobotPackageType type;
@@ -147,6 +147,36 @@ public:
         return true;
       }
     }
+    return true;
+  }
+
+  /**
+   * \brief Uses the given BinParser to create a single package object from the contained serialization.
+   *
+   * Note: This function assumes that the byte stream contains exactly one primary package. For
+   * packages with sub-packages this will return false.
+   *
+   * \param bp A BinParser holding one serialized primary package
+   * \param results A unique pointer to hold the created primary package object
+   *
+   * \returns True, if the byte stream could successfully be parsed as a primary package, false
+   * otherwise
+   */
+  bool parse(comm::BinParser& bp, std::unique_ptr<PrimaryPackage>& results) override
+  {
+    std::vector<std::unique_ptr<PrimaryPackage>> packages;
+    if (!parse(bp, packages))
+    {
+      return false;
+    }
+
+    if (packages.size() != 1)
+    {
+      URCL_LOG_ERROR("Expected exactly one primary package, but received %zu", packages.size());
+      return false;
+    }
+
+    results = std::move(packages[0]);
     return true;
   }
 

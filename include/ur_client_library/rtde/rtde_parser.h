@@ -57,6 +57,21 @@ public:
   virtual ~RTDEParser() = default;
 
   /*!
+   * \brief Uses the given BinParser to fill single package object from the contained serialization.
+   *
+   *
+   * \param bp A BinParser holding a serialized RTDE package
+   * \param result A pointer to the created RTDE package object. Ideally, the passed \p result is a pre-allocated
+   * package of the type expected to be read. For example, when RTDE communication has been setup it enters the data
+   * communication phase, where the expected package is a DataPackage. If the package content inside the \p bp object
+   * being doesn't match the result package's type or if the \p result is a nullptr, a new package will be allocated.
+   *
+   * \returns True, if the byte stream could successfully be parsed as an RTDE package, false
+   * otherwise
+   */
+  bool parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result) override;
+
+  /*!
    * \brief Uses the given BinParser to create package objects from the contained serialization.
    *
    * \param bp A BinParser holding one or more serialized RTDE packages
@@ -65,93 +80,25 @@ public:
    * \returns True, if the byte stream could successfully be parsed as RTDE packages, false
    * otherwise
    */
-  bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
-
-  {
-    PackageHeader::_package_size_type size;
-    PackageType type;
-    bp.parse(size);
-    bp.parse(type);
-
-    if (!bp.checkSize(size - sizeof(size) - sizeof(type)))
-    {
-      URCL_LOG_ERROR("Buffer len shorter than expected packet length");
-      return false;
-    }
-
-    switch (type)
-    {
-      case PackageType::RTDE_DATA_PACKAGE:
-      {
-        std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_, protocol_version_));
-
-        if (!package->parseWith(bp))
-        {
-          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
-          return false;
-        }
-        results.push_back(std::move(package));
-        break;
-      }
-      default:
-      {
-        std::unique_ptr<RTDEPackage> package(packageFromType(type));
-        if (!package->parseWith(bp))
-        {
-          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
-          return false;
-        }
-
-        results.push_back(std::move(package));
-        break;
-      }
-    }
-    if (!bp.empty())
-    {
-      URCL_LOG_ERROR("Package of type %d was not parsed completely!", static_cast<int>(type));
-      bp.debug();
-      return false;
-    }
-
-    return true;
-  }
+  [[deprecated("This method allocates memory on each call. Please use the overload which takes a single unique ptr to "
+               "a pre-allocated package. This function will be removed in May 2027.")]]
+  bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results) override;
 
   void setProtocolVersion(uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
   }
 
+  uint16_t getProtocolVersion() const
+  {
+    return protocol_version_;
+  }
+
 private:
   std::vector<std::string> recipe_;
-  RTDEPackage* packageFromType(PackageType type)
-  {
-    switch (type)
-    {
-      case PackageType::RTDE_TEXT_MESSAGE:
-        return new TextMessage(protocol_version_);
-        break;
-      case PackageType::RTDE_GET_URCONTROL_VERSION:
-        return new GetUrcontrolVersion;
-        break;
-      case PackageType::RTDE_REQUEST_PROTOCOL_VERSION:
-        return new RequestProtocolVersion;
-        break;
-      case PackageType::RTDE_CONTROL_PACKAGE_PAUSE:
-        return new ControlPackagePause;
-        break;
-      case PackageType::RTDE_CONTROL_PACKAGE_SETUP_INPUTS:
-        return new ControlPackageSetupInputs;
-        break;
-      case PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
-        return new ControlPackageSetupOutputs(protocol_version_);
-        break;
-      case PackageType::RTDE_CONTROL_PACKAGE_START:
-        return new ControlPackageStart;
-        break;
-      default:
-        return new RTDEPackage(type);
-    }
-  }
+  PackageType getPackageTypeFromHeader(comm::BinParser& bp) const;
+  RTDEPackage* createNewPackageFromType(PackageType type) const;
+
   uint16_t protocol_version_;
 };
 

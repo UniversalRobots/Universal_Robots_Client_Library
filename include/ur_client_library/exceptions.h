@@ -272,5 +272,52 @@ public:
 private:
   std::string text_;
 };
+
+class RTDEInvalidKeyException : public UrException
+{
+public:
+  explicit RTDEInvalidKeyException() : std::runtime_error("RTDE Invalid Key Exception")
+  {
+  }
+
+  explicit RTDEInvalidKeyException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~RTDEInvalidKeyException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
+class RTDEInputConflictException : public UrException
+{
+public:
+  explicit RTDEInputConflictException() : std::runtime_error("RTDE Output Conflict Exception")
+  {
+  }
+
+  explicit RTDEInputConflictException(const std::string& key)
+    : std::runtime_error("RTDE Input Conflict for key: " + key), key_(key)
+  {
+    message_ = "Variable '" + key_ +
+               "' is currently controlled by another RTDE client. The input recipe can't be used as "
+               "configured. Note: when using a fieldbus (e.g. Ethernet/IP or Modbus), all outputs are claimed by "
+               "those.";
+  }
+
+  virtual ~RTDEInputConflictException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return message_.c_str();
+  }
+
+private:
+  std::string key_;
+  std::string message_;
+};
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
