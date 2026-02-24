@@ -188,6 +188,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   URCL_LOG_DEBUG("Initialization done");
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
   // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
@@ -196,6 +198,21 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   std::chrono::milliseconds timeout(get_packet_timeout_);
 
   return rtde_client_->getDataPackage(timeout);
+}
+#pragma GCC diagnostic pop
+
+bool UrDriver::getDataPackage(rtde_interface::DataPackage& data_package)
+{
+  // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
+  // loop's timing (read is blocking). The zero timeout is for when the robot is sharing a control loop with
+  // something else (combined_robot_hw)
+  std::chrono::milliseconds timeout(get_packet_timeout_);
+  return rtde_client_->getDataPackage(data_package, timeout);
+}
+
+bool UrDriver::getDataPackageBlocking(std::unique_ptr<rtde_interface::DataPackage>& data_package)
+{
+  return rtde_client_->getDataPackageBlocking(data_package);
 }
 
 bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
@@ -593,9 +610,9 @@ bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
   return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
 }
 
-void UrDriver::startRTDECommunication()
+void UrDriver::startRTDECommunication(const bool read_packages_in_background)
 {
-  rtde_client_->start();
+  rtde_client_->start(read_packages_in_background);
 }
 
 bool UrDriver::stopControl()

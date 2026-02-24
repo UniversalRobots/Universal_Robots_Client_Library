@@ -2,6 +2,25 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.7.0 (2026-02-18)
+------------------
+* Add more RobotAPI commands to PolyScope X Dashboard Client (`#435 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/435>`_)
+* [RTDE client] Test reconnect (`#433 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/433>`_)
+* [TCPServer] Close all filedescriptors on shutdown (`#432 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/432>`_)
+* [primary interface] More robot messages (`#429 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/429>`_)
+* Fix instruction executor idle (`#424 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/424>`_)
+* [primary interface] Fix parsing of primary messages (`#426 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/426>`_)
+* [primary interface] Add KeyMessage parsing (`#428 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/428>`_)
+* Add test for VersionMessage (`#427 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/427>`_)
+* Add two new RTDE fields (`#420 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/420>`_)
+  Add fields
+  - target_gravity
+  - target_base_acceleration
+* Allow updating robot gravity (`#415 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/415>`_)
+* Do not disconnect dashboard_client on read timeout (`#414 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/414>`_)
+* Added support for std::vector strings in UrDriver (`#408 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/408>`_)
+* Contributors: AdamPettinger, Felix Exner, Pablo David Aranda Rodriguez, dependabot[bot]
+
 2.6.1 (2025-12-01)
 ------------------
 * Ignore lists.apple link in link check (`#411 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/411>`_)
