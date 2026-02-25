@@ -29,6 +29,8 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <ur_client_library/example_robot_wrapper.h>
+#include "ur_client_library/ur/instruction_executor.h"
+#include <cmath>
 #include <cstddef>
 
 // In a real-world example it would be better to get those values from command line parameters / a
@@ -39,6 +41,12 @@ const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
 const size_t JOINT_INDEX = 5;  // Joint index to control, in this case joint 6 (index 5)
+
+// This example will apply a sinusoidal torque to JOINT_INDEX, while the other joints are kept at 0.0.
+constexpr double frequency = 0.2;  // [Hz]
+constexpr double amplitude = 2.5;  // [Nm]
+constexpr double omega = 2 * M_PI * frequency;
+constexpr double start_position = 0.0;  // [rad]
 
 std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 urcl::vector6d_t g_joint_positions;
@@ -70,37 +78,67 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // Torque control requires Software version 5.23 / 10.10 or higher. Error and exit on older
-  // software versions.
+  // This example requires Software version 5.25.1 / 10.12.1 or higher. Skip gracefully on older
+  // software versions so that CI (which runs all examples) does not fail.
   {
     auto robot_version = g_my_robot->getUrDriver()->getVersion();
-    if (robot_version < urcl::VersionInformation::fromString("5.23.0") ||
-        (robot_version.major > 5 && robot_version < urcl::VersionInformation::fromString("10.10.0")))
+    bool version_supported =
+        ((robot_version.major == 5) && (robot_version >= urcl::VersionInformation::fromString("5.25.1"))) ||
+        ((robot_version.major >= 10) && (robot_version >= urcl::VersionInformation::fromString("10.12.1")));
+    if (!version_supported)
     {
-      URCL_LOG_ERROR("This example requires a robot with at least version 5.23.0 / 10.10.0. Your robot has version %s.",
-                     robot_version.toString().c_str());
+      URCL_LOG_INFO("This direct_torque control example requires a robot with at least version 5.25.1 / 10.12.1. Your "
+                    "robot has version %s. Skipping.",
+                    robot_version.toString().c_str());
       return 0;
     }
   }
   // --------------- INITIALIZATION END -------------------
 
-  const double torque_abs = 2.5;
-  double cmd_torque = torque_abs;  // Target torque [Nm] for joint 6
-  bool passed_negative_part = false;
-  bool passed_positive_part = false;
   URCL_LOG_INFO("Start moving the robot");
   urcl::vector6d_t target_torques = { 0, 0, 0, 0, 0, 0 };
+
+  // Scale each individual joint's friction compensation. This is supported from PolyScope 5.25.1 / PolyScope X 10.12.1
+  // and upwards.
+  urcl::vector6d_t viscous_scale = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  urcl::vector6d_t coulomb_scale = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  // As this example only applies to JOINT_INDEX, we can set the other joints to 0.0 to disable friction compensation to
+  // make them more steady.
+  viscous_scale[JOINT_INDEX] = 1.0;
+  coulomb_scale[JOINT_INDEX] = 1.0;
+  g_my_robot->getUrDriver()->setFrictionScales(viscous_scale, coulomb_scale);
 
   // Once RTDE communication is started, we have to make sure to read from the interface buffer, as
   // otherwise we will get pipeline overflows. Therefor, do this directly before starting your main
   // loop.
   g_my_robot->getUrDriver()->startRTDECommunication();
-  auto start_time = std::chrono::system_clock::now();
 
   urcl::rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
-
-  while (!(passed_positive_part && passed_negative_part))
+  if (!g_my_robot->getUrDriver()->getDataPackage(data_pkg))
   {
+    URCL_LOG_ERROR("Could not get fresh data package from robot");
+    return 1;
+  }
+  if (!data_pkg.getData("actual_q", g_joint_positions))
+  {
+    // This throwing should never happen unless misconfigured
+    std::string error_msg = "Did not find 'actual_q' in data sent from robot. This should not happen!";
+    throw std::runtime_error(error_msg);
+  }
+  // Use motion primitives to move JOINT_INDEX to start position
+  g_joint_positions[JOINT_INDEX] = start_position;
+  auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->getUrDriver());
+  instruction_executor->moveJ(g_joint_positions, 1.4, 1.04, 0.1);
+
+  auto start_time = std::chrono::system_clock::now();
+  constexpr double timestep = 0.002;  // [s]
+  double time = 0.0;
+
+  // Run 10 periods of the sinusoidal
+  while (time < 10 * 2 * M_PI / omega)
+  {
+    time += timestep;
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
     // robot will effectively be in charge of setting the frequency of this loop.
     // In a real-world application this thread should be scheduled with real-time priority in order
@@ -119,23 +157,7 @@ int main(int argc, char* argv[])
     }
 
     // Open loop control. The target is incremented with a constant each control loop
-    if (passed_positive_part == false)
-    {
-      if (g_joint_positions[JOINT_INDEX] >= 2)
-      {
-        passed_positive_part = true;
-        cmd_torque = -torque_abs;
-      }
-    }
-    else if (passed_negative_part == false)
-    {
-      if (g_joint_positions[JOINT_INDEX] <= 0)
-      {
-        cmd_torque = torque_abs;
-        passed_negative_part = true;
-      }
-    }
-    target_torques[JOINT_INDEX] = cmd_torque;
+    target_torques[JOINT_INDEX] = amplitude * std::sin(omega * time);
 
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications. Having it
@@ -145,7 +167,8 @@ int main(int argc, char* argv[])
                                                             urcl::RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
-      URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");
+      URCL_LOG_ERROR("Could not send joint command. Make sure that the robot is in remote control mode and connected "
+                     "with a network cable.");
       return 1;
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());

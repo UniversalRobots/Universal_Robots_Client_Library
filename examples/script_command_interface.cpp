@@ -45,6 +45,7 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 bool g_HEADLESS = true;
 bool g_running = false;
+bool g_support_set_friction_scales = false;
 
 void sendScriptCommands()
 {
@@ -67,13 +68,27 @@ void sendScriptCommands()
     run_cmd("Setting tool voltage to 24V",
             []() { g_my_robot->getUrDriver()->setToolVoltage(urcl::ToolVoltage::_24V); });
     run_cmd("Enabling tool contact mode", []() { g_my_robot->getUrDriver()->startToolContact(); });
-    run_cmd("Setting friction_compensation variable to `false`",
-            []() { g_my_robot->getUrDriver()->setFrictionCompensation(false); });
+
+    if (g_support_set_friction_scales)
+    {
+      // setFrictionScales is only supported from PolyScope 5.25.1 / PolyScope X 10.12.1 and upwards.
+      run_cmd("Turn off friction_compensation by setting the friction scales to zeroes",
+              []() { g_my_robot->getUrDriver()->setFrictionScales({ 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }); });
+    }
     run_cmd("Setting tool voltage to 0V", []() { g_my_robot->getUrDriver()->setToolVoltage(urcl::ToolVoltage::OFF); });
     run_cmd("Zeroing the force torque sensor", []() { g_my_robot->getUrDriver()->zeroFTSensor(); });
     run_cmd("Disabling tool contact mode", []() { g_my_robot->getUrDriver()->endToolContact(); });
-    run_cmd("Setting friction_compensation variable to `true`",
-            []() { g_my_robot->getUrDriver()->setFrictionCompensation(true); });
+    run_cmd("Setting TCP offset to [0.0, 0.0, 0.10, 0.0, 0.0, 0.0]",
+            []() { g_my_robot->getUrDriver()->setTcpOffset({ 0.0, 0.0, 0.10, 0.0, 0.0, 0.0 }); });
+
+    if (g_support_set_friction_scales)
+    {
+      // setFrictionScales is only supported from PolyScope 5.25.1 / PolyScope X 10.12.1 and upwards.
+      run_cmd("Turn on friction_compensation by setting the friction scales to non-zero values", []() {
+        g_my_robot->getUrDriver()->setFrictionScales({ 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 },
+                                                     { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 });
+      });
+    }
   }
   URCL_LOG_INFO("Script command thread finished.");
 }
@@ -105,6 +120,17 @@ int main(int argc, char* argv[])
 
   g_my_robot =
       std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS, "external_control.urp");
+
+  // Check if the robot version supports the friction scales command (requires 5.25.1 / 10.12.1)
+  auto version = g_my_robot->getUrDriver()->getVersion();
+  g_support_set_friction_scales = (version.major == 5 && version >= urcl::VersionInformation::fromString("5.25.1")) ||
+                                  (version.major >= 10 && version >= urcl::VersionInformation::fromString("10.12.1"));
+  if (!g_support_set_friction_scales)
+  {
+    URCL_LOG_INFO("Setting friction scales is not supported on this robot (version %s). "
+                  "Requires at least 5.25.1 / 10.12.1. Skipping friction scale commands.",
+                  version.toString().c_str());
+  }
 
   if (!g_my_robot->isHealthy())
   {

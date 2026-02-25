@@ -109,5 +109,24 @@ bool parseBoolean(const std::string& str);
  */
 std::vector<std::string> splitString(const std::string& string_to_split, const std::string& delimiter = ",");
 
+/*!
+ * \brief Clamps every element of a container to the range [0, 1] in-place.
+ *
+ * \tparam T The type of the elements in the array.
+ * \tparam N The size of the array.
+ * \param values The array whose elements will be clamped.
+ */
+template <typename T, size_t N>
+void clampToUnitRange(std::array<T, N>& values)
+{
+  for (auto& v : values)
+  {
+    if (v < 0.0)
+      v = 0.0;
+    else if (v > 1.0)
+      v = 1.0;
+  }
+}
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
