@@ -774,7 +774,7 @@ public:
    * \brief Set friction compensation for the direct_torque. If true the torque command will compensate for friction,
    * if false it will not.
    *
-   * \deprecated Use setFrictionScales() instead.
+   * \deprecated Use setFrictionScales() instead when using PolyScope > 5.25.1 / PolyScope X > 10.12.1.
    *
    * \param friction_compensation_enabled Will set a friction_compensation_enabled variable in urscript, which will be
    * used when calling direct_torque.

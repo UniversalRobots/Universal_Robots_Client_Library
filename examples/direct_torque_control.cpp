@@ -82,14 +82,12 @@ int main(int argc, char* argv[])
   // software versions so that CI (which runs all examples) does not fail.
   {
     auto robot_version = g_my_robot->getUrDriver()->getVersion();
-    bool version_supported = (robot_version.major == 5 && robot_version >= urcl::VersionInformation::fromString("5.25."
-                                                                                                                "1")) ||
-                             (robot_version.major >= 10 && robot_version >= urcl::VersionInformation::fromString("10."
-                                                                                                                 "12."
-                                                                                                                 "1"));
+    bool version_supported =
+        ((robot_version.major == 5) && (robot_version >= urcl::VersionInformation::fromString("5.25.1"))) ||
+        ((robot_version.major >= 10) && (robot_version >= urcl::VersionInformation::fromString("10.12.1")));
     if (!version_supported)
     {
-      URCL_LOG_WARN("This direct_torque control example requires a robot with at least version 5.25.1 / 10.12.1. Your "
+      URCL_LOG_INFO("This direct_torque control example requires a robot with at least version 5.25.1 / 10.12.1. Your "
                     "robot has version %s. Skipping.",
                     robot_version.toString().c_str());
       return 0;
@@ -169,7 +167,8 @@ int main(int argc, char* argv[])
                                                             urcl::RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
-      URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control or is the connection over WIFI?");
+      URCL_LOG_ERROR("Could not send joint command. Make sure that the robot is in remote control mode and connected "
+                     "with a network cable.");
       return 1;
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());

@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
                                   (version.major >= 10 && version >= urcl::VersionInformation::fromString("10.12.1"));
   if (!g_support_set_friction_scales)
   {
-    URCL_LOG_WARN("Setting friction scales is not supported on this robot (version %s). "
+    URCL_LOG_INFO("Setting friction scales is not supported on this robot (version %s). "
                   "Requires at least 5.25.1 / 10.12.1. Skipping friction scale commands.",
                   version.toString().c_str());
   }

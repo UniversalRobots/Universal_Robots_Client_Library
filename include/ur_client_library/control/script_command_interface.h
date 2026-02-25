@@ -182,6 +182,8 @@ public:
    *
    * \param friction_compensation_enabled Will set a friction_compensation_enabled variable in urscript, which will be
    * used when calling direct_torque.
+
+   * \deprecated Use setFrictionScales() instead when using PolyScope 5.25.1 / PolyScope X 10.12.1 or later.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
@@ -191,7 +193,7 @@ public:
    * \brief Set viscous and Coulomb friction scale factors for direct_torque (per joint, range [0-1]).
    *
    * Requires PolyScope 5.25.1 / PolyScope X 10.12.1 or later. To disable friction compensation, pass both
-   * arrays as all zeros.
+   * arrays as all zeros. Values outside [0, 1] will be silently clamped to the valid range.
    *
    * \param viscous_scale Scale of viscous compensation per joint, range [0-1].
    * \param coulomb_scale Scale of Coulomb compensation per joint, range [0-1].

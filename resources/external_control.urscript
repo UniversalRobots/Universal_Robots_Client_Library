@@ -78,7 +78,7 @@ JOINT_IGNORE_SPEED = 20.0
 
 # Friction compensation mode: which set command was received last (or NotSet if none)
 FRICTION_COMP_MODE_NOT_SET = 0
-FRICTION_COMP_MODE_FRICTION_COMP = 1
+FRICTION_COMP_MODE_FRICTION_LEGACY = 1
 FRICTION_COMP_MODE_FRICTION_SCALES = 2
 
 #Global variables are also showed in the Teach pendants variable list
@@ -263,7 +263,7 @@ thread torqueThread():
         {% else %}
       direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
         {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_COMP:
+    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
       direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
     else:
       direct_torque(torque) # Uses robot defaults
@@ -278,7 +278,7 @@ thread torqueThread():
       {% else %}
       direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
       {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_COMP:
+    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
       direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
     else:
       direct_torque(torque) # Uses robot defaults
@@ -818,7 +818,7 @@ thread script_commands():
         end
         tool_contact_running = False
       elif command == SET_FRICTION_COMPENSATION:
-        friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_COMP
+        friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_LEGACY
         deprecated_friction_compensation_enabled = (raw_command[2] != 0)
       elif command == SET_FRICTION_SCALES:
         friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_SCALES

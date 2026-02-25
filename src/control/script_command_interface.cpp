@@ -27,25 +27,8 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/script_command_interface.h>
+#include <ur_client_library/helpers.h>
 #include <math.h>
-
-namespace
-{
-urcl::vector6d_t clampScalesToUnitRange(const urcl::vector6d_t& scale)
-{
-  urcl::vector6d_t result = scale;
-  for (size_t i = 0; i < result.size(); ++i)
-  {
-    if (scale[i] < 0.0)
-      result[i] = 0.0;
-    else if (scale[i] > 1.0)
-      result[i] = 1.0;
-    else
-      result[i] = scale[i];
-  }
-  return result;
-}
-}  // namespace
 
 namespace urcl
 {
@@ -311,9 +294,10 @@ bool ScriptCommandInterface::setFrictionScales(const vector6d_t& viscous_scale, 
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_SCALES));
   b_pos += append(b_pos, val);
 
-  // Clamp the scales to the range [0-1]
-  vector6d_t clamped_viscous_scale = clampScalesToUnitRange(viscous_scale);
-  vector6d_t clamped_coulomb_scale = clampScalesToUnitRange(coulomb_scale);
+  vector6d_t clamped_viscous_scale = viscous_scale;
+  vector6d_t clamped_coulomb_scale = coulomb_scale;
+  clampToUnitRange(clamped_viscous_scale);
+  clampToUnitRange(clamped_coulomb_scale);
 
   for (auto const& scale : clamped_viscous_scale)
   {

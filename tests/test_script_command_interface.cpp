@@ -35,6 +35,7 @@
 
 #include <ur_client_library/control/script_command_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/helpers.h>
 
 using namespace urcl;
 
@@ -623,18 +624,8 @@ TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old
   control::ScriptCommandInterface old_version_interface(config);
   std::unique_ptr<Client> old_client(new Client(50005));
 
-  const std::chrono::duration<double> wait_period = std::chrono::milliseconds(50);
-  std::chrono::duration<double> time_done(0);
-  while (time_done < std::chrono::milliseconds(1000))
-  {
-    if (old_version_interface.clientConnected())
-    {
-      break;
-    }
-    std::this_thread::sleep_for(wait_period);
-    time_done += wait_period;
-  }
-  ASSERT_TRUE(old_version_interface.clientConnected());
+  waitFor([&old_version_interface]() { return old_version_interface.clientConnected(); },
+          std::chrono::milliseconds(1000));
 
   vector6d_t viscous_scale = { 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 };
   vector6d_t coulomb_scale = { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 };

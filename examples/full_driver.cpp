@@ -138,7 +138,8 @@ int main(int argc, char* argv[])
                                                             RobotReceiveTimeout::millisec(100));
     if (!ret)
     {
-      URCL_LOG_ERROR("The connection timed out. Is the robot in remote control or is the connection over WIFI?");
+      URCL_LOG_ERROR("Could not send joint command. Make sure that the robot is in remote control mode and connected "
+                     "with a network cable.");
       return 1;
     }
     URCL_LOG_DEBUG("data_pkg:\n%s", data_pkg.toString().c_str());

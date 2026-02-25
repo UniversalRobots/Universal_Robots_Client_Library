@@ -508,12 +508,14 @@ TEST_F(ScriptReaderTest, TestDirectTorquePopupOnOldVersion)
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.22.0");
   std::string processed_script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_NE(processed_script.find("Torque control is only supported from software 5.23.0 and upwards."),
+  EXPECT_NE(processed_script.find("popup(\"Torque control is only supported from software 5.23.0 and upwards.\", "
+                                  "error=True, blocking=True)"),
             std::string::npos);
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.10.0");
   processed_script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_NE(processed_script.find("Torque control is only supported from software 10.11.0 and upwards."),
+  EXPECT_NE(processed_script.find("popup(\"Torque control is only supported from software 10.11.0 and upwards.\", "
+                                  "error=True, blocking=True)"),
             std::string::npos);
 }
 
