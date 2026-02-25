@@ -168,6 +168,15 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set the TCP offset
+   *
+   * \param offset TCP offset as [x, y, z, rx, ry, rz] given in the flange coordinate system.
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setTcpOffset(const vector6d_t& offset);
+
+  /*!
    * \brief Set friction compensation for the torque_command. If true the torque command will compensate for friction,
    * if false it will not.
    *
@@ -238,6 +247,7 @@ private:
     SET_FRICTION_COMPENSATION = 7,  ///< Set friction compensation
     FT_RTDE_INPUT_ENABLE = 8,       ///< Enable FT RTDE input
     SET_GRAVITY = 9,                ///< Set gravity vector
+    SET_TCP_OFFSET = 10,            ///< Set TCP offset
   };
 
   /*!
@@ -259,7 +269,7 @@ private:
   bool robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
                                          const VersionInformation& min_polyscopeX, const std::string& command_name);
 
-  bool client_connected_;
+  std::atomic<bool> client_connected_;
   static const int MAX_MESSAGE_LENGTH = 28;
 
   std::function<void(ToolContactResult)> handle_tool_contact_result_;

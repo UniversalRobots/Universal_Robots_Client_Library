@@ -591,6 +591,19 @@ bool UrDriver::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
   }
 }
 
+bool UrDriver::setTcpOffset(const vector6d_t& tcp_offset)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setTcpOffset(tcp_offset);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set TCP offset.");
+    return false;
+  }
+}
+
 bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;
