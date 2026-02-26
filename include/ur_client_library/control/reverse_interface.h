@@ -194,6 +194,19 @@ public:
     return client_fd_ != INVALID_SOCKET;
   }
 
+  /*!
+   * \brief Get the port number the server is bound to.
+   *
+   * If port number 0 is passed during initialization, the server will bind to a random free port.
+   * In this case, this function can be used to get the actual port number the server is bound to.
+   *
+   * \returns The port number the server is bound to.
+   */
+  int getPort() const
+  {
+    return server_.getPort();
+  }
+
 protected:
   virtual void connectionCallback(const socket_t filedescriptor);
 

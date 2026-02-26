@@ -66,7 +66,7 @@ public:
   std::atomic<bool> connected = false;
 };
 
-class ReverseIntefaceTest : public ::testing::Test
+class ReverseInterfaceTest : public ::testing::Test
 {
 protected:
   class Client : public comm::TCPSocket
@@ -182,10 +182,11 @@ protected:
   void SetUp()
   {
     control::ReverseInterfaceConfig config;
-    config.port = 50001;
-    config.handle_program_state = std::bind(&ReverseIntefaceTest::handleProgramState, this, std::placeholders::_1);
+    config.port = 0;
+    config.handle_program_state = std::bind(&ReverseInterfaceTest::handleProgramState, this, std::placeholders::_1);
     reverse_interface_.reset(new TestableReverseInterface(config));
-    client_.reset(new Client(50001));
+    test_port_ = reverse_interface_->getPort();
+    client_.reset(new Client(test_port_));
     std::unique_lock<std::mutex> lk(g_connection_mutex);
     g_connection_condition.wait_for(lk, std::chrono::seconds(1),
                                     [&]() { return reverse_interface_->connected.load(); });
@@ -234,6 +235,7 @@ protected:
 
   std::unique_ptr<TestableReverseInterface> reverse_interface_;
   std::unique_ptr<Client> client_;
+  int test_port_;
 
 private:
   std::atomic<bool> program_state_ = ATOMIC_VAR_INIT(false);
@@ -242,7 +244,7 @@ private:
   std::mutex program_running_mutex_;
 };
 
-TEST_F(ReverseIntefaceTest, handle_program_state)
+TEST_F(ReverseInterfaceTest, handle_program_state)
 {
   // Test that handle program state is called when the client connects to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -252,7 +254,7 @@ TEST_F(ReverseIntefaceTest, handle_program_state)
   EXPECT_TRUE(waitForProgramState(1000, false));
 }
 
-TEST_F(ReverseIntefaceTest, write_positions)
+TEST_F(ReverseInterfaceTest, write_positions)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -269,7 +271,7 @@ TEST_F(ReverseIntefaceTest, write_positions)
   EXPECT_EQ(written_positions[5], ((double)received_positions[5]) / reverse_interface_->MULT_JOINTSTATE);
 }
 
-TEST_F(ReverseIntefaceTest, write_trajectory_control_message)
+TEST_F(ReverseInterfaceTest, write_trajectory_control_message)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -293,7 +295,7 @@ TEST_F(ReverseIntefaceTest, write_trajectory_control_message)
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
 }
 
-TEST_F(ReverseIntefaceTest, write_trajectory_point_number)
+TEST_F(ReverseInterfaceTest, write_trajectory_point_number)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -306,7 +308,7 @@ TEST_F(ReverseIntefaceTest, write_trajectory_point_number)
   EXPECT_EQ(written_point_number, received_point_number);
 }
 
-TEST_F(ReverseIntefaceTest, control_mode_is_forward)
+TEST_F(ReverseInterfaceTest, control_mode_is_forward)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -319,7 +321,7 @@ TEST_F(ReverseIntefaceTest, control_mode_is_forward)
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 }
 
-TEST_F(ReverseIntefaceTest, remaining_message_points_are_zeros)
+TEST_F(ReverseInterfaceTest, remaining_message_points_are_zeros)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -336,7 +338,7 @@ TEST_F(ReverseIntefaceTest, remaining_message_points_are_zeros)
   EXPECT_EQ(0, received_pos[5]);
 }
 
-TEST_F(ReverseIntefaceTest, read_timeout)
+TEST_F(ReverseInterfaceTest, read_timeout)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -365,7 +367,7 @@ TEST_F(ReverseIntefaceTest, read_timeout)
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
-TEST_F(ReverseIntefaceTest, default_read_timeout)
+TEST_F(ReverseInterfaceTest, default_read_timeout)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -392,7 +394,7 @@ TEST_F(ReverseIntefaceTest, default_read_timeout)
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
-TEST_F(ReverseIntefaceTest, write_control_mode)
+TEST_F(ReverseInterfaceTest, write_control_mode)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -451,7 +453,7 @@ TEST_F(ReverseIntefaceTest, write_control_mode)
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
 }
 
-TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
+TEST_F(ReverseInterfaceTest, write_freedrive_control_message)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -475,7 +477,7 @@ TEST_F(ReverseIntefaceTest, write_freedrive_control_message)
   EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
 }
 
-TEST_F(ReverseIntefaceTest, deprecated_set_keep_alive_count)
+TEST_F(ReverseInterfaceTest, deprecated_set_keep_alive_count)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -502,7 +504,7 @@ TEST_F(ReverseIntefaceTest, deprecated_set_keep_alive_count)
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 }
 
-TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
+TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
 {
   // Wait for the client to connect to the server
   EXPECT_TRUE(waitForProgramState(1000, true));
@@ -533,7 +535,7 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
   // Unregister 1. 2 should still be called
   disconnect_called_1 = false;
   disconnect_called_2 = false;
-  client_.reset(new Client(50001));
+  client_.reset(new Client(test_port_));
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_1);
   client_->close();
@@ -545,7 +547,7 @@ TEST_F(ReverseIntefaceTest, disconnected_callbacks_are_called)
   // Unregister both. None should be called
   disconnect_called_1 = false;
   disconnect_called_2 = false;
-  client_.reset(new Client(50001));
+  client_.reset(new Client(test_port_));
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);
   client_->close();
