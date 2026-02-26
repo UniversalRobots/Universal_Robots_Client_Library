@@ -27,7 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/script_command_interface.h>
-#include <endian/portable_endian.h>
+#include <ur_client_library/portable_endian.h>
 #include <math.h>
 
 namespace urcl
