@@ -43,7 +43,6 @@ class TestableReverseInterface : public control::ReverseInterface
 public:
   TestableReverseInterface(const control::ReverseInterfaceConfig& config) : control::ReverseInterface(config)
   {
-    URCL_LOG_DEBUG("Created TestableReverseInterface");
   }
 
   virtual void connectionCallback(const socket_t filedescriptor)
@@ -560,7 +559,7 @@ TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
-  urcl::setLogLevel(LogLevel::DEBUG);
+  urcl::setLogLevel(LogLevel::INFO);
 
   return RUN_ALL_TESTS();
 }
