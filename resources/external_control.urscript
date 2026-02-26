@@ -831,13 +831,69 @@ thread script_commands():
   end
 end
 
+###
+# @brief Attempts to open a socket connection multiple times until success or max attempts are reached.
+#
+# Tries to establish a TCP socket connection to the specified host and port using the provided names.
+# Between attempts, the function waits for a fixed duration (dt). If a connection is established
+# before reaching the maximum number of attempts, the function returns True, otherwise it returns False.
+#
+# @param host           string   The target server IP or hostname to connect to.
+# @param port           number   The TCP port number on the server.
+# @param name           string   The name used to identify the socket in URScript.
+# @param max_attempts   number   Maximum number of connection attempts (default: 5).
+# @param dt             number   Delay in seconds between attempts (default: 0.2 s).
+#
+# @returns bool True if the socket was successfully opened, False otherwise.
+###
+def connect_socket_with_retry(host, port, name, max_attempts=5, dt=0.2):
+  attempt = 0
+  while attempt < max_attempts:
+    if socket_open(host, port, name):
+      return True
+    end
+    sleep(dt)
+    attempt = attempt + 1
+  end
+  return False
+end
+
 # HEADER_END
 
 # NODE_CONTROL_LOOP_BEGINS
-socket_open("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
-socket_open("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
-# This socket should be opened last as it tells the driver when it has control over the robot
-socket_open("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
+
+# Attempt to establish the three required socket connections, if at least one socket is still disconnected, 
+# a popup is shown and the loop continues until all three flags are True.
+
+traj_flag = False
+com_flag = False
+rev_flag = False
+
+while not (traj_flag and com_flag and rev_flag):
+  if not traj_flag: 
+    traj_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
+  end
+
+  if traj_flag and not com_flag: 
+    com_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
+  end
+
+  if traj_flag and com_flag and not rev_flag:
+    rev_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
+  end
+
+  if not (traj_flag and com_flag and rev_flag):
+    popup(
+      str_cat(
+        str_cat("Trajectory socket ({{TRAJECTORY_SERVER_PORT_REPLACE}}) connected: ", traj_flag),
+        str_cat(
+          str_cat("<br/>Script command socket ({{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}) connected: ", com_flag),
+          str_cat(
+            str_cat("<br/>Reverse socket ({{SERVER_PORT_REPLACE}}) connected: ", rev_flag),
+            "<br/><br/>Please check that the external control end at {{SERVER_IP_REPLACE}} is running correctly. Press 'Continue' to retry."))),
+      title="Error connecting to remote", blocking=True, error=True)
+  end
+end
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
