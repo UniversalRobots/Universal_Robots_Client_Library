@@ -427,8 +427,8 @@ TEST_F(ScriptReaderTest, DataVariantOperators)
   EXPECT_THROW((void)(data["bool1"] < data["bool2"]), std::invalid_argument);
   EXPECT_THROW((void)(data["str1"] > data["str2"]), std::invalid_argument);
   EXPECT_THROW((void)(data["bool1"] > data["bool2"]), std::invalid_argument);
-  EXPECT_THROW(data["str1"] == data["bool1"], std::invalid_argument);
-  EXPECT_THROW(data["double1"] == data["str1"], std::invalid_argument);
+  EXPECT_THROW((void)(data["str1"] == data["bool1"]), std::invalid_argument);
+  EXPECT_THROW((void)(data["double1"] == data["str1"]), std::invalid_argument);
 }
 
 TEST_F(ScriptReaderTest, Example)

@@ -136,6 +136,42 @@ TEST(bin_parser, parse_array)
   }
 }
 
+TEST(bin_parser, parse_vector6int32_signed)
+{
+  // Big-endian 6 x int32_t: -1, -256, 255, 0x7fffffff, -0x80000000, 42
+  uint8_t buffer[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+                       0x7f, 0xff, 0xff, 0xff, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  vector6int32_t expected = { -1, -256, 255, 2147483647, static_cast<int32_t>(0x80000000u), 42 };
+  vector6int32_t parsed;
+  bp.parse(parsed);
+
+  for (size_t i = 0; i < expected.size(); ++i)
+  {
+    EXPECT_EQ(expected[i], parsed[i]) << "at index " << i;
+  }
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, parse_vector6uint32_unsigned)
+{
+  // Big-endian 6 x uint32_t: 0, 1, 255, 0xffffffff, 0x80000000, 0x7fffffff
+  uint8_t buffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xff,
+                       0xff, 0xff, 0xff, 0xff, 0x80, 0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xff };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  vector6uint32_t expected = { 0u, 1u, 255u, 4294967295u, 2147483648u, 2147483647u };
+  vector6uint32_t parsed;
+  bp.parse(parsed);
+
+  for (size_t i = 0; i < expected.size(); ++i)
+  {
+    EXPECT_EQ(expected[i], parsed[i]) << "at index " << i;
+  }
+  EXPECT_TRUE(bp.empty());
+}
+
 TEST(bin_parser, parse_data_types)
 {
   // Parse float value
@@ -148,15 +184,26 @@ TEST(bin_parser, parse_data_types)
 
   EXPECT_EQ(expected_float, parsed_float);
 
-  // Parse double value
-  uint8_t buffer_double[] = { 0x41, 0xb2, 0xb8, 0x52, 0xcc, 0x55, 0x00, 0x00 };
+  // Parse float value from buffer (float overload reads only 4 bytes; remaining bytes stay in buffer)
+  uint8_t buffer_float_4bytes[] = { 0x41, 0xb2, 0xb8, 0x52, 0xcc, 0x55, 0x00, 0x00 };
+  comm::BinParser bp_float_4bytes(buffer_float_4bytes, sizeof(buffer_float_4bytes));
+
+  float expected_float_4bytes = 22.34f;
+  float parsed_float_4bytes;
+  bp_float_4bytes.parse(parsed_float_4bytes);
+
+  EXPECT_EQ(expected_float_4bytes, parsed_float_4bytes);
+  EXPECT_FALSE(bp_float_4bytes.empty());  // 4 bytes remain unparsed
+
+  // Parse double value (2.0 has exact IEEE 754 big-endian representation)
+  uint8_t buffer_double[] = { 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   comm::BinParser bp_double(buffer_double, sizeof(buffer_double));
 
-  float expected_double = 22.34;
-  float parsed_double;
+  constexpr double kExpectedDouble = 2.0;
+  double parsed_double;
   bp_double.parse(parsed_double);
 
-  EXPECT_EQ(expected_double, parsed_double);
+  EXPECT_DOUBLE_EQ(kExpectedDouble, parsed_double);
 
   // Parse boolean
   uint8_t buffer_bool[] = { 0x01 };
@@ -293,6 +340,133 @@ TEST(bin_parser, bin_parser_parent)
   bp_parent.parseRemainder(parsed_message);
 
   EXPECT_EQ(expected_message, parsed_message);
+}
+
+// Tests for integer decoding (big-endian to host) - covers logic in bin_parser.cpp
+TEST(bin_parser, decode_uint8)
+{
+  uint8_t buffer[] = { 0xab };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  uint8_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, 0xab);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, decode_uint16)
+{
+  // Big-endian 0x1234
+  uint8_t buffer[] = { 0x12, 0x34 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  uint16_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, 0x1234u);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, decode_uint32)
+{
+  // Big-endian 0x12345678
+  uint8_t buffer[] = { 0x12, 0x34, 0x56, 0x78 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  uint32_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, 0x12345678u);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, decode_uint64)
+{
+  // Big-endian 0x123456789abcdef0
+  uint8_t buffer[] = { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  uint64_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, 0x123456789abcdef0ULL);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, decode_int16)
+{
+  // Big-endian -1 (0xffff)
+  uint8_t buffer[] = { 0xff, 0xff };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  int16_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, -1);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, decode_int64)
+{
+  // Big-endian -1
+  uint8_t buffer[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  int64_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, -1);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, peek_does_not_advance)
+{
+  uint8_t buffer[] = { 0x12, 0x34, 0x56, 0x78 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  uint32_t a = bp.peek<uint32_t>();
+  uint32_t b = bp.peek<uint32_t>();
+  EXPECT_EQ(a, 0x12345678u);
+  EXPECT_EQ(b, 0x12345678u);
+
+  uint32_t c;
+  bp.parse(c);
+  EXPECT_EQ(c, 0x12345678u);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, parse_string_with_length_prefix)
+{
+  // Length 5, then "hello"
+  uint8_t buffer[] = { 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  std::string s;
+  bp.parse(s);
+  EXPECT_EQ(s, "hello");
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, parse_string_with_length_prefix_empty)
+{
+  uint8_t buffer[] = { 0x00 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  std::string s;
+  bp.parse(s);
+  EXPECT_TRUE(s.empty());
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, parse_bool_false)
+{
+  uint8_t buffer[] = { 0x00 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+  bool val;
+  bp.parse(val);
+  EXPECT_FALSE(val);
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, peek_throws_when_past_end)
+{
+  uint8_t buffer[] = { 0x12, 0x34 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  EXPECT_THROW(bp.peek<uint32_t>(), UrException);
+  uint16_t val;
+  bp.parse(val);
+  EXPECT_EQ(val, 0x1234u);
+  EXPECT_THROW(bp.peek<uint16_t>(), UrException);
 }
 
 int main(int argc, char* argv[])

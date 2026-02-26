@@ -1,0 +1,32 @@
+name: macOS build and tests
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '38 2 * * *'
+
+jobs:
+  mac-build:
+    name: macOS (${{ matrix.arch }})
+    timeout-minutes: 30
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: configure
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
+      - name: build
+        run: cmake --build build
+      - name: test
+        run: cd build && ctest --output-on-failure
