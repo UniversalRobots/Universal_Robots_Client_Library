@@ -205,19 +205,29 @@ TEST(primary_parser, parse_calibration_data)
   }
 }
 
+TEST(primary_parser, parse_robot_state_with_single_parser)
+{
+  unsigned char raw_data[sizeof(ROBOT_STATE)];
+  memcpy(raw_data, ROBOT_STATE, sizeof(ROBOT_STATE));
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::unique_ptr<primary_interface::PrimaryPackage> product;
+  primary_interface::PrimaryParser parser;
+  ASSERT_FALSE(parser.parse(bp, product));
+};
+
 TEST(primary_parser, parse_version_message)
 {
   unsigned char raw_data[sizeof(VERSION_MESSAGE)];
   memcpy(raw_data, VERSION_MESSAGE, sizeof(VERSION_MESSAGE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
-  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  std::unique_ptr<primary_interface::PrimaryPackage> product;
   primary_interface::PrimaryParser parser;
-  ASSERT_TRUE(parser.parse(bp, products));
+  ASSERT_TRUE(parser.parse(bp, product));
 
-  EXPECT_EQ(products.size(), 1);
-
-  if (primary_interface::VersionMessage* data = dynamic_cast<primary_interface::VersionMessage*>(products[0].get()))
+  EXPECT_NE(product, nullptr);
+  if (primary_interface::VersionMessage* data = dynamic_cast<primary_interface::VersionMessage*>(product.get()))
   {
     EXPECT_EQ(data->major_version_, 5);
     EXPECT_EQ(data->minor_version_, 24);

@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: start ursim
         run: |
-          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
         env:
           DOCKER_RUN_OPTS: --network ursim_net
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
@@ -64,6 +64,7 @@ jobs:
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
+        id: build
         run: cmake --build build --config Debug
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts
@@ -75,7 +76,7 @@ jobs:
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -83,10 +84,13 @@ jobs:
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: cd build && gcovr -r .. --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true

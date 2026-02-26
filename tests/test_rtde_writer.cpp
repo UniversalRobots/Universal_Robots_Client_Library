@@ -212,6 +212,15 @@ TEST_F(RTDEWriterTest, send_standard_digital_output)
   // Changing pins above 7, should return false.
   pin = 8;
   EXPECT_FALSE(writer_->sendStandardDigitalOutput(pin, send_pin_value));
+
+  // Set pin to value false
+  pin = 2;
+  EXPECT_TRUE(writer_->sendStandardDigitalOutput(pin, false));
+  waitForMessageCallback(1000);
+  received_pin_value = std::get<uint8_t>(parsed_data_["standard_digital_output"]) != 0;
+  received_standard_digital_output_mask = std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]);
+  EXPECT_EQ(received_pin_value, false);
+  EXPECT_EQ(expected_standard_digital_output_mask, received_standard_digital_output_mask);
 }
 
 TEST_F(RTDEWriterTest, send_configurable_digital_output)
@@ -227,14 +236,25 @@ TEST_F(RTDEWriterTest, send_configurable_digital_output)
   ASSERT_TRUE(dataFieldExist("configurable_digital_output_mask"));
 
   bool received_pin_value = std::get<uint8_t>(parsed_data_["configurable_digital_output"]) != 0;
-  uint8_t received_standard_digital_output_mask = std::get<uint8_t>(parsed_data_["configurable_digital_output_mask"]);
+  uint8_t received_configurable_digital_output_mask = std::get<uint8_t>(parsed_data_["configurable_digital_output_"
+                                                                                     "mask"]);
 
   EXPECT_EQ(send_pin_value, received_pin_value);
-  EXPECT_EQ(expected_configurable_digital_output_mask, received_standard_digital_output_mask);
+  EXPECT_EQ(expected_configurable_digital_output_mask, received_configurable_digital_output_mask);
 
   // Changing pins above 7, should return false.
   pin = 8;
-  EXPECT_FALSE(writer_->sendStandardDigitalOutput(pin, send_pin_value));
+  EXPECT_FALSE(writer_->sendConfigurableDigitalOutput(pin, send_pin_value));
+
+  // Set pin to value false
+  pin = 2;
+  expected_configurable_digital_output_mask = 0b0000100;
+  EXPECT_TRUE(writer_->sendConfigurableDigitalOutput(pin, false));
+  waitForMessageCallback(1000);
+  received_pin_value = std::get<uint8_t>(parsed_data_["configurable_digital_output"]) != 0;
+  received_configurable_digital_output_mask = std::get<uint8_t>(parsed_data_["configurable_digital_output_mask"]);
+  EXPECT_EQ(received_pin_value, false);
+  EXPECT_EQ(expected_configurable_digital_output_mask, received_configurable_digital_output_mask);
 }
 
 TEST_F(RTDEWriterTest, send_tool_digital_output)
@@ -258,12 +278,18 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
   // Changing pins above 1, should return false.
   pin = 2;
   EXPECT_FALSE(writer_->sendToolDigitalOutput(pin, send_pin_value));
+  // Set pin to value false
+  pin = 0;
+  EXPECT_TRUE(writer_->sendToolDigitalOutput(pin, false));
+  waitForMessageCallback(1000);
+  received_pin_value = std::get<uint8_t>(parsed_data_["tool_digital_output"]) != 0;
+  received_tool_digital_output_mask = std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]);
+  EXPECT_EQ(received_pin_value, false);
+  EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
 }
 
 TEST_F(RTDEWriterTest, send_standard_analog_output_unknown_domain)
 {
-  waitForMessageCallback(1000);
-
   uint8_t expected_standard_analog_output_mask = 1;
 
   uint8_t pin = 0;
@@ -458,6 +484,50 @@ TEST_F(RTDEWriterTest, send_external_force_torque)
   EXPECT_EQ(send_external_force_torque[3], received_external_force_torque[3]);
   EXPECT_EQ(send_external_force_torque[4], received_external_force_torque[4]);
   EXPECT_EQ(send_external_force_torque[5], received_external_force_torque[5]);
+}
+
+TEST_F(RTDEWriterTest, send_data_package)
+{
+  const uint32_t send_speed_slider_mask = 1;
+  const double send_speed_slider_fraction = 0.7;
+  const bool standard_digital_output_value = true;
+  const uint8_t standard_digital_output_mask = 0b00000001;  // pin 1
+
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", send_speed_slider_fraction));
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", send_speed_slider_mask));
+  ASSERT_TRUE(
+      data_package.setData("standard_digital_output", static_cast<uint8_t>(standard_digital_output_value ? 255 : 0)));
+  ASSERT_TRUE(data_package.setData("standard_digital_output_mask", standard_digital_output_mask));
+
+  EXPECT_TRUE(writer_->sendPackage(data_package));
+
+  waitForMessageCallback(1000);
+
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  ASSERT_TRUE(dataFieldExist("speed_slider_mask"));
+  ASSERT_TRUE(dataFieldExist("standard_digital_output"));
+  ASSERT_TRUE(dataFieldExist("standard_digital_output_mask"));
+
+  double received_speed_slider_fraction = std::get<double>(parsed_data_["speed_slider_fraction"]);
+  uint32_t received_speed_slider_mask = std::get<uint32_t>(parsed_data_["speed_slider_mask"]);
+  bool received_standard_digital_output_value = std::get<uint8_t>(parsed_data_["standard_digital_output"]) != 0;
+  uint8_t received_standard_digital_output_mask = std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]);
+
+  EXPECT_EQ(send_speed_slider_fraction, received_speed_slider_fraction);
+  EXPECT_EQ(send_speed_slider_mask, received_speed_slider_mask);
+  EXPECT_EQ(standard_digital_output_value, received_standard_digital_output_value);
+  EXPECT_EQ(standard_digital_output_mask, received_standard_digital_output_mask);
+}
+
+TEST_F(RTDEWriterTest, init_while_running_throws)
+{
+  EXPECT_THROW(writer_->init(1), UrException);
+}
+
+TEST_F(RTDEWriterTest, set_recipe_while_running_throws)
+{
+  EXPECT_THROW(writer_->setInputRecipe(input_recipe_), UrException);
 }
 
 int main(int argc, char* argv[])

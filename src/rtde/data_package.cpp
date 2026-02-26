@@ -462,13 +462,16 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
 
 void rtde_interface::DataPackage::initEmpty()
 {
+  data_.clear();
+  data_.reserve(recipe_.size());
   for (auto& item : recipe_)
   {
-    if (g_type_list.find(item) != g_type_list.end())
+    if (g_type_list.find(item) == g_type_list.end())
     {
-      _rtde_type_variant entry = g_type_list[item];
-      data_[item] = entry;
+      throw RTDEInvalidKeyException("Unknown item in recipe: " + item);
     }
+    _rtde_type_variant entry = g_type_list[item];
+    data_.push_back({ item, entry });
   }
 }
 
@@ -478,18 +481,9 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
   {
     bp.parse(recipe_id_);
   }
-  for (auto& item : recipe_)
+  for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    if (g_type_list.find(item) != g_type_list.end())
-    {
-      _rtde_type_variant entry = g_type_list[item];
-      std::visit([&bp](auto&& arg) { bp.parse(arg); }, entry);
-      data_[item] = entry;
-    }
-    else
-    {
-      return false;
-    }
+    std::visit([&bp](auto&& arg) { bp.parse(arg); }, data_[i].second);
   }
   return true;
 }
@@ -500,7 +494,14 @@ std::string rtde_interface::DataPackage::toString() const
   for (auto& item : data_)
   {
     ss << item.first << ": ";
-    std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+    if (std::holds_alternative<uint8_t>(item.second))
+    {
+      ss << int(std::get<uint8_t>(item.second));
+    }
+    else
+    {
+      std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+    }
     ss << std::endl;
   }
   return ss.str();
@@ -517,11 +518,11 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
   size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
-  for (auto& item : recipe_)
+  for (size_t i = 0; i < data_.size(); ++i)
   {
     size += std::visit(
         [&buffer, &size](auto&& arg) -> size_t { return comm::PackageSerializer::serialize(buffer + size, arg); },
-        data_[item]);
+        data_[i].second);
   }
 
   return size;

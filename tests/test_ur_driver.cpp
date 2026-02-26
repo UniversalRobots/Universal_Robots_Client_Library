@@ -34,6 +34,7 @@
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
 #include <algorithm>
+#include <thread>
 #include "test_utils.h"
 
 using namespace urcl;
@@ -217,66 +218,62 @@ TEST_F(UrDriverTest, stop_robot_control)
 
 TEST_F(UrDriverTest, target_outside_limits_servoj)
 {
-  g_my_robot->stopConsumingRTDEData();
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  g_my_robot->readDataPackage(data_pkg);
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
 
   urcl::vector6d_t joint_positions_before;
-  ASSERT_TRUE(data_pkg->getData("actual_q", joint_positions_before));
+  ASSERT_TRUE(data_pkg.getData("actual_q", joint_positions_before));
 
   // Create physically unfeasible target
   urcl::vector6d_t joint_target = joint_positions_before;
   joint_target[5] -= 2.5;
 
   // Send unfeasible targets to the robot
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   g_my_robot->getUrDriver()->writeJointCommand(joint_target, comm::ControlMode::MODE_SERVOJ,
                                                RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   urcl::vector6d_t joint_positions;
-  ASSERT_TRUE(data_pkg->getData("actual_q", joint_positions));
+  ASSERT_TRUE(data_pkg.getData("actual_q", joint_positions));
   for (unsigned int i = 0; i < 6; ++i)
   {
     EXPECT_FLOAT_EQ(joint_positions_before[i], joint_positions[i]);
   }
 
   // Make sure the program is stopped
-  g_my_robot->startConsumingRTDEData();
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
 
 TEST_F(UrDriverTest, target_outside_limits_pose)
 {
-  g_my_robot->stopConsumingRTDEData();
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  g_my_robot->readDataPackage(data_pkg);
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
 
   urcl::vector6d_t tcp_pose_before;
-  ASSERT_TRUE(data_pkg->getData("actual_TCP_pose", tcp_pose_before));
+  ASSERT_TRUE(data_pkg.getData("actual_TCP_pose", tcp_pose_before));
 
   // Create physically unfeasible target
   urcl::vector6d_t tcp_target = tcp_pose_before;
   tcp_target[2] += 0.3;
 
   // Send unfeasible targets to the robot
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   g_my_robot->getUrDriver()->writeJointCommand(tcp_target, comm::ControlMode::MODE_POSE,
                                                RobotReceiveTimeout::millisec(200));
 
   // Ensure that the robot didn't move
-  g_my_robot->readDataPackage(data_pkg);
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
   urcl::vector6d_t tcp_pose;
-  ASSERT_TRUE(data_pkg->getData("actual_TCP_pose", tcp_pose));
+  ASSERT_TRUE(data_pkg.getData("actual_TCP_pose", tcp_pose));
   for (unsigned int i = 0; i < 6; ++i)
   {
     EXPECT_FLOAT_EQ(tcp_pose_before[i], tcp_pose[i]);
   }
 
   // Make sure the program is stopped
-  g_my_robot->startConsumingRTDEData();
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
 }
@@ -299,7 +296,6 @@ TEST_F(UrDriverTest, send_robot_program_retry_on_failure)
 
 TEST_F(UrDriverTest, reset_rtde_client)
 {
-  g_my_robot->stopConsumingRTDEData();
   double target_frequency = 50;
   g_my_robot->getUrDriver()->resetRTDEClient(OUTPUT_RECIPE, INPUT_RECIPE, target_frequency);
   ASSERT_EQ(g_my_robot->getUrDriver()->getControlFrequency(), target_frequency);
@@ -334,6 +330,46 @@ TEST_F(UrDriverTest, read_error_code)
     EXPECT_TRUE(g_my_robot->getDashboardClient()->commandCloseSafetyPopup());
   }
   EXPECT_NO_THROW(g_my_robot->getPrimaryClient()->commandUnlockProtectiveStop());
+}
+
+TEST_F(UrDriverTest, set_tcp_offset)
+{
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset({ 0, 0, 0, 0, 0, 0 }));
+
+  vector6d_t tcp_offset = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
+
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  vector6d_t tcp_offset_received;
+  for (int i = 0; i < 10; ++i)
+  {
+    ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
+
+    data_pkg.getData("tcp_offset", tcp_offset_received);
+    if (tcp_offset_received == tcp_offset)
+    {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  g_my_robot->getUrDriver()->getDataPackage(data_pkg);
+  for (unsigned int i = 0; i < tcp_offset.size(); ++i)
+  {
+    EXPECT_DOUBLE_EQ(tcp_offset_received[i], tcp_offset[i]);
+  }
+
+  // Stop program on robot
+  g_my_robot->getUrDriver()->stopControl();
+  g_my_robot->waitForProgramNotRunning(1000);
+
+  // TODO (feex): We cannot see from the outside whether the script command interface is connected. There is a race
+  // condition between the reverse interface disconnection callback and the script_command_interface disconnect
+  // callback. For now, we will just have to wait a bit to ensure that the script command interface
+  // is disconnected before trying to use the script command interface.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  // Check that we can't set TCP offset when the program isn't running
+  ASSERT_FALSE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
