@@ -480,7 +480,7 @@ DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& 
       file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return put(e, f); });
 }
 
-DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& filename,
+DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& program_name,
                                                                const std::string& save_path)
 {
   if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
@@ -488,7 +488,18 @@ DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string
     throw NotImplementedException("commandDownloadProgram is not implemented for Robot API version < 3.1.4. Please "
                                   "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
   }
-  auto response = get("/programs/v1/" + filename, false);  // The json response is pretty long. Don't print it.
+  if (program_name.size() == 0 || save_path.size() == 0)
+  {
+    std::string error = "Both program_name and save_path parameters should be populated.";
+    error += program_name.size() == 0 ? " Program name is empty." : "";
+    error += save_path.size() == 0 ? " Save path is empty." : "";
+    URCL_LOG_ERROR(error.c_str());
+    DashboardResponse response;
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+  auto response = get("/programs/v1/" + program_name, false);  // The json response is pretty long. Don't print it.
   if (response.ok)
   {
     std::ofstream save_file(save_path, std::ios_base::out);
