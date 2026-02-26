@@ -865,8 +865,7 @@ traj_flag = False
 com_flag = False
 rev_flag = False
 
-while True:
-
+while not (traj_flag and com_flag and rev_flag):
   if not traj_flag: 
     traj_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
   end
@@ -879,12 +878,17 @@ while True:
     rev_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
   end
 
-  if traj_flag and com_flag and rev_flag:
-    break
+  if not (traj_flag and com_flag and rev_flag):
+    popup(
+      str_cat(
+        str_cat("Trajectory socket ({{TRAJECTORY_SERVER_PORT_REPLACE}}) connected: ", traj_flag),
+        str_cat(
+          str_cat("<br/>Script command socket ({{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}) connected: ", com_flag),
+          str_cat(
+            str_cat("<br/>Reverse socket ({{SERVER_PORT_REPLACE}}) connected: ", rev_flag),
+            "<br/><br/>Please check that the external control end at {{SERVER_IP_REPLACE}} is running correctly. Press 'Continue' to retry."))),
+      title="Error connecting to remote", blocking=True, error=True)
   end
-
-  popup("Error connecting sockets", title="Socket error", blocking=True, error=True)
-
 end
 
 textmsg("Sockets connected correctly")
