@@ -28,7 +28,7 @@
 
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
-#include <endian/portable_endian.h>
+#include <ur_client_library/portable_endian.h>
 #include <math.h>
 #include <cstdint>
 #include <stdexcept>
