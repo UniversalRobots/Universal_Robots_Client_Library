@@ -79,8 +79,9 @@ endif()
 target_include_directories(urcl PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+)
+target_include_directories(urcl PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty>
-  $<INSTALL_INTERFACE:include/${PROJECT_NAME}/3rdparty>
 )
 
 find_package(Threads REQUIRED)
@@ -110,10 +111,6 @@ install(TARGETS urcl EXPORT urcl_targets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
-# Public headers include <endian/portable_endian.h>; install it for all platforms.
-install(DIRECTORY 3rdparty/endian/ DESTINATION include/${PROJECT_NAME}/3rdparty/endian
-  FILES_MATCHING PATTERN "*.h"
-)
 
 install(EXPORT urcl_targets
   DESTINATION lib/cmake/ur_client_library
