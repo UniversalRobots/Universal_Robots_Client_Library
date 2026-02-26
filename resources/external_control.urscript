@@ -883,7 +883,7 @@ while True:
     break
   end
 
-  popup("Error connecting sockets", "Socket error", False, True, True)
+  popup("Error connecting sockets", title="Socket error", blocking=True, error=True)
 
 end
 
