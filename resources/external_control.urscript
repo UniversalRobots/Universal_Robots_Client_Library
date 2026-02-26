@@ -891,8 +891,6 @@ while not (traj_flag and com_flag and rev_flag):
   end
 end
 
-textmsg("Sockets connected correctly")
-
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
 thread_trajectory = 0
