@@ -82,6 +82,22 @@ if (INTEGRATION_TESTS)
                   TEST_SUFFIX _headless
   )
 
+  # ExternalControlProgram tests
+  add_executable(external_control_program_tests_urcap test_external_control_program.cpp)
+  target_link_libraries(external_control_program_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      external_control_program_tests_urcap
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(external_control_program_tests_headless test_external_control_program.cpp)
+  target_link_libraries(external_control_program_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      external_control_program_tests_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true
+                  TEST_SUFFIX _headless
+  )
+
   # InstructionExecutor tests
   add_executable(instruction_executor_test_urcap test_instruction_executor.cpp)
   target_link_libraries(instruction_executor_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
