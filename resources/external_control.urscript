@@ -901,11 +901,6 @@ while not (traj_flag and com_flag and rev_flag):
       socket_close("script_command_socket")
       com_flag = False
     end
-
-    if rev_flag:
-      socket_close("reverse_socket")
-      rev_flag = False
-    end
   end
 end
 
