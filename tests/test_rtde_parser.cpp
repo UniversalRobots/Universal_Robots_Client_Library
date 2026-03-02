@@ -210,7 +210,7 @@ TEST(rtde_parser, data_package)
     data->getData("timestamp", timestamp);
     data->getData("target_speed_fraction", target_speed_fraction);
 
-    EXPECT_FLOAT_EQ(timestamp, 16412.2);
+    EXPECT_DOUBLE_EQ(timestamp, 16412.206);
     EXPECT_EQ(target_speed_fraction, 1);
   }
   else
@@ -271,10 +271,19 @@ TEST(rtde_parser, test_deprecated_parse_method)
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
   {
     comm::BinParser bp(raw_data, sizeof(raw_data));
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#endif
     parser.parse(bp, products);
-#pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
   }
 
   EXPECT_EQ(products.size(), 1);
@@ -285,7 +294,7 @@ TEST(rtde_parser, test_deprecated_parse_method)
     data->getData("timestamp", timestamp);
     data->getData("target_speed_fraction", target_speed_fraction);
 
-    EXPECT_FLOAT_EQ(timestamp, 16412.2);
+    EXPECT_DOUBLE_EQ(timestamp, 16412.206);
     EXPECT_EQ(target_speed_fraction, 1);
   }
   else

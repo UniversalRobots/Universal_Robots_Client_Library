@@ -117,7 +117,8 @@ bool DashboardClient::waitForReply(const std::string& command, const std::string
   return false;
 }
 
-bool DashboardClient::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
+bool DashboardClient::retryCommand(const std::string& requestCommand,
+                                   [[maybe_unused]] const std::string& requestExpectedResponse,
                                    const std::string& waitRequest, const std::string& waitExpectedResponse,
                                    const std::chrono::duration<double> timeout,
                                    const std::chrono::duration<double> retry_period)

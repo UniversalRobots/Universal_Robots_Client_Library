@@ -371,11 +371,12 @@ void ScriptCommandInterface::disconnectionCallback(const socket_t filedescriptor
   client_connected_ = false;
 }
 
-void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void ScriptCommandInterface::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer,
+                                             int nbytesrecv)
 {
   if (nbytesrecv == 4)
   {
-    int32_t* status = reinterpret_cast<int*>(buffer);
+    int32_t* status = reinterpret_cast<int32_t*>(buffer);
     URCL_LOG_DEBUG("Received message %d on Script command interface", be32toh(*status));
 
     if (handle_tool_contact_result_)

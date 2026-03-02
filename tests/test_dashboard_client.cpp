@@ -52,7 +52,8 @@ public:
   {
   }
 
-  bool connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time) override
+  bool connect([[maybe_unused]] const size_t max_num_tries,
+               [[maybe_unused]] const std::chrono::milliseconds reconnection_time) override
   {
     return true;  // Simulate a successful connection
   }
@@ -215,12 +216,13 @@ TEST_F(DashboardClientTest, log_and_getters)
   EXPECT_TRUE(dashboard_client_->connect());
   const auto impl = dashboard_client_->getImplPtr();
   EXPECT_CALL(*impl, commandAddToLog("Testing Log:")).WillOnce(testing::Return(SUCCESS_RESPONSE));
-  EXPECT_CALL(*impl, commandPolyscopeVersion()).WillOnce(testing::Return(DashboardResponse{ true, "5.6.0" }));
-  EXPECT_CALL(*impl, commandRobotMode()).WillOnce(testing::Return(DashboardResponse{ true, "Robotmode: POWER_OFF" }));
+  EXPECT_CALL(*impl, commandPolyscopeVersion()).WillOnce(testing::Return(DashboardResponse{ true, "5.6.0", {} }));
+  EXPECT_CALL(*impl, commandRobotMode())
+      .WillOnce(testing::Return(DashboardResponse{ true, "Robotmode: POWER_OFF", {} }));
   EXPECT_CALL(*impl, commandGetLoadedProgram())
-      .WillOnce(testing::Return(DashboardResponse{ true, "Loaded program: wait_program.urp" }));
+      .WillOnce(testing::Return(DashboardResponse{ true, "Loaded program: wait_program.urp", {} }));
   EXPECT_CALL(*impl, commandProgramState())
-      .WillOnce(testing::Return(DashboardResponse{ true, "STOPPED wait_program.urp" }));
+      .WillOnce(testing::Return(DashboardResponse{ true, "STOPPED wait_program.urp", {} }));
   EXPECT_CALL(*impl, commandSaveLog()).WillOnce(testing::Return(SUCCESS_RESPONSE));
 
   EXPECT_TRUE(dashboard_client_->commandAddToLog("Testing Log:"));
@@ -247,9 +249,9 @@ TEST_F(DashboardClientTest, version_specific_calls)
   EXPECT_TRUE(dashboard_client_->connect());
   const auto impl = dashboard_client_->getImplPtr();
   EXPECT_CALL(*impl, commandSafetyStatus())
-      .WillOnce(testing::Return(DashboardResponse{ true, "Safety status: NORMAL" }));
+      .WillOnce(testing::Return(DashboardResponse{ true, "Safety status: NORMAL", {} }));
   EXPECT_CALL(*impl, commandSetUserRole("PROGRAMMER")).WillOnce(testing::Return(SUCCESS_RESPONSE));
-  EXPECT_CALL(*impl, commandGetUserRole()).WillOnce(testing::Return(DashboardResponse{ true, "PROGRAMMER" }));
+  EXPECT_CALL(*impl, commandGetUserRole()).WillOnce(testing::Return(DashboardResponse{ true, "PROGRAMMER", {} }));
 
   std::string msg, user_role;
   EXPECT_TRUE(dashboard_client_->commandSafetyStatus(msg));
@@ -287,7 +289,7 @@ TEST_F(DashboardClientTest, operational_mode)
   const auto impl = dashboard_client_->getImplPtr();
 
   EXPECT_CALL(*impl, commandSetOperationalMode("AUTOMATIC")).WillOnce(testing::Return(SUCCESS_RESPONSE));
-  EXPECT_CALL(*impl, commandGetOperationalMode()).WillOnce(testing::Return(DashboardResponse{ true, "AUTOMATIC" }));
+  EXPECT_CALL(*impl, commandGetOperationalMode()).WillOnce(testing::Return(DashboardResponse{ true, "AUTOMATIC", {} }));
   EXPECT_CALL(*impl, commandClearOperationalMode()).WillOnce(testing::Return(SUCCESS_RESPONSE));
   EXPECT_CALL(*impl, commandIsInRemoteControl())
       .WillOnce(testing::Return(DashboardResponse{ true, "false", { { "remote_control", false } } }));
@@ -337,7 +339,7 @@ TEST_F(DashboardClientTest, set_receive_timeout)
 {
   timeval expected_tv;
   expected_tv.tv_sec = 30;
-  expected_tv.tv_usec = 0.0;
+  expected_tv.tv_usec = 0;
   dashboard_client_->setReceiveTimeout(expected_tv);
   EXPECT_TRUE(dashboard_client_->connect());
 

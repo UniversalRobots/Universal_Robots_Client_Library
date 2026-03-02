@@ -87,7 +87,7 @@ protected:
     connection_callback_ = true;
   }
 
-  void disconnectionCallback(const socket_t filedescriptor)
+  void disconnectionCallback([[maybe_unused]] const socket_t filedescriptor)
   {
     std::lock_guard<std::mutex> lk(disconnect_mutex_);
     client_fd_ = INVALID_SOCKET;
@@ -95,7 +95,7 @@ protected:
     disconnection_callback_ = true;
   }
 
-  void messageCallback(const socket_t filedescriptor, char* buffer)
+  void messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     message_ = std::string(buffer);
@@ -298,15 +298,15 @@ TEST_F(TCPServerTest, client_connections)
   // Test that we can connect multiple clients
   Client client1(port_);
   EXPECT_TRUE(waitForConnectionCallback());
-  int client1_fd = client_fd_;
+  socket_t client1_fd = client_fd_;
 
   Client client2(port_);
   EXPECT_TRUE(waitForConnectionCallback());
-  int client2_fd = client_fd_;
+  socket_t client2_fd = client_fd_;
 
   Client client3(port_);
   EXPECT_TRUE(waitForConnectionCallback());
-  int client3_fd = client_fd_;
+  socket_t client3_fd = client_fd_;
 
   // Test that the correct clients are disconnected on the server side.
   client1.close();

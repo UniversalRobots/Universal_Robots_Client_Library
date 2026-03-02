@@ -46,7 +46,7 @@ char getChar()
   {
     if (_kbhit())
     {
-      ch = _getch();
+      ch = static_cast<char>(_getch());
     }
   }
   return ch;

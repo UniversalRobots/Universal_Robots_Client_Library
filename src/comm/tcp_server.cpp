@@ -104,7 +104,7 @@ void TCPServer::shutdown()
   memset(&address, 0, sizeof(address));
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  address.sin_port = htons(port_);
+  address.sin_port = htons(static_cast<uint16_t>(port_));
 
   ::connect(shutdown_socket, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
 
@@ -130,7 +130,7 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
 
   // INADDR_ANY is a special constant that signalizes "ANY IFACE",
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  server_addr.sin_port = htons(port_);
+  server_addr.sin_port = htons(static_cast<uint16_t>(port_));
   int err = -1;
   size_t connection_counter = 0;
   do
@@ -139,7 +139,7 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
     if (err == -1)
     {
       std::ostringstream ss;
-      ss << "Failed to bind socket for port " << port_ << " to address. Reason: " << strerror(errno);
+      ss << "Failed to bind socket for port " << port_ << " to address. Reason: " << strerror_portable(errno);
 
       if (connection_counter++ < max_num_tries || max_num_tries == 0)
       {
@@ -174,7 +174,8 @@ void TCPServer::startListen()
   socklen_t len = sizeof(sin);
   if (getsockname(listen_fd_, (struct sockaddr*)&sin, &len) == -1)
   {
-    URCL_LOG_ERROR("getsockname() failed to get port number for listening socket: %s", strerror(errno));
+    URCL_LOG_ERROR("getsockname() failed to get port number for listening socket: %s",
+                   strerror_portable(errno).c_str());
   }
 
   else

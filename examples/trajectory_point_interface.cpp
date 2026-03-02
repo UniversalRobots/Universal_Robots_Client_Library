@@ -88,18 +88,20 @@ int main(int argc, char* argv[])
 
     // Trajectory execution
     g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                             points.size() * 2);
+                                                             static_cast<int>(points.size() * 2));
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], false, motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], false, static_cast<float>(motion_durations[i]),
+                                                      static_cast<float>(blend_radii[i]));
     }
 
     // Same motion, but parametrized with acceleration and velocity
     motion_durations = { 0.0, 0.0 };
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], false,
-                                                      motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(
+          points[i], static_cast<float>(accelerations[i]), static_cast<float>(velocities[i]), false,
+          static_cast<float>(motion_durations[i]), static_cast<float>(blend_radii[i]));
     }
 
     while (!g_trajectory_done)
@@ -125,19 +127,21 @@ int main(int argc, char* argv[])
 
     // Trajectory execution of the path that goes through the points twice.
     g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                             points.size() * 2);
+                                                             static_cast<int>(points.size() * 2));
     for (size_t i = 0; i < points.size(); i++)
     {
       // setting the cartesian parameter makes it interpret the 6d vector as a pose and use movel
-      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], true, motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], true, static_cast<float>(motion_durations[i]),
+                                                      static_cast<float>(blend_radii[i]));
     }
 
     // Same motion, but parametrized with acceleration and velocity
     motion_durations = { 0.0, 0.0 };
     for (size_t i = 0; i < points.size(); i++)
     {
-      g_my_robot->getUrDriver()->writeTrajectoryPoint(points[i], accelerations[i], velocities[i], true,
-                                                      motion_durations[i], blend_radii[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(
+          points[i], static_cast<float>(accelerations[i]), static_cast<float>(velocities[i]), true,
+          static_cast<float>(motion_durations[i]), static_cast<float>(blend_radii[i]));
     }
 
     while (!g_trajectory_done)
@@ -165,10 +169,11 @@ int main(int argc, char* argv[])
 
     // Trajectory execution
     g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                             positions.size());
+                                                             static_cast<int>(positions.size()));
     for (size_t i = 0; i < positions.size(); i++)
     {
-      g_my_robot->getUrDriver()->writeTrajectorySplinePoint(positions[i], velocities[i], motion_durations[i]);
+      g_my_robot->getUrDriver()->writeTrajectorySplinePoint(positions[i], velocities[i],
+                                                            static_cast<float>(motion_durations[i]));
     }
 
     while (!g_trajectory_done)
