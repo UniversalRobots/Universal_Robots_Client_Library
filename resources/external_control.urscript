@@ -850,6 +850,7 @@ def connect_socket_with_retry(host, port, name, max_attempts=5, dt=0.2):
   attempt = 0
   while attempt < max_attempts:
     if socket_open(host, port, name):
+      textmsg("Successfully connected to ", name)
       return True
     end
     sleep(dt)
@@ -864,21 +865,19 @@ end
 
 # Attempt to establish the three required socket connections, if at least one socket is still disconnected, 
 # a popup is shown and the loop continues until all three flags are True.
-
 traj_flag = False
 com_flag = False
 rev_flag = False
-
 while not (traj_flag and com_flag and rev_flag):
   if not traj_flag: 
     traj_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
   end
 
-  if traj_flag and not com_flag: 
+  if not com_flag: 
     com_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
   end
 
-  if traj_flag and com_flag and not rev_flag:
+  if not rev_flag:
     rev_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
   end
 
@@ -892,6 +891,21 @@ while not (traj_flag and com_flag and rev_flag):
             str_cat("<br/>Reverse socket ({{SERVER_PORT_REPLACE}}) connected: ", rev_flag),
             "<br/><br/>Please check that the external control end at {{SERVER_IP_REPLACE}} is running correctly. Press 'Continue' to retry."))),
       title="Error connecting to remote", blocking=True, error=True)
+
+    if traj_flag:
+      socket_close("trajectory_socket")
+      traj_flag = False
+    end
+
+    if com_flag:
+      socket_close("script_command_socket")
+      com_flag = False
+    end
+
+    if rev_flag:
+      socket_close("reverse_socket")
+      rev_flag = False
+    end
   end
 end
 
