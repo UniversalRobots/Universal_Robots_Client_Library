@@ -178,7 +178,7 @@ TEST(bin_parser, parse_data_types)
   uint8_t buffer_float[] = { 0x41, 0xb2, 0xb8, 0x52 };
   comm::BinParser bp_float(buffer_float, sizeof(buffer_float));
 
-  float expected_float = 22.34;
+  float expected_float = 22.34f;
   float parsed_float;
   bp_float.parse(parsed_float);
 

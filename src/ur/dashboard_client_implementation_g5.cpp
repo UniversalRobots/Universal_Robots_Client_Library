@@ -400,7 +400,8 @@ std::string DashboardClientImplG5::retryCommandString(const std::string& request
                     "' within the timeout. Last response was: " + response);
 }
 
-bool DashboardClientImplG5::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
+bool DashboardClientImplG5::retryCommand(const std::string& requestCommand,
+                                         [[maybe_unused]] const std::string& requestExpectedResponse,
                                          const std::string& waitRequest, const std::string& waitExpectedResponse,
                                          const std::chrono::duration<double> timeout,
                                          const std::chrono::duration<double> retry_period)
@@ -1192,20 +1193,20 @@ DashboardResponse DashboardClientImplG5::commandGetProgramList()
                                 polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandUploadProgram(const std::string& program_file_name)
+DashboardResponse DashboardClientImplG5::commandUploadProgram([[maybe_unused]] const std::string& program_file_name)
 {
   throw NotImplementedException("commandUploadProgram is not available for PolyScope " + polyscope_version_.toString() +
                                 ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandUpdateProgram(const std::string& program_file_name)
+DashboardResponse DashboardClientImplG5::commandUpdateProgram([[maybe_unused]] const std::string& program_file_name)
 {
   throw NotImplementedException("commandUpdateProgram is not available for PolyScope " + polyscope_version_.toString() +
                                 ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandDownloadProgram(const std::string& program_file_name,
-                                                                const std::string& destination_path)
+DashboardResponse DashboardClientImplG5::commandDownloadProgram([[maybe_unused]] const std::string& program_file_name,
+                                                                [[maybe_unused]] const std::string& destination_path)
 {
   throw NotImplementedException("commandDownloadProgram is not available for PolyScope " +
                                 polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");

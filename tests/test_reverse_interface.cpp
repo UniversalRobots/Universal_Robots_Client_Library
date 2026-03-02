@@ -484,10 +484,19 @@ TEST_F(ReverseInterfaceTest, deprecated_set_keep_alive_count)
 
   // Test that it works to set the keepalive count using the deprecated function
   int keep_alive_count = 10;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
   reverse_interface_->setKeepaliveCount(keep_alive_count);
-#pragma GCC diagnostic pop
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
   int32_t expected_read_timeout = 20 * keep_alive_count;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };

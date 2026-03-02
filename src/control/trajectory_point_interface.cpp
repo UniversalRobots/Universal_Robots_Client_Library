@@ -230,7 +230,7 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float goal_time,
                                                     const float blend_radius, const bool cartesian)
 {
-  return writeTrajectoryPoint(positions, 1.4, 1.05, goal_time, blend_radius, cartesian);
+  return writeTrajectoryPoint(positions, 1.4f, 1.05f, goal_time, blend_radius, cartesian);
 }
 
 bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
@@ -277,16 +277,18 @@ void TrajectoryPointInterface::disconnectionCallback(const socket_t filedescript
   URCL_LOG_DEBUG("Connection to trajectory interface dropped.");
   for (auto handler : disconnect_callbacks_)
   {
-    handler.function(filedescriptor);
+    // socket_t is UINT_PTR on Windows, so a narrowing cast is needed to match the callback signature
+    handler.function(static_cast<int>(filedescriptor));
   }
   client_fd_ = INVALID_SOCKET;
 }
 
-void TrajectoryPointInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void TrajectoryPointInterface::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer,
+                                               int nbytesrecv)
 {
   if (nbytesrecv == 4)
   {
-    int32_t* status = reinterpret_cast<int*>(buffer);
+    int32_t* status = reinterpret_cast<int32_t*>(buffer);
     URCL_LOG_DEBUG("Received message %d on TrajectoryPointInterface", be32toh(*status));
 
     if (!trajectory_end_callbacks_.empty())

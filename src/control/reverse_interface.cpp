@@ -95,9 +95,9 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
   {
     for (auto const& pos : *positions)
     {
-      int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-      val = htobe32(val);
-      b_pos += append(b_pos, val);
+      int32_t joint_val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
+      joint_val = htobe32(joint_val);
+      b_pos += append(b_pos, joint_val);
     }
   }
   else
@@ -250,11 +250,13 @@ void ReverseInterface::disconnectionCallback(const socket_t filedescriptor)
   }
   for (auto handler : disconnect_callbacks_)
   {
-    handler.function(filedescriptor);
+    // socket_t is UINT_PTR on Windows, so a narrowing cast is needed to match the callback signature
+    handler.function(static_cast<int>(filedescriptor));
   }
 }
 
-void ReverseInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void ReverseInterface::messageCallback([[maybe_unused]] const socket_t filedescriptor, [[maybe_unused]] char* buffer,
+                                       [[maybe_unused]] int nbytesrecv)
 {
   URCL_LOG_WARN("Message on ReverseInterface received. The reverse interface currently does not support any message "
                 "handling. This message will be ignored.");

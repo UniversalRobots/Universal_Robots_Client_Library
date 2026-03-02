@@ -71,7 +71,21 @@ if(MSVC)
   target_link_libraries(urcl ws2_32)
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
-  target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
+  target_compile_options(urcl PRIVATE -Wall -Wextra -Werror)
+
+  # GCC 13-15 have a false positive -Wmaybe-uninitialized in <regex> headers
+  # (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562).
+  # Bump the upper bound if the bug persists in newer GCC versions.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+     AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13
+     AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+    set_source_files_properties(
+      src/control/script_reader.cpp
+      src/ur/dashboard_client.cpp
+      src/ur/dashboard_client_implementation_g5.cpp
+      src/ur/dashboard_client_implementation_x.cpp
+      PROPERTIES COMPILE_OPTIONS "-Wno-maybe-uninitialized")
+  endif()
 
   if(WITH_ASAN)
     target_compile_options(urcl PUBLIC -fsanitize=address)

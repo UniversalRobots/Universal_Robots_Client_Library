@@ -277,7 +277,7 @@ protected:
             (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
             (double)spl.acc[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
-            round((double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE));
+            static_cast<int32_t>(round((double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE)));
       }
       else
       {
@@ -485,8 +485,8 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
 TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
-  float send_move_acceleration = 0.123;
-  float send_move_velocity = 0.456;
+  float send_move_acceleration = 0.123f;
+  float send_move_velocity = 0.456f;
   float send_goal_time = 0.5;
   traj_point_interface_->writeTrajectoryPoint(&send_positions, send_move_acceleration, send_move_velocity,
                                               send_goal_time, 0, 0);
@@ -611,7 +611,7 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec)
   double blend_radius = 0.5;
   double acceleration = 0.7;
   double velocity = 0.7;
-  double mode = 1;
+  int32_t mode = 1;
   auto primitive =
       std::make_shared<control::MoveCPrimitive>(send_via, send_target, blend_radius, acceleration, velocity, mode);
 
