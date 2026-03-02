@@ -51,6 +51,7 @@ private:
   void actOnInput();
 
   std::mutex output_data_mutex_;
+  std::mutex thread_control_mutex_;
 };
 
 }  // namespace urcl

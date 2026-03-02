@@ -46,6 +46,7 @@ bool RobotMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string RobotMessage::toString() const
 {
   std::stringstream ss;
+  ss << "RobotMessage: " << std::endl;
   ss << "timestamp: " << timestamp_ << std::endl;
   ss << "source: " << static_cast<int>(source_) << std::endl;
   ss << "message_type: " << static_cast<int>(message_type_) << std::endl;

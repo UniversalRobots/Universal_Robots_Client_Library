@@ -511,6 +511,36 @@ TEST_F(ScriptCommandInterfaceTest, test_set_gravity)
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_tcp_offset)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  vector6d_t tcp_offset = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
+  script_command_interface_->setTcpOffset(tcp_offset);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 10 is set tcp offset
+  int32_t expected_command = 10;
+  EXPECT_EQ(command, expected_command);
+
+  // Test tcp offset
+  vector6d_t received_tcp_offset;
+  for (unsigned int i = 0; i < tcp_offset.size(); ++i)
+  {
+    received_tcp_offset[i] = static_cast<double>(message[i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_tcp_offset[i], tcp_offset[i]);
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 6, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

@@ -23,7 +23,7 @@ if [[ -f "$file" && -x "$file" ]]; then
       exit 1
     fi
     # Delay for 10 seconds to avoid too fast reconnects
-    echo "Sleep 10"
-    sleep 10
+    echo "Sleep 1"
+    sleep 1
 fi
 done

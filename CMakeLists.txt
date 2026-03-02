@@ -43,6 +43,7 @@ add_library(urcl
     src/rtde/get_urcontrol_version.cpp
     src/rtde/request_protocol_version.cpp
     src/rtde/rtde_package.cpp
+    src/rtde/rtde_parser.cpp
     src/rtde/text_message.cpp
     src/rtde/rtde_client.cpp
     src/ur/ur_driver.cpp

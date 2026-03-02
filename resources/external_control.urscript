@@ -57,6 +57,7 @@ END_TOOL_CONTACT = 6
 SET_FRICTION_COMPENSATION = 7
 FT_RTDE_INPUT_ENABLE = 8
 SET_GRAVITY = 9
+SET_TCP_OFFSET = 10
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -822,6 +823,9 @@ thread script_commands():
         # This has a known error that the resulting torques are computed with opposite sign.
         enable_external_ft_sensor(enabled, sensor_mass, sensor_offset, sensor_cog)
         {% endif %}
+      elif command == SET_TCP_OFFSET:
+        tcp_offset = p[raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
+        set_tcp(tcp_offset)
       end
     end
   end

@@ -154,6 +154,21 @@ public:
     max_clients_allowed_ = max_clients_allowed;
   }
 
+  /*!
+   * \brief Get the port this server is bound to
+   *
+   * If port number 0 is passed during initialization, the server will bind to a random free port.
+   * In this case, this function can be used to get the actual port number the server is bound to.
+   * This should only be called after the server has been initialized, otherwise the returned port
+   * number might not be correct.
+   *
+   * \returns The port number this server is bound to
+   */
+  int getPort() const
+  {
+    return port_;
+  }
+
 private:
   void init();
   void bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time);

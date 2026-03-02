@@ -25,11 +25,6 @@ to initialize the RTDE client.
    :start-at: const std::string OUTPUT_RECIPE
    :end-at: const std::string INPUT_RECIPE
 
-
-Internally, the RTDE client uses the same producer / consumer architecture as show in the
-:ref:`primary_pipeline_example` example. However, it doesn't have a consumer thread, so data has to
-be read by the user to avoid the pipeline's queue from overflowing.
-
 Creating an RTDE Client
 -----------------------
 
@@ -45,24 +40,31 @@ omitted, RTDE communication will be established at the robot's control frequency
    :start-at: comm::INotifier notifier;
    :end-at: my_client.init();
 
-An RTDE data package containing every key-value pair from the output recipe can be fetched using
-the ``getDataPackage()`` method. This method will block until a new package is available.
-
 
 Reading data from the RTDE client
 ---------------------------------
 
-Once the RTDE client is initialized, we'll have to start communication separately. As mentioned
-above, we'll have to read data from the client once communication is started, hence we start
-communication right before a loop reading data.
+To read data received by the RTDE client, it has to be polled. See the :ref:`rtde_client` section
+for details on two possible strategies. In this example, we do not use background read and instead
+fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
 
 .. literalinclude:: ../../examples/rtde_client.cpp
    :language: c++
    :caption: examples/rtde_client.cpp
    :linenos:
    :lineno-match:
-   :start-at: // Once RTDE communication is started
+   :start-at: auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
    :end-before: // Change the speed slider
+
+In our main loop, we wait for a new data package to arrive using the blocking read method. Once
+received, data from the received package can be accessed using the ``getData()`` method of the
+``DataPackage`` object. This method takes the key of the data to be accessed as a parameter and
+returns the corresponding value.
+
+.. note:: The key used to access data has to be part of the output recipe used to initialize the RTDE
+   client. Passing a string literal, e.g. ``"actual_q"``, is possible but not recommended as it is
+   converted to an ``std::string`` automatically, causing heap allocations which should be avoided
+   in Real-Time contexts.
 
 Writing Data to the RTDE client
 -------------------------------
@@ -84,6 +86,12 @@ initialize the RTDE client has to contain the keys necessary to send that specif
    :end-at: }
 
 
-.. note:: Many RTDE inputs require setting up the data key and a mask key. See the `RTDE guide
+.. note:: Many RTDE inputs require setting up the data key and a mask key. That is done
+   internally, but the mask keys have to be part of the input recipe, as well. See the `RTDE guide
    <https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/>`_
    for more information.
+
+.. note:: Every ``send...`` call to the RTDEWriter triggers a package sent to the robot. If you
+   want to modify more than one input at a time, it is recommended to use the ``sendPackage()``
+   method. That allows setting up the complete data package with its input recipe and sending that
+   to the robot at once.
