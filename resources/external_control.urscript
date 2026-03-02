@@ -873,11 +873,11 @@ while not (traj_flag and com_flag and rev_flag):
     traj_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
   end
 
-  if not com_flag: 
+  if traj_flag and not com_flag: 
     com_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
   end
 
-  if not rev_flag:
+  if traj_flag and com_flag and not rev_flag:
     rev_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SERVER_PORT_REPLACE}}, "reverse_socket")
   end
 
