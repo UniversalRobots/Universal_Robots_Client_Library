@@ -275,6 +275,41 @@ thread speedThread():
   stopj(STOPJ_ACCELERATION)
 end
 
+# Helper function to call the direct torque control function depending on the software version
+def directTorqueControlCall(tau):
+  {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+  {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
+  if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+      {% if ROBOT_SOFTWARE_VERSION < v5.25.1 %}
+    popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1. This robot runs an older version.", error=True, blocking=True)
+      {% else %}
+    direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+      {% endif %}
+  elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
+    direct_torque(tau, friction_comp=deprecated_friction_compensation_enabled)
+  else:
+    direct_torque(tau)
+  end
+    {% else %}
+  popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
+    {% endif %}
+  {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+  if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+    {% if ROBOT_SOFTWARE_VERSION < v10.12.1 %}
+    popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X 10.12.1. This robot runs an older version.", error=True, blocking=True)
+    {% else %}
+    direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+    {% endif %}
+  elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
+    direct_torque(tau, friction_comp=deprecated_friction_compensation_enabled)
+  else:
+    direct_torque(tau)
+  end
+  {% else %}
+  popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
+  {% endif %}
+end
+
 # Helpers for torque control
 def set_torque(target_torque):
   cmd_torque = target_torque
@@ -284,38 +319,8 @@ end
 thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
   while control_mode == MODE_TORQUE:
-    torque = cmd_torque
-    {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-      {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
-    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
-        {% if ROBOT_SOFTWARE_VERSION < v5.25.1 %}
-      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1. This robot runs an older version.", error=True, blocking=True)
-        {% else %}
-      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
-        {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
-      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
-    else:
-      direct_torque(torque) # Uses robot defaults
-    end
-      {% else %}
-    popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
-      {% endif %}
-    {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
-    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
-      {% if ROBOT_SOFTWARE_VERSION < v10.12.1 %}
-      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X 10.12.1. This robot runs an older version.", error=True, blocking=True)
-      {% else %}
-      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
-      {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
-      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
-    else:
-      direct_torque(torque) # Uses robot defaults
-    end
-    {% else %}
-    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
-    {% endif %}
+    local tau = cmd_torque
+    directTorqueControlCall(tau)
   end
   textmsg("ExternalControl: torque thread ended")
   stopj(STOPJ_ACCELERATION)
@@ -782,13 +787,7 @@ thread PDControlThread():
     local q_err = cmd_servo_q - get_actual_joint_positions()
     local tau = pd_controller_gains.kp * q_err - pd_controller_gains.kd  * get_actual_joint_speeds()
     tau = clamp_array(tau, max_joint_torques)
-    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
-      direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
-      direct_torque(tau, friction_comp=deprecated_friction_compensation_enabled)
-    else:
-      direct_torque(tau)
-    end
+    directTorqueControlCall(tau)
   end 
   textmsg("PD Control thread ended")
   stopj(STOPJ_ACCELERATION)

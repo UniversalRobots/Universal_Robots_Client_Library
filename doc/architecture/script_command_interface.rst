@@ -154,6 +154,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    2      sensor_mass in kg (floating point)
    3-5    sensor_mesurement_offset in m, displacement from the tool flange (3d floating point)
    6-9    sensor_cog in m, displacement from the tool flange (3d floating point)
+   =====  =====
 
 .. table:: With setPDControllerGains command
    :widths: auto
