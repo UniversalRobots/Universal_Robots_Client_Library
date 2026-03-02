@@ -170,6 +170,17 @@ void TCPServer::startListen()
     ss << "Failed to start listen on port " << port_;
     throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
   }
+  struct sockaddr_in sin;
+  socklen_t len = sizeof(sin);
+  if (getsockname(listen_fd_, (struct sockaddr*)&sin, &len) == -1)
+  {
+    URCL_LOG_ERROR("getsockname() failed to get port number for listening socket: %s", strerror(errno));
+  }
+
+  else
+  {
+    port_ = ntohs(sin.sin_port);
+  }
   URCL_LOG_DEBUG("Listening on port %d", port_);
 }
 
