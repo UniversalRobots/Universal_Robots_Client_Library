@@ -28,9 +28,12 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
+// Required before <cmath> for M_PI on Windows (MSVC)
+#define _USE_MATH_DEFINES
+#include <cmath>
+
 #include <ur_client_library/example_robot_wrapper.h>
 #include "ur_client_library/ur/instruction_executor.h"
-#include <cmath>
 #include <cstddef>
 
 // In a real-world example it would be better to get those values from command line parameters / a
