@@ -519,6 +519,64 @@ TEST_F(ScriptReaderTest, TestDirectTorquePopupOnOldVersion)
             std::string::npos);
 }
 
+TEST_F(ScriptReaderTest, TestResolvedAccelerationPopupOnOldVersion)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.22.0");
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("popup(\"Resolved acceleration control is only supported from software 5.23.0 and "
+                                  "upwards.\", error=True, blocking=True)"),
+            std::string::npos);
+  EXPECT_EQ(processed_script.find("get_mass_matrix"), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.10.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("popup(\"Resolved acceleration control is only supported from software 10.11.0 and "
+                                  "upwards.\", error=True, blocking=True)"),
+            std::string::npos);
+  EXPECT_EQ(processed_script.find("get_mass_matrix"), std::string::npos);
+}
+
+TEST_F(ScriptReaderTest, TestResolvedAccelerationOnSupportedVersion)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.23.0");
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("get_mass_matrix(include_rotor_inertia=True)"), std::string::npos);
+  EXPECT_NE(processed_script.find("get_coriolis_and_centrifugal_torques()"), std::string::npos);
+  EXPECT_NE(processed_script.find("directTorqueControlCall(tau)"), std::string::npos);
+  EXPECT_EQ(processed_script.find("Resolved acceleration control is only supported from software"), std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.11.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("get_mass_matrix(include_rotor_inertia=True)"), std::string::npos);
+  EXPECT_NE(processed_script.find("get_coriolis_and_centrifugal_torques()"), std::string::npos);
+  EXPECT_NE(processed_script.find("directTorqueControlCall(tau)"), std::string::npos);
+  EXPECT_EQ(processed_script.find("Resolved acceleration control is only supported from software"), std::string::npos);
+}
+
 TEST_F(ScriptReaderTest, TestFrictionCompensationConstantsAndHandlerPolyScope523)
 {
   std::string existing_script_file = "../resources/external_control.urscript";
