@@ -261,13 +261,27 @@ end
 
 thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
-  while control_mode == MODE_TORQUE or control_mode == MODE_RESOLVED_ACCELERATION:
+  control_mode_thread = control_mode
+  while (control_mode == MODE_TORQUE or control_mode == MODE_RESOLVED_ACCELERATION) and control_mode == control_mode_thread:
     torque = cmd_torque
     if control_mode == MODE_RESOLVED_ACCELERATION:
+    {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+      {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
       acceleration = cmd_acceleration
       ft = get_tcp_force()
       external_torque = transpose(get_jacobian()) * [ft[0], ft[1], ft[2], ft[3], ft[4], ft[5]]
       torque = get_mass_matrix(include_rotor_inertia=True) * acceleration + get_coriolis_and_centrifugal_torques() - external_torque
+      {% else %}
+      popup("Resolved acceleration control is only supported from Polyscope 5.23.0 and upwards.", error=True, blocking=True)
+      {% endif %}
+    {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+      acceleration = cmd_acceleration
+      ft = get_tcp_force()
+      external_torque = transpose(get_jacobian()) * [ft[0], ft[1], ft[2], ft[3], ft[4], ft[5]]
+      torque = get_mass_matrix(include_rotor_inertia=True) * acceleration + get_coriolis_and_centrifugal_torques() - external_torque
+    {% else %}
+      popup("Resolved acceleration control is only supported from Polyscope X 10.11.0 and upwards.", error=True, blocking=True)
+    {% endif %}
     end
     {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
       {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
@@ -796,7 +810,7 @@ thread script_commands():
     if raw_command[0] > 0:
       command = raw_command[1]
       if command == ZERO_FTSENSOR:
-                zero_ftsensor()
+        zero_ftsensor()
       elif command == SET_PAYLOAD:
         mass = raw_command[2] / MULT_jointstate
         cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
