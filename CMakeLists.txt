@@ -84,6 +84,7 @@ else()
     target_compile_options(urcl PUBLIC -fsanitize=address)
     target_link_options(urcl PUBLIC -fsanitize=address)
   endif()
+  target_link_libraries(urcl PUBLIC stdc++fs)
 endif()
 
 target_include_directories(urcl PUBLIC
