@@ -57,7 +57,6 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
                                          const std::string& autostart_program, const std::string& script_file)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
-
   UrDriverConfiguration driver_config;
   driver_config.robot_ip = robot_ip;
   driver_config.script_file = script_file;
@@ -115,7 +114,6 @@ void ExampleRobotWrapper::initInternal(const UrDriverConfiguration& driver_confi
       throw UrException("Program did not start running. Is the robot in remote control?");
     }
   }
-
 }
 
 ExampleRobotWrapper::~ExampleRobotWrapper()
