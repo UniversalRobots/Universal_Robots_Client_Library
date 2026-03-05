@@ -181,6 +181,8 @@ public:
 private:
   void handleRobotProgramState(bool program_running);
 
+  void initInternal(const UrDriverConfiguration& driver_config);
+
   //! Dashboard client to interact with the robot
   std::shared_ptr<urcl::DashboardClient> dashboard_client_;
 

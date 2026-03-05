@@ -95,7 +95,7 @@ protected:
       GTEST_SKIP_("Running URCap tests for PolyScope X is currently not supported.");
     }
     // Setup driver
-    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
+    g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE_VECTOR, INPUT_RECIPE_VECTOR, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
 
     g_my_robot->startRTDECommununication(true);

@@ -41,7 +41,37 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
                                          const std::string& autostart_program, const std::string& script_file)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
-  primary_client_ = std::make_shared<urcl::primary_interface::PrimaryClient>(robot_ip, notifier_);
+  UrDriverConfiguration driver_config;
+  driver_config.robot_ip = robot_ip;
+  driver_config.script_file = script_file;
+  driver_config.output_recipe_file = output_recipe_file;
+  driver_config.input_recipe_file = input_recipe_file;
+  driver_config.handle_program_state =
+      std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1);
+  driver_config.headless_mode = headless_mode;
+  initInternal(driver_config);
+}
+
+ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std::vector<std::string> output_recipe,
+                                         const std::vector<std::string> input_recipe, const bool headless_mode,
+                                         const std::string& autostart_program, const std::string& script_file)
+  : headless_mode_(headless_mode), autostart_program_(autostart_program)
+{
+
+  UrDriverConfiguration driver_config;
+  driver_config.robot_ip = robot_ip;
+  driver_config.script_file = script_file;
+  driver_config.output_recipe = output_recipe;
+  driver_config.input_recipe = input_recipe;
+  driver_config.handle_program_state =
+      std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1);
+  driver_config.headless_mode = headless_mode;
+  initInternal(driver_config);
+}
+
+void ExampleRobotWrapper::initInternal(const UrDriverConfiguration& driver_config)
+{
+  primary_client_ = std::make_shared<urcl::primary_interface::PrimaryClient>(driver_config.robot_ip, notifier_);
 
   primary_client_->start();
 
@@ -52,7 +82,7 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
     const DashboardClient::ClientPolicy client_policy = *robot_version < VersionInformation::fromString("10.0.0") ?
                                                             DashboardClient::ClientPolicy::G5 :
                                                             DashboardClient::ClientPolicy::POLYSCOPE_X;
-    dashboard_client_ = std::make_shared<DashboardClient>(robot_ip, client_policy);
+    dashboard_client_ = std::make_shared<DashboardClient>(driver_config.robot_ip, client_policy);
     // Connect the robot Dashboard
     if (!dashboard_client_->connect())
     {
@@ -71,29 +101,21 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
   {
     throw UrException("Could not initialize robot with primary client");
   }
-
-  UrDriverConfiguration driver_config;
-  driver_config.robot_ip = robot_ip;
-  driver_config.script_file = script_file;
-  driver_config.output_recipe_file = output_recipe_file;
-  driver_config.input_recipe_file = input_recipe_file;
-  driver_config.handle_program_state =
-      std::bind(&ExampleRobotWrapper::handleRobotProgramState, this, std::placeholders::_1);
-  driver_config.headless_mode = headless_mode;
   ur_driver_ = std::make_shared<UrDriver>(driver_config);
 
-  if (!headless_mode && !std::empty(autostart_program))
+  if (!headless_mode_ && !std::empty(autostart_program_))
   {
-    startRobotProgram(autostart_program);
+    startRobotProgram(autostart_program_);
   }
 
-  if (headless_mode || !std::empty(autostart_program))
+  if (headless_mode_ || !std::empty(autostart_program_))
   {
     if (!waitForProgramRunning(500))
     {
       throw UrException("Program did not start running. Is the robot in remote control?");
     }
   }
+
 }
 
 ExampleRobotWrapper::~ExampleRobotWrapper()
