@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -79,9 +80,14 @@ public:
    *
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
+   *
+   * \note: For thread safety, this will block when there is an active callback around connection
+   * (connection, disconnection, shutdown). Thus, trying to call setConnectCallback e.g. by a
+   * handler function registered as disconnectCallback will result in a deadlock.
    */
   void setConnectCallback(std::function<void(const socket_t)> func)
   {
+    std::lock_guard<std::mutex> lk(clients_mutex_);
     new_connection_callback_ = func;
   }
 
@@ -90,9 +96,14 @@ public:
    *
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
+   *
+   * \note: For thread safety, this will block when there is an active callback around connection
+   * (connection, disconnection, shutdown). Thus, trying to call setDisconnectCallback e.g. by a
+   * handler function registered as connectCallback will result in a deadlock.
    */
   void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
+    std::lock_guard<std::mutex> lk(clients_mutex_);
     disconnect_callback_ = func;
   }
 
@@ -101,9 +112,13 @@ public:
    *
    * \param func Function handling the event information. The file client's file_descriptor will be
    * passed to the function as well as the actual message received from the client.
+   *
+   * \note: For thread safety, this will block when there is an active message callback. Thus, trying to call
+   * setMessageCallback e.g. from a handler function registered as messageCallback will result in a deadlock.
    */
   void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
+    std::lock_guard<std::mutex> lk(message_mutex_);
     message_callback_ = func;
   }
 
@@ -182,7 +197,7 @@ private:
   void handleDisconnect(const socket_t fd);
 
   //! read data from socket
-  void readData(const socket_t fd);
+  bool readData(const socket_t fd);
 
   //! Event handler. Blocks until activity on any client or connection attempt
   void spin();
@@ -202,6 +217,8 @@ private:
 
   uint32_t max_clients_allowed_;
   std::vector<socket_t> client_fds_;
+  std::mutex clients_mutex_;
+  std::mutex message_mutex_;
 
   static const int INPUT_BUFFER_SIZE = 4096;
   char input_buffer_[INPUT_BUFFER_SIZE];
