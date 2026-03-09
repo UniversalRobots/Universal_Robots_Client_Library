@@ -374,6 +374,22 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
   EXPECT_EQ(client.getState(), comm::SocketState::Disconnected);
 }
 
+TEST_F(TCPServerTest, double_shutdown)
+{
+  comm::TCPServer server(port_);
+  server.setConnectCallback(
+      std::bind(&TCPServerTest_double_shutdown_Test::connectionCallback, this, std::placeholders::_1));
+  server.setDisconnectCallback(
+      std::bind(&TCPServerTest_double_shutdown_Test::disconnectionCallback, this, std::placeholders::_1));
+  server.start();
+
+  Client client(port_);
+  EXPECT_TRUE(waitForConnectionCallback());
+
+  EXPECT_NO_THROW(server.shutdown());
+  EXPECT_NO_THROW(server.shutdown());
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
