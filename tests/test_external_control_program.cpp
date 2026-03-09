@@ -32,10 +32,8 @@
 
 #include "test_utils.h"
 #include "ur_client_library/example_robot_wrapper.h"
-#include "ur_client_library/log.h"
 
 using namespace urcl;
-
 const std::string SCRIPT_FILE = "../resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
@@ -46,16 +44,6 @@ std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
 class ExternalControlProgramTest : public ::testing::Test
 {
-public:
-  // callback functions
-  void connectionCallback(const socket_t filedescriptor)
-  {
-    std::lock_guard<std::mutex> lk(connect_mutex_);
-    client_fd_ = filedescriptor;
-    connect_cv_.notify_one();
-    connection_callback_ = true;
-  }
-
 protected:
   static void SetUpTestSuite()
   {
@@ -75,9 +63,7 @@ protected:
       ASSERT_TRUE(g_my_robot->resendRobotProgram());
       ASSERT_TRUE(g_my_robot->waitForProgramRunning(500));
     }
-    server_.reset(new comm::TCPServer(60005));
-    server_->setConnectCallback(
-        std::bind(&ExternalControlProgramTest::connectionCallback, this, std::placeholders::_1));
+    server_.reset(new TestableTcpServer(60005));
     server_->start();
   }
 
@@ -105,42 +91,20 @@ protected:
     prog += "\nsocket_open(\"{{SERVER_IP_REPLACE}}\", 60005, \"test_socket\")\n";
     prog += "\nsleep(0.6)\n";
     prog += "\ntextmsg(\"sleeping done.\")\n";
-    std::ofstream out_file;
-    out_file.open(modified_script_path);
-    out_file << prog;
-    out_file.close();
+    ofs << prog;
+    ofs.close();
 
     return modified_script_path;
   }
 
-  bool waitForConnectionCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(connect_mutex_);
-    if (connect_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds),
-                             [this]() { return connection_callback_ == true; }))
-    {
-      connection_callback_ = false;
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
-  std::unique_ptr<comm::TCPServer> server_;
-
-private:
-  std::condition_variable connect_cv_;
-  std::mutex connect_mutex_;
-  socket_t client_fd_ = INVALID_SOCKET;
-  bool connection_callback_ = false;
+  std::unique_ptr<TestableTcpServer> server_;
 };
 
 TEST_F(ExternalControlProgramTest, program_halts_on_timeout)
 {
   vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
   g_my_robot->getUrDriver()->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
-  EXPECT_FALSE(waitForConnectionCallback(1000));
+  EXPECT_FALSE(server_->waitForConnectionCallback(1000));
 }
 
 TEST_F(ExternalControlProgramTest, stop_control_does_not_halt_program)
@@ -150,7 +114,7 @@ TEST_F(ExternalControlProgramTest, stop_control_does_not_halt_program)
 
   // Make sure that we can stop the robot control, when robot receive timeout has been set off
   g_my_robot->getUrDriver()->stopControl();
-  EXPECT_TRUE(waitForConnectionCallback(1000));
+  EXPECT_TRUE(server_->waitForConnectionCallback(1000));
 }
 
 int main(int argc, char* argv[])
