@@ -198,6 +198,8 @@ public:
    *  - 'installation_name': std::string
    *
    * \param installation_file_name The installation file name with the installation extension
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandLoadInstallation(const std::string& installation_file_name) = 0;
 
@@ -226,11 +228,15 @@ public:
 
   /*!
    * \brief Send Close popup command
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandClosePopup() = 0;
 
   /*!
    * \brief Send Close safety popup command
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandCloseSafetyPopup() = 0;
 
@@ -246,6 +252,8 @@ public:
 
   /*!
    * \brief Send Shutdown command
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandShutdown() = 0;
 
@@ -260,6 +268,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'running': bool
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandRunning() = 0;
 
@@ -269,6 +279,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'saved': bool
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandIsProgramSaved() = 0;
 
@@ -279,7 +291,7 @@ public:
    *
    *   - 'remote_control': bool
    *
-   * \throws an UrException when called on CB3 robots
+   * \throws an NotImplementedException when called on CB3 robots or PolyScope versions lower than 10.12.0
    */
   virtual DashboardResponse commandIsInRemoteControl() = 0;
 
@@ -287,6 +299,8 @@ public:
    * \brief Send popup command
    *
    * \param popup_text The text to be shown in the popup
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandPopup(const std::string& popup_text) = 0;
 
@@ -294,6 +308,8 @@ public:
    * \brief Send text to log
    *
    * \param log_text The text to be sent to the log
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandAddToLog(const std::string& log_text) = 0;
 
@@ -303,6 +319,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'polyscope_version': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandPolyscopeVersion() = 0;
 
@@ -312,6 +330,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'robot_model': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandGetRobotModel() = 0;
 
@@ -321,6 +341,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'serial_number': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandGetSerialNumber() = 0;
 
@@ -330,6 +352,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'robot_mode': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X versions lower than 10.12.0
    */
   virtual DashboardResponse commandRobotMode() = 0;
 
@@ -339,6 +363,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'program_name': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X versions lower than 10.12.0
    */
   virtual DashboardResponse commandGetLoadedProgram() = 0;
 
@@ -348,6 +374,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'safety_mode': std::string
+   *
+   * \throws an NotImplementedException when called on PolyScope X versions lower than 10.12.0
    */
   virtual DashboardResponse commandSafetyMode() = 0;
 
@@ -357,6 +385,8 @@ public:
    * Stores the following entries in the data field:
    *
    *   - 'safety_status': std::string
+   *
+   * \throws an NotImplementedException when called on Polyscope X robots
    */
   virtual DashboardResponse commandSafetyStatus() = 0;
 
@@ -377,7 +407,7 @@ public:
    *
    *   - 'operational_mode': std::string
    *
-   * \throws an UrException when called on CB3 robots
+   * \throws an NotImplementedException when called on CB3 robots or a Polyscope X version lower than 10.12.0
    */
   virtual DashboardResponse commandGetOperationalMode() = 0;
 
@@ -386,14 +416,14 @@ public:
    *
    * \param operational_mode The operational mode to set on the robot
    *
-   * \throws an UrException when called on CB3 robots
+   * \throws an NotImplementedException when called on CB3 robots and Polyscope X robots
    */
   virtual DashboardResponse commandSetOperationalMode(const std::string& operational_mode) = 0;
 
   /*!
    * \brief Send Clear operational mode command
    *
-   * \throws an UrException when called on CB3 robots
+   * \throws an NotImplementedException when called on CB3 and Polyscope X robots
    */
   virtual DashboardResponse commandClearOperationalMode() = 0;
 
@@ -402,7 +432,7 @@ public:
    *
    * \param user_role The user role to set on the robot
    *
-   * \throws an UrException when called on e-series robots
+   * \throws an NotImplementedException when called on e-series robots
    */
   virtual DashboardResponse commandSetUserRole(const std::string& user_role) = 0;
 
@@ -410,7 +440,7 @@ public:
    * \brief Send Get user role command (Only available for CB3)
    *
    *
-   * \throws an UrException when called on e-series robots
+   * \throws an NotImplementedException when called on e-series robots
    */
   virtual DashboardResponse commandGetUserRole() = 0;
 
@@ -418,6 +448,8 @@ public:
    * \brief Send Generate flight report command
    *
    * \param report_type The report type to set for the flight report
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandGenerateFlightReport(const std::string& report_type) = 0;
 
@@ -426,22 +458,65 @@ public:
    *
    * \param dir_path The path to the directory of an already existing directory location inside the programs directory,
    * where the support file is saved
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandGenerateSupportFile(const std::string& dir_path) = 0;
 
   /*!
    * \brief Flush the polyscope log to the log_history.txt file
+   *
+   * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandSaveLog() = 0;
 
+  /*!
+   * \brief Get a list of the programs available on the robot
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'programs': std::vector<urcl::ProgramInformation>
+   *
+   * \throws an NotImplementedException when called on versions lower than PolyScope 10.12.0
+   */
   virtual DashboardResponse commandGetProgramList() = 0;
 
+  /*!
+   * \brief Upload a new program to the robot. Will return an error if a program with the same name already exists
+   *
+   * Stores the following entries in the data field:
+   *
+   *   - 'program_name': std::string
+   *
+   * \param file_path The path to the program file on the user's computer
+   *
+   * \throws an NotImplementedException when called on versions lower than PolyScope 10.12.0
+   */
   virtual DashboardResponse commandUploadProgram(const std::string& file_path) = 0;
 
+  /*!
+   * \brief Update an existing program. Will return an error if no program exists with the same name
+   *
+   * \param file_path The path to the program file on the user's computer
+   *
+   * \throws an NotImplementedException when called on versions lower than PolyScope 10.12.0
+   */
   virtual DashboardResponse commandUpdateProgram(const std::string& file_path) = 0;
 
-  virtual DashboardResponse commandDownloadProgram(const std::string& filename, const std::string& save_path) = 0;
+  /*!
+   * \brief Download a program from the robot
+   *
+   * \param program_name The name of the program that is to be downloaded
+   *
+   * \param save_path Filepath where the downloaded program should be saved on the user's computer
+   *
+   * \throws an NotImplementedException when called on versions lower than PolyScope 10.12.0
+   */
+  virtual DashboardResponse commandDownloadProgram(const std::string& program_name, const std::string& save_path) = 0;
 
+  /*!
+   * \brief Get the PolyScope version running on the robot
+   */
   const VersionInformation& getPolyscopeVersion() const
   {
     return polyscope_version_;
