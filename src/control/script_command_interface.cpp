@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/script_command_interface.h>
+#include <ur_client_library/helpers.h>
 #include <math.h>
 
 namespace urcl
@@ -279,6 +280,46 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setFrictionScales(const vector6d_t& viscous_scale, const vector6d_t& coulomb_scale)
+{
+  if (!robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.25.1"),
+                                         urcl::VersionInformation::fromString("10.12.1"), __func__))
+  {
+    return false;
+  }
+  const int message_length = 13;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_SCALES));
+  b_pos += append(b_pos, val);
+
+  vector6d_t clamped_viscous_scale = viscous_scale;
+  vector6d_t clamped_coulomb_scale = coulomb_scale;
+  clampToUnitRange(clamped_viscous_scale);
+  clampToUnitRange(clamped_coulomb_scale);
+
+  for (auto const& scale : clamped_viscous_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+  for (auto const& scale : clamped_coulomb_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
                                                const vector3d_t& sensor_measuring_offset, const vector3d_t& sensor_cog)
 {
@@ -330,6 +371,68 @@ bool ScriptCommandInterface::setTcpOffset(const vector6d_t& offset)
   for (auto const& frame : offset)
   {
     val = htobe32(static_cast<int32_t>(round(frame * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::setPDControllerGains(const urcl::vector6d_t* kp, const urcl::vector6d_t* kd)
+{
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                    urcl::VersionInformation::fromString("10.10.0"), __func__);
+  const int message_length = 13;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_PD_CONTROLLER_GAINS));
+  b_pos += append(b_pos, val);
+
+  for (auto const& p_gain : *kp)
+  {
+    val = htobe32(static_cast<int32_t>(round(p_gain * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& d_gain : *kd)
+  {
+    val = htobe32(static_cast<int32_t>(round(d_gain * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::setMaxJointTorques(const urcl::vector6d_t* max_joint_torques)
+{
+  robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.23.0"),
+                                    urcl::VersionInformation::fromString("10.10.0"), __func__);
+  const int message_length = 7;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_MAX_JOINT_TORQUES));
+  b_pos += append(b_pos, val);
+
+  for (auto const& max_torque : *max_joint_torques)
+  {
+    val = htobe32(static_cast<int32_t>(round(max_torque * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 

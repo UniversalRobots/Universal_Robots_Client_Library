@@ -35,6 +35,7 @@
 
 #include <ur_client_library/control/script_command_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
+#include <ur_client_library/helpers.h>
 
 using namespace urcl;
 
@@ -431,7 +432,6 @@ TEST_F(ScriptCommandInterfaceTest, test_ft_rtde_input_enable)
 {
   // Wait for the client to connect to the server
   waitForClientConnection();
-
   double sensor_mass = 1.42;
   vector3d_t sensor_measuring_offset = { 0.1, 0.2, 0.3 };
   vector3d_t sensor_cog = { 0.01, 0.02, 0.03 };
@@ -489,6 +489,7 @@ TEST_F(ScriptCommandInterfaceTest, test_set_gravity)
 
   vector3d_t gravity = { 0.1, 0.2, -9.81 };
   script_command_interface_->setGravity(&gravity);
+
   int32_t command;
   std::vector<int32_t> message;
   client_->readMessage(command, message);
@@ -541,6 +542,168 @@ TEST_F(ScriptCommandInterfaceTest, test_set_tcp_offset)
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales)
+{
+  waitForClientConnection();
+
+  vector6d_t viscous_scale = { 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 };
+  vector6d_t coulomb_scale = { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 };
+  bool result = script_command_interface_->setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_TRUE(result);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  int32_t expected_command = 11;
+  EXPECT_EQ(command, expected_command);
+
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_viscous = static_cast<double>(message[i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_viscous, viscous_scale[i]);
+  }
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_coulomb = static_cast<double>(message[6 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_coulomb, coulomb_scale[i]);
+  }
+
+  int32_t message_sum = std::accumulate(std::begin(message) + 12, std::end(message), 0);
+  EXPECT_EQ(message_sum, 0);
+
+  vector6d_t zeros = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  script_command_interface_->setFrictionScales(zeros, zeros);
+  message.clear();
+  client_->readMessage(command, message);
+  EXPECT_EQ(command, expected_command);
+  for (size_t i = 0; i < 12; ++i)
+  {
+    EXPECT_EQ(message[i], 0);
+  }
+  message_sum = std::accumulate(std::begin(message) + 12, std::end(message), 0);
+  EXPECT_EQ(message_sum, 0);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_clamps_to_valid_range)
+{
+  waitForClientConnection();
+
+  // Values outside [0, 1]: negative, > 1, and in-range
+  vector6d_t viscous_scale = { -0.1, 0.5, 1.2, 0.0, 1.0, 0.9 };
+  vector6d_t coulomb_scale = { 0.3, -0.5, 1.5, 0.0, 1.0, 0.8 };
+  vector6d_t expected_viscous = { 0.0, 0.5, 1.0, 0.0, 1.0, 0.9 };
+  vector6d_t expected_coulomb = { 0.3, 0.0, 1.0, 0.0, 1.0, 0.8 };
+
+  bool result = script_command_interface_->setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_TRUE(result);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  EXPECT_EQ(command, 11);
+
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_viscous = static_cast<double>(message[i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_viscous, expected_viscous[i]) << "viscous_scale[" << i << "] should be clamped to [0, 1]";
+  }
+  for (size_t i = 0; i < 6; ++i)
+  {
+    double received_coulomb = static_cast<double>(message[6 + i]) / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_DOUBLE_EQ(received_coulomb, expected_coulomb[i]) << "coulomb_scale[" << i << "] should be clamped to [0, 1]";
+  }
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old_version)
+{
+  control::ReverseInterfaceConfig config;
+  config.port = 50005;
+  config.robot_software_version = VersionInformation::fromString("5.24.0");
+  control::ScriptCommandInterface old_version_interface(config);
+  std::unique_ptr<Client> old_client(new Client(50005));
+
+  waitFor([&old_version_interface]() { return old_version_interface.clientConnected(); },
+          std::chrono::milliseconds(1000));
+
+  vector6d_t viscous_scale = { 0.9, 0.9, 0.8, 0.9, 0.9, 0.9 };
+  vector6d_t coulomb_scale = { 0.8, 0.8, 0.7, 0.8, 0.8, 0.8 };
+  bool result = old_version_interface.setFrictionScales(viscous_scale, coulomb_scale);
+  EXPECT_FALSE(result);
+
+  old_client->close();
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_pd_controller_gains)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  urcl::vector6d_t kp = { 220.2, 220.2, 300.0, 10.32, 10.32, 10.32 };
+  urcl::vector6d_t kd = { 29.68, 29.68, 35.0, 6.4, 6.4, 6.4 };
+  script_command_interface_->setPDControllerGains(&kp, &kd);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 12 is set PD controller gains
+  int32_t expected_command = 12;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t message_idx = 0;
+
+  for (auto& p_gain : kp)
+  {
+    const double received_gain = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(p_gain, received_gain);
+    message_idx = message_idx + 1;
+  }
+
+  for (auto& d_gain : kd)
+  {
+    const double received_gain = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(d_gain, received_gain);
+    message_idx = message_idx + 1;
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + message_idx, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_max_joint_torques)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  urcl::vector6d_t max_joint_torques = { 100.0, 150.0, 21.2, 10.32, 10.32, 10.32 };
+  script_command_interface_->setMaxJointTorques(&max_joint_torques);
+
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 13 is set max joint torques
+  int32_t expected_command = 13;
+  EXPECT_EQ(command, expected_command);
+
+  int32_t message_idx = 0;
+
+  for (auto& max_torque : max_joint_torques)
+  {
+    const double received_max_torque = (double)message[message_idx] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(max_torque, received_max_torque);
+    message_idx = message_idx + 1;
+  }
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + message_idx, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
