@@ -48,7 +48,7 @@ void handleRobotProgramState(bool program_running)
 class UrDriverTestDeprecatedConstructorTest : public testing::Test
 {
 protected:
-  std::shared_ptr<urcl::UrDriver> urdriver_client_;
+  std::shared_ptr<urcl::UrDriver> driver_;
 
   void SetUp() override
   {
@@ -56,17 +56,18 @@ protected:
 
   void TearDown() override
   {
-    if (urdriver_client_)
+    if (driver_)
     {
-      urdriver_client_.reset();
+      driver_->sendScript("halt");
+      driver_.reset();
     }
   }
 
   void startDriver(std::function<std::shared_ptr<urcl::UrDriver>()> constructor_fun)
   {
-    urdriver_client_ = constructor_fun();
-    urdriver_client_->checkCalibration(CALIBRATION_CHECKSUM);
-    auto version = urdriver_client_->getVersion();
+    driver_ = constructor_fun();
+    driver_->checkCalibration(CALIBRATION_CHECKSUM);
+    auto version = driver_->getVersion();
     ASSERT_TRUE(version.major > 0);
   }
 };
