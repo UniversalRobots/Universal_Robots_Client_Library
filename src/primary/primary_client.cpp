@@ -33,6 +33,8 @@
 #include <ur_client_library/primary/robot_state.h>
 #include "ur_client_library/exceptions.h"
 #include <ur_client_library/helpers.h>
+#include <ur_client_library/compile_options.h>
+
 #include <chrono>
 namespace urcl
 {
@@ -41,6 +43,7 @@ namespace primary_interface
 PrimaryClient::PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier)
   : stream_(robot_ip, UR_PRIMARY_PORT)
 {
+  parser_.setStrictMode(COMPILE_OPTIONS.PRIMARY_CLIENT_STRICT_PARSING);
   prod_.reset(new comm::URProducer<PrimaryPackage>(stream_, parser_));
 
   consumer_.reset(new PrimaryConsumer());

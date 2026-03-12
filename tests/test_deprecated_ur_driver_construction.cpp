@@ -50,6 +50,8 @@ void startDriver(std::function<std::shared_ptr<urcl::UrDriver>()> constructor_fu
   auto driver = constructor_fun();
   driver->checkCalibration(CALIBRATION_CHECKSUM);
   auto version = driver->getVersion();
+
+  driver->sendScript("halt");
   ASSERT_TRUE(version.major > 0);
 }
 
