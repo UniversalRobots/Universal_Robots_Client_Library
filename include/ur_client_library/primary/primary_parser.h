@@ -125,14 +125,13 @@ public:
 
           if (!sbp.empty())
           {
+            sbp.debug();
             if (strict_mode_)
             {
               throw UrException("Sub-package of type " + std::string(robotStateString(type)) +
                                 " was not parsed completely, and strict mode is enabled, so aborting parsing!");
-              sbp.debug();
             }
             URCL_LOG_WARN("Sub-package of type %s was not parsed completely!", robotStateString(type));
-            sbp.debug();
             sbp.consume();
           }
         }
