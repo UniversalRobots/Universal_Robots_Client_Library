@@ -43,6 +43,7 @@ const std::string SCRIPT_FILE = "../resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";
 const std::vector<std::string> OUTPUT_RECIPE_VECTOR = { "timestamp",
+                                                        "actual_q",
                                                         "actual_qd",
                                                         "speed_scaling",
                                                         "target_speed_fraction",
@@ -66,19 +67,23 @@ const std::vector<std::string> OUTPUT_RECIPE_VECTOR = { "timestamp",
                                                         "robot_mode",
                                                         "safety_mode",
                                                         "robot_status_bits",
-                                                        "safety_status_bits",
                                                         "actual_current",
                                                         "tcp_offset" };
 const std::vector<std::string> INPUT_RECIPE_VECTOR = {
-  "speed_slider_mask",           "standard_digital_output_mask",
-  "standard_digital_output",     "configurable_digital_output_mask",
-  "configurable_digital_output", "tool_digital_output_mask",
-  "tool_digital_output",         "standard_analog_output_mask",
-  "standard_analog_output_type", "standard_analog_output_0",
-  "standard_analog_output_1"
+  "speed_slider_fraction",
+  "speed_slider_mask",
+  "standard_digital_output_mask",
+  "standard_digital_output",
+  "configurable_digital_output_mask",
+  "configurable_digital_output",
+  "tool_digital_output_mask",
+  "tool_digital_output",
+  "standard_analog_output_mask",
+  "standard_analog_output_type",
+  "standard_analog_output_0",
 };
-const std::string OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "actual_q";
-const std::string INPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "speed_slider_fraction";
+const std::string OUTPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "safety_status_bits";
+const std::string INPUT_RECIPE_VECTOR_EXCLUDED_VALUE = "standard_analog_output_1";
 const std::string CALIBRATION_CHECKSUM = "calib_12788084448423163542";
 std::string g_ROBOT_IP = "192.168.56.101";
 bool g_HEADLESS = true;
