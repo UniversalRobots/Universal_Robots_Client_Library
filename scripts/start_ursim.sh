@@ -129,11 +129,7 @@ strip_robot_model()
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     elif [[ "$robot_model" = @(ur7e|ur12e) ]]; then
-      if [[ "$robot_series" == "polyscopex" ]]; then
-        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
-      else
-        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
-      fi
+      ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
     fi
   fi
 }
