@@ -45,15 +45,33 @@ void handleRobotProgramState(bool program_running)
   std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
 }
 
-void startDriver(std::function<std::shared_ptr<urcl::UrDriver>()> constructor_fun)
+class UrDriverTestDeprecatedConstructorTest : public testing::Test
 {
-  auto driver = constructor_fun();
-  driver->checkCalibration(CALIBRATION_CHECKSUM);
-  auto version = driver->getVersion();
-  ASSERT_TRUE(version.major > 0);
-}
+protected:
+  std::shared_ptr<urcl::UrDriver> urdriver_client_;
 
-TEST(UrDriverTestDeprecatedConstructor, sigA)
+  void SetUp() override
+  {
+  }
+
+  void TearDown() override
+  {
+    if (urdriver_client_)
+    {
+      urdriver_client_.reset();
+    }
+  }
+
+  void startDriver(std::function<std::shared_ptr<urcl::UrDriver>()> constructor_fun)
+  {
+    urdriver_client_ = constructor_fun();
+    urdriver_client_->checkCalibration(CALIBRATION_CHECKSUM);
+    auto version = urdriver_client_->getVersion();
+    ASSERT_TRUE(version.major > 0);
+  }
+};
+
+TEST_F(UrDriverTestDeprecatedConstructorTest, sigA)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   startDriver([&tool_comm_setup]() {
@@ -63,7 +81,7 @@ TEST(UrDriverTestDeprecatedConstructor, sigA)
   });
 }
 
-TEST(UrDriverTestDeprecatedConstructor, sigB)
+TEST_F(UrDriverTestDeprecatedConstructorTest, sigB)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   startDriver([&tool_comm_setup]() {
@@ -74,7 +92,7 @@ TEST(UrDriverTestDeprecatedConstructor, sigB)
   });
 }
 
-TEST(UrDriverTestDeprecatedConstructor, sigC)
+TEST_F(UrDriverTestDeprecatedConstructorTest, sigC)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   startDriver([&tool_comm_setup]() {
@@ -84,7 +102,7 @@ TEST(UrDriverTestDeprecatedConstructor, sigC)
   });
 }
 
-TEST(UrDriverTestDeprecatedConstructor, sigD)
+TEST_F(UrDriverTestDeprecatedConstructorTest, sigD)
 {
   std::unique_ptr<urcl::ToolCommSetup> tool_comm_setup;
   startDriver([]() {
