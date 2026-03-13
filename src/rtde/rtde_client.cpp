@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <chrono>
 #include <string>
+#include <system_error>
 
 namespace urcl
 {
@@ -643,12 +644,12 @@ bool RTDEClient::sendStart()
     {
       return tmp->accepted_;
     }
-    else if (rtde_interface::DataPackage* tmp = dynamic_cast<rtde_interface::DataPackage*>(package.get()))
+    else if (rtde_interface::DataPackage* data_tmp = dynamic_cast<rtde_interface::DataPackage*>(package.get()))
     {
       // There is a race condition whether the last received packet was the start confirmation or
       // is already a data package. In that case consider the start as successful.
       double timestamp;
-      return tmp->getData("timestamp", timestamp);
+      return data_tmp->getData("timestamp", timestamp);
     }
     else
     {
@@ -706,7 +707,7 @@ std::vector<std::string> RTDEClient::readRecipe(const std::string& recipe_file)
   if (file.fail())
   {
     std::stringstream msg;
-    msg << "Opening file '" << recipe_file << "' failed with error: " << strerror(errno);
+    msg << "Opening file '" << recipe_file << "' failed with error: " << strerror_portable(errno);
     URCL_LOG_ERROR("%s", msg.str().c_str());
     throw UrException(msg.str());
   }
@@ -984,7 +985,7 @@ void RTDEClient::backgroundReadThreadFunc()
         if (data_pkg != nullptr)
         {
           {
-            std::scoped_lock lock(read_mutex_, write_mutex_);
+            std::scoped_lock rw_lock(read_mutex_, write_mutex_);
             std::swap(data_buffer0_, data_buffer1_);
           }
 

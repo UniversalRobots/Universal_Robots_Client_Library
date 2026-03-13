@@ -32,7 +32,7 @@ void RTDEServer::disconnectionCallback(const socket_t filedescriptor)
   URCL_LOG_INFO("Client disconnected from RTDE server on FD %d", filedescriptor);
   stopSendingDataPackages();
 }
-void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer, int nbytesrecv)
 {
   comm::BinParser bp(reinterpret_cast<uint8_t*>(buffer), nbytesrecv);
   rtde_interface::PackageHeader::_package_size_type size;
@@ -46,31 +46,31 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
     {
       bool accepted = true;
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_REQUEST_PROTOCOL_VERSION, sizeof(uint8_t));
-      size += serializer.serialize(buffer + size, accepted);
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_REQUEST_PROTOCOL_VERSION, sizeof(uint8_t));
+      send_size += serializer.serialize(send_buffer + send_size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
       break;
     }
     case rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION:
     {
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION, 4 * sizeof(uint32_t));
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION, 4 * sizeof(uint32_t));
       uint32_t version = 10;
-      size += serializer.serialize(buffer + size, version);  // major
-      size += serializer.serialize(buffer + size, version);  // minor
-      size += serializer.serialize(buffer + size, version);  // bugfix
-      size += serializer.serialize(buffer + size, version);  // build
+      send_size += serializer.serialize(send_buffer + send_size, version);  // major
+      send_size += serializer.serialize(send_buffer + send_size, version);  // minor
+      send_size += serializer.serialize(send_buffer + send_size, version);  // bugfix
+      send_size += serializer.serialize(send_buffer + send_size, version);  // build
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
       break;
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
@@ -85,20 +85,20 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       output_data_package_->initEmpty();
 
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS,
-          variable_names_str.length() + sizeof(uint8_t));
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS,
+          static_cast<uint16_t>(variable_names_str.length() + sizeof(uint8_t)));
       uint8_t recipe_id = 1;
-      size += serializer.serialize(buffer + size, recipe_id);
-      size += serializer.serialize(buffer + size,
-                                   variable_names_str);  // We return the variable
-                                                         // names list directly. For the initialization process, it is
-                                                         // only important, that no field is "NOT_FOUND".
+      send_size += serializer.serialize(send_buffer + send_size, recipe_id);
+      send_size += serializer.serialize(send_buffer + send_size,
+                                        variable_names_str);  // We return the variable
+                                                              // names list directly. For the initialization process, it
+                                                              // is only important, that no field is "NOT_FOUND".
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
       URCL_LOG_INFO("Output recipe set");
       break;
     }
@@ -111,20 +111,20 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       input_data_package_ = std::make_unique<rtde_interface::DataPackage>(input_recipe_);
 
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_INPUTS,
-          variable_names_str.length() + sizeof(uint8_t));
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_INPUTS,
+          static_cast<uint16_t>(variable_names_str.length() + sizeof(uint8_t)));
       uint8_t recipe_id = 1;
-      size += serializer.serialize(buffer + size, recipe_id);
-      size += serializer.serialize(buffer + size,
-                                   variable_names_str);  // We return the variable
-                                                         // names list directly. For the initialization process, it is
-                                                         // only important, that no field is "NOT_FOUND".
+      send_size += serializer.serialize(send_buffer + send_size, recipe_id);
+      send_size += serializer.serialize(send_buffer + send_size,
+                                        variable_names_str);  // We return the variable
+                                                              // names list directly. For the initialization process, it
+                                                              // is only important, that no field is "NOT_FOUND".
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
 
       URCL_LOG_INFO("Input recipe set with %zu variables.", input_recipe_.size());
       break;
@@ -132,30 +132,30 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START, sizeof(uint8_t));
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START, sizeof(uint8_t));
       bool accepted = true;
-      size += serializer.serialize(buffer + size, accepted);
+      send_size += serializer.serialize(send_buffer + send_size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
       startSendingDataPackages();
       break;
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_PAUSE:
     {
       comm::PackageSerializer serializer;
-      uint8_t buffer[4096];
-      size_t size = 0;
-      size += rtde_interface::PackageHeader::serializeHeader(
-          buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_PAUSE, sizeof(uint8_t));
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_PAUSE, sizeof(uint8_t));
       bool accepted = true;
-      size += serializer.serialize(buffer + size, accepted);
+      send_size += serializer.serialize(send_buffer + send_size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.write(filedescriptor, send_buffer, send_size, written);
       stopSendingDataPackages();
       break;
     }

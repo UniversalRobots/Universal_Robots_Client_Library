@@ -86,10 +86,10 @@ public:
           // deconstruction of a sub parser will increment the position of the parent parser
           comm::BinParser sbp(bp, sub_size);
           sbp.consume(sizeof(sub_size));
-          RobotStateType type;
-          sbp.parse(type);
+          RobotStateType sub_type;
+          sbp.parse(sub_type);
 
-          std::unique_ptr<PrimaryPackage> packet(stateFromType(type));
+          std::unique_ptr<PrimaryPackage> packet(stateFromType(sub_type));
 
           if (packet == nullptr)
           {
@@ -101,7 +101,7 @@ public:
 
           if (!packet->parseWith(sbp))
           {
-            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(type));
+            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(sub_type));
             return false;
           }
 
@@ -109,7 +109,7 @@ public:
 
           if (!sbp.empty())
           {
-            URCL_LOG_ERROR("Sub-package of type %d was not parsed completely!", static_cast<int>(type));
+            URCL_LOG_ERROR("Sub-package of type %d was not parsed completely!", static_cast<int>(sub_type));
             sbp.debug();
             return false;
           }

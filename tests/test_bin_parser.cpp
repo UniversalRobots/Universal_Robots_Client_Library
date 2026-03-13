@@ -142,7 +142,7 @@ TEST(bin_parser, parse_data_types)
   uint8_t buffer_float[] = { 0x41, 0xb2, 0xb8, 0x52 };
   comm::BinParser bp_float(buffer_float, sizeof(buffer_float));
 
-  float expected_float = 22.34;
+  float expected_float = 22.34f;
   float parsed_float;
   bp_float.parse(parsed_float);
 
@@ -152,7 +152,7 @@ TEST(bin_parser, parse_data_types)
   uint8_t buffer_double[] = { 0x41, 0xb2, 0xb8, 0x52, 0xcc, 0x55, 0x00, 0x00 };
   comm::BinParser bp_double(buffer_double, sizeof(buffer_double));
 
-  float expected_double = 22.34;
+  float expected_double = 22.34f;
   float parsed_double;
   bp_double.parse(parsed_double);
 

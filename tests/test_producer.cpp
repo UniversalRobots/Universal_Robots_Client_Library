@@ -109,7 +109,7 @@ TEST_F(ProducerTest, get_data_package)
   {
     double timestamp;
     data->getData("timestamp", timestamp);
-    EXPECT_FLOAT_EQ(timestamp, 7103.86);
+    EXPECT_DOUBLE_EQ(timestamp, 7103.858);
   }
   else
   {

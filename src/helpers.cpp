@@ -68,7 +68,7 @@ bool setFiFoScheduling(pthread_t& thread, const int priority)
 
       {
         URCL_LOG_ERROR("Unsuccessful in setting thread to FIFO scheduling with priority %i. %s", priority,
-                       strerror(ret));
+                       strerror_portable(ret).c_str());
       }
     }
 
@@ -122,7 +122,8 @@ void waitFor(std::function<bool()> condition, const std::chrono::milliseconds ti
 bool parseBoolean(const std::string& str)
 {
   std::string lower = str;
-  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
   if (lower == "true" || lower == "1" || lower == "yes" || lower == "on")
   {

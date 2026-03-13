@@ -486,7 +486,7 @@ public:
 
   uint32_t getControlFrequency() const
   {
-    return rtde_client_->getTargetFrequency();
+    return static_cast<uint32_t>(rtde_client_->getTargetFrequency());
   }
 
   /*!
