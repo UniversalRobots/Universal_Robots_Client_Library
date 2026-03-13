@@ -32,6 +32,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
+#include "test_utils.h"
 
 // This file adds a test for a deprecated function. To avoid a compiler warning in CI (where we want
 // to treat warnings as errors) we suppress the warning inside this file.
@@ -47,10 +48,7 @@ class TCPSocketTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new comm::TCPServer(60001));
-    server_->setConnectCallback(std::bind(&TCPSocketTest::connectionCallback, this, std::placeholders::_1));
-    server_->setMessageCallback(
-        std::bind(&TCPSocketTest::messageCallback, this, std::placeholders::_1, std::placeholders::_2));
+    server_.reset(new TestableTcpServer(60001));
     server_->start();
 
     client_.reset(new Client(60001));
@@ -60,47 +58,6 @@ protected:
   {
     server_.reset();
     client_.reset();
-  }
-
-  // callback functions for the tcp server
-  void messageCallback(const socket_t filedescriptor, char* buffer)
-  {
-    std::lock_guard<std::mutex> lk(message_mutex_);
-    received_message_ = std::string(buffer);
-    message_cv_.notify_one();
-    message_callback_ = true;
-  }
-
-  void connectionCallback(const socket_t filedescriptor)
-  {
-    std::lock_guard<std::mutex> lk(connect_mutex_);
-    client_fd_ = filedescriptor;
-    connect_cv_.notify_one();
-    connection_callback_ = true;
-  }
-
-  bool waitForMessageCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(message_mutex_);
-    if (message_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        message_callback_ == true)
-    {
-      message_callback_ = false;
-      return true;
-    }
-    return false;
-  }
-
-  bool waitForConnectionCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(connect_mutex_);
-    if (connect_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        connection_callback_ == true)
-    {
-      connection_callback_ = false;
-      return true;
-    }
-    return false;
   }
 
   class Client : public comm::TCPSocket
@@ -158,21 +115,8 @@ protected:
     }
   };
 
-  std::string received_message_;
-  socket_t client_fd_;
-
-  std::unique_ptr<comm::TCPServer> server_;
+  std::unique_ptr<TestableTcpServer> server_;
   std::unique_ptr<Client> client_;
-
-private:
-  std::condition_variable message_cv_;
-  std::mutex message_mutex_;
-
-  std::condition_variable connect_cv_;
-  std::mutex connect_mutex_;
-
-  bool connection_callback_ = false;
-  bool message_callback_ = false;
 };
 
 TEST_F(TCPSocketTest, socket_state)
@@ -214,7 +158,7 @@ TEST_F(TCPSocketTest, setup_client_before_server)
 
   EXPECT_EQ(toUnderlying(expected_state), toUnderlying(actual_state));
 
-  server_.reset(new comm::TCPServer(60001));
+  server_.reset(new TestableTcpServer(60001));
   server_->start();
 
   // Test that client goes into connected state after the server has been started
@@ -268,8 +212,8 @@ TEST_F(TCPSocketTest, write_on_connected_socket)
   size_t written;
   client_->write(data, len, written);
 
-  EXPECT_TRUE(waitForMessageCallback());
-  EXPECT_EQ(message, received_message_);
+  EXPECT_TRUE(server_->waitForMessageCallback());
+  EXPECT_EQ(message, server_->getReceivedMessage());
 }
 
 TEST_F(TCPSocketTest, read_on_connected_socket)
@@ -277,13 +221,13 @@ TEST_F(TCPSocketTest, read_on_connected_socket)
   client_->setup();
 
   // Make sure the client has connected to the server, before writing to the client
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   std::string send_message = "test message";
   size_t len = send_message.size();
   const uint8_t* data = reinterpret_cast<const uint8_t*>(send_message.c_str());
   size_t written;
-  server_->write(client_fd_, data, len, written);
+  server_->write(data, len, written);
 
   std::stringstream ss;
   char characters;
@@ -365,13 +309,13 @@ TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
   client_->setup();
 
   // Make sure the client has connected to the server, before writing to the client
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   std::string send_message = "test message";
   size_t len = send_message.size();
   const uint8_t* data = reinterpret_cast<const uint8_t*>(send_message.c_str());
   size_t written;
-  server_->write(client_fd_, data, len, written);
+  server_->write(data, len, written);
 
   // Simulate socket failure
   ur_close(client_->getSocketFD());
