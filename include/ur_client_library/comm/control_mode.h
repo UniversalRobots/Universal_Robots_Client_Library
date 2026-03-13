@@ -30,6 +30,7 @@
 #define UR_CLIENT_LIBRARY_CONTROL_MODE_H_INCLUDED
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 namespace urcl

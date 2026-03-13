@@ -31,6 +31,7 @@
 #include <ur_client_library/log.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <fstream>
 #include <iostream>
