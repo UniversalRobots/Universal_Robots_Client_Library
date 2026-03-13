@@ -36,6 +36,7 @@
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
 
+#include <filesystem>
 #include <fstream>
 
 #ifdef _WIN32
@@ -489,4 +490,164 @@ TEST_F(ScriptReaderTest, TestParsingExternalControl)
   processed_script = reader.readScriptFile(existing_script_file, data);
   expected_pattern = "ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)";
   EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+}
+
+TEST_F(ScriptReaderTest, TestDirectTorquePopupOnOldVersion)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.22.0");
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("popup(\"Torque control is only supported from software 5.23.0 and upwards.\", "
+                                  "error=True, blocking=True)"),
+            std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.10.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("popup(\"Torque control is only supported from software 10.11.0 and upwards.\", "
+                                  "error=True, blocking=True)"),
+            std::string::npos);
+}
+
+TEST_F(ScriptReaderTest, TestFrictionCompensationConstantsAndHandlerPolyScope523)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.23.0");
+
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  // Expect this string to be present with spaces
+  EXPECT_NE(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1"),
+            std::string::npos);
+
+  // Remove all whitespace
+  processed_script.erase(std::remove_if(processed_script.begin(), processed_script.end(), ::isspace),
+                         processed_script.end());
+  // Expect this string to be present (deprecated path uses friction_comp=... in direct_torque call)
+  EXPECT_NE(processed_script.find("friction_comp=deprecated_friction_compensation_enabled"), std::string::npos);
+  // Expect these string to not be present
+  EXPECT_EQ(processed_script.find("viscous_scale=viscous_scale"), std::string::npos);
+  EXPECT_EQ(processed_script.find("coulomb_scale=coulomb_scale"), std::string::npos);
+}
+
+TEST_F(ScriptReaderTest, TestFrictionCompensationConstantsAndHandlerPolyScope1011)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.11.0");
+
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  // Expect this string to be present with spaces
+  EXPECT_NE(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X "
+                                  "10.12.1"),
+            std::string::npos);
+
+  // Remove all whitespace
+  processed_script.erase(std::remove_if(processed_script.begin(), processed_script.end(), ::isspace),
+                         processed_script.end());
+  // Expect this string to be present (deprecated path uses friction_comp=... in direct_torque call)
+  EXPECT_NE(processed_script.find("friction_comp=deprecated_friction_compensation_enabled"), std::string::npos);
+  // Expect these string to not be present
+  EXPECT_EQ(processed_script.find("viscous_scale=viscous_scale"), std::string::npos);
+  EXPECT_EQ(processed_script.find("coulomb_scale=coulomb_scale"), std::string::npos);
+}
+
+TEST_F(ScriptReaderTest, TestFrictionScalesConstantsAndHandler)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.25.1");
+  std::string processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+            std::string::npos);
+  EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
+            std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.26.0");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+            std::string::npos);
+  EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
+            std::string::npos);
+
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.12.1");
+  processed_script = reader.readScriptFile(existing_script_file, data);
+  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+            std::string::npos);
+  EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
+            std::string::npos);
+}
+
+// A test that produce all script files to a subfolder for different software version to be manually inspected
+TEST_F(ScriptReaderTest, TestProduceAllScriptFiles)
+{
+  std::string existing_script_file = "../resources/external_control.urscript";
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+
+  // List of software versions to test
+  std::vector<urcl::VersionInformation> software_versions = {
+    urcl::VersionInformation::fromString("3.14.3"),  urcl::VersionInformation::fromString("5.9.4"),
+    urcl::VersionInformation::fromString("5.21.0"),  urcl::VersionInformation::fromString("5.23.0"),
+    urcl::VersionInformation::fromString("5.25.1"),  urcl::VersionInformation::fromString("10.8.0"),
+    urcl::VersionInformation::fromString("10.11.0"), urcl::VersionInformation::fromString("10.12.1"),
+  };
+
+  std::filesystem::path output_dir = std::filesystem::path("../test_artifacts/generated_scripts");
+  std::filesystem::create_directories(output_dir);
+
+  for (const auto& software_version : software_versions)
+  {
+    data["ROBOT_SOFTWARE_VERSION"] = software_version;
+    std::string processed_script = reader.readScriptFile(existing_script_file, data);
+    std::ofstream ofs(output_dir / (software_version.toString() + ".urscript"));
+    ofs << processed_script;
+    ofs.close();
+  }
 }
