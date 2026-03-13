@@ -8,6 +8,7 @@ endif()
 
 option(WITH_ASAN "Compile with address sanitizer support" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(PRIMARY_CLIENT_STRICT_PARSING_ "Enable strict parsing of primary client messages" OFF)
 
 if(MSVC)
 set(BUILD_SHARED_LIBS OFF)
@@ -63,6 +64,8 @@ add_library(urcl
 )
 add_library(ur_client_library::urcl ALIAS urcl)
 target_compile_features(urcl PUBLIC cxx_std_17)
+configure_file("src/compile_options.h.in"
+	"include/ur_client_library/compile_options.h")
 
 if(MSVC)
   target_link_libraries(urcl ws2_32)
@@ -93,6 +96,9 @@ target_include_directories(urcl PUBLIC
 )
 target_include_directories(urcl PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty>
+)
+target_include_directories(urcl PRIVATE
+  "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
 find_package(Threads REQUIRED)
