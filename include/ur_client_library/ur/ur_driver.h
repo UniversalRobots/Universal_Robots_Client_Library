@@ -635,7 +635,7 @@ public:
    * \brief Set the gravity vector. Note: It requires the external control script to be running or
    * the robot to be in headless mode.
    *
-   * \param gravity Gravity, a vector [x, y, z] specifying the gravity vector (pointing towards
+   * \param gravity Gravity, a vector [x, y, z] specifying the anti-gravity vector (pointing away
    * the Earth's center) given in the robot's base frame
    *
    * \returns True on successful write.

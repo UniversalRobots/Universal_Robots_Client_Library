@@ -94,7 +94,7 @@ public:
   /*!
    * \brief Set the gravity vector
    *
-   * \param gravity Gravity, a vector [x, y, z] specifying the gravity vector (pointing towards
+   * \param gravity Gravity, a vector [x, y, z] specifying the anti-gravity vector (pointing away
    * the Earth's center) given in the robot's base frame
    *
    * \returns True, if the write was performed successfully, false otherwise.
