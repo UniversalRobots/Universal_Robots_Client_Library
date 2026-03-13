@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <system_error>
 #ifdef _WIN32
 
 #  define NOMINMAX
@@ -33,6 +34,7 @@
 
 typedef SOCKET socket_t;
 typedef SSIZE_T ssize_t;
+typedef int socklen_t;
 
 static inline int ur_setsockopt(socket_t s, int level, int optname, const void* optval, unsigned int optlen)
 {
@@ -64,3 +66,25 @@ typedef int socket_t;
 #  define ur_close close
 
 #endif  //  _WIN32
+
+#ifndef MSG_NOSIGNAL
+#  define MSG_NOSIGNAL 0
+#endif
+
+inline std::system_error makeSocketError(const std::string& message)
+{
+#ifdef _WIN32
+  return std::system_error(std::error_code(WSAGetLastError(), std::system_category()), message);
+#else
+  return std::system_error(std::error_code(errno, std::generic_category()), message);
+#endif
+}
+
+inline int getLastSocketError()
+{
+#ifdef _WIN32
+  return WSAGetLastError();
+#else
+  return errno;
+#endif
+}

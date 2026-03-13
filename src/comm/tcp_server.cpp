@@ -29,13 +29,12 @@
 #include <ur_client_library/log.h>
 #include <ur_client_library/comm/tcp_server.h>
 
+#include <algorithm>
 #include <iostream>
 
 #include <sstream>
 #include <cstring>
 #include <fcntl.h>
-#include <algorithm>
-#include <system_error>
 
 namespace urcl
 {
@@ -56,16 +55,16 @@ TCPServer::TCPServer(const int port, const size_t max_num_tries, const std::chro
 
 TCPServer::~TCPServer()
 {
-  URCL_LOG_DEBUG("Destroying TCPServer object.");
+  URCL_LOG_INFO("Destroying TCPServer object.");
   shutdown();
 }
 
 void TCPServer::init()
 {
-  socket_t err = (listen_fd_ = socket(AF_INET, SOCK_STREAM, 0));
-  if (err < 0)
+  listen_fd_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (listen_fd_ == INVALID_SOCKET)
   {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "Failed to create socket endpoint");
+    throw makeSocketError("Failed to create socket endpoint");
   }
   int flag = 1;
 #ifndef _WIN32
@@ -81,12 +80,17 @@ void TCPServer::init()
 
 void TCPServer::shutdown()
 {
+  if (listen_fd_ == INVALID_SOCKET)
+  {
+    URCL_LOG_DEBUG("TCPServer is already shut down.");
+    return;
+  }
   keep_running_ = false;
 
   socket_t shutdown_socket = ::socket(AF_INET, SOCK_STREAM, 0);
   if (shutdown_socket == INVALID_SOCKET)
   {
-    throw std::system_error(std::error_code(errno, std::generic_category()), "Unable to create shutdown socket.");
+    throw makeSocketError("Unable to create shutdown socket.");
   }
 
 #ifdef _WIN32
@@ -115,17 +119,22 @@ void TCPServer::shutdown()
     URCL_LOG_DEBUG("Worker thread joined.");
   }
 
+  std::lock_guard<std::mutex> lk(clients_mutex_);
   for (const auto& client_fd : client_fds_)
   {
     ur_close(client_fd);
   }
+  // This will effectively deactivate the disconnection handler.
+  client_fds_.clear();
   ur_close(shutdown_socket);
   ur_close(listen_fd_);
+  listen_fd_ = INVALID_SOCKET;
 }
 
 void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
 
   // INADDR_ANY is a special constant that signalizes "ANY IFACE",
@@ -139,7 +148,8 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
     if (err == -1)
     {
       std::ostringstream ss;
-      ss << "Failed to bind socket for port " << port_ << " to address. Reason: " << strerror(errno);
+      ss << "Failed to bind socket for port " << port_
+         << " to address. Reason: " << strerrorPortable(getLastSocketError());
 
       if (connection_counter++ < max_num_tries || max_num_tries == 0)
       {
@@ -150,7 +160,7 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
       }
       else
       {
-        throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
+        throw makeSocketError(ss.str());
       }
     }
   } while (err == -1 && (connection_counter <= max_num_tries || max_num_tries == 0));
@@ -168,13 +178,14 @@ void TCPServer::startListen()
   {
     std::ostringstream ss;
     ss << "Failed to start listen on port " << port_;
-    throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
+    throw makeSocketError(ss.str());
   }
   struct sockaddr_in sin;
   socklen_t len = sizeof(sin);
   if (getsockname(listen_fd_, (struct sockaddr*)&sin, &len) == -1)
   {
-    URCL_LOG_ERROR("getsockname() failed to get port number for listening socket: %s", strerror(errno));
+    URCL_LOG_ERROR("getsockname() failed to get port number for listening socket: %s",
+                   strerrorPortable(getLastSocketError()).c_str());
   }
 
   else
@@ -193,9 +204,17 @@ void TCPServer::handleConnect()
   {
     std::ostringstream ss;
     ss << "Failed to accept connection request on port  " << port_;
-    throw std::system_error(std::error_code(errno, std::generic_category()), ss.str());
+    throw makeSocketError(ss.str());
   }
 
+  if (client_fd >= FD_SETSIZE)
+  {
+    URCL_LOG_ERROR("Accepted client FD %d exceeds FD_SETSIZE (%d). Closing connection.", (int)client_fd, FD_SETSIZE);
+    ur_close(client_fd);
+    return;
+  }
+
+  std::lock_guard<std::mutex> lk(clients_mutex_);
   if (client_fds_.size() < max_clients_allowed_ || max_clients_allowed_ == 0)
   {
     client_fds_.push_back(client_fd);
@@ -222,8 +241,12 @@ void TCPServer::spin()
 {
   tempfds_ = masterfds_;
 
+  timeval timeout;
+  timeout.tv_sec = 1;
+  timeout.tv_usec = 0;
+
   // blocks until activity on any socket from tempfds
-  int sel = select(static_cast<int>(maxfd_ + 1), &tempfds_, NULL, NULL, NULL);
+  int sel = select(static_cast<int>(maxfd_ + 1), &tempfds_, NULL, NULL, &timeout);
   if (sel < 0)
   {
     URCL_LOG_ERROR("select() failed. Shutting down socket event handler.");
@@ -231,35 +254,42 @@ void TCPServer::spin()
     return;
   }
 
-  if (!keep_running_)
+  if (!keep_running_ || sel == 0)
   {
     return;
   }
 
-  // Check which fd has an activity
-  for (socket_t i = 0; i <= maxfd_; i++)
+  if (FD_ISSET(listen_fd_, &tempfds_))
   {
-    if (FD_ISSET(i, &tempfds_))
+    URCL_LOG_DEBUG("Activity on listen FD %d", (int)listen_fd_);
+    handleConnect();
+  }
+
+  std::vector<socket_t> disconnected_clients;
+
+  for (const auto& client_fd : client_fds_)
+  {
+    if (FD_ISSET(client_fd, &tempfds_))
     {
-      URCL_LOG_DEBUG("Activity on FD %d", i);
-      if (listen_fd_ == i)
+      URCL_LOG_DEBUG("Activity on client FD %d", (int)client_fd);
+      if (!readData(client_fd))
       {
-        // Activity on the listen_fd means we have a new connection
-        handleConnect();
-      }
-      else
-      {
-        readData(i);
+        disconnected_clients.push_back(client_fd);
       }
     }
+  }
+  for (const auto& client_fd : disconnected_clients)
+  {
+    handleDisconnect(client_fd);
   }
 }
 
 void TCPServer::handleDisconnect(const socket_t fd)
 {
-  URCL_LOG_DEBUG("%d disconnected.", fd);
+  URCL_LOG_INFO("%d disconnected.", fd);
+  std::lock_guard<std::mutex> lk(clients_mutex_);
   ur_close(fd);
-  if (disconnect_callback_)
+  if (disconnect_callback_ && keep_running_)
   {
     disconnect_callback_(fd);
   }
@@ -273,14 +303,24 @@ void TCPServer::handleDisconnect(const socket_t fd)
       break;
     }
   }
+
+  maxfd_ = listen_fd_;
+  for (const auto& client_fd : client_fds_)
+  {
+    if (client_fd > maxfd_)
+    {
+      maxfd_ = client_fd;
+    }
+  }
 }
 
-void TCPServer::readData(const socket_t fd)
+bool TCPServer::readData(const socket_t fd)
 {
   memset(input_buffer_, 0, INPUT_BUFFER_SIZE);  // clear input buffer
   int nbytesrecv = recv(fd, input_buffer_, INPUT_BUFFER_SIZE, 0);
   if (nbytesrecv > 0)
   {
+    std::lock_guard<std::mutex> lk(message_mutex_);
     if (message_callback_)
     {
       message_callback_(fd, input_buffer_, nbytesrecv);
@@ -290,7 +330,14 @@ void TCPServer::readData(const socket_t fd)
   {
     if (nbytesrecv < 0)
     {
-      if (errno == ECONNRESET)  // if connection gets reset by client, we want to suppress this output
+      auto check_err = []() {
+#ifdef _WIN32
+        return WSAGetLastError() == WSAECONNRESET;
+#else
+        return errno == ECONNRESET;
+#endif
+      };
+      if (check_err())  // if connection gets reset by client, we want to suppress this output
       {
         URCL_LOG_DEBUG("client from FD %d sent a connection reset package.", fd);
       }
@@ -303,8 +350,9 @@ void TCPServer::readData(const socket_t fd)
     {
       // normal disconnect
     }
-    handleDisconnect(fd);
+    return false;
   }
+  return true;
 }
 
 void TCPServer::worker()
@@ -326,13 +374,29 @@ void TCPServer::start()
 bool TCPServer::write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written)
 {
   written = 0;
+  if (fd == INVALID_SOCKET)
+  {
+    URCL_LOG_ERROR("Invalid socket provided for writing.");
+    return false;
+  }
+  {
+    std::lock_guard<std::mutex> lk(clients_mutex_);
+    if (std::find(client_fds_.begin(), client_fds_.end(), fd) == client_fds_.end())
+    {
+      URCL_LOG_ERROR("Trying to write to FD %d, but this client is not connected.", fd);
+      return false;
+    }
+  }
 
   size_t remaining = buf_len;
 
   // handle partial sends
   while (written < buf_len)
   {
-    ssize_t sent = ::send(fd, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
+    // We don't use a lock around the send call here, since writing on a closed socket would raise
+    // an error anyway.
+    ssize_t sent =
+        ::send(fd, reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), MSG_NOSIGNAL);
 
     if (sent <= 0)
     {
