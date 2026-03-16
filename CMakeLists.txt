@@ -74,7 +74,9 @@ else()
     target_compile_options(urcl PUBLIC -fsanitize=address)
     target_link_options(urcl PUBLIC -fsanitize=address)
   endif()
-  target_link_libraries(urcl PUBLIC stdc++fs)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    target_link_libraries(urcl PUBLIC stdc++fs)
+  endif()
 endif()
 
 target_include_directories(urcl PUBLIC
