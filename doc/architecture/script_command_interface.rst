@@ -23,6 +23,10 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 - ``setFrictionCompensation()``: Set friction compensation for torque command.
 - ``ftRtdeInputEnable()``: Enable/disable FT RTDE input processing.
 - ``setGravity()``: Set the gravity vector for the robot.
+- ``setTcpOffset()``: Set the TCP offset of the robot.
+- ``setFrictionScales()``: Set viscous and Coulomb friction scale factors for direct torque control.
+- ``setPDControllerGains()``: Set PD gains for the PD control loop running in the external control script.
+- ``setMaxJointTorques()``: Set Max joint torques for the PD control loop running in the external control script.
 
 Communication protocol
 ----------------------
@@ -54,6 +58,10 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 7: setFrictionCompensation
            - 8: ftRtdeInputEnable
            - 9: setGravity
+           - 10: setTcpOffset
+           - 11: setFrictionScales
+           - 12: setPDControllerGains
+           - 13: setMaxJointTorques
    1-27   data fields specific to the command
    =====  =====
 
@@ -127,7 +135,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    1      No specific meaning / values ignored
    =====  =====
 
-.. table:: With setFrictionCompensation command
+.. table:: With setFrictionCompensation command (Deprecated, use setFrictionScales instead)
    :widths: auto
 
    =====  =====
@@ -148,6 +156,25 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    6-9    sensor_cog in m, displacement from the tool flange (3d floating point)
    =====  =====
 
+.. table:: With setPDControllerGains command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    Kp gains for each joint, used in the PD control loop running in the external control script (floating point)
+   7-12   Kd gains for each joint, used in the PD control loop running in the external control script (floating point)
+   =====  =====
+
+.. table:: With setMaxJointTorques command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    max_joint_torques for each joint, used to clamp the torques between +-max_joint_torques before applying them to the robot in the PD control loop running in the external control script (floating point)
+   =====  =====
+
 .. table:: With setGravity command
    :widths: auto
 
@@ -155,6 +182,25 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    index  meaning
    =====  =====
    1-3    The gravity vector (towards the Earth's center), represented in robot's base frame (floating point)
+   =====  =====
+
+.. table:: With setTcpOffset command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    TCP offset as [x, y, z, rx, ry, rz] given in the flange coordinate system in SI units (meters and radians, floating point)
+   =====  =====
+
+.. table:: With setFrictionScales command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1-6    Viscous friction scale factors. One number per joint, range [0-1]. 0 means no compensation for that joint. 1 means full compensation. Default is [0.9, 0.9, 0.8, 0.9, 0.9, 0.9]. (floating point)
+   7-12   Coulomb friction scale factors. One number per joint, range [0-1]. 0 means no compensation for that joint. 1 means full compensation. Default is [0.8, 0.8, 0.7, 0.8, 0.8, 0.8]. (floating point)
    =====  =====
 
 .. note::
