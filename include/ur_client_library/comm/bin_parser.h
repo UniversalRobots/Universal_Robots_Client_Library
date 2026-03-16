@@ -21,7 +21,7 @@
 #pragma once
 
 #include <assert.h>
-#include <ur_client_library/portable_endian.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <inttypes.h>
 #include <array>
 #include <bitset>
