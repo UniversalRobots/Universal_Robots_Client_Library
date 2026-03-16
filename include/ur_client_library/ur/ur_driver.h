@@ -1000,7 +1000,7 @@ public:
    *
    * \returns The ID of the callback that can be used to unregister the callback later.
    */
-  uint32_t registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
+  uint32_t registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const socket_t)> fun)
   {
     return trajectory_interface_->registerDisconnectionCallback(fun);
   }

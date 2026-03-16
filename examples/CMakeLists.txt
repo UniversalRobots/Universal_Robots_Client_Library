@@ -3,12 +3,6 @@ project(ur_driver_examples)
 
 # find_package(ur_client_library REQUIRED)
 
-if(MSVC)
-  add_compile_options(/W4 /WX)  # High warning level, treat warnings as errors
-else()
-  add_compile_options(-Wall -Wextra -Werror)
-endif()
-
 add_executable(driver_example
   full_driver.cpp)
 target_link_libraries(driver_example ur_client_library::urcl)

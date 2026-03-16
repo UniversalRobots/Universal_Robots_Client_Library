@@ -400,8 +400,7 @@ std::string DashboardClientImplG5::retryCommandString(const std::string& request
                     "' within the timeout. Last response was: " + response);
 }
 
-bool DashboardClientImplG5::retryCommand(const std::string& requestCommand,
-                                         [[maybe_unused]] const std::string& requestExpectedResponse,
+bool DashboardClientImplG5::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
                                          const std::string& waitRequest, const std::string& waitExpectedResponse,
                                          const std::chrono::duration<double> timeout,
                                          const std::chrono::duration<double> retry_period)
@@ -409,7 +408,7 @@ bool DashboardClientImplG5::retryCommand(const std::string& requestCommand,
   std::chrono::duration<double> time_done(0);
   do
   {
-    sendRequest(requestCommand);
+    sendRequest(requestCommand, requestExpectedResponse);
     time_done += retry_period;
 
     if (waitForReply(waitRequest, waitExpectedResponse, retry_period))

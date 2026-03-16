@@ -639,12 +639,12 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
 
   // Register disconnection callbacks
   int disconnection_callback_id_1 =
-      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_1](const int fd) {
+      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_1](const socket_t fd) {
         std::cout << "Disconnection 1 callback called with fd: " << fd << std::endl;
         disconnect_called_1 = true;
       });
   int disconnection_callback_id_2 =
-      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_2](const int fd) {
+      traj_point_interface_->registerDisconnectionCallback([&disconnect_called_2](const socket_t fd) {
         std::cout << "Disconnection 2 callback called with fd: " << fd << std::endl;
         disconnect_called_2 = true;
       });

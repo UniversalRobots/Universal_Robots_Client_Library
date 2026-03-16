@@ -44,7 +44,7 @@ void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::Trajectory
     trajectory_running_ = false;
   }
 }
-void urcl::InstructionExecutor::trajDisconnectCallback([[maybe_unused]] const int filedescriptor)
+void urcl::InstructionExecutor::trajDisconnectCallback([[maybe_unused]] const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Trajectory disconnect");
   std::unique_lock<std::mutex> lock(trajectory_result_mutex_);

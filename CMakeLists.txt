@@ -71,7 +71,6 @@ if(MSVC)
   target_link_libraries(urcl ws2_32)
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
-  target_compile_options(urcl PRIVATE -Wall -Wextra -Werror)
 
   # GCC 13-15 have a false positive -Wmaybe-uninitialized in <regex> headers
   # (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562).
@@ -113,6 +112,15 @@ if(THREADS_HAVE_PTHREAD_ARG)
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries(urcl PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
+# When warnings are treated as errors, also enable high warning level for all targets
+if(CMAKE_COMPILE_WARNING_AS_ERROR)
+  if(MSVC)
+    add_compile_options(/W4)
+  else()
+    add_compile_options(-Wall -Wextra)
+  endif()
 endif()
 
 ##

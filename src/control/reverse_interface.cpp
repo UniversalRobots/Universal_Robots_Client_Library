@@ -250,8 +250,7 @@ void ReverseInterface::disconnectionCallback(const socket_t filedescriptor)
   }
   for (auto handler : disconnect_callbacks_)
   {
-    // socket_t is UINT_PTR on Windows, so a narrowing cast is needed to match the callback signature
-    handler.function(static_cast<int>(filedescriptor));
+    handler.function(filedescriptor);
   }
 }
 

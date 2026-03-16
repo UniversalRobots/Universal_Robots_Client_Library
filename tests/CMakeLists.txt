@@ -14,12 +14,6 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-if(MSVC)
-  add_compile_options(/W4 /WX)  # High warning level, treat warnings as errors
-else()
-  add_compile_options(-Wall -Wextra -Werror)
-endif()
-
 add_executable(fake_rtde_server fake_rtde_server.cpp fake_rtde_server_main.cpp)
 target_link_libraries(fake_rtde_server PRIVATE ur_client_library::urcl)
 
