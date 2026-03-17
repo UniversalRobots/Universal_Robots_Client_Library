@@ -68,6 +68,7 @@ configure_file("src/compile_options.h.in"
 	"include/ur_client_library/compile_options.h")
 
 if(MSVC)
+  target_compile_options(urcl PUBLIC /Zc:lambda)
   target_link_libraries(urcl ws2_32)
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
