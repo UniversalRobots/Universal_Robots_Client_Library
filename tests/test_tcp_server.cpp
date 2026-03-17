@@ -29,9 +29,13 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <atomic>
 #include <condition_variable>
 #include <chrono>
 #include <memory>
+#include <thread>
+#include <vector>
 
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/tcp_socket.h>
@@ -210,21 +214,29 @@ TEST_F(TCPServerTest, callback_functions)
   EXPECT_TRUE(waitForDisconnectionCallback());
 }
 
-TEST_F(TCPServerTest, unlimited_clients_allowed)
+TEST_F(TCPServerTest, many_clients_allowed)
 {
   comm::TCPServer server(port_);
-  server.setMessageCallback(std::bind(&TCPServerTest_unlimited_clients_allowed_Test::messageCallback, this,
+  server.setMessageCallback(std::bind(&TCPServerTest_many_clients_allowed_Test::messageCallback, this,
                                       std::placeholders::_1, std::placeholders::_2));
   server.setConnectCallback(
-      std::bind(&TCPServerTest_unlimited_clients_allowed_Test::connectionCallback, this, std::placeholders::_1));
+      std::bind(&TCPServerTest_many_clients_allowed_Test::connectionCallback, this, std::placeholders::_1));
   server.setDisconnectCallback(
-      std::bind(&TCPServerTest_unlimited_clients_allowed_Test::disconnectionCallback, this, std::placeholders::_1));
+      std::bind(&TCPServerTest_many_clients_allowed_Test::disconnectionCallback, this, std::placeholders::_1));
   server.start();
+
+#ifdef _WIN32
+  // Windows has a maximum of 64 sockets per process, so we can only test with 63 clients since the server also uses one
+  // socket.
+  constexpr int num_clients = 63;
+#else
+  constexpr int num_clients = 100;
+#endif
 
   // Test that a large number of clients can connect to the server
   std::vector<std::unique_ptr<Client>> clients;
   std::unique_ptr<Client> client;
-  for (unsigned int i = 0; i < 100; ++i)
+  for (unsigned int i = 0; i < num_clients; ++i)
   {
     clients.push_back(std::make_unique<Client>(port_));
     ASSERT_TRUE(waitForConnectionCallback());
@@ -372,6 +384,244 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
   EXPECT_FALSE(read_success);
   // If the read just would have timeouted, the client state would still be connected.
   EXPECT_EQ(client.getState(), comm::SocketState::Disconnected);
+}
+
+TEST_F(TCPServerTest, double_shutdown)
+{
+  comm::TCPServer server(port_);
+  server.setConnectCallback(
+      std::bind(&TCPServerTest_double_shutdown_Test::connectionCallback, this, std::placeholders::_1));
+  server.setDisconnectCallback(
+      std::bind(&TCPServerTest_double_shutdown_Test::disconnectionCallback, this, std::placeholders::_1));
+  server.start();
+
+  Client client(port_);
+  EXPECT_TRUE(waitForConnectionCallback());
+
+  EXPECT_NO_THROW(server.shutdown());
+  EXPECT_NO_THROW(server.shutdown());
+}
+
+TEST_F(TCPServerTest, concurrent_writes_same_client)
+{
+  comm::TCPServer server(0);
+  server.setConnectCallback([this](const socket_t fd) { connectionCallback(fd); });
+  server.setDisconnectCallback([this](const socket_t fd) { disconnectionCallback(fd); });
+  server.start();
+
+  Client client(server.getPort());
+  ASSERT_TRUE(waitForConnectionCallback());
+  const socket_t fd = client_fd_;
+
+  const std::string message = "test data\n";
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  const size_t len = message.size();
+
+  constexpr int num_threads = 10;
+  constexpr int writes_per_thread = 100;
+  std::atomic<int> success_count{ 0 };
+  std::vector<std::thread> writers;
+
+  for (int i = 0; i < num_threads; ++i)
+  {
+    writers.emplace_back([&server, fd, data, len, &success_count]() {
+      for (int j = 0; j < writes_per_thread; ++j)
+      {
+        size_t written;
+        if (server.write(fd, data, len, written))
+        {
+          ++success_count;
+        }
+      }
+    });
+  }
+
+  for (auto& t : writers)
+  {
+    t.join();
+  }
+
+  EXPECT_EQ(success_count.load(), num_threads * writes_per_thread);
+}
+
+TEST_F(TCPServerTest, write_during_client_disconnect)
+{
+  comm::TCPServer server(0);
+  server.setConnectCallback([this](const socket_t fd) { connectionCallback(fd); });
+  server.setDisconnectCallback([this](const socket_t fd) { disconnectionCallback(fd); });
+  server.start();
+
+  Client client(server.getPort());
+  ASSERT_TRUE(waitForConnectionCallback());
+  const socket_t fd = client_fd_;
+
+  const std::string message = "test data\n";
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  const size_t len = message.size();
+
+  std::atomic<bool> stop{ false };
+
+  std::thread writer([&server, fd, data, len, &stop]() {
+    while (!stop.load())
+    {
+      size_t written;
+      server.write(fd, data, len, written);
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  client.close();
+  ASSERT_TRUE(waitForDisconnectionCallback());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  stop.store(true);
+  writer.join();
+}
+
+TEST_F(TCPServerTest, rapid_connect_disconnect_with_concurrent_writes)
+{
+  comm::TCPServer server(0);
+
+  std::mutex fds_mutex;
+  std::vector<socket_t> connected_fds;
+
+  server.setConnectCallback([&](const socket_t fd) {
+    std::lock_guard<std::mutex> lk(fds_mutex);
+    connected_fds.push_back(fd);
+  });
+  server.setDisconnectCallback([&](const socket_t fd) {
+    std::lock_guard<std::mutex> lk(fds_mutex);
+    connected_fds.erase(std::remove(connected_fds.begin(), connected_fds.end(), fd), connected_fds.end());
+  });
+  server.start();
+
+  const std::string message = "test data\n";
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  const size_t len = message.size();
+
+  std::atomic<bool> stop{ false };
+
+  std::thread writer([&]() {
+    while (!stop.load())
+    {
+      std::vector<socket_t> snapshot;
+      {
+        std::lock_guard<std::mutex> lk(fds_mutex);
+        snapshot = connected_fds;
+      }
+      for (const auto& fd : snapshot)
+      {
+        size_t written;
+        server.write(fd, data, len, written);
+      }
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+  });
+
+  constexpr int num_iterations = 50;
+  for (int i = 0; i < num_iterations; ++i)
+  {
+    Client client(server.getPort());
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  stop.store(true);
+  writer.join();
+}
+
+TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
+{
+  comm::TCPServer server(0);
+
+  std::mutex fds_mutex;
+  std::vector<socket_t> connected_fds;
+  std::condition_variable all_connected_cv;
+  constexpr size_t num_clients = 10;
+
+  server.setConnectCallback([&](const socket_t fd) {
+    std::lock_guard<std::mutex> lk(fds_mutex);
+    connected_fds.push_back(fd);
+    if (connected_fds.size() == num_clients)
+    {
+      all_connected_cv.notify_all();
+    }
+  });
+  server.start();
+
+  std::vector<std::unique_ptr<Client>> clients;
+  for (size_t i = 0; i < num_clients; ++i)
+  {
+    clients.push_back(std::make_unique<Client>(server.getPort()));
+  }
+
+  {
+    std::unique_lock<std::mutex> lk(fds_mutex);
+    ASSERT_TRUE(
+        all_connected_cv.wait_for(lk, std::chrono::seconds(5), [&]() { return connected_fds.size() == num_clients; }));
+  }
+
+  const std::string message = "test data\n";
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  const size_t len = message.size();
+
+  constexpr int writes_per_thread = 100;
+  std::atomic<int> total_successes{ 0 };
+
+  std::vector<std::thread> writers;
+  {
+    std::lock_guard<std::mutex> lk(fds_mutex);
+    for (const auto& fd : connected_fds)
+    {
+      writers.emplace_back([&server, fd, data, len, &total_successes]() {
+        for (int j = 0; j < writes_per_thread; ++j)
+        {
+          size_t written;
+          if (server.write(fd, data, len, written))
+          {
+            ++total_successes;
+          }
+        }
+      });
+    }
+  }
+
+  for (auto& t : writers)
+  {
+    t.join();
+  }
+
+  EXPECT_EQ(total_successes.load(), static_cast<int>(num_clients) * writes_per_thread);
+}
+
+TEST_F(TCPServerTest, shutdown_during_active_writes)
+{
+  comm::TCPServer server(0);
+  server.setConnectCallback([this](const socket_t fd) { connectionCallback(fd); });
+  server.setDisconnectCallback([this](const socket_t fd) { disconnectionCallback(fd); });
+  server.start();
+
+  Client client(server.getPort());
+  ASSERT_TRUE(waitForConnectionCallback());
+  const socket_t fd = client_fd_;
+
+  const std::string message = "test data\n";
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  const size_t len = message.size();
+
+  std::atomic<bool> stop{ false };
+
+  std::thread writer([&server, fd, data, len, &stop]() {
+    while (!stop.load())
+    {
+      size_t written;
+      server.write(fd, data, len, written);
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  server.shutdown();
+  stop.store(true);
+  writer.join();
 }
 
 int main(int argc, char* argv[])

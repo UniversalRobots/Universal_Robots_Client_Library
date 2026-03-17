@@ -88,5 +88,4 @@ void setLogLevel(LogLevel level);
  * \param fmt Format string
  */
 void log(const char* file, int line, LogLevel level, const char* fmt, ...);
-
 }  // namespace urcl
