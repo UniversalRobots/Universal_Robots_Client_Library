@@ -20,7 +20,6 @@
  * limitations under the License.
  */
 
-#include <endian.h>
 #include <chrono>
 #include <cstring>
 #include <sstream>

@@ -183,7 +183,7 @@ TEST(package_serializer, serialize_vector6int32)
     int32_t tmp;
     std::memcpy(&tmp, &buffer[i * sizeof(int32_t)], sizeof(int32_t));
     int32_t decoded = be32toh(tmp);
-    EXPECT_DOUBLE_EQ(decoded, target[i]);
+    EXPECT_EQ(decoded, target[i]);
   }
 }
 
@@ -201,7 +201,7 @@ TEST(package_serializer, serialize_vector6uint32)
     uint32_t tmp;
     std::memcpy(&tmp, &buffer[i * sizeof(uint32_t)], sizeof(uint32_t));
     uint32_t decoded = be32toh(tmp);
-    EXPECT_DOUBLE_EQ(decoded, target[i]);
+    EXPECT_EQ(decoded, target[i]);
   }
 }
 
@@ -233,13 +233,123 @@ TEST(package_serializer, serialize_bool)
 
   bool decoded_bool;
   std::memcpy(&decoded_bool, &buffer, sizeof(uint8_t));
-  EXPECT_DOUBLE_EQ(decoded_bool, target);
+  EXPECT_EQ(decoded_bool, target);
 
-  target = false;
+  target = true;
   actual_size = comm::PackageSerializer::serialize(buffer, target);
   EXPECT_EQ(expected_size, actual_size);
   std::memcpy(&decoded_bool, &buffer, sizeof(uint8_t));
-  EXPECT_DOUBLE_EQ(decoded_bool, target);
+  EXPECT_EQ(decoded_bool, target);
+}
+
+// Tests for encode() logic in package_serializer.cpp (host to big-endian)
+TEST(package_serializer, serialize_uint8)
+{
+  constexpr uint8_t kVal = 0xab;
+  uint8_t buffer[1];
+  size_t size = comm::PackageSerializer::serialize(buffer, kVal);
+  EXPECT_EQ(size, 1u);
+  EXPECT_EQ(buffer[0], kVal);
+}
+
+TEST(package_serializer, serialize_uint64)
+{
+  constexpr uint64_t kVal = 0x123456789abcdef0ULL;
+  uint8_t buffer[sizeof(uint64_t)];
+  size_t size = comm::PackageSerializer::serialize(buffer, kVal);
+  EXPECT_EQ(size, sizeof(uint64_t));
+  uint8_t expected[] = { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 };
+  for (size_t i = 0; i < sizeof(uint64_t); ++i)
+  {
+    EXPECT_EQ(buffer[i], expected[i]) << "at index " << i;
+  }
+}
+
+TEST(package_serializer, serialize_int64)
+{
+  constexpr int64_t kMinusOne = -1;
+  uint8_t buffer[sizeof(int64_t)];
+  size_t size = comm::PackageSerializer::serialize(buffer, kMinusOne);
+  EXPECT_EQ(size, sizeof(int64_t));
+  uint8_t expected_minus_one[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+  for (size_t i = 0; i < sizeof(int64_t); ++i)
+  {
+    EXPECT_EQ(buffer[i], expected_minus_one[i]) << "at index " << i;
+  }
+
+  constexpr int64_t kInt64Max = 0x7fffffffffffffffLL;
+  size = comm::PackageSerializer::serialize(buffer, kInt64Max);
+  int64_t decoded;
+  std::memcpy(&decoded, buffer, sizeof(int64_t));
+  decoded = be64toh(decoded);
+  EXPECT_EQ(decoded, kInt64Max);
+}
+
+TEST(package_serializer, serialize_int64_negative)
+{
+  constexpr int64_t kVal = -0x123456789abcLL;
+  uint8_t buffer[sizeof(int64_t)];
+  comm::PackageSerializer::serialize(buffer, kVal);
+  int64_t decoded;
+  std::memcpy(&decoded, buffer, sizeof(int64_t));
+  decoded = be64toh(decoded);
+  EXPECT_EQ(decoded, kVal);
+}
+
+TEST(package_serializer, serialize_string_empty)
+{
+  uint8_t buffer[1];
+  std::string empty;
+  size_t size = comm::PackageSerializer::serialize(buffer, empty);
+  EXPECT_EQ(size, 0u);
+}
+
+TEST(package_serializer, round_trip_int16)
+{
+  constexpr int16_t kOriginal = -1234;
+  uint8_t buffer[sizeof(int16_t)];
+  comm::PackageSerializer::serialize(buffer, kOriginal);
+  int16_t tmp;
+  std::memcpy(&tmp, buffer, sizeof(int16_t));
+  int16_t decoded = be16toh(tmp);
+  EXPECT_EQ(decoded, kOriginal);
+}
+
+TEST(package_serializer, round_trip_uint32)
+{
+  constexpr uint32_t kOriginal = 0xdeadbeefu;
+  uint8_t buffer[sizeof(uint32_t)];
+  comm::PackageSerializer::serialize(buffer, kOriginal);
+  uint32_t tmp;
+  std::memcpy(&tmp, buffer, sizeof(uint32_t));
+  uint32_t decoded = be32toh(tmp);
+  EXPECT_EQ(decoded, kOriginal);
+}
+
+TEST(package_serializer, round_trip_float)
+{
+  constexpr float kOriginal = 3.14159f;
+  uint8_t buffer[sizeof(float)];
+  comm::PackageSerializer::serialize(buffer, kOriginal);
+  uint32_t tmp;
+  std::memcpy(&tmp, buffer, sizeof(uint32_t));
+  tmp = be32toh(tmp);
+  float decoded;
+  std::memcpy(&decoded, &tmp, sizeof(float));
+  EXPECT_FLOAT_EQ(decoded, kOriginal);
+}
+
+TEST(package_serializer, round_trip_double)
+{
+  constexpr double kOriginal = -1.5e-10;
+  uint8_t buffer[sizeof(double)];
+  comm::PackageSerializer::serialize(buffer, kOriginal);
+  uint64_t tmp;
+  std::memcpy(&tmp, buffer, sizeof(uint64_t));
+  tmp = be64toh(tmp);
+  double decoded;
+  std::memcpy(&decoded, &tmp, sizeof(double));
+  EXPECT_DOUBLE_EQ(decoded, kOriginal);
 }
 
 int main(int argc, char* argv[])

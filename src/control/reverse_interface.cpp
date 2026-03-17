@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/reverse_interface.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <math.h>
 
 namespace urcl

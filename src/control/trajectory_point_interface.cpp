@@ -28,6 +28,7 @@
 
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <math.h>
 #include <cstdint>
 #include <stdexcept>
