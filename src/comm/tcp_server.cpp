@@ -220,47 +220,49 @@ void TCPServer::handleConnect()
     return;
   }
 
-  auto set_size_exceeded = [this, &client_fd]() {
 #ifdef _WIN32
-    (void)client_fd;  // Avoid unused variable warning, since on Windows we only check the number of
-                      // clients, not the client FD itself.
-    return client_fds_.size() >= FD_SETSIZE - 1;  // -1 because listen_fd_ also occupies one
-                                                  // slot in masterfds_
+  bool set_size_exceeded = client_fds_.size() >= FD_SETSIZE - 1;  // -1 because listen_fd_ also occupies one
+                                                                  // slot in masterfds_
 #else
-    (void)this;                      // Avoid unused variable warning, since on Unix-like systems we only check the
-                                     // client FD itself, not the number of clients.
-    return client_fd >= FD_SETSIZE;  // On Unix-like systems, the client FD itself must be less than
-                                     // FD_SETSIZE, otherwise it cannot be added to the fd_set.
+  bool set_size_exceeded = client_fd >= FD_SETSIZE;  // On Unix-like systems, the client FD itself must be less than
+                                                     // FD_SETSIZE, otherwise it cannot be added to the fd_set.
 #endif
-  };
 
-  if (set_size_exceeded())
+  if (set_size_exceeded)
   {
     URCL_LOG_ERROR("Accepted client FD %d exceeds FD_SETSIZE (%d). Closing connection.", (int)client_fd, FD_SETSIZE);
     ur_close(client_fd);
     return;
   }
 
-  std::lock_guard<std::mutex> lk(clients_mutex_);
-  if (client_fds_.size() < max_clients_allowed_ || max_clients_allowed_ == 0)
+  bool accepted = false;
+
   {
-    client_fds_.push_back(client_fd);
-    FD_SET(client_fd, &masterfds_);
-    if (client_fd > maxfd_)
+    std::lock_guard<std::mutex> lk(clients_mutex_);
+    if (client_fds_.size() < max_clients_allowed_ || max_clients_allowed_ == 0)
     {
-      maxfd_ = client_fd;
+      client_fds_.push_back(client_fd);
+      FD_SET(client_fd, &masterfds_);
+      if (client_fd > maxfd_)
+      {
+        maxfd_ = client_fd;
+      }
+      accepted = true;
     }
-    if (new_connection_callback_)
+    else
+    {
+      URCL_LOG_WARN("Connection attempt on port %d while maximum number of clients (%d) is already connected. Closing "
+                    "connection.",
+                    port_, max_clients_allowed_);
+      ur_close(client_fd);
+    }
+  }
+  {
+    std::lock_guard<std::mutex> lk(callback_mutex_);
+    if (new_connection_callback_ && accepted)
     {
       new_connection_callback_(client_fd);
     }
-  }
-  else
-  {
-    URCL_LOG_WARN("Connection attempt on port %d while maximum number of clients (%d) is already connected. Closing "
-                  "connection.",
-                  port_, max_clients_allowed_);
-    ur_close(client_fd);
   }
 }
 
@@ -293,6 +295,7 @@ void TCPServer::spin()
   }
 
   std::vector<socket_t> disconnected_clients;
+  std::vector<socket_t> client_fds_with_activity;
 
   {
     std::lock_guard<std::mutex> lk(clients_mutex_);
@@ -301,11 +304,19 @@ void TCPServer::spin()
       if (FD_ISSET(client_fd, &tempfds_))
       {
         URCL_LOG_DEBUG("Activity on client FD %d", (int)client_fd);
-        if (!readData(client_fd))
-        {
-          disconnected_clients.push_back(client_fd);
-        }
+        client_fds_with_activity.push_back(client_fd);
       }
+    }
+  }
+  // We handle client activity outside the clients_mutex_ lock to avoid holding it during potentially slow I/O and
+  // message callbacks.
+  // The clients_mutex_ lock is only needed to protect the client_fds_ vector, but once we have copied the FDs with
+  // activity to a separate vector, we can safely handle them without holding the lock.
+  for (const auto& client_fd : client_fds_with_activity)
+  {
+    if (!readData(client_fd))
+    {
+      disconnected_clients.push_back(client_fd);
     }
   }
   for (const auto& client_fd : disconnected_clients)
@@ -317,29 +328,35 @@ void TCPServer::spin()
 void TCPServer::handleDisconnect(const socket_t fd)
 {
   URCL_LOG_INFO("%d disconnected.", fd);
-  std::lock_guard<std::mutex> lk(clients_mutex_);
-  ur_close(fd);
-  if (disconnect_callback_ && keep_running_)
   {
-    disconnect_callback_(fd);
-  }
-  FD_CLR(fd, &masterfds_);
+    std::lock_guard<std::mutex> lk(clients_mutex_);
+    ur_close(fd);
+    FD_CLR(fd, &masterfds_);
 
-  for (size_t i = 0; i < client_fds_.size(); ++i)
-  {
-    if (client_fds_[i] == fd)
+    for (size_t i = 0; i < client_fds_.size(); ++i)
     {
-      client_fds_.erase(client_fds_.begin() + i);
-      break;
+      if (client_fds_[i] == fd)
+      {
+        client_fds_.erase(client_fds_.begin() + i);
+        break;
+      }
+    }
+
+    maxfd_ = listen_fd_;
+    for (const auto& client_fd : client_fds_)
+    {
+      if (client_fd > maxfd_)
+      {
+        maxfd_ = client_fd;
+      }
     }
   }
 
-  maxfd_ = listen_fd_;
-  for (const auto& client_fd : client_fds_)
   {
-    if (client_fd > maxfd_)
+    std::lock_guard<std::mutex> lk(callback_mutex_);
+    if (disconnect_callback_ && keep_running_)
     {
-      maxfd_ = client_fd;
+      disconnect_callback_(fd);
     }
   }
 }

@@ -81,16 +81,12 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    *
-   * \note: For thread safety, this will block when there is an active callback around connection
-   * (connection, disconnection, shutdown). Thus, trying to call setConnectCallback e.g. by a
-   * handler function registered as disconnectCallback will result in a deadlock.
-   *
-   * \note: Calling write() from within the callback will cause a deadlock. If you want to write from the connection
-   * callback, you can use writeUnchecked(), as the callback will be triggered from a thread-protected context.
+   * \note: The connection callback will be triggered with the socket being accepted. Hence, it
+   * is possible to send data from the connection callback directly.
    */
   void setConnectCallback(std::function<void(const socket_t)> func)
   {
-    std::lock_guard<std::mutex> lk(clients_mutex_);
+    std::lock_guard<std::mutex> lk(callback_mutex_);
     new_connection_callback_ = func;
   }
 
@@ -100,16 +96,12 @@ public:
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
    *
-   * \note: For thread safety, this will block when there is an active callback around connection
-   * (connection, disconnection, shutdown). Thus, trying to call setDisconnectCallback e.g. by a
-   * handler function registered as connectCallback will result in a deadlock.
-   *
    * \note: The socket will already be closed when the disconnect callback is triggered, thus
-   * trying to write to the socket from the disconnect callback will fail.
+   * trying to interact with the socket from the disconnect callback will fail.
    */
   void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
-    std::lock_guard<std::mutex> lk(clients_mutex_);
+    std::lock_guard<std::mutex> lk(callback_mutex_);
     disconnect_callback_ = func;
   }
 
@@ -118,12 +110,6 @@ public:
    *
    * \param func Function handling the event information. The file client's file_descriptor will be
    * passed to the function as well as the actual message received from the client.
-   *
-   * \note: For thread safety, this will block when there is an active message callback. Thus, trying to call
-   * setMessageCallback e.g. from a handler function registered as messageCallback will result in a deadlock.
-   *
-   * \note: Calling write() from within the callback will cause a deadlock. If you want to write from the message
-   * callback, you can use writeUnchecked(), as the callback will be triggered from a thread-protected context.
    */
   void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
@@ -141,6 +127,10 @@ public:
 
   /*!
    * \brief Shutdown the server and close all client connections.
+   *
+   * \note: This should not be called from within any of the registered callback functions, as
+   * it will cause a deadlock. If you want to shutdown the server from a callback, you can e.g.
+   * start a new thread that calls shutdown() from there.
    */
   void shutdown();
 
@@ -227,7 +217,7 @@ private:
   //! Runs spin() as long as keep_running_ is set to true.
   void worker();
 
-  std::atomic<bool> keep_running_;
+  std::atomic<bool> keep_running_{ false };
   std::thread worker_thread_;
 
   std::atomic<socket_t> listen_fd_;
@@ -242,6 +232,7 @@ private:
   std::mutex clients_mutex_;
   std::mutex message_mutex_;
   std::mutex listen_fd_mutex_;
+  std::mutex callback_mutex_;
 
   static const int INPUT_BUFFER_SIZE = 4096;
   char input_buffer_[INPUT_BUFFER_SIZE];
