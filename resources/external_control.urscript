@@ -17,7 +17,8 @@ SERVO_UNINITIALIZED = -1
 SERVO_IDLE = 0
 SERVO_RUNNING = 1
 
-MODE_STOPPED = -2
+MODE_STOPPED = -3
+MODE_PAUSED = -2
 MODE_UNINITIALIZED = -1
 MODE_IDLE = 0
 MODE_SERVOJ = 1
@@ -85,6 +86,7 @@ global cmd_servo_q_last = cmd_servo_q
 global cmd_twist = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global extrapolate_count = 0
 global extrapolate_max_count = 0
+global max_consecutive_extrapolate_count = 50
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
 global spline_qdd = [0, 0, 0, 0, 0, 0]
@@ -700,6 +702,12 @@ thread servoThreadP():
       extrapolate_count = extrapolate_count + 1
       if extrapolate_count > extrapolate_max_count:
         extrapolate_max_count = extrapolate_count
+      end
+      
+      if extrapolate_count > max_consecutive_extrapolate_count:
+        textmsg("Exceeded max consecutive extrapolation count, stopping the arm")
+        stopj(STOPJ_ACCELERATION)
+        control_mode = MODE_PAUSED
       end
 
       q = extrapolate()
