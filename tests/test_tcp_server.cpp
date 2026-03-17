@@ -214,21 +214,29 @@ TEST_F(TCPServerTest, callback_functions)
   EXPECT_TRUE(waitForDisconnectionCallback());
 }
 
-TEST_F(TCPServerTest, simultaneous_64_clients_allowed)
+TEST_F(TCPServerTest, many_clients_allowed)
 {
   comm::TCPServer server(port_);
-  server.setMessageCallback(std::bind(&TCPServerTest_simultaneous_64_clients_allowed_Test::messageCallback, this,
+  server.setMessageCallback(std::bind(&TCPServerTest_many_clients_allowed_Test::messageCallback, this,
                                       std::placeholders::_1, std::placeholders::_2));
   server.setConnectCallback(
-      std::bind(&TCPServerTest_simultaneous_64_clients_allowed_Test::connectionCallback, this, std::placeholders::_1));
-  server.setDisconnectCallback(std::bind(&TCPServerTest_simultaneous_64_clients_allowed_Test::disconnectionCallback,
-                                         this, std::placeholders::_1));
+      std::bind(&TCPServerTest_many_clients_allowed_Test::connectionCallback, this, std::placeholders::_1));
+  server.setDisconnectCallback(
+      std::bind(&TCPServerTest_many_clients_allowed_Test::disconnectionCallback, this, std::placeholders::_1));
   server.start();
+
+#ifdef _WIN32
+  // Windows has a maximum of 64 sockets per process, so we can only test with 63 clients since the server also uses one
+  // socket.
+  constexpr int num_clients = 63;
+#else
+  constexpr int num_clients = 100;
+#endif
 
   // Test that a large number of clients can connect to the server
   std::vector<std::unique_ptr<Client>> clients;
   std::unique_ptr<Client> client;
-  for (unsigned int i = 0; i < 64; ++i)
+  for (unsigned int i = 0; i < num_clients; ++i)
   {
     clients.push_back(std::make_unique<Client>(port_));
     ASSERT_TRUE(waitForConnectionCallback());
