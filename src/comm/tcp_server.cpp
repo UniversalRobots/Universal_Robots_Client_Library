@@ -56,7 +56,7 @@ TCPServer::TCPServer(const int port, const size_t max_num_tries, const std::chro
 
 TCPServer::~TCPServer()
 {
-  URCL_LOG_INFO("Destroying TCPServer object.");
+  URCL_LOG_DEBUG("Destroying TCPServer object.");
   shutdown();
 }
 

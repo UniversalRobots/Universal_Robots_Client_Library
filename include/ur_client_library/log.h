@@ -19,7 +19,6 @@
 #pragma once
 #include <inttypes.h>
 #include <memory>
-#include <system_error>
 
 #define URCL_LOG_DEBUG(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::DEBUG, __VA_ARGS__)
 #define URCL_LOG_WARN(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::WARN, __VA_ARGS__)
