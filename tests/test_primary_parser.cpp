@@ -182,15 +182,30 @@ const unsigned char RUNTIME_EXCEPTION_MESSAGE[] = {
   0x6e, 0x6f, 0x74, 0x5f, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x3a, 0x74, 0x78, 0x74, 0x6d, 0x73, 0x67, 0x3a
 };
 
-TEST(primary_parser, parse_calibration_data)
+class PrimaryParserTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp() override
+  {
+    // In these tests we use strict mode, which means that the parser will not ignore any extra
+    // bytes in the payload. This allows us to verify that the parser correctly identifies the size
+    // of each message and does not consume more bytes than it should.
+    // If new software versions add new fields to the messages, these tests will fail, which is
+    // desirable as it will prompt us to update the parser with the new fields.
+    parser_.setStrictMode(true);
+  }
+
+  primary_interface::PrimaryParser parser_;
+};
+
+TEST_F(PrimaryParserTest, parse_calibration_data)
 {
   unsigned char raw_data[sizeof(ROBOT_STATE)];
   memcpy(raw_data, ROBOT_STATE, sizeof(ROBOT_STATE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
-  primary_interface::PrimaryParser parser;
-  parser.parse(bp, products);
+  parser_.parse(bp, products);
 
   EXPECT_EQ(products.size(), 13);
 
@@ -205,26 +220,24 @@ TEST(primary_parser, parse_calibration_data)
   }
 }
 
-TEST(primary_parser, parse_robot_state_with_single_parser)
+TEST_F(PrimaryParserTest, parse_robot_state_with_single_parser)
 {
   unsigned char raw_data[sizeof(ROBOT_STATE)];
   memcpy(raw_data, ROBOT_STATE, sizeof(ROBOT_STATE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<primary_interface::PrimaryPackage> product;
-  primary_interface::PrimaryParser parser;
-  ASSERT_FALSE(parser.parse(bp, product));
+  ASSERT_FALSE(parser_.parse(bp, product));
 };
 
-TEST(primary_parser, parse_version_message)
+TEST_F(PrimaryParserTest, parse_version_message)
 {
   unsigned char raw_data[sizeof(VERSION_MESSAGE)];
   memcpy(raw_data, VERSION_MESSAGE, sizeof(VERSION_MESSAGE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<primary_interface::PrimaryPackage> product;
-  primary_interface::PrimaryParser parser;
-  ASSERT_TRUE(parser.parse(bp, product));
+  ASSERT_TRUE(parser_.parse(bp, product));
 
   EXPECT_NE(product, nullptr);
   if (primary_interface::VersionMessage* data = dynamic_cast<primary_interface::VersionMessage*>(product.get()))
@@ -241,15 +254,14 @@ TEST(primary_parser, parse_version_message)
   }
 }
 
-TEST(primary_parser, parse_key_message)
+TEST_F(PrimaryParserTest, parse_key_message)
 {
   unsigned char raw_data[sizeof(KEY_MESSAGE)];
   memcpy(raw_data, KEY_MESSAGE, sizeof(KEY_MESSAGE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
-  primary_interface::PrimaryParser parser;
-  ASSERT_TRUE(parser.parse(bp, products));
+  ASSERT_TRUE(parser_.parse(bp, products));
 
   ASSERT_EQ(products.size(), 1);
   if (auto data = dynamic_cast<primary_interface::KeyMessage*>(products[0].get()))
@@ -274,15 +286,14 @@ TEST(primary_parser, parse_key_message)
   }
 }
 
-TEST(primary_parser, parse_runtime_exception_message)
+TEST_F(PrimaryParserTest, parse_runtime_exception_message)
 {
   unsigned char raw_data[sizeof(RUNTIME_EXCEPTION_MESSAGE)];
   memcpy(raw_data, RUNTIME_EXCEPTION_MESSAGE, sizeof(RUNTIME_EXCEPTION_MESSAGE));
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
-  primary_interface::PrimaryParser parser;
-  ASSERT_TRUE(parser.parse(bp, products));
+  ASSERT_TRUE(parser_.parse(bp, products));
 
   EXPECT_EQ(products.size(), 1);
 
@@ -302,6 +313,78 @@ TEST(primary_parser, parse_runtime_exception_message)
   else
   {
     FAIL() << "Parsed package is not of type RuntimeExceptionMessage";
+  }
+}
+
+TEST_F(PrimaryParserTest, parse_robot_state_with_oversized_submessage)
+{
+  // KinematicsInfo parses exactly 220 bytes of payload:
+  //   6×uint32 (checksum) + 4×vector6d (DH params) + uint32 (calibration_status)
+  const size_t ki_payload_size = 6 * sizeof(uint32_t) + 4 * 6 * sizeof(double) + sizeof(uint32_t);
+  const size_t extra_bytes = 10;
+  const size_t sub1_size = sizeof(uint32_t) + sizeof(uint8_t) + ki_payload_size + extra_bytes;
+  const size_t sub2_size = sizeof(uint32_t) + sizeof(uint8_t) + 1;
+  const size_t total_size = sizeof(int32_t) + sizeof(uint8_t) + sub1_size + sub2_size;
+
+  std::vector<uint8_t> test_data(total_size, 0);
+  size_t offset = 0;
+
+  // Total packet size (big-endian int32)
+  test_data[offset++] = (total_size >> 24) & 0xFF;
+  test_data[offset++] = (total_size >> 16) & 0xFF;
+  test_data[offset++] = (total_size >> 8) & 0xFF;
+  test_data[offset++] = total_size & 0xFF;
+
+  // Packet type: ROBOT_STATE (0x10)
+  test_data[offset++] = 0x10;
+
+  // Submessage 1: KinematicsInfo with extra trailing bytes
+  test_data[offset++] = (sub1_size >> 24) & 0xFF;
+  test_data[offset++] = (sub1_size >> 16) & 0xFF;
+  test_data[offset++] = (sub1_size >> 8) & 0xFF;
+  test_data[offset++] = sub1_size & 0xFF;
+  test_data[offset++] = 0x05;  // KINEMATICS_INFO
+  offset += ki_payload_size;   // payload is all zeros
+  memset(test_data.data() + offset, 0xAA, extra_bytes);
+  offset += extra_bytes;
+
+  // Submessage 2: ADDITIONAL_INFO (parsed by base RobotState → rawData)
+  test_data[offset++] = (sub2_size >> 24) & 0xFF;
+  test_data[offset++] = (sub2_size >> 16) & 0xFF;
+  test_data[offset++] = (sub2_size >> 8) & 0xFF;
+  test_data[offset++] = sub2_size & 0xFF;
+  test_data[offset++] = 0x08;  // ADDITIONAL_INFO
+  test_data[offset++] = 0x42;  // 1 byte of payload
+
+  ASSERT_EQ(offset, total_size);
+
+  {
+    // With strict mode enabled, an execption should be thrown due to the oversized KinematicsInfo
+    // submessage
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    unsigned char raw_data[total_size];
+    memcpy(raw_data, test_data.data(), test_data.size());
+    comm::BinParser bp(raw_data, total_size);
+    EXPECT_THROW(parser_.parse(bp, products), UrException);
+  }
+
+  {
+    // Using a non-strict parser that allows oversized submessages should succeed and parse all
+    // submessages
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    unsigned char raw_data[total_size];
+    memcpy(raw_data, test_data.data(), test_data.size());
+    comm::BinParser bp(raw_data, total_size);
+    primary_interface::PrimaryParser non_strict_parser;
+    EXPECT_TRUE(non_strict_parser.parse(bp, products));
+
+    // Both submessages should be parsed despite the oversized first one
+    ASSERT_EQ(products.size(), 2);
+
+    auto* ki = dynamic_cast<primary_interface::KinematicsInfo*>(products[0].get());
+    ASSERT_NE(ki, nullptr);
+    EXPECT_EQ(ki->calibration_status_, 0u);
+    EXPECT_EQ(ki->dh_theta_, vector6d_t({ 0, 0, 0, 0, 0, 0 }));
   }
 }
 
