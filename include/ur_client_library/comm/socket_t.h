@@ -71,20 +71,24 @@ typedef int socket_t;
 #  define MSG_NOSIGNAL 0
 #endif
 
-inline std::system_error makeSocketError(const std::string& message)
+/*!
+ * \brief Get the last socket error as an std::error_code
+ *
+ * On Windows, this will use WSAGetLastError and the system category, while on other platforms it
+ * will use errno and the generic category.
+ *
+ * \return The last socket error
+ */
+inline std::error_code getLastSocketErrorCode()
 {
 #ifdef _WIN32
-  return std::system_error(std::error_code(WSAGetLastError(), std::system_category()), message);
+  return std::error_code(WSAGetLastError(), std::system_category());
 #else
-  return std::system_error(std::error_code(errno, std::generic_category()), message);
+  return std::error_code(errno, std::generic_category());
 #endif
 }
 
-inline int getLastSocketError()
+inline std::system_error makeSocketError(const std::string& message)
 {
-#ifdef _WIN32
-  return WSAGetLastError();
-#else
-  return errno;
-#endif
+  return std::system_error(getLastSocketErrorCode(), message);
 }

@@ -84,6 +84,9 @@ public:
    * \note: For thread safety, this will block when there is an active callback around connection
    * (connection, disconnection, shutdown). Thus, trying to call setConnectCallback e.g. by a
    * handler function registered as disconnectCallback will result in a deadlock.
+   *
+   * \note: Calling write() from within the callback will cause a deadlock. If you want to write from the connection
+   * callback, you can use writeUnchecked(), as the callback will be triggered from a thread-protected context.
    */
   void setConnectCallback(std::function<void(const socket_t)> func)
   {
@@ -100,6 +103,9 @@ public:
    * \note: For thread safety, this will block when there is an active callback around connection
    * (connection, disconnection, shutdown). Thus, trying to call setDisconnectCallback e.g. by a
    * handler function registered as connectCallback will result in a deadlock.
+   *
+   * \note: The socket will already be closed when the disconnect callback is triggered, thus
+   * trying to write to the socket from the disconnect callback will fail.
    */
   void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
@@ -115,6 +121,9 @@ public:
    *
    * \note: For thread safety, this will block when there is an active message callback. Thus, trying to call
    * setMessageCallback e.g. from a handler function registered as messageCallback will result in a deadlock.
+   *
+   * \note: Calling write() from within the callback will cause a deadlock. If you want to write from the message
+   * callback, you can use writeUnchecked(), as the callback will be triggered from a thread-protected context.
    */
   void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
@@ -131,9 +140,7 @@ public:
   void start();
 
   /*!
-   * \brief Shut down the event listener thread. After calling this, no events will be handled
-   * anymore, but the socket will remain open and bound to the port. Call start() in order to
-   * restart event handling.
+   * \brief Shutdown the server and close all client connections.
    */
   void shutdown();
 
@@ -149,6 +156,21 @@ public:
    * \returns True on success, false otherwise
    */
   bool write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
+
+  /*!
+   * \brief Writes to a filedescriptor without verifying that it is a client or even a valid
+   * filedescriptor. It is the caller's responsibility to ensure that the filedescriptor is valid
+   * and belongs to a client.
+   *
+   * \param[in] fd File descriptor belonging to the client the data should be sent to. The file
+   * descriptor will be given from the connection callback.
+   * \param[in] buf Buffer of bytes to write
+   * \param[in] buf_len Number of bytes in the buffer
+   * \param[out] written Number of bytes actually written
+   *
+   * \returns True on success, false otherwise
+   */
+  bool writeUnchecked(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
    * \brief Get the maximum number of clients allowed to connect to this server
@@ -219,6 +241,7 @@ private:
   std::vector<socket_t> client_fds_;
   std::mutex clients_mutex_;
   std::mutex message_mutex_;
+  std::mutex listen_fd_mutex_;
 
   static const int INPUT_BUFFER_SIZE = 4096;
   char input_buffer_[INPUT_BUFFER_SIZE];
