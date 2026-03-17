@@ -510,8 +510,8 @@ TEST_F(TCPServerTest, rapid_connect_disconnect_with_concurrent_writes)
     }
   });
 
-  constexpr int kIterations = 50;
-  for (int i = 0; i < kIterations; ++i)
+  constexpr int num_iterations = 50;
+  for (int i = 0; i < num_iterations; ++i)
   {
     Client client(server.getPort());
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -528,12 +528,12 @@ TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
   std::mutex fds_mutex;
   std::vector<socket_t> connected_fds;
   std::condition_variable all_connected_cv;
-  constexpr size_t kNumClients = 10;
+  constexpr size_t num_clients = 10;
 
   server.setConnectCallback([&](const socket_t fd) {
     std::lock_guard<std::mutex> lk(fds_mutex);
     connected_fds.push_back(fd);
-    if (connected_fds.size() == kNumClients)
+    if (connected_fds.size() == num_clients)
     {
       all_connected_cv.notify_all();
     }
@@ -541,7 +541,7 @@ TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
   server.start();
 
   std::vector<std::unique_ptr<Client>> clients;
-  for (size_t i = 0; i < kNumClients; ++i)
+  for (size_t i = 0; i < num_clients; ++i)
   {
     clients.push_back(std::make_unique<Client>(server.getPort()));
   }
@@ -549,14 +549,14 @@ TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
   {
     std::unique_lock<std::mutex> lk(fds_mutex);
     ASSERT_TRUE(
-        all_connected_cv.wait_for(lk, std::chrono::seconds(5), [&]() { return connected_fds.size() == kNumClients; }));
+        all_connected_cv.wait_for(lk, std::chrono::seconds(5), [&]() { return connected_fds.size() == num_clients; }));
   }
 
   const std::string message = "test data\n";
   const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
   const size_t len = message.size();
 
-  constexpr int kWritesPerThread = 100;
+  constexpr int writes_per_thread = 100;
   std::atomic<int> total_successes{ 0 };
 
   std::vector<std::thread> writers;
@@ -565,7 +565,7 @@ TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
     for (const auto& fd : connected_fds)
     {
       writers.emplace_back([&server, fd, data, len, &total_successes]() {
-        for (int j = 0; j < kWritesPerThread; ++j)
+        for (int j = 0; j < writes_per_thread; ++j)
         {
           size_t written;
           if (server.write(fd, data, len, written))
@@ -582,7 +582,7 @@ TEST_F(TCPServerTest, concurrent_writes_multiple_clients)
     t.join();
   }
 
-  EXPECT_EQ(total_successes.load(), static_cast<int>(kNumClients) * kWritesPerThread);
+  EXPECT_EQ(total_successes.load(), static_cast<int>(num_clients) * writes_per_thread);
 }
 
 TEST_F(TCPServerTest, shutdown_during_active_writes)

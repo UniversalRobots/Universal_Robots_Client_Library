@@ -53,7 +53,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       size += serializer.serialize(buffer + size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
       break;
     }
     case rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION:
@@ -70,7 +70,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       size += serializer.serialize(buffer + size, version);  // build
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
       break;
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
@@ -98,7 +98,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
                                                          // only important, that no field is "NOT_FOUND".
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
       URCL_LOG_INFO("Output recipe set");
       break;
     }
@@ -124,7 +124,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
                                                          // only important, that no field is "NOT_FOUND".
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
 
       URCL_LOG_INFO("Input recipe set with %zu variables.", input_recipe_.size());
       break;
@@ -140,7 +140,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       size += serializer.serialize(buffer + size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
       startSendingDataPackages();
       break;
     }
@@ -155,7 +155,7 @@ void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, in
       size += serializer.serialize(buffer + size, accepted);
 
       size_t written;
-      server_.write(filedescriptor, buffer, size, written);
+      server_.writeUnchecked(filedescriptor, buffer, size, written);
       stopSendingDataPackages();
       break;
     }
