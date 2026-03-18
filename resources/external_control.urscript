@@ -97,11 +97,12 @@ global friction_compensation_enabled = True
 thread_move = 0
 thread_trajectory = 0
 thread_script_commands = 0
+thread_clear = 0
 
 # Global thread flags
 global trajectory_cleanup_requested = False
 global trajectory_cleanup_running = False
-
+global trajectory_cancel_msg = False
 
 ###
 # @brief Function to verify whether the specified target can be reached within the defined time frame while staying within
@@ -497,25 +498,26 @@ def list_max_norm(list):
   return max
 end
 
-thread clearTrajectoryPoints():
+thread clearTrajectoryPointsThread():
   trajectory_cleanup_running = True
   trajectory_cleanup_requested = False
   local reads = 0
   local timeout = 0.5
   while trajectory_points_left > 0:
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
-
     if raw_point[0] <= 0:
       trajectory_points_left = 0
+      textmsg("Forced trajectory_points_left reset")
       break
     end
     trajectory_points_left = trajectory_points_left - 1
     reads = reads + 1
-    if reads >= 25:
+    if reads >= 20:
       sync()            
       reads = 0
     end
   end
+  textmsg("Cleanup finished")
   trajectory_cleanup_running = False
 end
 
@@ -686,8 +688,9 @@ thread trajectoryThread():
 end
 
 def request_trajectory_cleanup():
-  if not trajectory_cleanup_running:
+  if not trajectory_cleanup_requested or not trajectory_cleanup_running:
     trajectory_cleanup_requested = True
+    thread_clear = run clearTrajectoryPointsThread()
   end
 end
 
@@ -931,6 +934,7 @@ end
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
 thread_trajectory = 0
+thread_clear = 0
 trajectory_points_left = 0
 textmsg("ExternalControl: External control active")
 global read_timeout = 0.0 # First read is blocking
@@ -943,14 +947,6 @@ while control_mode > MODE_STOPPED:
     # Convert read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
 
-    # Launch cleanup thread if requested
-    if trajectory_cleanup_requested and not trajectory_cleanup_running:
-      if thread_trajectory : 
-        kill thread_trajectory
-      end
-      run clearTrajectoryPoints()
-    end
-
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
       if control_mode == MODE_FORWARD:
@@ -958,6 +954,7 @@ while control_mode > MODE_STOPPED:
         if trajectory_points_left > 0:
           request_trajectory_cleanup()
           stopj(STOPJ_ACCELERATION)
+          join thread_clear
           socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
         end
         # Stop freedrive
@@ -1004,7 +1001,7 @@ while control_mode > MODE_STOPPED:
       torque = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
       set_torque(torque)
     elif control_mode == MODE_FORWARD:
-      if trajectory_cleanup_running or trajectory_cleanup_requested:
+      if trajectory_cleanup_running:
           textmsg("Trajectory cleanup in progress, ignoring new trajectory")
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         trajectory_points_left = params_mult[3]
@@ -1014,6 +1011,7 @@ while control_mode > MODE_STOPPED:
         kill thread_trajectory
         request_trajectory_cleanup()
         stopj(STOPJ_ACCELERATION)
+        join thread_clear
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     elif control_mode == MODE_SPEEDL:
