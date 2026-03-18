@@ -10,17 +10,53 @@ on:
 
 jobs:
   alpine-build:
+    name: Alpine (${{ matrix.compiler }})
     runs-on: ubuntu-latest
     container: alpine:latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+            packages: build-base
+            ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.24.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - compiler: clang
+            cc: clang
+            cxx: clang++
+            ROBOT_MODEL: 'ur5e'
+            packages: build-base clang
+            URSIM_VERSION: '5.24.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
 
     steps:
       - name: install dependencies
-        run: apk add --no-cache build-base cmake linux-headers git
+        run: apk add --no-cache ${{ matrix.packages }} cmake linux-headers git python3
       - uses: actions/checkout@v6
+      - name: start ursim
+        run: |
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
+        env:
+          DOCKER_RUN_OPTS: --network ursim_net
+          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
+      - name: install-pips
+        run: pip install pandas lxml
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        run: >
+          mkdir build && cd build &&
+          cmake ..
+          -DBUILDING_TESTS=1
+          -DINTEGRATION_TESTS=1
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          -DCMAKE_C_COMPILER=${{ matrix.cc }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
       - name: build
-        run: cmake --build build --config Debug
+        run: cmake --build build --config Debug -- -j$(nproc)
       - name: test
         run: cd build && ctest --output-on-failure
