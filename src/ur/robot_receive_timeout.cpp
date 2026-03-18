@@ -72,11 +72,11 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
       ss << "Robot receive timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
          << "ms. It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return step_time.count();
+      return static_cast<int>(step_time.count());
     }
     else
     {
-      return timeout_.count();
+      return static_cast<int>(timeout_.count());
     }
   }
   else if (comm::ControlModeTypes::isControlModeRealtime(control_mode))
@@ -87,7 +87,7 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
       ss << "Realtime read timeout " << timeout_.count() << "ms is below the step time " << step_time.count()
          << ". It will be reset to the step time.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return step_time.count();
+      return static_cast<int>(step_time.count());
     }
     else if (timeout_ > MAX_RT_RECEIVE_TIMEOUT_MS)
     {
@@ -96,11 +96,11 @@ int RobotReceiveTimeout::verifyRobotReceiveTimeout(const comm::ControlMode contr
          << "ms is above the maximum allowed timeout for realtime commands " << MAX_RT_RECEIVE_TIMEOUT_MS.count()
          << ". It will be reset to the maximum allowed timeout.";
       URCL_LOG_ERROR(ss.str().c_str());
-      return MAX_RT_RECEIVE_TIMEOUT_MS.count();
+      return static_cast<int>(MAX_RT_RECEIVE_TIMEOUT_MS.count());
     }
     else
     {
-      return timeout_.count();
+      return static_cast<int>(timeout_.count());
     }
   }
   else

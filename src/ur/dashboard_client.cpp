@@ -125,7 +125,7 @@ bool DashboardClient::retryCommand(const std::string& requestCommand, const std:
   std::chrono::duration<double> time_done(0);
   do
   {
-    impl_->sendRequest(requestCommand);
+    impl_->sendRequest(requestCommand, requestExpectedResponse);
     time_done += retry_period;
 
     if (waitForReply(waitRequest, waitExpectedResponse, retry_period))

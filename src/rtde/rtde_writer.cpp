@@ -303,8 +303,7 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
   if (type != AnalogOutputType::SET_ON_TEACH_PENDANT)
   {
     static const std::string key_type = "standard_analog_output_type";
-    auto output_type_bits = [](const uint8_t pin, const uint8_t type) { return type << pin; };
-    uint8_t output_type = output_type_bits(output_pin, toUnderlying(type));
+    uint8_t output_type = static_cast<uint8_t>(toUnderlying(type) << output_pin);
     success = success && current_store_buffer_->setData(key_type, output_type);
   }
   static const std::string key_output_0 = "standard_analog_output_0";

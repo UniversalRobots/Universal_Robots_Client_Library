@@ -1,4 +1,4 @@
-name: Windows build and tests
+name: Alpine build and tests
 on:
   workflow_dispatch:
   pull_request:
@@ -9,15 +9,18 @@ on:
     - cron: '38 2 * * *'
 
 jobs:
-  win-build:
+  alpine-build:
+    runs-on: ubuntu-latest
+    container: alpine:latest
     timeout-minutes: 30
-    runs-on: windows-2022
 
     steps:
+      - name: install dependencies
+        run: apk add --no-cache build-base cmake linux-headers git
       - uses: actions/checkout@v6
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
       - name: build
         run: cmake --build build --config Debug
       - name: test
-        run: cd build && ctest --output-on-failure -C Debug
+        run: cd build && ctest --output-on-failure

@@ -31,7 +31,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -77,9 +80,13 @@ public:
    *
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
+   *
+   * \note: The connection callback will be triggered with the socket being accepted. Hence, it
+   * is possible to send data from the connection callback directly.
    */
   void setConnectCallback(std::function<void(const socket_t)> func)
   {
+    std::lock_guard<std::mutex> lk(callback_mutex_);
     new_connection_callback_ = func;
   }
 
@@ -88,9 +95,13 @@ public:
    *
    * \param func Function handling the event information. The file descriptor created by the
    * connection event will be passed to the function.
+   *
+   * \note: The socket will already be closed when the disconnect callback is triggered, thus
+   * trying to interact with the socket from the disconnect callback will fail.
    */
   void setDisconnectCallback(std::function<void(const socket_t)> func)
   {
+    std::lock_guard<std::mutex> lk(callback_mutex_);
     disconnect_callback_ = func;
   }
 
@@ -102,6 +113,7 @@ public:
    */
   void setMessageCallback(std::function<void(const socket_t, char*, int)> func)
   {
+    std::lock_guard<std::mutex> lk(message_mutex_);
     message_callback_ = func;
   }
 
@@ -114,9 +126,11 @@ public:
   void start();
 
   /*!
-   * \brief Shut down the event listener thread. After calling this, no events will be handled
-   * anymore, but the socket will remain open and bound to the port. Call start() in order to
-   * restart event handling.
+   * \brief Shutdown the server and close all client connections.
+   *
+   * \note: This should not be called from within any of the registered callback functions, as
+   * it will cause a deadlock. If you want to shutdown the server from a callback, you can e.g.
+   * start a new thread that calls shutdown() from there.
    */
   void shutdown();
 
@@ -132,6 +146,21 @@ public:
    * \returns True on success, false otherwise
    */
   bool write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
+
+  /*!
+   * \brief Writes to a filedescriptor without verifying that it is a client or even a valid
+   * filedescriptor. It is the caller's responsibility to ensure that the filedescriptor is valid
+   * and belongs to a client.
+   *
+   * \param[in] fd File descriptor belonging to the client the data should be sent to. The file
+   * descriptor will be given from the connection callback.
+   * \param[in] buf Buffer of bytes to write
+   * \param[in] buf_len Number of bytes in the buffer
+   * \param[out] written Number of bytes actually written
+   *
+   * \returns True on success, false otherwise
+   */
+  bool writeUnchecked(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
    * \brief Get the maximum number of clients allowed to connect to this server
@@ -180,7 +209,7 @@ private:
   void handleDisconnect(const socket_t fd);
 
   //! read data from socket
-  void readData(const socket_t fd);
+  bool readData(const socket_t fd);
 
   //! Event handler. Blocks until activity on any client or connection attempt
   void spin();
@@ -188,7 +217,7 @@ private:
   //! Runs spin() as long as keep_running_ is set to true.
   void worker();
 
-  std::atomic<bool> keep_running_;
+  std::atomic<bool> keep_running_{ false };
   std::thread worker_thread_;
 
   std::atomic<socket_t> listen_fd_;
@@ -200,6 +229,10 @@ private:
 
   uint32_t max_clients_allowed_;
   std::vector<socket_t> client_fds_;
+  std::mutex clients_mutex_;
+  std::mutex message_mutex_;
+  std::mutex listen_fd_mutex_;
+  std::mutex callback_mutex_;
 
   static const int INPUT_BUFFER_SIZE = 4096;
   char input_buffer_[INPUT_BUFFER_SIZE];

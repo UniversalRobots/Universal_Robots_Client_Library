@@ -36,7 +36,6 @@
 #include "ur_client_library/ur/robot_receive_timeout.h"
 #include "ur_client_library/ur/version_information.h"
 #include <cstring>
-#include <endian.h>
 #include <condition_variable>
 #include <list>
 
@@ -167,7 +166,7 @@ public:
    * \returns A unique handler ID for the registered callback. This can be used to unregister the
    * callback later.
    */
-  uint32_t registerDisconnectionCallback(std::function<void(const int)> disconnection_fun)
+  uint32_t registerDisconnectionCallback(std::function<void(const socket_t)> disconnection_fun)
   {
     disconnect_callbacks_.push_back({ next_disconnect_callback_id_, disconnection_fun });
     return next_disconnect_callback_id_++;
@@ -181,7 +180,7 @@ public:
   void unregisterDisconnectionCallback(const uint32_t handler_id)
   {
     disconnect_callbacks_.remove_if(
-        [handler_id](const HandlerFunction<void(const int)>& h) { return h.id == handler_id; });
+        [handler_id](const HandlerFunction<void(const socket_t)>& h) { return h.id == handler_id; });
   }
 
   /*!
@@ -214,7 +213,7 @@ protected:
 
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
-  std::list<HandlerFunction<void(const int)>> disconnect_callbacks_;
+  std::list<HandlerFunction<void(const socket_t)>> disconnect_callbacks_;
   uint32_t next_disconnect_callback_id_ = 0;
   socket_t client_fd_;
   comm::TCPServer server_;

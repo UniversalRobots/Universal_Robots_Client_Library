@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 
+#include <algorithm>
 #include <unordered_map>
 #include <variant>
 #include <vector>

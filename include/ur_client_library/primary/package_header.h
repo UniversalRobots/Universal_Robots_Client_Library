@@ -32,7 +32,7 @@
 
 #include <inttypes.h>
 #include <cstddef>
-#include <endian.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include "ur_client_library/types.h"
 
 namespace urcl

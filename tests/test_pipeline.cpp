@@ -165,9 +165,9 @@ TEST_F(PipelineTest, get_product_from_running_pipeline)
   if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(urpackage.get()))
   {
     double timestamp;
-    double expected_timestamp = 7103.8579;
+    double expected_timestamp = 7103.858;
     data->getData("timestamp", timestamp);
-    EXPECT_FLOAT_EQ(timestamp, expected_timestamp);
+    EXPECT_DOUBLE_EQ(timestamp, expected_timestamp);
   }
   else
   {
@@ -229,8 +229,8 @@ TEST_F(PipelineTest, consumer_pipeline)
   EXPECT_LT(count, max_retries);
 
   // Test that the package was consumed
-  double expected_timestamp = 7103.8579;
-  EXPECT_FLOAT_EQ(consumer.timestamp, expected_timestamp);
+  double expected_timestamp = 7103.858;
+  EXPECT_DOUBLE_EQ(consumer.timestamp, expected_timestamp);
 
   pipeline_->stop();
 }
