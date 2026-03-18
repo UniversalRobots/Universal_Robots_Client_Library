@@ -9,6 +9,7 @@ endif()
 option(WITH_ASAN "Compile with address sanitizer support" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(PRIMARY_CLIENT_STRICT_PARSING_ "Enable strict parsing of primary client messages" OFF)
+option(CMAKE_COMPILE_WARNING_AS_ERROR "Treat even small warnings as errors" OFF)
 
 if(MSVC)
 set(BUILD_SHARED_LIBS OFF)
