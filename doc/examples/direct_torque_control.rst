@@ -9,8 +9,8 @@ In the ``examples`` subfolder you will find a minimal example for commanding tor
 It applies a sinusoidal torque to the 6th joint (index 5) while reading the joint positions. To run
 it make sure to
 
-* have an instance of a robot controller / URSim running at the configured IP address (or adapt the
-  address to your needs)
+* have an instance of a robot controller running at the configured IP address (or adapt the
+address to your needs). On URSim torque commands don't have any effect.
 * have PolyScope version 5.25.1 / 10.12.1 or later installed on the robot.
 * run it from the package's main folder (the one where the README.md file is stored), as for
   simplicity reasons it doesn't use any sophisticated method to locate the required files.

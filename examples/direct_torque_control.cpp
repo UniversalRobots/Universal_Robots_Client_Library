@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
   // Use motion primitives to move JOINT_INDEX to start position
   g_joint_positions[JOINT_INDEX] = start_position;
   auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->getUrDriver());
-  instruction_executor->moveJ(g_joint_positions, 1.4, 1.04, 0.1);
+  instruction_executor->optimoveJ(g_joint_positions);
 
   auto start_time = std::chrono::system_clock::now();
   constexpr double timestep = 0.002;  // [s]

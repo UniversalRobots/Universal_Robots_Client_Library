@@ -781,7 +781,6 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  [[deprecated("setFrictionCompensation is deprecated. Use setFrictionScales instead.")]]
   bool setFrictionCompensation(const bool friction_compensation_enabled);
 
   /*!

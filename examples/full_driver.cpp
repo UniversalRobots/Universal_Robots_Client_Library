@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 
   // Increment depends on robot version
   double increment_constant = 0.0005;
-  std::cout << "Robot version: " << g_my_robot->getUrDriver()->getVersion().toString() << std::endl;
+  URCL_LOG_INFO("Robot version: %s", g_my_robot->getUrDriver()->getVersion().toString().c_str());
   if (g_my_robot->getUrDriver()->getVersion().major < 5)
   {
     increment_constant = 0.002;
