@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
       - name: build
         run: cmake --build build
       - name: test
