@@ -498,6 +498,7 @@ def list_max_norm(list):
   return max
 end
 
+# Thread to cleanup the remaining trajectory_points_left when trajectory canceled
 thread clearTrajectoryPointsThread():
   trajectory_cleanup_running = True
   trajectory_cleanup_requested = False
@@ -687,6 +688,7 @@ thread trajectoryThread():
   textmsg("Trajectory finished with result ", trajectory_result_to_str(trajectory_result))
 end
 
+# Checks that the thread is only called once
 def request_trajectory_cleanup():
   if not trajectory_cleanup_requested or not trajectory_cleanup_running:
     trajectory_cleanup_requested = True
@@ -1002,7 +1004,7 @@ while control_mode > MODE_STOPPED:
       set_torque(torque)
     elif control_mode == MODE_FORWARD:
       if trajectory_cleanup_running:
-          textmsg("Trajectory cleanup in progress, ignoring new trajectory")
+          textmsg("Trajectory buffer cleanup in progress, ignoring new trajectory")
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
