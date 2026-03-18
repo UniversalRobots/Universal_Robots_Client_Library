@@ -1,0 +1,33 @@
+name: RHEL Build
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+jobs:
+  rhel_build:
+    name: ${{matrix.ROS_DISTRO.NAME}} (RHEL)
+    runs-on: ubuntu-latest
+    container: ghcr.io/ros-controls/ros:${{ matrix.ROS_DISTRO.NAME }}-rhel
+    env:
+      path: src/${{ github.repository }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ROS_DISTRO:
+          - NAME: humble
+          - NAME: jazzy
+          - NAME: kilted
+          - NAME: rolling
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: ${{ env.path }}
+      - name: Build workspace
+        shell: bash
+        run: |
+          source /opt/ros/${{ matrix.ROS_DISTRO.NAME }}/setup.bash
+          source /opt/ros2_ws/install/local_setup.bash
+          colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo

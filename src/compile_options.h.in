@@ -1,0 +1,13 @@
+#pragma once
+
+#cmakedefine01 PRIMARY_CLIENT_STRICT_PARSING_
+
+namespace urcl
+{
+struct CompileOptions
+{
+  constexpr static bool PRIMARY_CLIENT_STRICT_PARSING = static_cast<bool>(PRIMARY_CLIENT_STRICT_PARSING_);
+};
+
+inline constexpr CompileOptions COMPILE_OPTIONS;
+}  // namespace urcl

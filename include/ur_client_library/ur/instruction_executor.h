@@ -189,7 +189,7 @@ public:
 
 protected:
   void trajDoneCallback(const urcl::control::TrajectoryResult& result);
-  void trajDisconnectCallback(const int filedescriptor);
+  void trajDisconnectCallback(const socket_t filedescriptor);
 
   uint32_t traj_done_callback_handler_id_;
   uint32_t disconnected_handler_id_;

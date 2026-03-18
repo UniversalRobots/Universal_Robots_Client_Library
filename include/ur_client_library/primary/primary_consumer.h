@@ -62,7 +62,7 @@ public:
    *
    * \returns True
    */
-  virtual bool consume(RobotMessage& msg) override
+  virtual bool consume([[maybe_unused]] RobotMessage& msg) override
   {
     return true;
   }
@@ -74,7 +74,7 @@ public:
    *
    * \returns True
    */
-  virtual bool consume(RobotState& msg) override
+  virtual bool consume([[maybe_unused]] RobotState& msg) override
   {
     return true;
   }

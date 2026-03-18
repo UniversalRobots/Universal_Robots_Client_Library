@@ -28,6 +28,7 @@
 
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <math.h>
 #include <cstdint>
 #include <stdexcept>
@@ -229,7 +230,7 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
 bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions, const float goal_time,
                                                     const float blend_radius, const bool cartesian)
 {
-  return writeTrajectoryPoint(positions, 1.4, 1.05, goal_time, blend_radius, cartesian);
+  return writeTrajectoryPoint(positions, 1.4f, 1.05f, goal_time, blend_radius, cartesian);
 }
 
 bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* positions, const vector6d_t* velocities,
@@ -281,11 +282,12 @@ void TrajectoryPointInterface::disconnectionCallback(const socket_t filedescript
   client_fd_ = INVALID_SOCKET;
 }
 
-void TrajectoryPointInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void TrajectoryPointInterface::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer,
+                                               int nbytesrecv)
 {
   if (nbytesrecv == 4)
   {
-    int32_t* status = reinterpret_cast<int*>(buffer);
+    int32_t* status = reinterpret_cast<int32_t*>(buffer);
     URCL_LOG_DEBUG("Received message %d on TrajectoryPointInterface", be32toh(*status));
 
     if (!trajectory_end_callbacks_.empty())

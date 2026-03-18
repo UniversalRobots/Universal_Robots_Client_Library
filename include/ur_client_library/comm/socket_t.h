@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <system_error>
 #ifdef _WIN32
 
 #  define NOMINMAX
@@ -33,6 +34,7 @@
 
 typedef SOCKET socket_t;
 typedef SSIZE_T ssize_t;
+typedef int socklen_t;
 
 static inline int ur_setsockopt(socket_t s, int level, int optname, const void* optval, unsigned int optlen)
 {
@@ -64,3 +66,29 @@ typedef int socket_t;
 #  define ur_close close
 
 #endif  //  _WIN32
+
+#ifndef MSG_NOSIGNAL
+#  define MSG_NOSIGNAL 0
+#endif
+
+/*!
+ * \brief Get the last socket error as an std::error_code
+ *
+ * On Windows, this will use WSAGetLastError and the system category, while on other platforms it
+ * will use errno and the generic category.
+ *
+ * \return The last socket error
+ */
+inline std::error_code getLastSocketErrorCode()
+{
+#ifdef _WIN32
+  return std::error_code(WSAGetLastError(), std::system_category());
+#else
+  return std::error_code(errno, std::generic_category());
+#endif
+}
+
+inline std::system_error makeSocketError(const std::string& message)
+{
+  return std::system_error(getLastSocketErrorCode(), message);
+}
