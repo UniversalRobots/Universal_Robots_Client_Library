@@ -759,8 +759,9 @@ public:
    * \brief Download a program from the robot
    *
    * \param program_name The name of the program file on the robot. This is the name as returned by
-   * commandGetProgramListWithResponse. \param save_path The path where the program file should be saved on the machine
-   * where the dashboard client is running.
+   * commandGetProgramListWithResponse.
+   * \param save_path The path where the program file should be saved on the machine where the
+   *  dashboard client is running.
    *
    */
   DashboardResponse commandDownloadProgramWithResponse(const std::string& program_name, const std::string& save_path);
