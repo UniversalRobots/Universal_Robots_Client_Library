@@ -486,7 +486,7 @@ public:
 
   uint32_t getControlFrequency() const
   {
-    return rtde_client_->getTargetFrequency();
+    return static_cast<uint32_t>(rtde_client_->getTargetFrequency());
   }
 
   /*!
@@ -1000,7 +1000,7 @@ public:
    *
    * \returns The ID of the callback that can be used to unregister the callback later.
    */
-  uint32_t registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const int)> fun)
+  uint32_t registerTrajectoryInterfaceDisconnectedCallback(std::function<void(const socket_t)> fun)
   {
     return trajectory_interface_->registerDisconnectionCallback(fun);
   }

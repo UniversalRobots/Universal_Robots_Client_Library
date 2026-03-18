@@ -84,7 +84,7 @@ size_t ControlPackageSetupOutputsRequest::generateSerializedRequest(uint8_t* buf
   for (const auto& piece : variable_names)
     variables += (piece + ",");
   variables.pop_back();
-  uint16_t payload_size = sizeof(double) + variables.size();
+  uint16_t payload_size = static_cast<uint16_t>(sizeof(double) + variables.size());
 
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PACKAGE_TYPE, payload_size);
@@ -105,7 +105,7 @@ size_t ControlPackageSetupOutputsRequest::generateSerializedRequest(uint8_t* buf
   for (const auto& piece : variable_names)
     variables += (piece + ",");
   variables.pop_back();
-  uint16_t payload_size = variables.size();
+  uint16_t payload_size = static_cast<uint16_t>(variables.size());
 
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PACKAGE_TYPE, payload_size);

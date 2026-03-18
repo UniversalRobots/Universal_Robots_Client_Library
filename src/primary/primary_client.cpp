@@ -40,7 +40,7 @@ namespace urcl
 {
 namespace primary_interface
 {
-PrimaryClient::PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier)
+PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier)
   : stream_(robot_ip, UR_PRIMARY_PORT)
 {
   parser_.setStrictMode(COMPILE_OPTIONS.PRIMARY_CLIENT_STRICT_PARSING);
@@ -178,7 +178,7 @@ void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milli
     {
       waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
     }
-    catch (const TimeoutException& ex)
+    catch (const TimeoutException&)
     {
       throw TimeoutException("Robot did not power on within the given timeout", timeout);
     }

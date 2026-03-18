@@ -19,6 +19,8 @@
 #pragma once
 #include <inttypes.h>
 #include <memory>
+#include <string>
+#include <system_error>
 
 #define URCL_LOG_DEBUG(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::DEBUG, __VA_ARGS__)
 #define URCL_LOG_WARN(...) urcl::log(__FILE__, __LINE__, urcl::LogLevel::WARN, __VA_ARGS__)
@@ -88,4 +90,19 @@ void setLogLevel(LogLevel level);
  * \param fmt Format string
  */
 void log(const char* file, int line, LogLevel level, const char* fmt, ...);
+
+/*!
+ * \brief Cross-platform replacement for strerror.
+ *
+ * On MSVC, strerror triggers C4996 (deprecated). This function uses std::error_code instead,
+ * which is portable and thread-safe.
+ *
+ * \param errnum Error number (typically errno)
+ * \returns Human-readable error message
+ */
+inline std::string strerror_portable(int errnum)
+{
+  return std::error_code(errnum, std::generic_category()).message();
+}
+
 }  // namespace urcl

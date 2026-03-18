@@ -408,7 +408,7 @@ bool DashboardClientImplG5::retryCommand(const std::string& requestCommand, cons
   std::chrono::duration<double> time_done(0);
   do
   {
-    sendRequest(requestCommand);
+    sendRequest(requestCommand, requestExpectedResponse);
     time_done += retry_period;
 
     if (waitForReply(waitRequest, waitExpectedResponse, retry_period))
@@ -1192,20 +1192,20 @@ DashboardResponse DashboardClientImplG5::commandGetProgramList()
                                 polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandUploadProgram(const std::string& program_file_name)
+DashboardResponse DashboardClientImplG5::commandUploadProgram([[maybe_unused]] const std::string& program_file_name)
 {
   throw NotImplementedException("commandUploadProgram is not available for PolyScope " + polyscope_version_.toString() +
                                 ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandUpdateProgram(const std::string& program_file_name)
+DashboardResponse DashboardClientImplG5::commandUpdateProgram([[maybe_unused]] const std::string& program_file_name)
 {
   throw NotImplementedException("commandUpdateProgram is not available for PolyScope " + polyscope_version_.toString() +
                                 ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandDownloadProgram(const std::string& program_file_name,
-                                                                const std::string& destination_path)
+DashboardResponse DashboardClientImplG5::commandDownloadProgram([[maybe_unused]] const std::string& program_file_name,
+                                                                [[maybe_unused]] const std::string& destination_path)
 {
   throw NotImplementedException("commandDownloadProgram is not available for PolyScope " +
                                 polyscope_version_.toString() + ". It is supported from PolyScope 10.12.0 onwards.");

@@ -44,7 +44,7 @@ void urcl::InstructionExecutor::trajDoneCallback(const urcl::control::Trajectory
     trajectory_running_ = false;
   }
 }
-void urcl::InstructionExecutor::trajDisconnectCallback(const int filedescriptor)
+void urcl::InstructionExecutor::trajDisconnectCallback([[maybe_unused]] const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Trajectory disconnect");
   std::unique_lock<std::mutex> lock(trajectory_result_mutex_);
@@ -59,7 +59,7 @@ bool urcl::InstructionExecutor::executeMotion(
     const std::vector<std::shared_ptr<control::MotionPrimitive>>& motion_sequence)
 {
   if (!driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                              motion_sequence.size()))
+                                              static_cast<int>(motion_sequence.size())))
   {
     URCL_LOG_ERROR("Cannot send trajectory control command. No client connected?");
     std::unique_lock<std::mutex> lock(trajectory_result_mutex_);

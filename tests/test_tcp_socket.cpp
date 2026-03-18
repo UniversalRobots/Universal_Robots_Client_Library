@@ -35,7 +35,11 @@
 
 // This file adds a test for a deprecated function. To avoid a compiler warning in CI (where we want
 // to treat warnings as errors) we suppress the warning inside this file.
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#ifdef _MSC_VER
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include "ur_client_library/types.h"
@@ -63,7 +67,7 @@ protected:
   }
 
   // callback functions for the tcp server
-  void messageCallback(const socket_t filedescriptor, char* buffer)
+  void messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     received_message_ = std::string(buffer);
@@ -302,16 +306,14 @@ TEST_F(TCPSocketTest, read_on_connected_socket)
 
 TEST_F(TCPSocketTest, get_socket_fd)
 {
-  // When the client is not connected to any socket the fd should be -1
-  int expected_fd = -1;
-  int actual_fd = client_->getSocketFD();
+  socket_t expected_fd = INVALID_SOCKET;
+  socket_t actual_fd = client_->getSocketFD();
 
   EXPECT_EQ(expected_fd, actual_fd);
 
   client_->setup();
   actual_fd = client_->getSocketFD();
 
-  // When the client has connected to the socket the file descriptor should be different from -1
   EXPECT_NE(expected_fd, actual_fd);
 
   client_->close();

@@ -66,8 +66,9 @@ jobs:
           -DINTEGRATION_TESTS=1
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         env:
-          CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
+          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build

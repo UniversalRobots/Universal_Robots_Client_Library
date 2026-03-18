@@ -3,7 +3,6 @@ project(ur_driver_examples)
 
 # find_package(ur_client_library REQUIRED)
 
-
 add_executable(driver_example
   full_driver.cpp)
 target_link_libraries(driver_example ur_client_library::urcl)
