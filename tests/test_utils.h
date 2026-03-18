@@ -73,7 +73,7 @@ public:
     connection_callback_ = true;
   }
 
-  void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+  void messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer, int nbytesrecv)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
     received_message_ = std::string(buffer);
