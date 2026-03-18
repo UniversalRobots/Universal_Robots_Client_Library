@@ -1204,7 +1204,7 @@ DashboardResponse DashboardClientImplG5::commandUpdateProgram([[maybe_unused]] c
                                 ". It is supported from PolyScope 10.12.0 onwards.");
 }
 
-DashboardResponse DashboardClientImplG5::commandDownloadProgram([[maybe_unused]] const std::string& program_file_name,
+DashboardResponse DashboardClientImplG5::commandDownloadProgram([[maybe_unused]] const std::string& program_name,
                                                                 [[maybe_unused]] const std::string& destination_path)
 {
   throw NotImplementedException("commandDownloadProgram is not available for PolyScope " +
