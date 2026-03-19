@@ -1115,6 +1115,114 @@ TEST_F(SplineInterpolationTest, switching_control_mode_with_trajectory_produces_
   EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
 }
 
+TEST_F(SplineInterpolationTest, new_trajectory_received_without_cancelling_the_one_executed)
+{
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
+
+  urcl::vector6d_t joint_positions_before{ 0, 0, 0, 0, 0, 0 };
+  ASSERT_TRUE(data_pkg.getData("target_q", joint_positions_before));
+
+  std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
+  std::vector<urcl::vector6d_t> positions{ { -1.57, -1.57, 0, 0, 0, 0 },
+                                           { -1.57, -1.57, -1.57, 0, 0, 0 },
+                                           { -1.57, -1.57, 0, 0, 0, 0 },
+                                           { -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 } };
+  std::vector<urcl::vector6d_t> velocities{
+    { 0, 0, 0.0, 0, 0, 0 }, { 0, 0, 0.0, 0, 0, 0 }, { 0, 0, 1.5, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }
+  };
+  std::vector<double> s_time{ 3.0, 3.0, 3.0, 3.0 };
+  double increment = 0.005;
+  double duration = 0.1;
+
+  // Generate a trajectory with different target points
+  for (size_t i = 0; i < 5; ++i)
+  {
+    s_pos.push_back({ -1.57, -1.6, 1.6, -0.7, 0.7 + i * increment, 0.2 });
+    s_vel.push_back({ 0, 0, 0, 0, increment / duration, 0 });
+    s_acc.push_back({ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 });
+    s_time.push_back(duration);
+  }
+
+  // Send the trajectory
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  waitForTrajectoryStarted();
+
+  // Send the trajectory again without canceling the before one
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  g_trajectory_running = true;
+  waitForTrajectoryStarted();
+
+  // Ensure that everything goes as expected and the robot reaches the target position
+  urcl::vector6d_t joint_positions;
+  while (g_trajectory_running)
+  {
+    ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
+    ASSERT_TRUE(data_pkg.getData("target_q", joint_positions));
+    // Keep connection alive
+    ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+        urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
+  }
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, g_trajectory_result);
+  urcl::vector6d_t joint_positions_after;
+  ASSERT_TRUE(data_pkg.getData("actual_q", joint_positions_after));
+  const auto& expected_final = s_pos.back();
+  for (unsigned int i = 0; i < 6; ++i)
+  {
+    EXPECT_NEAR(joint_positions[i], expected_final[i], eps_);
+  }
+}
+
+TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sending_new_one)
+{
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
+
+  urcl::vector6d_t joint_positions_before{ 0, 0, 0, 0, 0, 0 };
+  ASSERT_TRUE(data_pkg.getData("target_q", joint_positions_before));
+
+  std::vector<urcl::vector6d_t> s_pos, s_vel, s_acc;
+  std::vector<urcl::vector6d_t> positions{ { -1.57, -1.57, 0, 0, 0, 0 },
+                                           { -1.57, -1.57, -1.57, 0, 0, 0 },
+                                           { -1.57, -1.57, 0, 0, 0, 0 },
+                                           { -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 } };
+  std::vector<urcl::vector6d_t> velocities{
+    { 0, 0, 0.0, 0, 0, 0 }, { 0, 0, 0.0, 0, 0, 0 }, { 0, 0, 1.5, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }
+  };
+  std::vector<double> s_time{ 3.0, 3.0, 3.0, 3.0 };
+  double increment = 0.005;
+  double duration = 0.1;
+
+  // Generate a trajectory with 500 points
+  for (size_t i = 0; i < 500; ++i)
+  {
+    s_pos.push_back({ -1.57, -1.6, 1.6, -0.7, 0.7 + i * increment, 0.2 });
+    s_vel.push_back({ 0, 0, 0, 0, increment / duration, 0 });
+    s_acc.push_back({ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 });
+    s_time.push_back(duration);
+  }
+
+  // Send the trajectory and cancel it right away
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  waitForTrajectoryStarted();
+
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+      urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
+  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
+  // Ensure we receive the cancel trajectory result, which will mean that the trajectory buffer will be clear
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result);
+
+  // Do the same procesure again to ensure that a new trajectory can be send after canceling the before
+  // one in the middle of its execution
+  sendTrajectory(s_pos, s_vel, s_acc, s_time);
+  waitForTrajectoryStarted();
+
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+      urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
+  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
