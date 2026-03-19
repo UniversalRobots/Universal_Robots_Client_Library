@@ -160,7 +160,7 @@ public:
   DashboardResponse commandGetProgramList() override;
   DashboardResponse commandUploadProgram(const std::string& file_path) override;
   DashboardResponse commandUpdateProgram(const std::string& file_path) override;
-  DashboardResponse commandDownloadProgram(const std::string& filename, const std::string& save_path) override;
+  DashboardResponse commandDownloadProgram(const std::string& program_name, const std::string& save_path) override;
 
   void setReceiveTimeout([[maybe_unused]] const timeval& timeout) override
   {
