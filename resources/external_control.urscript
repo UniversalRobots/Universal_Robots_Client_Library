@@ -616,6 +616,7 @@ thread trajectoryThread():
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           request_trajectory_cleanup()
+          join thread_clear
           trajectory_result = TRAJECTORY_RESULT_FAILURE
         end
 
@@ -758,6 +759,7 @@ def tool_contact_detection():
     if control_mode == MODE_FORWARD:
       kill thread_trajectory
       request_trajectory_cleanup()
+      join thread_clear
     elif control_mode == MODE_FREEDRIVE:
       textmsg("Leaving freedrive mode")
       end_freedrive_mode()
