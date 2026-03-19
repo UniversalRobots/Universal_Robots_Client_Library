@@ -31,10 +31,12 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 
 #include <ur_client_library/comm/stream.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/rtde/data_package.h>
+#include "test_utils.h"
 #include "ur_client_library/primary/primary_package.h"
 
 using namespace urcl;
@@ -44,10 +46,7 @@ class StreamTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new comm::TCPServer(60003));
-    server_->setConnectCallback(std::bind(&StreamTest::connectionCallback, this, std::placeholders::_1));
-    server_->setMessageCallback(std::bind(&StreamTest::messageCallback, this, std::placeholders::_1,
-                                          std::placeholders::_2, std::placeholders::_3));
+    server_.reset(new TestableTcpServer(60003));
     server_->start();
   }
 
@@ -57,62 +56,7 @@ protected:
     server_.reset();
   }
 
-  // callback functions for the tcp server
-  void messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer, size_t nbytesrecv)
-  {
-    std::lock_guard<std::mutex> lk(message_mutex_);
-    read_ = nbytesrecv;
-    received_message_ = std::string(buffer);
-    message_cv_.notify_one();
-    message_callback_ = true;
-  }
-
-  void connectionCallback(const socket_t filedescriptor)
-  {
-    std::lock_guard<std::mutex> lk(connect_mutex_);
-    client_fd_ = filedescriptor;
-    connect_cv_.notify_one();
-    connection_callback_ = true;
-  }
-
-  bool waitForMessageCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(message_mutex_);
-    if (message_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        message_callback_ == true)
-    {
-      message_callback_ = false;
-      return true;
-    }
-    return false;
-  }
-
-  bool waitForConnectionCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(connect_mutex_);
-    if (connect_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        connection_callback_ == true)
-    {
-      connection_callback_ = false;
-      return true;
-    }
-    return false;
-  }
-
-  std::unique_ptr<comm::TCPServer> server_;
-  socket_t client_fd_;
-  std::string received_message_;
-  size_t read_;
-
-private:
-  std::condition_variable message_cv_;
-  std::mutex message_mutex_;
-
-  std::condition_variable connect_cv_;
-  std::mutex connect_mutex_;
-
-  bool connection_callback_ = false;
-  bool message_callback_ = false;
+  std::unique_ptr<TestableTcpServer> server_;
 };
 
 TEST_F(StreamTest, closed_stream)
@@ -120,7 +64,7 @@ TEST_F(StreamTest, closed_stream)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
   stream.connect();
 
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
   EXPECT_FALSE(stream.closed());
 
   stream.close();
@@ -137,7 +81,7 @@ TEST_F(StreamTest, connect_stream)
   EXPECT_EQ(stream.getState(), expected_state);
 
   stream.connect();
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   expected_state = comm::SocketState::Connected;
   EXPECT_EQ(stream.getState(), expected_state);
@@ -151,10 +95,10 @@ TEST_F(StreamTest, read_buffer_to_small)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
   stream.connect();
 
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   uint8_t buf[10];
   size_t read = 0;
@@ -172,10 +116,10 @@ TEST_F(StreamTest, read_rtde_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
   stream.connect();
 
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   uint8_t buf[4096];
   size_t read = 0;
@@ -285,10 +229,10 @@ TEST_F(StreamTest, read_primary_data_package)
   comm::URStream<primary_interface::PrimaryPackage> stream("127.0.0.1", 60003);
   stream.connect();
 
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   uint8_t buf[4096];
   size_t read = 0;
@@ -306,7 +250,7 @@ TEST_F(StreamTest, write_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
   stream.connect();
 
-  EXPECT_TRUE(waitForConnectionCallback());
+  EXPECT_TRUE(server_->waitForConnectionCallback());
 
   std::string send_message = "test message";
   const uint8_t* data = reinterpret_cast<const uint8_t*>(send_message.c_str());
@@ -314,11 +258,14 @@ TEST_F(StreamTest, write_data_package)
   size_t written;
   stream.write(data, len, written);
 
-  EXPECT_TRUE(waitForMessageCallback());
+  EXPECT_TRUE(server_->waitForMessageCallback());
+
+  size_t bytes_read;
+  std::string received_message = server_->getReceivedMessage(bytes_read);
 
   // Test that the message and the size of the message are equal
-  EXPECT_EQ(written, read_);
-  EXPECT_EQ(send_message, received_message_);
+  EXPECT_EQ(written, bytes_read);
+  EXPECT_EQ(send_message, received_message);
 }
 
 TEST_F(StreamTest, connect_non_connected_robot)
