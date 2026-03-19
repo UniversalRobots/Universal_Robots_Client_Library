@@ -1006,6 +1006,9 @@ while control_mode > MODE_STOPPED:
       if trajectory_cleanup_running:
           textmsg("Trajectory buffer cleanup in progress, ignoring new trajectory")
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
+        kill thread_trajectory
+        request_trajectory_cleanup()
+        join thread_clear
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
