@@ -10,7 +10,7 @@ It applies a sinusoidal torque to the 6th joint (index 5) while reading the join
 it make sure to
 
 * have an instance of a robot controller running at the configured IP address (or adapt the
-address to your needs). On URSim torque commands don't have any effect.
+  address to your needs). On URSim torque commands don't have any effect.
 * have PolyScope version 5.25.1 / 10.12.1 or later installed on the robot.
 * run it from the package's main folder (the one where the README.md file is stored), as for
   simplicity reasons it doesn't use any sophisticated method to locate the required files.
@@ -69,7 +69,7 @@ position for ``JOINT_INDEX`` is set to ``start_position`` and the robot is moved
    :linenos:
    :lineno-match:
    :start-at: // Once RTDE communication is started
-   :end-at: instruction_executor->moveJ(g_joint_positions, 1.4, 1.04, 0.1);
+   :end-at: instruction_executor->optimoveJ(g_joint_positions);
 
 Robot control loop
 ------------------
