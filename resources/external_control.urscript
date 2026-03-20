@@ -667,7 +667,15 @@ end
 # Thread to cleanup the remaining trajectory_points_left when trajectory canceled
 thread clearTrajectoryPointsThread():
   local reads = 0
+  local limit = 0
   local timeout = 0.5
+
+  {% if ROBOT_SOFTWARE_VERSION >= v10.0.0 %}
+    limit = 20
+  {% else %}
+    limit = 10
+  {% endif %}  
+  
   while trajectory_points_left > 0:
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
     if raw_point[0] <= 0:
@@ -677,7 +685,7 @@ thread clearTrajectoryPointsThread():
     end
     trajectory_points_left = trajectory_points_left - 1
     reads = reads + 1
-    if reads >= 20:
+    if reads >= limit:
       sync()            
       reads = 0
     end
