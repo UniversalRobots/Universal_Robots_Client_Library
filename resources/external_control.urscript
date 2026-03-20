@@ -1007,9 +1007,8 @@ while control_mode > MODE_STOPPED:
       set_torque(torque)
     elif control_mode == MODE_FORWARD:
       if trajectory_cleanup_running:
-          popup("Trajectory buffer cleanup in progress, new trajectory ignored", error = True, blocking = True)
           textmsg("Trajectory buffer cleanup in progress, new trajectory ignored")
-          halt
+          popup("Trajectory buffer cleanup in progress, new trajectory ignored", error = True, blocking = True)
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         kill thread_trajectory
         request_trajectory_cleanup()
