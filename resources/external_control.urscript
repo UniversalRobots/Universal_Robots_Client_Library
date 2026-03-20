@@ -100,9 +100,7 @@ thread_script_commands = 0
 thread_clear = 0
 
 # Global thread flags
-global trajectory_cleanup_requested = False
 global trajectory_cleanup_running = False
-global trajectory_cancel_msg = False
 
 ###
 # @brief Function to verify whether the specified target can be reached within the defined time frame while staying within
@@ -498,30 +496,6 @@ def list_max_norm(list):
   return max
 end
 
-# Thread to cleanup the remaining trajectory_points_left when trajectory canceled
-thread clearTrajectoryPointsThread():
-  trajectory_cleanup_running = True
-  trajectory_cleanup_requested = False
-  local reads = 0
-  local timeout = 0.5
-  while trajectory_points_left > 0:
-    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
-    if raw_point[0] <= 0:
-      trajectory_points_left = 0
-      textmsg("Forced trajectory_points_left reset")
-      break
-    end
-    trajectory_points_left = trajectory_points_left - 1
-    reads = reads + 1
-    if reads >= 20:
-      sync()            
-      reads = 0
-    end
-  end
-  textmsg("Cleanup finished")
-  trajectory_cleanup_running = False
-end
-
 thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
   local is_first_point = True
@@ -616,7 +590,8 @@ thread trajectoryThread():
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])
           request_trajectory_cleanup()
-          join thread_clear
+          stopj(STOPJ_ACCELERATION)
+          wait_for_trajectory_cleanup()
           trajectory_result = TRAJECTORY_RESULT_FAILURE
         end
 
@@ -689,12 +664,39 @@ thread trajectoryThread():
   textmsg("Trajectory finished with result ", trajectory_result_to_str(trajectory_result))
 end
 
+# Thread to cleanup the remaining trajectory_points_left when trajectory canceled
+thread clearTrajectoryPointsThread():
+  local reads = 0
+  local timeout = 0.5
+  while trajectory_points_left > 0:
+    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
+    if raw_point[0] <= 0:
+      trajectory_points_left = 0
+      textmsg("No more trajectory points in the buffer. Resetting trajectory_points_left to 0.")
+      break
+    end
+    trajectory_points_left = trajectory_points_left - 1
+    reads = reads + 1
+    if reads >= 20:
+      sync()            
+      reads = 0
+    end
+  end
+  textmsg("Trajectory point buffer cleared successfully.")
+  trajectory_cleanup_running = False
+end
+
 # Checks that the thread is only called once
 def request_trajectory_cleanup():
-  if not trajectory_cleanup_requested or not trajectory_cleanup_running:
-    trajectory_cleanup_requested = True
+  if not trajectory_cleanup_running:
+    trajectory_cleanup_running = True
     thread_clear = run clearTrajectoryPointsThread()
   end
+end
+
+# Wait until the trajectory cleanup has finished
+def wait_for_trajectory_cleanup():
+  join thread_clear
 end
 
 # Helpers for speed control
@@ -759,7 +761,6 @@ def tool_contact_detection():
     if control_mode == MODE_FORWARD:
       kill thread_trajectory
       request_trajectory_cleanup()
-      join thread_clear
     elif control_mode == MODE_FREEDRIVE:
       textmsg("Leaving freedrive mode")
       end_freedrive_mode()
@@ -770,7 +771,7 @@ def tool_contact_detection():
     # Set control mode to tool in contact, should be cleared by stopping tool contact detection
     control_mode = MODE_TOOL_IN_CONTACT
     stopl(3)
-
+    wait_for_trajectory_cleanup()
     # Move to initial contact point
     q = get_actual_joint_positions_history(step_back)
     movel(q)
@@ -958,7 +959,7 @@ while control_mode > MODE_STOPPED:
         if trajectory_points_left > 0:
           request_trajectory_cleanup()
           stopj(STOPJ_ACCELERATION)
-          join thread_clear
+          wait_for_trajectory_cleanup()
           socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
         end
         # Stop freedrive
@@ -1006,11 +1007,13 @@ while control_mode > MODE_STOPPED:
       set_torque(torque)
     elif control_mode == MODE_FORWARD:
       if trajectory_cleanup_running:
-          textmsg("Trajectory buffer cleanup in progress, ignoring new trajectory")
+          popup("Trajectory buffer cleanup in progress, new trajectory ignored", error = True, blocking = True)
+          textmsg("Trajectory buffer cleanup in progress, new trajectory ignored")
+          halt
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         kill thread_trajectory
         request_trajectory_cleanup()
-        join thread_clear
+        wait_for_trajectory_cleanup()
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
@@ -1018,7 +1021,7 @@ while control_mode > MODE_STOPPED:
         kill thread_trajectory
         request_trajectory_cleanup()
         stopj(STOPJ_ACCELERATION)
-        join thread_clear
+        wait_for_trajectory_cleanup()
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     elif control_mode == MODE_SPEEDL:
