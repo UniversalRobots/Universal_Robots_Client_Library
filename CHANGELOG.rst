@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.8.0 (2026-03-20)
+------------------
 * Improve cleanup of trajectory buffer  (`#466 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/466>`_)
 * Fix documentation of direct_torque example (`#467 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/467>`_)
 * Direct torque friction scales support (`#445 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/445>`_)
