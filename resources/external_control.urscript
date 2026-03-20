@@ -734,6 +734,7 @@ end
 # Wait until the trajectory cleanup has finished
 def wait_for_trajectory_cleanup():
   join thread_clear
+  thread_clear = 0
 end
 
 # Helpers for speed control
