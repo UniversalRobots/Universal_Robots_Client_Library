@@ -8,7 +8,7 @@ include(FetchContent)
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG        v1.15.2
+  GIT_TAG        v1.17.0
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -82,6 +82,22 @@ if (INTEGRATION_TESTS)
                   TEST_SUFFIX _headless
   )
 
+  # ExternalControlProgram tests
+  add_executable(external_control_program_tests_urcap test_external_control_program.cpp)
+  target_link_libraries(external_control_program_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      external_control_program_tests_urcap
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(external_control_program_tests_headless test_external_control_program.cpp)
+  target_link_libraries(external_control_program_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      external_control_program_tests_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true
+                  TEST_SUFFIX _headless
+  )
+
   # InstructionExecutor tests
   add_executable(instruction_executor_test_urcap test_instruction_executor.cpp)
   target_link_libraries(instruction_executor_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
@@ -137,6 +153,9 @@ gtest_add_tests(TARGET      rtde_parser_tests
 )
 
 add_executable(tcp_server_tests test_tcp_server.cpp)
+if (MSVC)
+  target_compile_options(tcp_server_tests PRIVATE /Zc:lambda)
+endif()
 target_link_libraries(tcp_server_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      tcp_server_tests
 )

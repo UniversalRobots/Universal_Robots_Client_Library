@@ -9,6 +9,7 @@ endif()
 option(WITH_ASAN "Compile with address sanitizer support" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(PRIMARY_CLIENT_STRICT_PARSING_ "Enable strict parsing of primary client messages" OFF)
+option(CMAKE_COMPILE_WARNING_AS_ERROR "Treat even small warnings as errors" OFF)
 
 if(MSVC)
 set(BUILD_SHARED_LIBS OFF)
@@ -69,25 +70,30 @@ configure_file("src/compile_options.h.in"
 
 if(MSVC)
   target_link_libraries(urcl ws2_32)
-  target_include_directories(urcl PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian>
-    $<INSTALL_INTERFACE:include/${PROJECT_NAME}/3rdparty>
-  )
 else()
-  if(APPLE)
-    target_include_directories(urcl PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/endian>
-      $<INSTALL_INTERFACE:include/${PROJECT_NAME}/3rdparty>
-    )
-  endif()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
-  target_compile_options(urcl PRIVATE -Wall -Wextra -Wno-unused-parameter)
+
+  # GCC 13-15 have a false positive -Wmaybe-uninitialized in <regex> headers
+  # (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562).
+  # Bump the upper bound if the bug persists in newer GCC versions.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+     AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13
+     AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+    set_source_files_properties(
+      src/control/script_reader.cpp
+      src/ur/dashboard_client.cpp
+      src/ur/dashboard_client_implementation_g5.cpp
+      src/ur/dashboard_client_implementation_x.cpp
+      PROPERTIES COMPILE_OPTIONS "-Wno-maybe-uninitialized")
+  endif()
 
   if(WITH_ASAN)
     target_compile_options(urcl PUBLIC -fsanitize=address)
     target_link_options(urcl PUBLIC -fsanitize=address)
   endif()
-  target_link_libraries(urcl PUBLIC stdc++fs)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    target_link_libraries(urcl PUBLIC stdc++fs)
+  endif()
 endif()
 
 target_include_directories(urcl PUBLIC
@@ -109,6 +115,15 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries(urcl PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+# When warnings are treated as errors, also enable high warning level for all targets
+if(CMAKE_COMPILE_WARNING_AS_ERROR)
+  if(MSVC)
+    add_compile_options(/W4)
+  else()
+    add_compile_options(-Wall -Wextra)
+  endif()
+endif()
+
 ##
 ## Build testing if enabled by option
 ##
@@ -128,11 +143,6 @@ install(TARGETS urcl EXPORT urcl_targets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(DIRECTORY include/ DESTINATION include)
-if(MSVC OR APPLE)
-  install(DIRECTORY 3rdparty/endian/ DESTINATION include/${PROJECT_NAME}/3rdparty
-    FILES_MATCHING PATTERN "*.h"
-  )
-endif()
 
 install(EXPORT urcl_targets
   DESTINATION lib/cmake/ur_client_library

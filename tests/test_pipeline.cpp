@@ -31,6 +31,8 @@
 #include <gtest/gtest.h>
 #include <condition_variable>
 
+#include "test_utils.h"
+
 #include <ur_client_library/comm/pipeline.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/stream.h>
@@ -45,8 +47,7 @@ class PipelineTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new comm::TCPServer(60002));
-    server_->setConnectCallback(std::bind(&PipelineTest::connectionCallback, this, std::placeholders::_1));
+    server_.reset(new TestableTcpServer(60002));
     server_->start();
 
     // Setup pipeline
@@ -68,28 +69,7 @@ protected:
     server_.reset();
   }
 
-  void connectionCallback(const socket_t filedescriptor)
-  {
-    std::lock_guard<std::mutex> lk(connect_mutex_);
-    client_fd_ = filedescriptor;
-    connect_cv_.notify_one();
-    connection_callback_ = true;
-  }
-
-  bool waitForConnectionCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(connect_mutex_);
-    if (connect_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        connection_callback_ == true)
-    {
-      connection_callback_ = false;
-      return true;
-    }
-    return false;
-  }
-
-  std::unique_ptr<comm::TCPServer> server_;
-  socket_t client_fd_;
+  std::unique_ptr<TestableTcpServer> server_;
 
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
   std::unique_ptr<rtde_interface::RTDEParser> parser_;
@@ -138,8 +118,6 @@ protected:
 private:
   std::condition_variable connect_cv_;
   std::mutex connect_mutex_;
-
-  bool connection_callback_ = false;
 };
 
 TEST_F(PipelineTest, get_product_from_stopped_pipeline)
@@ -151,13 +129,13 @@ TEST_F(PipelineTest, get_product_from_stopped_pipeline)
 
 TEST_F(PipelineTest, get_product_from_running_pipeline)
 {
-  waitForConnectionCallback();
+  server_->waitForConnectionCallback();
   pipeline_->run();
 
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xbb, 0xbf, 0xdb, 0xa5, 0xe3, 0x53, 0xf7 };
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   std::unique_ptr<rtde_interface::RTDEPackage> urpackage;
   std::chrono::milliseconds timeout{ 500 };
@@ -165,9 +143,9 @@ TEST_F(PipelineTest, get_product_from_running_pipeline)
   if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(urpackage.get()))
   {
     double timestamp;
-    double expected_timestamp = 7103.8579;
+    double expected_timestamp = 7103.858;
     data->getData("timestamp", timestamp);
-    EXPECT_FLOAT_EQ(timestamp, expected_timestamp);
+    EXPECT_DOUBLE_EQ(timestamp, expected_timestamp);
   }
   else
   {
@@ -178,13 +156,13 @@ TEST_F(PipelineTest, get_product_from_running_pipeline)
 
 TEST_F(PipelineTest, stop_pipeline)
 {
-  waitForConnectionCallback();
+  server_->waitForConnectionCallback();
   pipeline_->run();
 
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xbb, 0xbf, 0xdb, 0xa5, 0xe3, 0x53, 0xf7 };
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   std::unique_ptr<rtde_interface::RTDEPackage> urpackage;
   std::chrono::milliseconds timeout{ 500 };
@@ -206,13 +184,13 @@ TEST_F(PipelineTest, consumer_pipeline)
   pipeline_.reset(
       new comm::Pipeline<rtde_interface::RTDEPackage>(*producer_.get(), &consumer, "RTDE_PIPELINE", notifier_));
   pipeline_->init();
-  waitForConnectionCallback();
+  server_->waitForConnectionCallback();
   pipeline_->run();
 
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xbb, 0xbf, 0xdb, 0xa5, 0xe3, 0x53, 0xf7 };
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   // Wait for data to be consumed
   int max_retries = 3;
@@ -223,14 +201,14 @@ TEST_F(PipelineTest, consumer_pipeline)
     {
       break;
     }
-    server_->write(client_fd_, data_package, sizeof(data_package), written);
+    server_->write(data_package, sizeof(data_package), written);
     count++;
   }
   EXPECT_LT(count, max_retries);
 
   // Test that the package was consumed
-  double expected_timestamp = 7103.8579;
-  EXPECT_FLOAT_EQ(consumer.timestamp, expected_timestamp);
+  double expected_timestamp = 7103.858;
+  EXPECT_DOUBLE_EQ(consumer.timestamp, expected_timestamp);
 
   pipeline_->stop();
 }

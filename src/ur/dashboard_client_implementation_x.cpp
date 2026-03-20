@@ -51,12 +51,13 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
   cli_->set_follow_location(true);
 }
 
-std::string DashboardClientImplX::sendAndReceive(const std::string& text)
+std::string DashboardClientImplX::sendAndReceive([[maybe_unused]] const std::string& text)
 {
   throw NotImplementedException("sendAndReceive is not implemented for DashboardClientImplX.");
 }
 
-bool DashboardClientImplX::connect(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
+bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
+                                   [[maybe_unused]] const std::chrono::milliseconds reconnection_time)
 {
   std::string endpoint = base_url_ + "/openapi.json";
   // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
@@ -101,36 +102,40 @@ VersionInformation DashboardClientImplX::queryPolyScopeVersion()
   throw NotImplementedException("queryPolyScopeVersion is not implemented for DashboardClientImplX.");
 }
 
-void DashboardClientImplX::assertHasCommand(const std::string& command) const
+void DashboardClientImplX::assertHasCommand([[maybe_unused]] const std::string& command) const
 {
   // Currently, there is only one set of implemented commands. Once the first software release has
   // been made with a Dashboard Server, following versions will support more commands, which is
   // when we might have to deal with that here.
 }
 
-bool DashboardClientImplX::sendRequest(const std::string& command_str, const std::string& expected_response_pattern,
-                                       const std::string& payload)
+bool DashboardClientImplX::sendRequest([[maybe_unused]] const std::string& command_str,
+                                       [[maybe_unused]] const std::string& expected_response_pattern,
+                                       [[maybe_unused]] const std::string& payload)
 {
   throw NotImplementedException("sendRequestis not implemented for DashboardClientImplX.");
 }
 
-std::string DashboardClientImplX::sendRequestString(const std::string& command_str,
-                                                    const std::string& expected_response_pattern,
-                                                    const std::string& payload)
+std::string DashboardClientImplX::sendRequestString([[maybe_unused]] const std::string& command_str,
+                                                    [[maybe_unused]] const std::string& expected_response_pattern,
+                                                    [[maybe_unused]] const std::string& payload)
 {
   throw NotImplementedException("sendRequestString is not implemented for DashboardClientImplX.");
 }
 
-bool DashboardClientImplX::waitForReply(const std::string& command, const std::string& expected,
-                                        const std::chrono::duration<double> timeout)
+bool DashboardClientImplX::waitForReply([[maybe_unused]] const std::string& command,
+                                        [[maybe_unused]] const std::string& expected,
+                                        [[maybe_unused]] const std::chrono::duration<double> timeout)
 {
   throw NotImplementedException("waitForReply is not implemented for DashboardClientImplX.");
 }
 
-bool DashboardClientImplX::retryCommand(const std::string& requestCommand, const std::string& requestExpectedResponse,
-                                        const std::string& waitRequest, const std::string& waitExpectedResponse,
-                                        const std::chrono::duration<double> timeout,
-                                        const std::chrono::duration<double> retry_period)
+bool DashboardClientImplX::retryCommand([[maybe_unused]] const std::string& requestCommand,
+                                        [[maybe_unused]] const std::string& requestExpectedResponse,
+                                        [[maybe_unused]] const std::string& waitRequest,
+                                        [[maybe_unused]] const std::string& waitExpectedResponse,
+                                        [[maybe_unused]] const std::chrono::duration<double> timeout,
+                                        [[maybe_unused]] const std::chrono::duration<double> retry_period)
 {
   throw NotImplementedException("retryCommand is not implemented for DashboardClientImplX.");
 }
@@ -140,7 +145,7 @@ DashboardResponse DashboardClientImplX::commandPowerOff()
   return put("/robotstate/v1/state", R"({"action": "POWER_OFF"})");
 }
 
-DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
+DashboardResponse DashboardClientImplX::commandPowerOn([[maybe_unused]] const std::chrono::duration<double> timeout)
 {
   return put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
 }
@@ -162,7 +167,8 @@ DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& pr
   return put(endpoint, R"({")" + program_key + R"(": ")" + program_file_name + R"("})");
 }
 
-DashboardResponse DashboardClientImplX::commandLoadInstallation(const std::string& installation_file_name)
+DashboardResponse
+DashboardClientImplX::commandLoadInstallation([[maybe_unused]] const std::string& installation_file_name)
 {
   throw NotImplementedException("commandLoadInstallation is not implemented for DashboardClientImplX.");
 }
@@ -252,12 +258,12 @@ DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
   return response;
 }
 
-DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_text)
+DashboardResponse DashboardClientImplX::commandPopup([[maybe_unused]] const std::string& popup_text)
 {
   throw NotImplementedException("commandPopup is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::commandAddToLog(const std::string& log_text)
+DashboardResponse DashboardClientImplX::commandAddToLog([[maybe_unused]] const std::string& log_text)
 {
   throw NotImplementedException("commandAddToLog is not implemented for DashboardClientImplX.");
 }
@@ -357,7 +363,7 @@ DashboardResponse DashboardClientImplX::commandGetOperationalMode()
   return response;
 }
 
-DashboardResponse DashboardClientImplX::commandSetOperationalMode(const std::string& operational_mode)
+DashboardResponse DashboardClientImplX::commandSetOperationalMode([[maybe_unused]] const std::string& operational_mode)
 {
   throw NotImplementedException("commandSetOperationalMode is not implemented for DashboardClientImplX.");
 }
@@ -367,7 +373,7 @@ DashboardResponse DashboardClientImplX::commandClearOperationalMode()
   throw NotImplementedException("commandClearOperationalMode is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::commandSetUserRole(const std::string& user_role)
+DashboardResponse DashboardClientImplX::commandSetUserRole([[maybe_unused]] const std::string& user_role)
 {
   throw NotImplementedException("commandSetUserRole is not implemented for DashboardClientImplX.");
 }
@@ -377,12 +383,12 @@ DashboardResponse DashboardClientImplX::commandGetUserRole()
   throw NotImplementedException("commandGetUserRole is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::commandGenerateFlightReport(const std::string& report_type)
+DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unused]] const std::string& report_type)
 {
   throw NotImplementedException("commandGenerateFlightReport is not implemented for DashboardClientImplX.");
 }
 
-DashboardResponse DashboardClientImplX::commandGenerateSupportFile(const std::string& dir_path)
+DashboardResponse DashboardClientImplX::commandGenerateSupportFile([[maybe_unused]] const std::string& dir_path)
 {
   throw NotImplementedException("commandGenerateSupportFile is not implemented for DashboardClientImplX.");
 }
@@ -480,7 +486,7 @@ DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& 
       file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return put(e, f); });
 }
 
-DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& filename,
+DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& program_name,
                                                                const std::string& save_path)
 {
   if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
@@ -488,17 +494,28 @@ DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string
     throw NotImplementedException("commandDownloadProgram is not implemented for Robot API version < 3.1.4. Please "
                                   "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
   }
-  auto response = get("/programs/v1/" + filename, false);  // The json response is pretty long. Don't print it.
+  if (program_name.size() == 0 || save_path.size() == 0)
+  {
+    std::string error = "Both program_name and save_path parameters should be populated.";
+    error += program_name.size() == 0 ? " Program name is empty." : "";
+    error += save_path.size() == 0 ? " Save path is empty." : "";
+    URCL_LOG_ERROR(error.c_str());
+    DashboardResponse response;
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+  auto response = get("/programs/v1/" + program_name, false);  // The json response is pretty long. Don't print it.
   if (response.ok)
   {
     std::ofstream save_file(save_path, std::ios_base::out);
     if (!save_file.is_open())
     {
-      DashboardResponse response;
-      response.ok = false;
-      response.message = "Failed to open file for saving: " + save_path;
-      URCL_LOG_ERROR(response.message.c_str());
-      return response;
+      DashboardResponse error_response;
+      error_response.ok = false;
+      error_response.message = "Failed to open file for saving: " + save_path;
+      URCL_LOG_ERROR(error_response.message.c_str());
+      return error_response;
     }
     save_file << response.message;
 

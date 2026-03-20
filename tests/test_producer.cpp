@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <condition_variable>
+#include "test_utils.h"
 
 #include <ur_client_library/comm/producer.h>
 #include <ur_client_library/comm/stream.h>
@@ -44,8 +45,7 @@ class ProducerTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new comm::TCPServer(60002));
-    server_->setConnectCallback(std::bind(&ProducerTest::connectionCallback, this, std::placeholders::_1));
+    server_.reset(new TestableTcpServer(60002));
     server_->start();
   }
 
@@ -55,34 +55,7 @@ protected:
     server_.reset();
   }
 
-  void connectionCallback(const socket_t filedescriptor)
-  {
-    std::lock_guard<std::mutex> lk(connect_mutex_);
-    client_fd_ = filedescriptor;
-    connect_cv_.notify_one();
-    connection_callback_ = true;
-  }
-
-  bool waitForConnectionCallback(int milliseconds = 100)
-  {
-    std::unique_lock<std::mutex> lk(connect_mutex_);
-    if (connect_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        connection_callback_ == true)
-    {
-      connection_callback_ = false;
-      return true;
-    }
-    return false;
-  }
-
-  std::unique_ptr<comm::TCPServer> server_;
-  socket_t client_fd_;
-
-private:
-  std::condition_variable connect_cv_;
-  std::mutex connect_mutex_;
-
-  bool connection_callback_ = false;
+  std::unique_ptr<TestableTcpServer> server_;
 };
 
 TEST_F(ProducerTest, get_data_package)
@@ -94,13 +67,13 @@ TEST_F(ProducerTest, get_data_package)
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
   producer.setupProducer();
-  waitForConnectionCallback();
+  server_->waitForConnectionCallback();
   producer.startProducer();
 
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xbb, 0xbf, 0xdb, 0xa5, 0xe3, 0x53, 0xf7 };
   size_t written;
-  server_->write(client_fd_, data_package, sizeof(data_package), written);
+  server_->write(data_package, sizeof(data_package), written);
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
   EXPECT_EQ(producer.tryGet(products), true);
@@ -109,7 +82,7 @@ TEST_F(ProducerTest, get_data_package)
   {
     double timestamp;
     data->getData("timestamp", timestamp);
-    EXPECT_FLOAT_EQ(timestamp, 7103.86);
+    EXPECT_DOUBLE_EQ(timestamp, 7103.858);
   }
   else
   {

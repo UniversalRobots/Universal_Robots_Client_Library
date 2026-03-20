@@ -58,30 +58,30 @@ void sendTrajectory(const std::vector<vector6d_t>& p_p, const std::vector<vector
 
   URCL_LOG_INFO("Starting joint-based trajectory forward");
   g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
-                                                           p_p.size());
+                                                           static_cast<int>(p_p.size()));
 
   for (size_t i = 0; i < p_p.size() && p_p.size() == time.size() && p_p[i].size() == 6; i++)
   {
     // MoveJ
     if (!use_spline_interpolation_)
     {
-      g_my_robot->getUrDriver()->writeTrajectoryPoint(p_p[i], false, time[i]);
+      g_my_robot->getUrDriver()->writeTrajectoryPoint(p_p[i], false, static_cast<float>(time[i]));
     }
     else  // Use spline interpolation
     {
       // QUINTIC
       if (p_v.size() == time.size() && p_a.size() == time.size() && p_v[i].size() == 6 && p_a[i].size() == 6)
       {
-        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], p_a[i], static_cast<float>(time[i]));
       }
       // CUBIC
       else if (p_v.size() == time.size() && p_v[i].size() == 6)
       {
-        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], p_v[i], static_cast<float>(time[i]));
       }
       else
       {
-        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], time[i]);
+        g_my_robot->getUrDriver()->writeTrajectorySplinePoint(p_p[i], static_cast<float>(time[i]));
       }
     }
   }

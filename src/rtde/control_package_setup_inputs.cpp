@@ -59,7 +59,7 @@ size_t ControlPackageSetupInputsRequest::generateSerializedRequest(uint8_t* buff
   for (const auto& piece : variable_names)
     variables += (piece + ",");
   variables.pop_back();
-  uint16_t payload_size = variables.size();
+  uint16_t payload_size = static_cast<uint16_t>(variables.size());
 
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PACKAGE_TYPE, payload_size);

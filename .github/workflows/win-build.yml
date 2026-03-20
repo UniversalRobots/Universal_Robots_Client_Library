@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - master
+  schedule:
+    - cron: '38 2 * * *'
 
 jobs:
   win-build:
@@ -14,8 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1
-        #run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DINTEGRATION_TESTS=1
+        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
       - name: build
         run: cmake --build build --config Debug
       - name: test

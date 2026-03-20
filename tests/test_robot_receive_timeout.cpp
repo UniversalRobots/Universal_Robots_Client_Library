@@ -53,9 +53,9 @@ TEST(RobotReceiveTimeout, empty_milliseconds_configuration)
 
 TEST(RobotReceiveTimeout, seconds_configuration)
 {
-  float timeout = 0.1;
+  float timeout = 0.1f;
   RobotReceiveTimeout robot_receive_timeout = RobotReceiveTimeout::sec(timeout);
-  const int expected_timeout = timeout * 1000;  // Convert to milliseconds
+  const int expected_timeout = static_cast<int>(timeout * 1000);  // Convert to milliseconds
   EXPECT_EQ(robot_receive_timeout.getAsMilliseconds().count(), expected_timeout);
 }
 

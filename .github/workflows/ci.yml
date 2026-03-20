@@ -66,8 +66,9 @@ jobs:
           -DINTEGRATION_TESTS=1
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         env:
-          CXXFLAGS: -g -O2  -fprofile-arcs -ftest-coverage
+          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
@@ -84,10 +85,13 @@ jobs:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+          files: build/junit.xml
+          report_type: test_results
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
@@ -95,14 +99,16 @@ jobs:
         run: sudo apt-get install -y gcovr
       - name: gcovr
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: cd build && gcovr -r .. --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
-      - name: Upload coverage to Codecov
+        run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
+      - name: Upload coverage reports to Codecov with GitHub Action
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/coverage.xml
           flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Generate URSim log files
         if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
         run: |
@@ -134,6 +140,14 @@ jobs:
           path: test_artifacts
           if-no-files-found: error
           retention-days: 10
+      - name: Upload generated scripts
+        uses: actions/upload-artifact@v6
+        if: ${{ always() }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_generated_scripts
+          path: test_artifacts/generated_scripts
+          if-no-files-found: warn
+          retention-days: 10
 
   test_start_ursim:
     runs-on: ubuntu-latest
@@ -153,9 +167,10 @@ jobs:
         env:
           BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
         run: bundle exec bashcov --skip-uncovered bats tests/test_start_ursim.bats
-      - name: Upload reports to Codecov
+      - name: Upload coverage reports to Codecov with GitHub Action
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
           flags: start_ursim
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

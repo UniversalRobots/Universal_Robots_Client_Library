@@ -27,6 +27,8 @@
 //----------------------------------------------------------------------
 
 #include <ur_client_library/control/script_command_interface.h>
+#include <ur_client_library/helpers.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <math.h>
 
 namespace urcl
@@ -279,6 +281,46 @@ bool ScriptCommandInterface::setFrictionCompensation(const bool friction_compens
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setFrictionScales(const vector6d_t& viscous_scale, const vector6d_t& coulomb_scale)
+{
+  if (!robotVersionSupportsCommandOrWarn(urcl::VersionInformation::fromString("5.25.1"),
+                                         urcl::VersionInformation::fromString("10.12.1"), __func__))
+  {
+    return false;
+  }
+  const int message_length = 13;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_FRICTION_SCALES));
+  b_pos += append(b_pos, val);
+
+  vector6d_t clamped_viscous_scale = viscous_scale;
+  vector6d_t clamped_coulomb_scale = coulomb_scale;
+  clampToUnitRange(clamped_viscous_scale);
+  clampToUnitRange(clamped_coulomb_scale);
+
+  for (auto const& scale : clamped_viscous_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+  for (auto const& scale : clamped_coulomb_scale)
+  {
+    val = htobe32(static_cast<int32_t>(round(scale * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::ftRtdeInputEnable(const bool enabled, const double sensor_mass,
                                                const vector3d_t& sensor_measuring_offset, const vector3d_t& sensor_cog)
 {
@@ -371,11 +413,12 @@ void ScriptCommandInterface::disconnectionCallback(const socket_t filedescriptor
   client_connected_ = false;
 }
 
-void ScriptCommandInterface::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void ScriptCommandInterface::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer,
+                                             int nbytesrecv)
 {
   if (nbytesrecv == 4)
   {
-    int32_t* status = reinterpret_cast<int*>(buffer);
+    int32_t* status = reinterpret_cast<int32_t*>(buffer);
     URCL_LOG_DEBUG("Received message %d on Script command interface", be32toh(*status));
 
     if (handle_tool_contact_result_)

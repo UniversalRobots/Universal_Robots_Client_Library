@@ -442,6 +442,12 @@ TEST_F(DashboardClientTestX, download_program)
 
     response = dashboard_client_->commandDownloadProgram("test upload", "/non_existent_dir/downloaded.urpx");
     ASSERT_FALSE(response.ok);
+
+    response = dashboard_client_->commandDownloadProgram("", "/tmp/downloaded.urpx");
+    ASSERT_FALSE(response.ok);
+
+    response = dashboard_client_->commandDownloadProgram("test upload", "");
+    ASSERT_FALSE(response.ok);
   }
 }
 

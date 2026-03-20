@@ -133,7 +133,7 @@ public:
    *
    * \param timeout The timeout to be set
    */
-  virtual void setReceiveTimeout(const timeval& timeout) {};
+  virtual void setReceiveTimeout([[maybe_unused]] const timeval& timeout) {};
 
   /*!
    * \brief Sends command and verifies that a valid answer is received.

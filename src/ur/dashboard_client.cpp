@@ -125,7 +125,7 @@ bool DashboardClient::retryCommand(const std::string& requestCommand, const std:
   std::chrono::duration<double> time_done(0);
   do
   {
-    impl_->sendRequest(requestCommand);
+    impl_->sendRequest(requestCommand, requestExpectedResponse);
     time_done += retry_period;
 
     if (waitForReply(waitRequest, waitExpectedResponse, retry_period))
@@ -562,10 +562,10 @@ DashboardResponse DashboardClient::commandUpdateProgramWithResponse(const std::s
   return impl_->commandUpdateProgram(file_path);
 }
 
-DashboardResponse DashboardClient::commandDownloadProgramWithResponse(const std::string& filename,
+DashboardResponse DashboardClient::commandDownloadProgramWithResponse(const std::string& program_name,
                                                                       const std::string& save_path)
 {
-  return impl_->commandDownloadProgram(filename, save_path);
+  return impl_->commandDownloadProgram(program_name, save_path);
 }
 
 void DashboardClient::assertVersion(const std::string& e_series_min_ver, const std::string& cb3_min_ver,

@@ -102,10 +102,10 @@ public:
           // deconstruction of a sub parser will increment the position of the parent parser
           comm::BinParser sbp(bp, sub_size);
           sbp.consume(sizeof(sub_size));
-          RobotStateType type;
-          sbp.parse(type);
+          RobotStateType sub_type;
+          sbp.parse(sub_type);
 
-          std::unique_ptr<PrimaryPackage> packet(stateFromType(type));
+          std::unique_ptr<PrimaryPackage> packet(stateFromType(sub_type));
 
           if (packet == nullptr)
           {
@@ -117,7 +117,7 @@ public:
 
           if (!packet->parseWith(sbp))
           {
-            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(type));
+            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(sub_type));
             return false;
           }
 
@@ -128,10 +128,10 @@ public:
             sbp.debug();
             if (strict_mode_)
             {
-              throw UrException("Sub-package of type " + std::string(robotStateString(type)) +
+              throw UrException("Sub-package of type " + std::string(robotStateString(sub_type)) +
                                 " was not parsed completely, and strict mode is enabled, so aborting parsing!");
             }
-            URCL_LOG_WARN("Sub-package of type %s was not parsed completely!", robotStateString(type));
+            URCL_LOG_WARN("Sub-package of type %s was not parsed completely!", robotStateString(sub_type));
             sbp.consume();
           }
         }

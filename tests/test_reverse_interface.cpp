@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <urcl_3rdparty/portable_endian.h>
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/exceptions.h>
@@ -483,10 +484,19 @@ TEST_F(ReverseInterfaceTest, deprecated_set_keep_alive_count)
 
   // Test that it works to set the keepalive count using the deprecated function
   int keep_alive_count = 10;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
   reverse_interface_->setKeepaliveCount(keep_alive_count);
-#pragma GCC diagnostic pop
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
   int32_t expected_read_timeout = 20 * keep_alive_count;
 
   urcl::vector6d_t pos = { 0, 0, 0, 0, 0, 0 };
@@ -513,12 +523,12 @@ TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
 
   // Register disconnection callbacks
   int disconnection_callback_id_1 =
-      reverse_interface_->registerDisconnectionCallback([&disconnect_called_1](const int fd) {
+      reverse_interface_->registerDisconnectionCallback([&disconnect_called_1](const socket_t fd) {
         std::cout << "Disconnection 1 callback called with fd: " << fd << std::endl;
         disconnect_called_1 = true;
       });
   int disconnection_callback_id_2 =
-      reverse_interface_->registerDisconnectionCallback([&disconnect_called_2](const int fd) {
+      reverse_interface_->registerDisconnectionCallback([&disconnect_called_2](const socket_t fd) {
         std::cout << "Disconnection 2 callback called with fd: " << fd << std::endl;
         disconnect_called_2 = true;
       });

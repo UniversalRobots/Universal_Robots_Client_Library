@@ -84,9 +84,9 @@ TEST(control_mode, control_mode_types_size_equals_number_off_control_modes)
   {
     number_of_control_modes++;
   }
-  int number_of_control_mode_types = comm::ControlModeTypes::REALTIME_CONTROL_MODES.size() +
-                                     comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size() +
-                                     comm::ControlModeTypes::STATIONARY_CONTROL_MODES.size();
+  int number_of_control_mode_types = static_cast<int>(comm::ControlModeTypes::REALTIME_CONTROL_MODES.size() +
+                                                      comm::ControlModeTypes::NON_REALTIME_CONTROL_MODES.size() +
+                                                      comm::ControlModeTypes::STATIONARY_CONTROL_MODES.size());
   EXPECT_EQ(number_of_control_mode_types, number_of_control_modes);
 }
 
