@@ -2,6 +2,32 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Improve cleanup of trajectory buffer  (`#466 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/466>`_)
+* Fix documentation of direct_torque example (`#467 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/467>`_)
+* Direct torque friction scales support (`#445 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/445>`_)
+* If no new commands are received, halt (`#440 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/440>`_)
+* Add check to make sure that program name and save path is specified w… (`#447 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/447>`_)
+  …hen downloading program.
+* Update gtest to fix MacOS build warnings (`#464 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/464>`_)
+* Fix windows compile warnings (`#451 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/451>`_)
+  Fix windows compile warnings and from now all warnings are treated as errors.
+* Fix setGravity comments to be correct directionality (`#462 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/462>`_)
+* Robustify TCPServer implementation for thread safety and windows support (`#458 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/458>`_)
+* Add implementation of creating ExampleRobotWrapper with recipe vectors (`#456 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/456>`_)
+* Rename endian.h to portable_endian.h (`#442 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/442>`_)
+* [primary] Print a warning on additional data in RobotState submessages (`#460 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/460>`_)
+* Replace TEST with TEST_F to ensure teardown (`#459 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/459>`_)
+* [start_ursim.sh] Do not remove trailing "e" for PolyScope X (`#461 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/461>`_)
+* Add doxygen to new dashboard X calls (`#455 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/455>`_)
+* Improve socket connection robustness in external_control.urscript (`#453 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/453>`_)
+* Fix filesystem linking on GCC 8 and add RHEL CI workflow (`#454 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/454>`_)
+* Fix flakyness in ReverseInterfaceTest.handle_program_state (`#430 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/430>`_)
+* Added ScriptCommandInterface command setTcpOffset (`#444 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/444>`_)
+* Refactor rtde parsing for RT and performance improvements (`#419 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/419>`_)
+* Contributors: AdamPettinger, David Karlsböck, Felix Exner, Rune Søe-Knudsen, Sergi Romero, URJala, dependabot[bot]
+
 2.7.0 (2026-02-18)
 ------------------
 * Add more RobotAPI commands to PolyScope X Dashboard Client (`#435 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/435>`_)
