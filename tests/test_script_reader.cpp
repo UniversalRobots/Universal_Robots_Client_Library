@@ -596,21 +596,21 @@ TEST_F(ScriptReaderTest, TestFrictionScalesConstantsAndHandler)
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.25.1");
   std::string processed_script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+  EXPECT_NE(processed_script.find("direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
             std::string::npos);
   EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
             std::string::npos);
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("5.26.0");
   processed_script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+  EXPECT_NE(processed_script.find("direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
             std::string::npos);
   EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
             std::string::npos);
 
   data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString("10.12.1");
   processed_script = reader.readScriptFile(existing_script_file, data);
-  EXPECT_NE(processed_script.find("direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
+  EXPECT_NE(processed_script.find("direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)"),
             std::string::npos);
   EXPECT_EQ(processed_script.find("Friction scales (viscous_scale/coulomb_scale) are supported from"),
             std::string::npos);
