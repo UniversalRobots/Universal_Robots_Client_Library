@@ -155,6 +155,7 @@ if(CATKIN_PACKAGE_BIN_DESTINATION)
   )
 else()
   install(PROGRAMS scripts/start_ursim.sh
+    scripts/tool_communication.py
     DESTINATION lib/${PROJECT_NAME}
   )
 endif()
