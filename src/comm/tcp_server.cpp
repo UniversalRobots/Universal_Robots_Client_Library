@@ -327,7 +327,7 @@ void TCPServer::spin()
 
 void TCPServer::handleDisconnect(const socket_t fd)
 {
-  URCL_LOG_INFO("%d disconnected.", fd);
+  URCL_LOG_DEBUG("%d disconnected.", fd);
   {
     std::lock_guard<std::mutex> lk(clients_mutex_);
     ur_close(fd);
