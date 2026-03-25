@@ -56,7 +56,7 @@ def get_args():
         ), formatter_class=argparse.RawTextHelpFormatter
     )
 
-    arg.add_argument("--robot-ip", default="192.168.56.101", help="Robot IP.")
+    arg.add_argument("robot_ip", help="IP address of the robot to connect to.")
     arg.add_argument("--tcp-port", type=int, default=54321, help="TCP Port.")
     arg.add_argument("--device-name", default="/tmp/ttyUR", help="PTY symlink device name.")
     return arg.parse_args()
