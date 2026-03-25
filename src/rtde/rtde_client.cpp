@@ -91,6 +91,7 @@ RTDEClient::~RTDEClient()
   {
     reconnecting_thread_.join();
   }
+  prod_->stopProducer();
   stopBackgroundRead();
   disconnect();
 }
