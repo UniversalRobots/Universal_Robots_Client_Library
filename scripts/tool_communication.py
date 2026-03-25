@@ -40,7 +40,22 @@ import os
 
 def get_args():
     # Arguments to configure socat
-    arg = argparse.ArgumentParser(description="Starts socat to create a PTY symlink for the UR tool communication interface.")
+    arg = argparse.ArgumentParser(
+        description=(
+            "Starts socat to create a PTY symlink for the UR tool communication interface.\n\n"
+            "IMPORTANT:\n"
+            "This script requires the ToolComm Forwarder URCap to be running on the robot.\n"
+            "Make sure it is installed and started before launching this script.\n\n"
+            "More information can be found in the following ToolComm Forwarder URCap repositories:\n"
+            "  - ToolComm Forwarder URCap (Polyscope X):\n"
+            "    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCapX\n"
+            "  - ToolComm Forwarder URCap (Polyscope 5)\n"
+            "    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap\n\n"
+            "For background information on how tool communication works on UR robots, see:\n"
+            "https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_robot_driver/ur_robot_driver/doc/setup_tool_communication.html"
+        ), formatter_class=argparse.RawTextHelpFormatter
+    )
+
     arg.add_argument("--robot-ip", default="192.168.56.101", help="Robot IP.")
     arg.add_argument("--tcp-port", type=int, default=54321, help="TCP Port.")
     arg.add_argument("--device-name", default="/tmp/ttyUR", help="PTY symlink device name.")
@@ -54,11 +69,10 @@ def check_tcp(ip, port, timeout=5.0):
     except OSError:
         return False
 
-def main():
+def main(args):
     RED = "\033[31m"
     RESET = "\033[0m"
 
-    args = get_args()
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     # Get parameters from arguments
@@ -74,7 +88,7 @@ def main():
             f"{RED}Cannot reach {robot_ip}:{tcp_port}.\n"
             "Check that the IP address and port are correct.\n"
             "If so, ensure that the robot is powered on, reachable on the network, "
-            f"and that external_control is running.{RESET}"
+            f"and that the ToolCommForwarder URCap is running.{RESET}"
         )
         logging.info("Exiting tool communication script.")
         return
@@ -130,4 +144,5 @@ def main():
     return
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+    main(args)
