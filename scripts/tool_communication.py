@@ -38,26 +38,38 @@ import argparse
 import socket
 import os
 
+
+# Custom formatter to show both default values and description formatting in the help message
+class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
+
+
 def get_args():
     # Arguments to configure socat
     arg = argparse.ArgumentParser(
         description=(
-            "Starts socat to create a PTY symlink for the UR tool communication interface.\n\n"
-            "IMPORTANT:\n"
-            "This script requires the ToolComm Forwarder URCap to be running on the robot.\n"
-            "Make sure it is installed and started before launching this script.\n\n"
-            "More information can be found in the following ToolComm Forwarder URCap repositories:\n"
-            "  - ToolComm Forwarder URCap (Polyscope X):\n"
-            "    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCapX\n"
-            "  - ToolComm Forwarder URCap (Polyscope 5)\n"
-            "    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap\n\n"
-            "For background information on how tool communication works on UR robots, see:\n"
-            "https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_robot_driver/ur_robot_driver/doc/setup_tool_communication.html"
-        ), formatter_class=argparse.RawTextHelpFormatter
+            "Starts socat to create a PTY symlink for the UR tool communication interface."
+        ),
+        epilog="""
+IMPORTANT:
+
+This script requires the ToolComm Forwarder URCap to be running on the robot.
+Make sure it is installed and started before launching this script.
+
+More information can be found in the following ToolComm Forwarder URCap repositories:
+  - ToolComm Forwarder URCap (Polyscope X):
+    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCapX
+  - ToolComm Forwarder URCap (Polyscope 5)
+    https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap
+
+For background information on how tool communication works on UR robots, see:
+https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_robot_driver/ur_robot_driver/doc/setup_tool_communication.html
+        """,
+        formatter_class=Formatter
     )
 
     arg.add_argument("robot_ip", help="IP address of the robot to connect to.")
-    arg.add_argument("--tcp-port", type=int, default=54321, help="TCP Port.")
+    arg.add_argument("--tcp-port", type=int, default=54321, help="TCP Port. Likely, this should not be changed")
     arg.add_argument("--device-name", default="/tmp/ttyUR", help="PTY symlink device name.")
     return arg.parse_args()
 
@@ -68,6 +80,7 @@ def check_tcp(ip, port, timeout=5.0):
             return True
     except OSError:
         return False
+
 
 def main(args):
     RED = "\033[31m"
@@ -134,7 +147,7 @@ def main(args):
         logging.error(f"{RED}Socat not found in PATH. Install it (e.g. apt-get install socat). {RESET}")
         logging.info("Exiting tool communication script.")
         return
-    
+
     # Other errors
     except Exception as e:
         logging.error(f"{RED}Unexpected error launching socat: {e} {RESET}")
@@ -142,6 +155,7 @@ def main(args):
         return
 
     return
+
 
 if __name__ == "__main__":
     args = get_args()
