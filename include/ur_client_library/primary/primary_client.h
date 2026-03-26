@@ -47,6 +47,20 @@ namespace urcl
 {
 namespace primary_interface
 {
+
+struct ScriptInfo
+{
+  std::string script_name;
+  std::string script_code;
+  ScriptInfo(std::string name, std::string code) : script_name(name), script_code(code) {};
+};
+
+enum ScriptTypes
+{
+  DEF = 0,
+  SEC = 1,
+};
+
 class PrimaryClient
 {
 public:
@@ -86,7 +100,7 @@ public:
    *
    * \returns true on successful upload, false otherwise.
    */
-  bool sendScript(const std::string& program);
+  bool sendScript(const std::string& program, std::string script_name = "", ScriptTypes script_type = ScriptTypes::DEF);
 
   bool checkCalibration(const std::string& checksum);
 
@@ -284,6 +298,9 @@ private:
 
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
+
+  ScriptInfo prepare_script(std::string script, std::string script_name, ScriptTypes script_type);
+  std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;

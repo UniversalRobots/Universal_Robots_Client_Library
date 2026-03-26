@@ -36,6 +36,7 @@
 #include <ur_client_library/compile_options.h>
 
 #include <chrono>
+#include <regex>
 namespace urcl
 {
 namespace primary_interface
@@ -103,12 +104,15 @@ std::deque<ErrorCode> PrimaryClient::getErrorCodes()
   return error_codes;
 }
 
-bool PrimaryClient::sendScript(const std::string& program)
+bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type)
 {
   // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
   // not execute them. To avoid problems, we always just append a newline here, even if
   // there may already be one.
-  auto program_with_newline = program + '\n';
+
+  ScriptInfo script_with_name = prepare_script(program, script_name, script_type);
+
+  auto program_with_newline = script_with_name.script_code;
 
   size_t len = program_with_newline.size();
   const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
@@ -137,6 +141,101 @@ bool PrimaryClient::sendScript(const std::string& program)
   }
 
   return false;
+}
+
+std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
+{
+  std::vector<std::string> stripped_script;
+  for (auto line : split_script)
+  {
+    for (auto c : line)
+    {
+      if (!isspace(c))
+      {
+        if (c == '#')
+        {
+          break;
+        }
+        else
+        {
+          stripped_script.push_back(line);
+          break;
+        }
+      }
+    }
+  }
+  return stripped_script;
+}
+
+ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name, ScriptTypes script_type)
+{
+  // Validate script_name
+  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
+  if (!std::regex_match(script_name, valid_name) && !script_name.empty())
+  {
+    throw urcl::UrException("Invalid script name: '" + script_name +
+                            "'. Can only contain letters, numbers and underscores. First character must be a letter or "
+                            "underscore.");
+  }
+  // Split the given script in to separate lines
+  std::vector<std::string> split_script = splitString(script, "\n");
+
+  // Remove all comments and white-space-only lines
+  std::vector<std::string> stripped_script = strip_comments_and_whitespace(split_script);
+
+  // Use given scipt name or create one
+  unsigned int current_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  std::string actual_script_name = script_name.size() != 0 ? script_name : "script_" + std::to_string(current_time);
+  // Limit script name length to 31, to ensure backwards compatibility
+  if (actual_script_name.size() > 31)
+  {
+    actual_script_name = actual_script_name.substr(0, 31);
+  }
+
+  // Is the script wrapped in a function definition? If not add one
+  if (stripped_script[0].find("def ") == script.npos && stripped_script[0].find("sec ") == script.npos)
+  {
+    // Assign appropriate type
+    std::string type;
+    switch (script_type)
+    {
+      case ScriptTypes::DEF:
+        type = "def";
+        break;
+      case ScriptTypes::SEC:
+        type = "sec";
+        break;
+    }
+
+    std::string start = type + " " + actual_script_name + "():";
+    std::string end = "end";
+    // Add indentation to the existing script code
+    for (int i = 0; i < stripped_script.size(); i++)
+    {
+      stripped_script[i] = "  " + stripped_script[i];
+    }
+    // Add function definition and end statement to the stripped script lines vector
+    stripped_script.insert(stripped_script.begin(), start);
+    stripped_script.push_back(end);
+  }
+
+  if (stripped_script.back().find("end") == script.npos)
+  {
+    throw urcl::UrException("Script contains either function definition or secondary process definition, but no 'end' "
+                            "term. Script is invalid.");
+  }
+
+  // Concatenate all the script lines in to the final script
+  std::string prepared_script = "";
+  for (auto line : stripped_script)
+  {
+    prepared_script.append(line + "\n");
+  }
+
+  // Return final script code as well as the name of the script as it will be exectuted
+  return ScriptInfo(actual_script_name, prepared_script);
 }
 
 bool PrimaryClient::reconnectStream()
