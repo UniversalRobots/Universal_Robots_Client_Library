@@ -35,10 +35,11 @@ jobs:
 
     steps:
       - name: install dependencies
-        run: apk add --no-cache ${{ matrix.packages }} cmake linux-headers git python3
+        run: apk add --no-cache ${{ matrix.packages }} cmake linux-headers git python3 docker
       - uses: actions/checkout@v6
       - name: start ursim
-        run: |
+        run: >
+          /bin/bash
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
         env:
           DOCKER_RUN_OPTS: --network ursim_net
