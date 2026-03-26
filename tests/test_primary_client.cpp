@@ -152,6 +152,30 @@ TEST_F(PrimaryClientTest, test_power_cycle_commands)
   EXPECT_NO_THROW(waitFor([this]() { return client_->getRobotMode() == RobotMode::RUNNING; }, timeout));
 }
 
+TEST_F(PrimaryClientTest, test_power_on_when_already_idle)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandPowerOn());
+
+  ASSERT_EQ(client_->getRobotMode(), RobotMode::IDLE);
+
+  EXPECT_NO_THROW(client_->commandPowerOn());
+  EXPECT_EQ(client_->getRobotMode(), RobotMode::IDLE);
+}
+
+TEST_F(PrimaryClientTest, test_power_on_when_already_running)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  ASSERT_EQ(client_->getRobotMode(), RobotMode::RUNNING);
+
+  EXPECT_NO_THROW(client_->commandPowerOn());
+  EXPECT_EQ(client_->getRobotMode(), RobotMode::RUNNING);
+}
+
 TEST_F(PrimaryClientTest, test_unlock_protective_stop)
 {
   EXPECT_NO_THROW(client_->start());
