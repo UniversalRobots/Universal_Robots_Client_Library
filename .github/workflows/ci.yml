@@ -12,7 +12,7 @@ jobs:
   build:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    name: build ${{matrix.env.cc}}(${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:
       fail-fast: false
       matrix:
