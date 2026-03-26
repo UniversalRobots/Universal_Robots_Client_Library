@@ -176,7 +176,12 @@ void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milli
   {
     try
     {
-      waitFor([this]() { return getRobotMode() == RobotMode::IDLE; }, timeout);
+      waitFor(
+          [this]() {
+            const auto mode = getRobotMode();
+            return mode == RobotMode::IDLE || mode == RobotMode::RUNNING;
+          },
+          timeout);
     }
     catch (const TimeoutException&)
     {
