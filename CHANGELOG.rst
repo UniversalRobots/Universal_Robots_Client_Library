@@ -2,6 +2,14 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* [RTDEClient] stop producer on destruction (`#472 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/472>`_)
+* Primary Client power on improvements (`#473 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/473>`_)
+* Move TCPServer disconnection log events from Info to Debug (`#471 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/471>`_)
+* Refactor tool communication into standalone socat initialization script (`#470 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/470>`_)
+* Contributors: Felix Exner, JohnN193, Rune Søe-Knudsen, Sergi Romero
+
 2.8.0 (2026-03-20)
 ------------------
 * Improve cleanup of trajectory buffer  (`#466 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/466>`_)
