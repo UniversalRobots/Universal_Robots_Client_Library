@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.9.0 (2026-03-27)
+------------------
 * [RTDEClient] stop producer on destruction (`#472 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/472>`_)
 * Primary Client power on improvements (`#473 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/473>`_)
 * Move TCPServer disconnection log events from Info to Debug (`#471 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/471>`_)
