@@ -91,8 +91,6 @@ RTDEClient::~RTDEClient()
   {
     reconnecting_thread_.join();
   }
-  prod_->stopProducer();
-  stopBackgroundRead();
   disconnect();
 }
 
@@ -510,14 +508,6 @@ bool RTDEClient::setupInputs()
 
 void RTDEClient::disconnect()
 {
-  // If communication is started it should be paused before disconnecting
-  if (client_state_ == ClientState::RUNNING)
-  {
-    pause();
-  }
-  if (client_state_ >= ClientState::INITIALIZING)
-  {
-  }
   if (client_state_ > ClientState::UNINITIALIZED)
   {
     stream_.disconnect();
