@@ -35,6 +35,7 @@ jobs:
             --exclude '^http://rosin-project\.eu'
             --exclude '2013181\/gdb-causes-sem-wait-to-fail-with-eintr-error'
             --exclude 'https:\/\/lists\.apple\.com\/archives\/darwin-kernel\/2009\/Apr\/msg00010\.html'
+            --exclude 'https:\/\/wiki\.linuxfoundation\.org\/realtime\/preempt_rt_versions'
             --max-concurrency 1
             './**/*.md' './**/*.html' './**/*.rst' './**/*.cpp' './**/*.h' './**/*.py'
       - name: Save lychee cache
