@@ -291,6 +291,8 @@ private:
 
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
+  void keyMessageCallback(KeyMessage& msg);
+  void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
 
   ScriptInfo prepare_script(std::string script, std::string script_name, ScriptTypes script_type);
   std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
@@ -307,6 +309,9 @@ private:
 
   std::mutex error_code_queue_mutex_;
   std::deque<ErrorCode> error_code_queue_;
+
+  std::mutex key_meassage_queue_mutex_;
+  std::deque<KeyMessage> key_message_queue_;
 };
 
 }  // namespace primary_interface
