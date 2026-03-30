@@ -106,6 +106,19 @@ def main(args):
         logging.info("Exiting tool communication script.")
         return
 
+    # Check if parent directory of device_name exists
+    parent_dir = os.path.dirname(local_device)
+    if parent_dir and not os.path.exists(parent_dir):
+        logging.error(
+            f"{RED}Parent directory '{parent_dir}' does not exist.\n"
+            "Socat needs an existing directory to create the PTY symlink.\n"
+            "Fix:\n"
+            f"  - Create the parent directory, e.g. 'mkdir -p {parent_dir}'.\n"
+            f"  - Use a different device name with an existing parent directory.{RESET}"
+        )
+        logging.info("Exiting tool communication script.")
+        return
+
     # Check if the device_name is a directory
     if os.path.isdir(local_device):
 
