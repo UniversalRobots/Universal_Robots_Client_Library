@@ -43,6 +43,7 @@
 
 #include "fake_rtde_server.h"
 #include "ur_client_library/helpers.h"
+#include "ur_client_library/log.h"
 
 using namespace urcl;
 
@@ -416,6 +417,33 @@ TEST_F(RTDEClientTest, get_data_package_fake_server)
   EXPECT_TRUE(data_pkg.getData("actual_q", actual_q));
 
   URCL_LOG_INFO("Received data package from fake server: %s", data_pkg.toString().c_str());
+  client_.reset();
+}
+
+TEST_F(RTDEClientTest, destroy_client_after_server_stops_sending)
+{
+  auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+  client_->init();
+  client_->start();
+
+  URCL_LOG_INFO("Receiving data package from fake server to verify that connection is working.");
+
+  const std::chrono::milliseconds read_timeout{ 100 };
+  auto data_pkg = rtde_interface::DataPackage(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+
+  double timestamp = 0.0;
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
+  EXPECT_GT(timestamp, 0.0);
+
+  URCL_LOG_INFO("Stopping fake server from sending data packages.");
+  fake_rtde_server->stopSendingDataPackages();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  URCL_LOG_INFO("Destroying client while no more data packages are received from the server.");
   client_.reset();
 }
 
