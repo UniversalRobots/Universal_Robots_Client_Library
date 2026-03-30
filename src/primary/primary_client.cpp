@@ -127,35 +127,23 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
 
   ScriptInfo script_with_name = prepare_script(program, script_name, script_type);
 
-  auto program_with_newline = script_with_name.script_code;
+  std::cout << script_with_name.script_code << std::endl;
 
-  size_t len = program_with_newline.size();
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
-  size_t written;
-
-  const auto send_script_contents = [this, program_with_newline, data, len,
-                                     &written](const std::string&& description) -> bool {
-    if (stream_.write(data, len, written))
-    {
-      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
-      return true;
-    }
-    const std::string error_message = "Could not send program to robot: " + description;
-    URCL_LOG_ERROR(error_message.c_str());
+  RobotMode robot_mode = getRobotMode();
+  while (robot_mode == RobotMode::UNKNOWN)
+  {
+    URCL_LOG_INFO("Robot mode not received yet, waiting for it to be received.");
+    std::chrono::milliseconds update_period(100);
+    std::this_thread::sleep_for(update_period);
+    robot_mode = getRobotMode();
+  }
+  if (robot_mode != RobotMode::RUNNING)
+  {
+    URCL_LOG_ERROR("Robot is not in idle, cannot execute script.");
+    std::cout << "Robot is in mode: " << int(robot_mode) << std::endl;
     return false;
-  };
-
-  if (send_script_contents("initial attempt"))
-  {
-    return true;
   }
-
-  if (reconnectStream())
-  {
-    return send_script_contents("after reconnecting primary stream");
-  }
-
-  return false;
+  return sendScriptNoWrapping(script_with_name.script_code);
 }
 
 std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
@@ -210,7 +198,8 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   }
 
   // Is the script wrapped in a function definition? If not add one
-  if (stripped_script[0].find("def ") == script.npos && stripped_script[0].find("sec ") == script.npos)
+  if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
+      stripped_script[0].substr(0, 4).find("sec ") == script.npos)
   {
     // Assign appropriate type
     std::string type;
@@ -227,7 +216,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
     std::string start = type + " " + actual_script_name + "():";
     std::string end = "end";
     // Add indentation to the existing script code
-    for (int i = 0; i < stripped_script.size(); i++)
+    for (std::size_t i = 0; i < stripped_script.size(); i++)
     {
       stripped_script[i] = "  " + stripped_script[i];
     }
