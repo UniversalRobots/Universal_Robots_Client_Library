@@ -49,6 +49,9 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 
   consumer_.reset(new PrimaryConsumer());
   consumer_->setErrorCodeMessageCallback(std::bind(&PrimaryClient::errorMessageCallback, this, std::placeholders::_1));
+  consumer_->setKeyMessageCallback(std::bind(&PrimaryClient::keyMessageCallback, this, std::placeholders::_1));
+  consumer_->setRuntimeExceptionCallback(
+      std::bind(&PrimaryClient::runtimeExceptionCallback, this, std::placeholders::_1));
 
   // Configure multi consumer even though we only have one consumer as default, as this enables the user to add more
   // consumers after the object has been created
@@ -93,6 +96,18 @@ void PrimaryClient::errorMessageCallback(ErrorCode& code)
 {
   std::lock_guard<std::mutex> lock_guard(error_code_queue_mutex_);
   error_code_queue_.push_back(code);
+}
+
+void PrimaryClient::keyMessageCallback(KeyMessage& msg)
+{
+  std::cout << "Key message callback: " << msg.toString() << std::endl;
+  std::lock_guard<std::mutex> lock_guard(key_meassage_queue_mutex_);
+  key_message_queue_.push_back(msg);
+}
+
+void PrimaryClient::runtimeExceptionCallback(RuntimeExceptionMessage& msg)
+{
+  std::cout << "Runtime exception: " << msg.toString() << std::endl;
 }
 
 std::deque<ErrorCode> PrimaryClient::getErrorCodes()
