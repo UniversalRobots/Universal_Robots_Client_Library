@@ -33,6 +33,7 @@
 #include "ur_client_library/primary/robot_state/masterboard_data.h"
 #include "ur_client_library/ur/datatypes.h"
 #include "ur_client_library/ur/version_information.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
 
 #include <functional>
 #include <mutex>
@@ -210,6 +211,34 @@ public:
     error_code_message_callback_ = callback_function;
   }
 
+  virtual bool consume(KeyMessage& pkg) override
+  {
+    if (key_message_callback_ != nullptr)
+    {
+      key_message_callback_(pkg);
+    }
+    return true;
+  }
+
+  void setKeyMessageCallback(std::function<void(KeyMessage&)> callback_function)
+  {
+    key_message_callback_ = callback_function;
+  }
+
+  virtual bool consume(RuntimeExceptionMessage& pkg) override
+  {
+    if (runtime_exception_callback_ != nullptr)
+    {
+      runtime_exception_callback_(pkg);
+    }
+    return true;
+  }
+
+  void setRuntimeExceptionCallback(std::function<void(RuntimeExceptionMessage&)> callback_function)
+  {
+    runtime_exception_callback_ = callback_function;
+  }
+
   /*!
    * \brief Get the kinematics info
    *
@@ -293,6 +322,8 @@ public:
 
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
+  std::function<void(KeyMessage&)> key_message_callback_;
+  std::function<void(RuntimeExceptionMessage&)> runtime_exception_callback_;
   std::mutex kinematics_info_mutex_;
   std::unique_ptr<KinematicsInfo> kinematics_info_;
   std::mutex robot_mode_mutex_;
