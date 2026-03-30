@@ -253,6 +253,43 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   return ScriptInfo(actual_script_name, prepared_script);
 }
 
+bool PrimaryClient::sendScriptNoWrapping(const std::string& program)
+{
+  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
+  // not execute them. To avoid problems, we always just append a newline here, even if
+  // there may already be one.
+
+  auto program_with_newline = program + "\n";
+
+  size_t len = program_with_newline.size();
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());
+  size_t written;
+
+  const auto send_script_contents = [this, program_with_newline, data, len,
+                                     &written](const std::string&& description) -> bool {
+    if (stream_.write(data, len, written))
+    {
+      URCL_LOG_DEBUG("Sent program to robot:\n%s", program_with_newline.c_str());
+      return true;
+    }
+    const std::string error_message = "Could not send program to robot: " + description;
+    URCL_LOG_ERROR(error_message.c_str());
+    return false;
+  };
+
+  if (send_script_contents("initial attempt"))
+  {
+    return true;
+  }
+
+  if (reconnectStream())
+  {
+    return send_script_contents("after reconnecting primary stream");
+  }
+
+  return false;
+}
+
 bool PrimaryClient::reconnectStream()
 {
   URCL_LOG_DEBUG("Closing primary stream...");
@@ -281,7 +318,7 @@ bool PrimaryClient::checkCalibration(const std::string& checksum)
 
 void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milliseconds timeout)
 {
-  if (!sendScript("power on"))
+  if (!sendScriptNoWrapping("power on"))
   {
     throw UrException("Failed to send power on command to robot");
   }
@@ -306,7 +343,7 @@ void PrimaryClient::commandPowerOn(const bool validate, const std::chrono::milli
 
 void PrimaryClient::commandPowerOff(const bool validate, const std::chrono::milliseconds timeout)
 {
-  if (!sendScript("power off"))
+  if (!sendScriptNoWrapping("power off"))
   {
     throw UrException("Failed to send power off command to robot");
   }
@@ -325,7 +362,7 @@ void PrimaryClient::commandPowerOff(const bool validate, const std::chrono::mill
 
 void PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::milliseconds timeout)
 {
-  if (!sendScript("set robotmode run"))
+  if (!sendScriptNoWrapping("set robotmode run"))
   {
     throw UrException("Failed to send brake release command to robot");
   }
@@ -344,7 +381,7 @@ void PrimaryClient::commandBrakeRelease(const bool validate, const std::chrono::
 
 void PrimaryClient::commandUnlockProtectiveStop(const bool validate, const std::chrono::milliseconds timeout)
 {
-  if (!sendScript("set unlock protective stop"))
+  if (!sendScriptNoWrapping("set unlock protective stop"))
   {
     throw UrException("Failed to send unlock protective stop command to robot");
   }
@@ -369,7 +406,7 @@ void PrimaryClient::commandStop(const bool validate, const std::chrono::millisec
     throw UrException("Stopping a program while robot state is unknown. This should not happen");
   }
 
-  if (!sendScript("stop program"))
+  if (!sendScriptNoWrapping("stop program"))
   {
     throw UrException("Failed to send the command `stop program` to robot");
   }
