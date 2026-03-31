@@ -62,3 +62,7 @@ target_link_libraries(instruction_executor ur_client_library::urcl)
 add_executable(external_fts_through_rtde
 external_fts_through_rtde.cpp)
 target_link_libraries(external_fts_through_rtde ur_client_library::urcl)
+
+add_executable(resolved_acceleration_example
+resolved_acceleration_example.cpp)
+target_link_libraries(resolved_acceleration_example ur_client_library::urcl)
