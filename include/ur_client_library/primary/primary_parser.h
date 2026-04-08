@@ -34,6 +34,7 @@
 #include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
 #include "ur_client_library/primary/robot_state/configuration_data.h"
+#include "ur_client_library/primary/robot_message/safety_mode_message.h"
 
 namespace urcl
 {
@@ -241,6 +242,8 @@ private:
         return new KeyMessage(timestamp, source);
       case RobotMessagePackageType::ROBOT_MESSAGE_RUNTIME_EXCEPTION:
         return new RuntimeExceptionMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_SAFETY_MODE:
+        return new SafetyModeMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source, type);
     }
