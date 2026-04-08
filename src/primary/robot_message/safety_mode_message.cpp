@@ -84,7 +84,7 @@ bool SafetyModeMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string SafetyModeMessage::toString() const
 {
   std::stringstream ss;
-  ss << "SafetyModeMessage \n";
+  ss << "SafetyModeMessage\n";
   ss << "Message code: " << message_code_ << "\n";
   ss << "Message argument: " << message_argument_ << "\n";
   ss << "Safety mode type: " << unsigned(safety_mode_type_) << "\n";
@@ -99,7 +99,7 @@ std::string SafetyModeMessage::toString() const
       ss << std::get<float>(report_data_);
       break;
     case 4:
-      ss << std::hex << std::get<uint32_t>(report_data_);
+      ss << "0x" << std::hex << std::get<uint32_t>(report_data_);
       break;
     default:
       ss << std::get<uint32_t>(report_data_);
