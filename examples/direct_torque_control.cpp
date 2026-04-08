@@ -46,10 +46,10 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 const size_t JOINT_INDEX = 5;  // Joint index to control, in this case joint 6 (index 5)
 
 // This example will apply a sinusoidal torque to JOINT_INDEX, while the other joints are kept at 0.0.
-constexpr double frequency = 0.2;  // [Hz]
-constexpr double amplitude = 2.5;  // [Nm]
-constexpr double omega = 2 * M_PI * frequency;
-constexpr double start_position = 0.0;  // [rad]
+constexpr double FREQUENCY = 0.2;  // [Hz]
+constexpr double AMPLITUDE = 2.5;  // [Nm]
+constexpr double OMEGA = 2 * M_PI * FREQUENCY;
+constexpr double START_POSITION = 0.0;  // [rad]
 
 std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 urcl::vector6d_t g_joint_positions;
@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
     throw std::runtime_error(error_msg);
   }
   // Use motion primitives to move JOINT_INDEX to start position
-  g_joint_positions[JOINT_INDEX] = start_position;
+  g_joint_positions[JOINT_INDEX] = START_POSITION;
   auto instruction_executor = std::make_shared<urcl::InstructionExecutor>(g_my_robot->getUrDriver());
   instruction_executor->optimoveJ(g_joint_positions);
 
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
   double time = 0.0;
 
   // Run 10 periods of the sinusoidal
-  while (time < 10 * 2 * M_PI / omega)
+  while (time < 10 * 2 * M_PI / OMEGA)
   {
     time += timestep;
     // Read latest RTDE package. This will block for a hard-coded timeout (see UrDriver), so the
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
     }
 
     // Open loop control. The target is incremented with a constant each control loop
-    target_torques[JOINT_INDEX] = amplitude * std::sin(omega * time);
+    target_torques[JOINT_INDEX] = AMPLITUDE * std::sin(OMEGA * time);
 
     // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
     // reliable on non-realtime systems. Use with caution in productive applications. Having it
