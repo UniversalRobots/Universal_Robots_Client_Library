@@ -172,8 +172,7 @@ public:
 
   virtual bool consume(SafetyModeMessage& pkg) override
   {
-    URCL_LOG_DEBUG("Robot safety mode is now %s",
-                   safetyModeString(static_cast<SafetyMode>(pkg.safety_mode_type_)).c_str());
+    URCL_LOG_DEBUG("Robot safety mode is now %s", safetyModeString(pkg.safety_mode_type_).c_str());
     std::scoped_lock lock(safety_mode_mutex_);
     safety_mode_ = std::make_shared<SafetyModeMessage>(pkg);
     return true;
