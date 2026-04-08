@@ -451,26 +451,26 @@ TEST_F(PrimaryParserTest, parse_safetymode_msg)
       raw_data[30] ^= 0xff;
       raw_data[31] ^= 0xff;
     }
-    comm::BinParser bp(raw_data, sizeof(raw_data));
-    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
-    ASSERT_TRUE(parser_.parse(bp, products));
+    comm::BinParser bp_loop(raw_data, sizeof(raw_data));
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products_loop;
+    ASSERT_TRUE(parser_.parse(bp_loop, products_loop));
     ASSERT_EQ(products.size(), 1);
 
-    if (primary_interface::SafetyModeMessage* data =
-            dynamic_cast<primary_interface::SafetyModeMessage*>(products[0].get()))
+    if (primary_interface::SafetyModeMessage* data_loop =
+            dynamic_cast<primary_interface::SafetyModeMessage*>(products_loop[0].get()))
     {
-      EXPECT_EQ(data->report_data_type_, static_cast<uint32_t>(i));
-      if (data->report_data_type_ == 2)
+      EXPECT_EQ(data_loop->report_data_type_, static_cast<uint32_t>(i));
+      if (data_loop->report_data_type_ == 2)
       {
-        EXPECT_EQ(std::get<int32_t>(data->report_data_), -2);
+        EXPECT_EQ(std::get<int32_t>(data_loop->report_data_), -2);
       }
-      else if (data->report_data_type_ == 3)
+      else if (data_loop->report_data_type_ == 3)
       {
-        EXPECT_EQ(std::get<float>(data->report_data_), float(2.3509887e-38));
+        EXPECT_EQ(std::get<float>(data_loop->report_data_), float(2.3509887e-38));
       }
       else
       {
-        EXPECT_EQ(std::get<uint32_t>(data->report_data_), 1);
+        EXPECT_EQ(std::get<uint32_t>(data_loop->report_data_), 1);
       }
     }
   }
