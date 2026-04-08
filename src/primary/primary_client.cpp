@@ -101,7 +101,7 @@ void PrimaryClient::errorMessageCallback(ErrorCode& code)
 void PrimaryClient::keyMessageCallback(KeyMessage& msg)
 {
   std::cout << "Key message callback: " << msg.toString() << std::endl;
-  std::lock_guard<std::mutex> lock_guard(key_meassage_queue_mutex_);
+  std::lock_guard<std::mutex> lock_guard(key_message_queue_mutex_);
   key_message_queue_.push_back(msg);
 }
 
