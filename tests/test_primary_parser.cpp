@@ -26,6 +26,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <iostream>
 #include <gtest/gtest.h>
 #include <string.h>
 
@@ -203,6 +204,29 @@ const unsigned char SAFETY_MODE_MESSAGE[] = {
   0x00, 0x00, 0x00, 0x00,
   // Report data
   0x00, 0x00, 0x00, 0x01
+};
+
+const unsigned char SAFETY_MODE_MESSAGE_STRING[] = {
+  // message size
+  0x00, 0x00, 0x00, 0x20,
+  // message type robot message
+  0x14,
+  // timestamp
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  // source
+  0xfd,
+  // robot_message_type SAFETY_MODE
+  0x05,
+  // Robot message code
+  0x00, 0x00, 0x00, 0x00,
+  // Robot message argument
+  0x00, 0x00, 0x00, 0x00,
+  // Safety mode type
+  0x03,
+  // Report data type
+  0x00, 0x00, 0x00, 0x00,
+  // Report data
+  0x80, 0x07, 0x06, 0x05
 };
 
 class PrimaryParserTest : public ::testing::Test
@@ -471,6 +495,55 @@ TEST_F(PrimaryParserTest, parse_safetymode_msg)
       else
       {
         EXPECT_EQ(std::get<uint32_t>(data_loop->report_data_), 1);
+      }
+    }
+  }
+}
+
+std::string construct_string(int data_type, std::string data)
+{
+  std::stringstream ss;
+  ss << "SafetyModeMessage\n";
+  ss << "Message code: 0\n";
+  ss << "Message argument: 0\n";
+  ss << "Safety mode type: 3\n";
+  ss << "Report data type: " << data_type << "\n";
+  ss << "Report data: " << data;
+  return ss.str();
+}
+
+TEST_F(PrimaryParserTest, parsing_safetymode_results_in_correct_string)
+{
+  unsigned char raw_data[sizeof(SAFETY_MODE_MESSAGE_STRING)];
+  // Test all report data types
+  for (unsigned char i = 0; i < 5; i++)
+  {
+    memcpy(raw_data, SAFETY_MODE_MESSAGE_STRING, sizeof(SAFETY_MODE_MESSAGE_STRING));
+    raw_data[27] = i;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    ASSERT_TRUE(parser_.parse(bp, products));
+    ASSERT_EQ(products.size(), 1);
+
+    if (primary_interface::SafetyModeMessage* data =
+            dynamic_cast<primary_interface::SafetyModeMessage*>(products[0].get()))
+    {
+      EXPECT_EQ(data->report_data_type_, static_cast<uint32_t>(i));
+      if (data->report_data_type_ == 0 || data->report_data_type_ == 1)
+      {
+        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "2147943941"));
+      }
+      else if (data->report_data_type_ == 2)
+      {
+        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "-2147023355"));
+      }
+      else if (data->report_data_type_ == 3)
+      {
+        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "6.30203e-36"));
+      }
+      else
+      {
+        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "0x80070605"));
       }
     }
   }
