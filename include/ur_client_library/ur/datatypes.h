@@ -49,7 +49,7 @@ enum class RobotMode : int8_t
   UPDATING_FIRMWARE = 8
 };
 
-enum class SafetyMode : int8_t
+enum class SafetyMode : uint8_t
 {
   NORMAL = 1,
   REDUCED = 2,
@@ -61,7 +61,17 @@ enum class SafetyMode : int8_t
   VIOLATION = 8,
   FAULT = 9,
   VALIDATE_JOINT_ID = 10,
-  UNDEFINED_SAFETY_MODE = 11
+  UNDEFINED_SAFETY_MODE = 11,
+  AUTOMATIC_MODE_SAFEGUARD_STOP = 12,
+  SYSTEM_THREE_POSITION_ENABLING_STOP = 13,
+  TP_THREE_POSITION_ENABLING_STOP = 14,
+  IMMI_EMERGENCY_STOP = 15,
+  IMMI_SAFEGUARD_STOP = 16,
+  PROFISAFE_WAITING_FOR_PARAMETERS = 17,
+  PROFISAFE_AUTOMATIC_MODE_SAFEGUARD_STOP = 18,
+  PROFISAFE_SAFEGUARD_STOP = 19,
+  PROFISAFE_EMERGENCY_STOP = 20,
+  SAFETY_API_SAFEGUARD_STOP = 22
 };
 
 enum class SafetyStatus : int8_t  // Only available on 3.10/5.4
@@ -159,6 +169,26 @@ inline std::string safetyModeString(const SafetyMode& mode)
       return "VALIDATE_JOINT_ID";
     case SafetyMode::UNDEFINED_SAFETY_MODE:
       return "UNDEFINED_SAFETY_MODE";
+    case SafetyMode::AUTOMATIC_MODE_SAFEGUARD_STOP:
+      return "AUTOMATIC_MODE_SAFEGUARD_STOP";
+    case SafetyMode::SYSTEM_THREE_POSITION_ENABLING_STOP:
+      return "SYSTEM_THREE_POSITION_ENABLING_STOP";
+    case SafetyMode::TP_THREE_POSITION_ENABLING_STOP:
+      return "TP_THREE_POSITION_ENABLING_STOP";
+    case SafetyMode::IMMI_EMERGENCY_STOP:
+      return "IMMI_EMERGENCY_STOP";
+    case SafetyMode::IMMI_SAFEGUARD_STOP:
+      return "IMMI_SAFEGUARD_STOP";
+    case SafetyMode::PROFISAFE_WAITING_FOR_PARAMETERS:
+      return "PROFISAFE_WAITING_FOR_PARAMETERS";
+    case SafetyMode::PROFISAFE_AUTOMATIC_MODE_SAFEGUARD_STOP:
+      return "PROFISAFE_AUTOMATIC_MODE_SAFEGUARD_STOP";
+    case SafetyMode::PROFISAFE_SAFEGUARD_STOP:
+      return "PROFISAFE_SAFEGUARD_STOP";
+    case SafetyMode::PROFISAFE_EMERGENCY_STOP:
+      return "PROFISAFE_EMERGENCY_STOP";
+    case SafetyMode::SAFETY_API_SAFEGUARD_STOP:
+      return "SAFETY_API_SAFEGUARD_STOP";
     default:
       std::stringstream ss;
       ss << "Unknown safety mode: " << static_cast<int>(mode);
