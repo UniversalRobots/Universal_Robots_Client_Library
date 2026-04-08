@@ -96,7 +96,7 @@ The target torque for the controlled joint is computed as a sinusoidal function 
    :linenos:
    :lineno-match:
    :start-at: // Open loop control
-   :end-at: target_torques[JOINT_INDEX] = amplitude * std::sin(omega * time);
+   :end-at: target_torques[JOINT_INDEX] = AMPLITUDE * std::sin(OMEGA * time);
 
 To send the control command, the robot's :ref:`reverse_interface` is used via the
 ``writeJointCommand()`` function:
