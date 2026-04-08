@@ -362,6 +362,23 @@ TEST_F(PrimaryClientTest, test_program_execution_reports_exception)
   }
 }
 
+TEST_F(PrimaryClientTest, test_read_safety_mode)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_EQ(client_->getSafetyMode(), urcl::SafetyMode::UNDEFINED_SAFETY_MODE);
+  EXPECT_NO_THROW(client_->commandBrakeRelease(true, std::chrono::milliseconds(20000)));
+  client_->sendScript("protective_stop()");
+  EXPECT_NO_THROW(waitFor([this]() { return client_->getSafetyMode() == urcl::SafetyMode::PROTECTIVE_STOP; },
+                          std::chrono::milliseconds(1000)));
+  // This will not happen immediately
+  EXPECT_THROW(client_->commandUnlockProtectiveStop(true, std::chrono::milliseconds(1)), TimeoutException);
+
+  // It is not allowed to unlock the protective stop immediately
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
+  EXPECT_EQ(client_->getSafetyMode(), urcl::SafetyMode::NORMAL);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
