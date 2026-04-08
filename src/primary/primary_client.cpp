@@ -107,7 +107,8 @@ void PrimaryClient::keyMessageCallback(KeyMessage& msg)
 
 void PrimaryClient::runtimeExceptionCallback(RuntimeExceptionMessage& msg)
 {
-  std::cout << "Runtime exception: " << msg.toString() << std::endl;
+  std::scoped_lock lock(runtime_exception_mutex_);
+  latest_runtime_exception_ = std::make_shared<primary_interface::RuntimeExceptionMessage>(msg);
 }
 
 std::deque<ErrorCode> PrimaryClient::getErrorCodes()

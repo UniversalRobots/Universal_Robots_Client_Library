@@ -314,6 +314,9 @@ private:
 
   std::mutex key_message_queue_mutex_;
   std::deque<KeyMessage> key_message_queue_;
+
+  std::mutex runtime_exception_mutex_;
+  std::shared_ptr<primary_interface::RuntimeExceptionMessage> latest_runtime_exception_;
 };
 
 }  // namespace primary_interface
