@@ -454,7 +454,7 @@ TEST_F(PrimaryParserTest, parse_safetymode_msg)
     comm::BinParser bp_loop(raw_data, sizeof(raw_data));
     std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products_loop;
     ASSERT_TRUE(parser_.parse(bp_loop, products_loop));
-    ASSERT_EQ(products.size(), 1);
+    ASSERT_EQ(products_loop.size(), 1);
 
     if (primary_interface::SafetyModeMessage* data_loop =
             dynamic_cast<primary_interface::SafetyModeMessage*>(products_loop[0].get()))
