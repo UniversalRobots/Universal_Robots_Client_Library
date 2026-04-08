@@ -120,12 +120,9 @@ std::deque<ErrorCode> PrimaryClient::getErrorCodes()
   return error_codes;
 }
 
-bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type)
+bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type,
+                               int max_start_delay_ms)
 {
-  // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
-  // not execute them. To avoid problems, we always just append a newline here, even if
-  // there may already be one.
-
   ScriptInfo script_with_name = prepare_script(program, script_name, script_type);
 
   std::cout << script_with_name.script_code << std::endl;
@@ -140,11 +137,94 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
   }
   if (robot_mode != RobotMode::RUNNING)
   {
-    URCL_LOG_ERROR("Robot is not in idle, cannot execute script.");
-    std::cout << "Robot is in mode: " << int(robot_mode) << std::endl;
+    URCL_LOG_ERROR("Robot is not running, cannot execute script.");
+    std::stringstream ss;
+    ss << "Robot is in mode: " << urcl::robotModeString(robot_mode) << " (" << int(robot_mode) << ")";
+    URCL_LOG_ERROR(ss.str().c_str());
     return false;
   }
-  return sendScriptNoWrapping(script_with_name.script_code);
+  SafetyMode safety_mode = getSafetyMode();
+  if (safety_mode != SafetyMode::NORMAL && safety_mode != SafetyMode::UNDEFINED_SAFETY_MODE)
+  {
+    URCL_LOG_ERROR("Robot safety mode is not normal, cannot execute script.");
+    std::stringstream ss;
+    ss << "Robot safety mode is: " << safetyModeString(safety_mode) << " (" << unsigned(safety_mode) << ")";
+    URCL_LOG_ERROR(ss.str().c_str());
+  }
+  uint64_t exception_timestamp = 0;
+  {
+    std::scoped_lock lock(runtime_exception_mutex_);
+    if (latest_runtime_exception_ != nullptr)
+    {
+      exception_timestamp = latest_runtime_exception_->timestamp_;
+    }
+  }
+
+  bool script_sent = sendScriptNoWrapping(script_with_name.script_code);
+  const auto script_start_time = std::chrono::system_clock::now();
+  if (!script_sent)
+  {
+    URCL_LOG_ERROR("Script could not be sent.");
+    return false;
+  }
+  // No feedback from secondary programs, so we assume success
+  if (script_type == ScriptTypes::SEC)
+  {
+    return true;
+  }
+  bool script_finished = false;
+  bool script_started = false;
+  while (!script_finished)
+  {
+    {
+      std::scoped_lock lock(runtime_exception_mutex_);
+      if (latest_runtime_exception_ != nullptr && latest_runtime_exception_->timestamp_ > exception_timestamp)
+      {
+        URCL_LOG_ERROR("Runtime exception occured during script execution");
+        std::stringstream ss;
+        ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
+           << latest_runtime_exception_->column_number_;
+        URCL_LOG_ERROR(ss.str().c_str());
+        URCL_LOG_ERROR(latest_runtime_exception_->text_.c_str());
+        return false;
+      }
+    }
+    auto errors = getErrorCodes();
+    for (auto error : errors)
+    {
+      std::cout << error.to_string << std::endl;
+    }
+    {
+      std::scoped_lock lock(key_message_queue_mutex_);
+      if (key_message_queue_.size() > 0)
+      {
+        auto latest_message = key_message_queue_.back();
+        if (latest_message.title_ == "PROGRAM_XXX_STOPPED" && latest_message.text_ == script_with_name.script_name)
+        {
+          URCL_LOG_INFO("Script with name %s executed successfully", script_with_name.script_name.c_str());
+          return true;
+        }
+        if (!script_started && latest_message.title_ == "PROGRAM_XXX_STARTED" &&
+            latest_message.text_ == script_with_name.script_name)
+        {
+          URCL_LOG_INFO("Script with name %s started", script_with_name.script_name.c_str());
+          script_started = true;
+        }
+      }
+    }
+    auto current_time = std::chrono::system_clock::now();
+    auto elapsed_time_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time).count();
+
+    if (!script_started && elapsed_time_ms > max_start_delay_ms)
+    {
+      URCL_LOG_ERROR("Script not started within timeout");
+      return false;
+    }
+    std::chrono::milliseconds wait_period(10);
+    std::this_thread::sleep_for(wait_period);
+  }
+  return false;
 }
 
 std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
