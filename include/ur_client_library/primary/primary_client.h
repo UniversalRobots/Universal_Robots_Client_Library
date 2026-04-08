@@ -312,7 +312,7 @@ private:
   std::mutex error_code_queue_mutex_;
   std::deque<ErrorCode> error_code_queue_;
 
-  std::mutex key_meassage_queue_mutex_;
+  std::mutex key_message_queue_mutex_;
   std::deque<KeyMessage> key_message_queue_;
 };
 
