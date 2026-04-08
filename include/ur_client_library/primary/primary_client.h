@@ -201,6 +201,34 @@ public:
   }
 
   /*!
+   * \brief Get the latest safety mode message.
+   *
+   * The safety mode will be updated in the background. This will always show the latest received
+   * state independent of the time that has passed since receiving it. The return value of this
+   * will be a nullptr if no data has been received yet.
+   */
+  std::shared_ptr<SafetyModeMessage> getSafetyModeMessage()
+  {
+    return consumer_->getSafetyModeMessage();
+  }
+
+  /*!
+   * \brief Get the latest safety mode.
+   *
+   * The safety mode will be updated in the background. This will always show the latest received
+   * robot mode independent of the time that has passed since receiving it.
+   */
+  SafetyMode getSafetyMode()
+  {
+    auto safety_mode = consumer_->getSafetyModeMessage();
+    if (safety_mode == nullptr)
+    {
+      return SafetyMode::UNDEFINED_SAFETY_MODE;
+    }
+    return safety_mode->safety_mode_type_;
+  }
+
+  /*!
    * \brief Query if the robot is protective stopped.
    *
    * The robot's protective_stop state will be updated in the background. This will always show the latest received

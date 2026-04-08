@@ -170,6 +170,14 @@ public:
     return true;
   }
 
+  virtual bool consume(SafetyModeMessage& pkg) override
+  {
+    URCL_LOG_DEBUG("Robot safety mode is now %s", safetyModeString(static_cast<SafetyMode>(pkg.safety_mode_type_)));
+    std::scoped_lock lock(safety_mode_mutex_);
+    safety_mode_ = std::make_shared<SafetyModeMessage>(pkg);
+    return true;
+  }
+
   virtual bool consume(ConfigurationData& pkg) override
   {
     std::scoped_lock lock(configuration_data_mutex_);
@@ -211,6 +219,18 @@ public:
   }
 
   /*!
+   * \brief Get the latest safety mode message.
+   *
+   * The safety mode will be updated in the background. This will always show the latest received
+   * safety mode independent of the time that has passed since receiving it.
+   */
+  std::shared_ptr<SafetyModeMessage> getSafetyModeMessage()
+  {
+    std::scoped_lock lock(safety_mode_mutex_);
+    return safety_mode_;
+  }
+
+  /*!
    * \brief Get the latest version information.
    *
    * The version information will be updated in the background. This will always show the latest
@@ -245,6 +265,8 @@ private:
   std::shared_ptr<VersionInformation> version_information_;
   std::shared_ptr<ConfigurationData> configuration_data_;
   std::mutex configuration_data_mutex_;
+  std::mutex safety_mode_mutex_;
+  std::shared_ptr<SafetyModeMessage> safety_mode_;
 };
 
 }  // namespace primary_interface
