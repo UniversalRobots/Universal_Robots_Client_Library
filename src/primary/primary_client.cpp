@@ -255,7 +255,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
 {
   // Validate script_name
   static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
-  if (!std::regex_match(script_name, valid_name) && !script_name.empty())
+  if (!script_name.empty() && !std::regex_match(script_name, valid_name))
   {
     throw urcl::UrException("Invalid script name: '" + script_name +
                             "'. Can only contain letters, numbers and underscores. First character must be a letter or "
