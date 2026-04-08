@@ -32,6 +32,7 @@
 #include "ur_client_library/log.h"
 #include "ur_client_library/types.h"
 #include "ur_client_library/exceptions.h"
+#include <variant>
 
 namespace urcl
 {
@@ -140,6 +141,20 @@ public:
   {
     val = peek<T>();
     buf_pos_ += sizeof(T);
+  }
+
+  /*!
+   * \brief Parses the next bytes as the given type, the given type must match one of the types in the variant
+   *
+   * @tparam T Type to parse as
+   * \param val Reference to variant to write the parsed value to
+   */
+  template <typename T>
+  void parse(std::variant<uint32_t, int32_t, float>& val)
+  {
+    T return_val;
+    parse<T>(return_val);
+    val = return_val;
   }
 
   /*!
