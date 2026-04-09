@@ -469,6 +469,21 @@ TEST(bin_parser, peek_throws_when_past_end)
   EXPECT_THROW(bp.peek<uint16_t>(), UrException);
 }
 
+TEST(bin_parser, parse_into_variant)
+{
+  std::variant<uint32_t, int32_t, float> variant;
+  uint8_t buffer[] = { 0x81, 0x92, 0x29, 0x18 };
+  comm::BinParser bp1(buffer, sizeof(buffer));
+  bp1.parse<uint32_t>(variant);
+  EXPECT_EQ(std::get<uint32_t>(variant), unsigned(0x81922918));
+  comm::BinParser bp2(buffer, sizeof(buffer));
+  bp2.parse<int32_t>(variant);
+  EXPECT_EQ(std::get<int32_t>(variant), signed(0x81922918));
+  comm::BinParser bp3(buffer, sizeof(buffer));
+  bp3.parse<float>(variant);
+  EXPECT_EQ(std::get<float>(variant), float(2.19167036e-24));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
