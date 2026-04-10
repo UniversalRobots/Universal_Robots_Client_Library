@@ -482,14 +482,14 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
   EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
-// Wire format: int32 microseconds (MULT_JOINTSTATE). Duration must reach writeMotionPrimitive as seconds
-// in double form so encoding uses round(seconds * MULT_JOINTSTATE), not trunc(int(ms)).
+// Wire format: int32 microseconds (MULT_TIME). Duration must reach writeMotionPrimitive as seconds
+// in double form so encoding uses round(seconds * MULT_TIME), not trunc(int(ms)).
 TEST_F(TrajectoryPointInterfaceTest, write_goal_time_preserves_submillisecond_precision)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
   const float send_goal_time = 0.5006f;
   const int32_t expected_encoded = static_cast<int32_t>(
-      std::round(static_cast<double>(send_goal_time) * static_cast<double>(traj_point_interface_->MULT_JOINTSTATE)));
+      std::round(static_cast<double>(send_goal_time) * static_cast<double>(traj_point_interface_->MULT_TIME)));
 
   traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, false);
   EXPECT_EQ(expected_encoded, client_->getGoalTime());
@@ -497,10 +497,10 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time_preserves_submillisecond_pr
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, send_goal_time, 0, false);
   EXPECT_EQ(expected_encoded, client_->getGoalTime());
 
-  // High-precision duration: must match round(goal_time * MULT_JOINTSTATE), not trunc(goal_time * MULT_JOINTSTATE).
+  // High-precision duration: must match round(goal_time * MULT_TIME), not trunc(goal_time * MULT_TIME).
   const float precise_goal_time = 1.234567f;
   const int32_t expected_precise = static_cast<int32_t>(
-      std::round(static_cast<double>(precise_goal_time) * static_cast<double>(traj_point_interface_->MULT_JOINTSTATE)));
+      std::round(static_cast<double>(precise_goal_time) * static_cast<double>(traj_point_interface_->MULT_TIME)));
   traj_point_interface_->writeTrajectoryPoint(&send_positions, precise_goal_time, 0, false);
   EXPECT_EQ(expected_precise, client_->getGoalTime());
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, precise_goal_time, 0, false);

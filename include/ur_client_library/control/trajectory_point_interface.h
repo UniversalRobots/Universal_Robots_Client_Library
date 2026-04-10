@@ -63,7 +63,7 @@ std::string trajectoryResultToString(const TrajectoryResult result);
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
-  static const int32_t MULT_TIME = 1000;
+  static const int32_t MULT_TIME = 1000000;
   static const int MESSAGE_LENGTH = 21;
 
   TrajectoryPointInterface() = delete;

@@ -59,13 +59,14 @@ representations in 21 datafields. The data fields have the following meaning:
           - 3: MOVEC
           - 51: SPLINE)
 
-   19     trajectory point time (in seconds, multiplied by ``MULT_JOINTSTATE``)
+   19     trajectory point time (in seconds, multiplied by ``MULT_TIME``)
    20     depending on trajectory point type
 
-          - MOVEJ, MOVEL, MOVEP and MOVEC: point blend radius (in meters, multiplied by ``MULT_JOINTSTATE``)
+          - MOVEJ, MOVEL, MOVEP and MOVEC: point blend radius (in meters, multiplied by ``MULT_TIME``)
           - SPLINE: spline type (1: CUBIC, 2: QUINTIC)
    =====  =====
 
 where
 
 - ``MULT_JOINTSTATE``: 1000000
+- ``MULT_TIME``: 1000000
