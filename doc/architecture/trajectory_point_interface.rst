@@ -70,3 +70,8 @@ where
 
 - ``MULT_JOINTSTATE``: 1000000
 - ``MULT_TIME``: 1000000
+
+.. note::
+   With ``MULT_TIME`` being 1000000, the maximum duration that can be sent is 2147 seconds, while
+   precision is cut off at 1 microsecond. (The same applies to the blend radius, respectively being
+   max 2147 m and 1 μm precision.)
