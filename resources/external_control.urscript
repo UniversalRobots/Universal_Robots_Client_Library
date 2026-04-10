@@ -550,8 +550,8 @@ thread trajectoryThread():
 
     if raw_point[0] > 0:
       local q = [raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
-      local tmptime = raw_point[INDEX_TIME] / MULT_time
-      local blend_radius = raw_point[INDEX_BLEND] / MULT_time
+      local tmptime = raw_point[INDEX_TIME] / MULT_jointstate
+      local blend_radius = raw_point[INDEX_BLEND] / MULT_jointstate
       local is_last_point = False
       if trajectory_points_left == 0:
         blend_radius = 0.0

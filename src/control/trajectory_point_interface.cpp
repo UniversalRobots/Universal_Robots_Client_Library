@@ -180,7 +180,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     index++;
   }
 
-  int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
+  int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_JOINTSTATE));
   buffer[index] = htobe32(val);
   index++;
 
@@ -190,7 +190,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   }
   else
   {
-    val = static_cast<int32_t>(round(primitive->blend_radius * MULT_TIME));
+    val = static_cast<int32_t>(round(primitive->blend_radius * MULT_JOINTSTATE));
   }
   buffer[index] = htobe32(val);
   index++;

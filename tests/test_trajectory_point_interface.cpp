@@ -227,8 +227,8 @@ protected:
                 (double)spl.pos[4] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                 (double)spl.pos[5] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             },
-            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
-            std::chrono::milliseconds(spl.goal_time),
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            std::chrono::microseconds(spl.goal_time),
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
       }
@@ -241,8 +241,8 @@ protected:
                         ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
-            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
-            std::chrono::milliseconds(spl.goal_time),
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_JOINTSTATE,
+            std::chrono::microseconds(spl.goal_time),
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
       }
@@ -255,7 +255,7 @@ protected:
                         ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
-            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.vel[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE);
       }
@@ -274,7 +274,7 @@ protected:
                         ((double)spl.pos[3]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[4]) / control::TrajectoryPointInterface::MULT_JOINTSTATE,
                         ((double)spl.pos[5]) / control::TrajectoryPointInterface::MULT_JOINTSTATE },
-            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_TIME,
+            (double)spl.blend_radius_or_spline_type / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.acc[1] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             (double)spl.acc[0] / control::TrajectoryPointInterface::MULT_JOINTSTATE,
             static_cast<int32_t>(round((double)spl.acc[2] / control::TrajectoryPointInterface::MULT_JOINTSTATE)));
@@ -384,7 +384,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
   EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
 
   // Goal time
-  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time / traj_point_interface_->MULT_TIME));
+  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time / traj_point_interface_->MULT_JOINTSTATE));
 
   // Spline type
   EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_QUINTIC),
@@ -428,7 +428,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
   EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
 
   // Goal time
-  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time) / traj_point_interface_->MULT_TIME);
+  EXPECT_EQ(send_goal_time, ((double)received_data.goal_time) / traj_point_interface_->MULT_JOINTSTATE);
 
   // Spline type
   EXPECT_EQ(static_cast<int32_t>(control::TrajectorySplineType::SPLINE_CUBIC),
@@ -479,7 +479,39 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
   traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, false);
   int32_t received_goal_time = client_->getGoalTime();
 
-  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_TIME);
+  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_JOINTSTATE);
+}
+
+// Wire format: int32 microseconds (MULT_JOINTSTATE). Duration must reach writeMotionPrimitive as seconds
+// in double form so encoding uses round(seconds * MULT_JOINTSTATE), not trunc(int(ms)).
+TEST_F(TrajectoryPointInterfaceTest, write_goal_time_preserves_submillisecond_precision)
+{
+  urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
+  const float send_goal_time = 0.5006f;
+  const int32_t expected_encoded = static_cast<int32_t>(
+      std::round(static_cast<double>(send_goal_time) * static_cast<double>(traj_point_interface_->MULT_JOINTSTATE)));
+
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, send_goal_time, 0, false);
+  EXPECT_EQ(expected_encoded, client_->getGoalTime());
+
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, send_goal_time, 0, false);
+  EXPECT_EQ(expected_encoded, client_->getGoalTime());
+
+  // High-precision duration: must match round(goal_time * MULT_JOINTSTATE), not trunc(goal_time * MULT_JOINTSTATE).
+  const float precise_goal_time = 1.234567f;
+  const int32_t expected_precise = static_cast<int32_t>(
+      std::round(static_cast<double>(precise_goal_time) * static_cast<double>(traj_point_interface_->MULT_JOINTSTATE)));
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, precise_goal_time, 0, false);
+  EXPECT_EQ(expected_precise, client_->getGoalTime());
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, precise_goal_time, 0, false);
+  EXPECT_EQ(expected_precise, client_->getGoalTime());
+
+  urcl::vector6d_t send_vel = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  urcl::vector6d_t send_acc = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc, send_goal_time);
+  EXPECT_EQ(expected_encoded, client_->getGoalTime());
+  traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc, precise_goal_time);
+  EXPECT_EQ(expected_precise, client_->getGoalTime());
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
@@ -500,7 +532,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
 
   EXPECT_EQ(send_move_acceleration, ((float)received_move_acceleration) / traj_point_interface_->MULT_JOINTSTATE);
   EXPECT_EQ(send_move_velocity, ((float)received_move_velocity) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_TIME);
+  EXPECT_EQ(send_goal_time, ((float)received_goal_time) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_blend_radius)
@@ -510,7 +542,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_blend_radius)
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, send_blend_radius, false);
   int32_t received_blend_radius = client_->getBlendRadius();
 
-  EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface_->MULT_TIME);
+  EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cartesian)
