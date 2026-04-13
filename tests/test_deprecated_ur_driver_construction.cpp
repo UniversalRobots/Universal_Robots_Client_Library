@@ -33,6 +33,14 @@
 #include <thread>
 #include "ur_client_library/ur/ur_driver.h"
 
+// This file adds tests for deprecated constructors of UrDriver. To avoid a compiler warning in CI
+// we suppress the warning inside this file / compilation unit.
+#ifdef _MSC_VER
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 const std::string SCRIPT_FILE = "../resources/external_control.urscript";
 const std::string OUTPUT_RECIPE = "resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "resources/rtde_input_recipe.txt";

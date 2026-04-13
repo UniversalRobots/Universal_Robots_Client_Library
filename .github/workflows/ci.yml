@@ -12,7 +12,7 @@ jobs:
   build:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    name: build ${{matrix.env.cc}}(${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
     strategy:
       fail-fast: false
       matrix:
@@ -20,21 +20,38 @@ jobs:
           - ROBOT_MODEL: 'ur5'
             URSIM_VERSION: '3.14.3'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+            cc: gcc
+            cxx: g++
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '5.9.4'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+            cc: gcc
+            cxx: g++
           - ROBOT_MODEL: 'ur20'
             URSIM_VERSION: 'latest'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+            cc: gcc
+            cxx: g++
+          - ROBOT_MODEL: 'ur16e'
+            URSIM_VERSION: '5.12.6'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+            cc: clang
+            cxx: clang++
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.7.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+            cc: gcc
+            cxx: g++
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.11.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+            cc: gcc
+            cxx: g++
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.12.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+            cc: gcc
+            cxx: g++
 
     steps:
       - uses: actions/checkout@v6
@@ -67,6 +84,8 @@ jobs:
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_C_COMPILER=${{ matrix.env.cc }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.env.cxx }}
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
