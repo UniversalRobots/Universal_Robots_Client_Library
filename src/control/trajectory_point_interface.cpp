@@ -69,6 +69,12 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     return false;
   }
 
+  if (primitive->duration.count() > MAX_GOAL_TIME_)
+  {
+    URCL_LOG_ERROR("Motion primitive duration is too long. Maximum allowed duration is %f seconds.", MAX_GOAL_TIME_);
+    return false;
+  }
+
   if (client_fd_ == -1)
   {
     return false;

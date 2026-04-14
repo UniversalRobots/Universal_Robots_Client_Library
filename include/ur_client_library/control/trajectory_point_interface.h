@@ -148,6 +148,8 @@ protected:
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv) override;
 
 private:
+  const double MAX_GOAL_TIME_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_TIME;
+
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;
 };

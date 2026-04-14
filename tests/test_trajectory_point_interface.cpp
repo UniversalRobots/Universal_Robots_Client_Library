@@ -34,6 +34,7 @@
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/control/motion_primitives.h>
 #include <cmath>
+#include <limits>
 #include "ur_client_library/exceptions.h"
 
 using namespace urcl;
@@ -512,6 +513,29 @@ TEST_F(TrajectoryPointInterfaceTest, write_goal_time_preserves_submillisecond_pr
   EXPECT_EQ(expected_encoded, client_->getGoalTime());
   traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc, precise_goal_time);
   EXPECT_EQ(expected_precise, client_->getGoalTime());
+}
+
+// Segment duration is capped by int32 microseconds on the wire (~35.79 minutes).
+TEST_F(TrajectoryPointInterfaceTest, write_rejects_goal_time_above_max_encodable_duration)
+{
+  const double max_goal_time_seconds = static_cast<double>(std::numeric_limits<int32_t>::max()) /
+                                       static_cast<double>(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  const float too_long_goal_time = static_cast<float>(max_goal_time_seconds + 1.0);
+  const float almost_too_long_goal_time = static_cast<float>(max_goal_time_seconds - 1.0);
+
+  urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
+  EXPECT_FALSE(traj_point_interface_->writeTrajectoryPoint(&send_positions, too_long_goal_time, 0, false));
+  EXPECT_FALSE(traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, too_long_goal_time, 0, false));
+  EXPECT_TRUE(traj_point_interface_->writeTrajectoryPoint(&send_positions, almost_too_long_goal_time, 0, false));
+  EXPECT_TRUE(
+      traj_point_interface_->writeTrajectoryPoint(&send_positions, 1.4f, 1.05f, almost_too_long_goal_time, 0, false));
+
+  urcl::vector6d_t send_vel = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  urcl::vector6d_t send_acc = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  EXPECT_FALSE(
+      traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc, too_long_goal_time));
+  EXPECT_TRUE(traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc,
+                                                                almost_too_long_goal_time));
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
