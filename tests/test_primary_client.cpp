@@ -386,7 +386,7 @@ TEST_F(PrimaryClientTest, test_program_execution_reports_exception)
                                   "  calldoesntexist()\n"
                                   "end";
 
-  EXPECT_TRUE(client_->sendScript(script_code));
+  EXPECT_FALSE(client_->sendScript(script_code));
 
   {  // we get a RuntimeException message saying that out function doesn't exist
     bool answer_received = false;
