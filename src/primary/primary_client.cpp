@@ -257,9 +257,10 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
   if (!script_name.empty() && !std::regex_match(script_name, valid_name))
   {
-    throw urcl::UrException("Invalid script name: '" + script_name +
-                            "'. Can only contain letters, numbers and underscores. First character must be a letter or "
-                            "underscore.");
+    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + script_name +
+                                          "'. Can only contain letters, numbers and underscores. First character must "
+                                          "be a letter or "
+                                          "underscore.");
   }
   // Split the given script in to separate lines
   std::vector<std::string> split_script = splitString(script, "\n");
@@ -308,8 +309,9 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
 
   if (stripped_script.back().find("end") == script.npos)
   {
-    throw urcl::UrException("Script contains either function definition or secondary process definition, but no 'end' "
-                            "term. Script is invalid.");
+    throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process definition, "
+                                          "but no 'end' "
+                                          "term. Script is invalid.");
   }
 
   // Concatenate all the script lines in to the final script
