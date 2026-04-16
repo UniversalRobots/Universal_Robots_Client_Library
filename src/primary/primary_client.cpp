@@ -309,15 +309,6 @@ std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vecto
 
 ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name, ScriptTypes script_type)
 {
-  // Validate script_name
-  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
-  if (!script_name.empty() && !std::regex_match(script_name, valid_name))
-  {
-    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + script_name +
-                                          "'. Can only contain letters, numbers and underscores. First character must "
-                                          "be a letter or "
-                                          "underscore.");
-  }
   // Split the given script in to separate lines
   std::vector<std::string> split_script = splitString(script, "\n");
 
@@ -329,12 +320,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
   std::string actual_script_name = script_name.size() != 0 ? script_name : "script_" + std::to_string(current_time);
-  // Limit script name length to 31, to ensure backwards compatibility
-  if (actual_script_name.size() > 31)
-  {
-    actual_script_name = actual_script_name.substr(0, 31);
-  }
-
+  ScriptTypes actual_script_type = script_type;
   // Is the script wrapped in a function definition? If not add one
   if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
       stripped_script[0].substr(0, 4).find("sec ") == script.npos)
@@ -351,7 +337,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
         break;
     }
 
-    std::string start = type + " " + actual_script_name + "():";
+    std::string definition = type + " " + actual_script_name + "():";
     std::string end = "end";
     // Add indentation to the existing script code
     for (std::size_t i = 0; i < stripped_script.size(); i++)
@@ -359,15 +345,45 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
       stripped_script[i] = "  " + stripped_script[i];
     }
     // Add function definition and end statement to the stripped script lines vector
-    stripped_script.insert(stripped_script.begin(), start);
+    stripped_script.insert(stripped_script.begin(), definition);
     stripped_script.push_back(end);
   }
+  // Otherwise extract script name and type from function
+  else
+  {
+    int name_end = stripped_script[0].find("(");
+    actual_script_name = stripped_script[0].substr(4, name_end - 4);
+    if (stripped_script[0].find("def") != stripped_script[0].npos)
+    {
+      actual_script_type = ScriptTypes::DEF;
+    }
+    else
+    {
+      actual_script_type = ScriptTypes::SEC;
+    }
+  }
 
+  // Validate script_name
+  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
+  if (!std::regex_match(actual_script_name, valid_name))
+  {
+    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + script_name +
+                                          "'. Can only contain letters, numbers and underscores. First character must "
+                                          "be a letter or "
+                                          "underscore.");
+  }
+
+  // Limit script name length to 31, to ensure backwards compatibility
+  if (actual_script_name.size() > 31)
+  {
+    actual_script_name = actual_script_name.substr(0, 31);
+    URCL_LOG_WARN("Given script name was too long, and has been truncated. New script name is: %s",
+                  actual_script_name.c_str());
+  }
   if (stripped_script.back().find("end") == script.npos)
   {
     throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process definition, "
-                                          "but no 'end' "
-                                          "term. Script is invalid.");
+                                          "but no 'end' term. Script is invalid.");
   }
 
   // Concatenate all the script lines in to the final script
@@ -378,7 +394,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   }
 
   // Return final script code as well as the name of the script as it will be exectuted
-  return ScriptInfo(actual_script_name, prepared_script);
+  return ScriptInfo(actual_script_name, prepared_script, actual_script_type);
 }
 
 bool PrimaryClient::sendScriptNoWrapping(const std::string& program)
