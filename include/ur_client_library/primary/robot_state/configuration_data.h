@@ -117,6 +117,8 @@ public:
   int32_t controller_box_type_;
   int32_t robot_type_;
   int32_t robot_sub_type_;
+  int16_t reserved_1_{ 0 };
+  int16_t reserved_2_{ 0 };
 };
 
 }  // namespace primary_interface
