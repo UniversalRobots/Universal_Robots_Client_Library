@@ -144,7 +144,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
 }
 
 bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type,
-                               int max_start_delay_ms)
+                               std::chrono::milliseconds timeout)
 {
   ScriptInfo script_with_name = prepare_script(program, script_name, script_type);
 
@@ -236,10 +236,9 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
       }
     }
     auto current_time = std::chrono::system_clock::now();
-    auto elapsed_time_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time).count();
+    auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time);
 
-    if (!script_started && elapsed_time_ms > max_start_delay_ms)
+    if (!script_started && elapsed_time > timeout)
     {
       URCL_LOG_ERROR("Script not started within timeout");
       return false;
