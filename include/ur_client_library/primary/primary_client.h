@@ -48,19 +48,20 @@ namespace urcl
 namespace primary_interface
 {
 
-struct ScriptInfo
-{
-  std::string script_name;
-  std::string script_code;
-  ScriptInfo(std::string name, std::string code) : script_name(name), script_code(code) {};
-};
-
 enum ScriptTypes
 {
   DEF = 0,
   SEC = 1,
 };
 
+struct ScriptInfo
+{
+  std::string script_name;
+  std::string script_code;
+  ScriptTypes script_type;
+  ScriptInfo(std::string name, std::string code, ScriptTypes type)
+    : script_name(name), script_code(code), script_type(type) {};
+};
 class PrimaryClient
 {
 public:
