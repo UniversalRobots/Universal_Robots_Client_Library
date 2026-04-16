@@ -120,6 +120,29 @@ std::deque<ErrorCode> PrimaryClient::getErrorCodes()
   return error_codes;
 }
 
+bool PrimaryClient::safetyModeAllowsExecution()
+{
+  SafetyMode mode = getSafetyMode();
+  switch (mode)
+  {
+    case SafetyMode::NORMAL:
+      return true;
+
+    case SafetyMode::REDUCED:
+      return true;
+
+    case SafetyMode::RECOVERY:
+      return true;
+
+    // Safety mode might be unknown, as it is only updated on changes.
+    case SafetyMode::UNDEFINED_SAFETY_MODE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
 bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type,
                                int max_start_delay_ms)
 {
@@ -143,8 +166,8 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
     URCL_LOG_ERROR(ss.str().c_str());
     return false;
   }
-  SafetyMode safety_mode = getSafetyMode();
-  if (safety_mode != SafetyMode::NORMAL && safety_mode != SafetyMode::UNDEFINED_SAFETY_MODE)
+
+  if (!safetyModeAllowsExecution())
   {
     URCL_LOG_ERROR("Robot safety mode is not normal, cannot execute script.");
     std::stringstream ss;
