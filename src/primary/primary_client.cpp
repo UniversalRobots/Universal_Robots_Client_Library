@@ -158,6 +158,7 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
     std::this_thread::sleep_for(update_period);
     robot_mode = getRobotMode();
   }
+
   if (robot_mode != RobotMode::RUNNING)
   {
     URCL_LOG_ERROR("Robot is not running, cannot execute script.");
@@ -169,11 +170,12 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
 
   if (!safetyModeAllowsExecution())
   {
-    URCL_LOG_ERROR("Robot safety mode is not normal, cannot execute script.");
+    URCL_LOG_ERROR("Robot safety mode does not allow for script execution, cannot execute script.");
     std::stringstream ss;
-    ss << "Robot safety mode is: " << safetyModeString(safety_mode) << " (" << unsigned(safety_mode) << ")";
+    ss << "Robot safety mode is: " << safetyModeString(getSafetyMode()) << " (" << unsigned(getSafetyMode()) << ")";
     URCL_LOG_ERROR(ss.str().c_str());
   }
+
   uint64_t exception_timestamp = 0;
   {
     std::scoped_lock lock(runtime_exception_mutex_);
