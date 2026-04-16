@@ -69,6 +69,12 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     return false;
   }
 
+  if (primitive->duration.count() > MAX_GOAL_TIME_)
+  {
+    URCL_LOG_ERROR("Motion primitive duration is too long. Maximum allowed duration is %f seconds.", MAX_GOAL_TIME_);
+    return false;
+  }
+
   if (client_fd_ == -1)
   {
     return false;
@@ -215,12 +221,12 @@ bool TrajectoryPointInterface::writeTrajectoryPoint(const vector6d_t* positions,
     primitive = std::make_shared<MoveLPrimitive>(
         urcl::Pose{ (*positions)[0], (*positions)[1], (*positions)[2], (*positions)[3], (*positions)[4],
                     (*positions)[5] },
-        blend_radius, std::chrono::milliseconds(static_cast<int>(goal_time * 1000)), acceleration, velocity);
+        blend_radius, std::chrono::duration<double>(static_cast<double>(goal_time)), acceleration, velocity);
   }
   else
   {
     primitive = std::make_shared<MoveJPrimitive>(*positions, blend_radius,
-                                                 std::chrono::milliseconds(static_cast<int>(goal_time * 1000)),
+                                                 std::chrono::duration<double>(static_cast<double>(goal_time)),
                                                  acceleration, velocity);
   }
 
@@ -255,7 +261,7 @@ bool TrajectoryPointInterface::writeTrajectorySplinePoint(const vector6d_t* posi
   }
 
   return writeMotionPrimitive(std::make_shared<SplinePrimitive>(
-      *positions, *velocities, target_accelerations, std::chrono::milliseconds(static_cast<int>(goal_time * 1000))));
+      *positions, *velocities, target_accelerations, std::chrono::duration<double>(static_cast<double>(goal_time))));
 }
 
 void TrajectoryPointInterface::connectionCallback(const socket_t filedescriptor)
