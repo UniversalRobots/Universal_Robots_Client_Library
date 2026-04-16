@@ -319,5 +319,22 @@ private:
   std::string key_;
   std::string message_;
 };
+
+class ScriptCodeSyntaxException : public UrException
+{
+public:
+  explicit ScriptCodeSyntaxException() = delete;
+
+  explicit ScriptCodeSyntaxException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~ScriptCodeSyntaxException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED
