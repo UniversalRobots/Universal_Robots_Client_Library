@@ -39,6 +39,7 @@
 #include <thread>
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
+#include "ur_client_library/ur/dashboard_client.h"
 
 using namespace urcl;
 
@@ -201,10 +202,21 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
 
 TEST_F(PrimaryClientTest, test_stop_command)
 {
+  EXPECT_NO_THROW(client_->start());
+  auto version = client_->getRobotVersion();
+  urcl::DashboardClient::ClientPolicy policy = urcl::DashboardClient::ClientPolicy::G5;
+  std::string polyscope_prog_name = "wait_program.urp";
+  if (version->major == 10)
+  {
+    policy = urcl::DashboardClient::ClientPolicy::POLYSCOPE_X;
+    polyscope_prog_name = "wait_program";
+  }
+  auto dashboard_client_ = DashboardClient("192.168.56.101", policy);
+
+  ASSERT_TRUE(dashboard_client_.connect());
   // Without started communication the latest robot mode data is a nullptr
   EXPECT_THROW(client_->commandStop(), UrException);
 
-  EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
 
@@ -216,7 +228,8 @@ TEST_F(PrimaryClientTest, test_stop_command)
                                   "  end\n"
                                   "end";
 
-  EXPECT_TRUE(client_->sendScript(script_code));
+  EXPECT_TRUE(dashboard_client_.commandLoadProgram(polyscope_prog_name));
+  EXPECT_TRUE(dashboard_client_.commandPlay());
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
 
   EXPECT_NO_THROW(client_->commandStop());
@@ -225,7 +238,7 @@ TEST_F(PrimaryClientTest, test_stop_command)
   // Without a program running it should not throw an exception
   EXPECT_NO_THROW(client_->commandStop());
 
-  EXPECT_TRUE(client_->sendScript(script_code));
+  EXPECT_TRUE(dashboard_client_.commandPlay());
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
   EXPECT_THROW(client_->commandStop(true, std::chrono::milliseconds(1)), TimeoutException);
   EXPECT_NO_THROW(waitFor(
@@ -235,7 +248,7 @@ TEST_F(PrimaryClientTest, test_stop_command)
       std::chrono::seconds(5)));
 
   // without validation
-  EXPECT_TRUE(client_->sendScript(script_code));
+  EXPECT_TRUE(dashboard_client_.commandPlay());
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
   EXPECT_NO_THROW(client_->commandStop(false));
   EXPECT_NO_THROW(waitFor(
