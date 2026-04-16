@@ -47,6 +47,21 @@ namespace urcl
 {
 namespace primary_interface
 {
+
+enum ScriptTypes
+{
+  DEF = 0,
+  SEC = 1,
+};
+
+struct ScriptInfo
+{
+  std::string script_name;
+  std::string script_code;
+  ScriptTypes script_type;
+  ScriptInfo(std::string name, std::string code, ScriptTypes type)
+    : script_name(name), script_code(code), script_type(type) {};
+};
 class PrimaryClient
 {
 public:
@@ -86,7 +101,8 @@ public:
    *
    * \returns true on successful upload, false otherwise.
    */
-  bool sendScript(const std::string& program);
+  bool sendScript(const std::string& program, std::string script_name = "", ScriptTypes script_type = ScriptTypes::DEF,
+                  std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
   bool checkCalibration(const std::string& checksum);
 
@@ -265,6 +281,13 @@ public:
    */
   RobotType getRobotType();
 
+  /*!
+   * \brief Check if the current safety mode allows for script execution
+   *
+   * Safety modes allowing for execution are: NORMAL, REDUCED, RECOVERY, UNDEFINED_SAFETY_MODE
+   */
+  bool safetyModeAllowsExecution();
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.
@@ -277,6 +300,13 @@ private:
 
   // The function is called whenever an error code message is received
   void errorMessageCallback(ErrorCode& code);
+  void keyMessageCallback(KeyMessage& msg);
+  void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
+
+  bool sendScriptNoWrapping(const std::string& program);
+
+  ScriptInfo prepare_script(std::string script, std::string script_name, ScriptTypes script_type);
+  std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;
@@ -290,6 +320,12 @@ private:
 
   std::mutex error_code_queue_mutex_;
   std::deque<ErrorCode> error_code_queue_;
+
+  std::mutex key_message_queue_mutex_;
+  std::deque<KeyMessage> key_message_queue_;
+
+  std::mutex runtime_exception_mutex_;
+  std::shared_ptr<primary_interface::RuntimeExceptionMessage> latest_runtime_exception_;
 };
 
 }  // namespace primary_interface

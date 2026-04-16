@@ -37,6 +37,8 @@
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
 #include "ur_client_library/primary/robot_state/configuration_data.h"
 #include "ur_client_library/primary/robot_message/safety_mode_message.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
 
 namespace urcl
 {
@@ -81,6 +83,8 @@ public:
   virtual bool consume(RobotModeData& pkg) = 0;
   virtual bool consume(ConfigurationData& pkg) = 0;
   virtual bool consume(SafetyModeMessage& pkg) = 0;
+  virtual bool consume(KeyMessage& pkg) = 0;
+  virtual bool consume(RuntimeExceptionMessage& pkg) = 0;
 
 private:
   /* data */
