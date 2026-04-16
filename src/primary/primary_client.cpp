@@ -171,6 +171,7 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
     std::stringstream ss;
     ss << "Robot safety mode is: " << safetyModeString(getSafetyMode()) << " (" << unsigned(getSafetyMode()) << ")";
     URCL_LOG_ERROR(ss.str().c_str());
+    return false;
   }
 
   uint64_t exception_timestamp = 0;
