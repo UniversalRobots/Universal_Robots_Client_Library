@@ -274,6 +274,7 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
 
     if (!script_started && elapsed_time > timeout)
     {
+      // Should this stop the running program?
       URCL_LOG_ERROR("Script not started within timeout");
       return false;
     }
