@@ -101,7 +101,7 @@ public:
    * \returns true on successful upload, false otherwise.
    */
   bool sendScript(const std::string& program, std::string script_name = "", ScriptTypes script_type = ScriptTypes::DEF,
-                  int max_start_delay_ms = 1000);
+                  std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
   bool checkCalibration(const std::string& checksum);
 
