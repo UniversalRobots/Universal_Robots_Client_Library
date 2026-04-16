@@ -280,6 +280,13 @@ public:
    */
   RobotType getRobotType();
 
+  /*!
+   * \brief Check if the current safety mode allows for script execution
+   *
+   * Safety modes allowing for execution are: NORMAL, REDUCED, RECOVERY, UNDEFINED_SAFETY_MODE
+   */
+  bool safetyModeAllowsExecution();
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.
