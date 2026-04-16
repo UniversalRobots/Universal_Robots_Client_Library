@@ -197,6 +197,7 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
   const auto script_start_time = std::chrono::system_clock::now();
   // Ignore start delay if it is 0
   bool script_started = timeout == std::chrono::milliseconds(0) ? true : false;
+  while (true)
   {
     {
       std::scoped_lock lock(runtime_exception_mutex_);
@@ -205,32 +206,65 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
         URCL_LOG_ERROR("Runtime exception occured during script execution");
         std::stringstream ss;
         ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
-           << latest_runtime_exception_->column_number_;
+           << latest_runtime_exception_->column_number_ << "\n";
+        // Debug print for the user
+        auto script_lines = splitString(script_with_name.script_code, "\n");
+        for (int i = 0; i < static_cast<int>(script_lines.size()); i++)
+        {
+          if (!script_lines[i].empty())
+          {
+            ss << script_lines[i] << "\n";
+          }
+          if (i == latest_runtime_exception_->line_number_ - 1)
+          {
+            for (int j = 0; j < latest_runtime_exception_->column_number_ - 1; j++)
+            {
+              ss << " ";
+            }
+            ss << "^\n";
+          }
+        }
         URCL_LOG_ERROR(ss.str().c_str());
-        URCL_LOG_ERROR(latest_runtime_exception_->text_.c_str());
+        URCL_LOG_ERROR("Runtime exception text: %s", latest_runtime_exception_->text_.c_str());
         return false;
       }
     }
+
     auto errors = getErrorCodes();
-    for (auto error : errors)
+    if (errors.size() > 0)
     {
-      std::cout << error.to_string << std::endl;
+      URCL_LOG_ERROR("Robot encountered error(s) during script execution, stopping program");
+      for (auto error : errors)
+      {
+        URCL_LOG_ERROR("Robot error code: %s", error.to_string.c_str());
+      }
+      commandStop();
+      return false;
     }
+
     {
       std::scoped_lock lock(key_message_queue_mutex_);
       if (key_message_queue_.size() > 0)
       {
-        auto latest_message = key_message_queue_.back();
-        if (latest_message.title_ == "PROGRAM_XXX_STOPPED" && latest_message.text_ == script_with_name.script_name)
+        auto key_messages = key_message_queue_;
+        key_message_queue_.clear();
+        for (auto message : key_messages)
         {
-          URCL_LOG_INFO("Script with name %s executed successfully", script_with_name.script_name.c_str());
-          return true;
-        }
-        if (!script_started && latest_message.title_ == "PROGRAM_XXX_STARTED" &&
-            latest_message.text_ == script_with_name.script_name)
-        {
-          URCL_LOG_INFO("Script with name %s started", script_with_name.script_name.c_str());
-          script_started = true;
+          if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_with_name.script_name)
+          {
+            URCL_LOG_INFO("Script with name %s executed successfully", script_with_name.script_name.c_str());
+            return true;
+          }
+          else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" &&
+                   message.text_ == script_with_name.script_name)
+          {
+            URCL_LOG_INFO("Script with name %s started", script_with_name.script_name.c_str());
+            script_started = true;
+          }
+          else  // Put irrelevant messages back in the queue
+          {
+            key_message_queue_.push_back(message);
+          }
         }
       }
     }
@@ -245,7 +279,6 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
     std::chrono::milliseconds wait_period(10);
     std::this_thread::sleep_for(wait_period);
   }
-  return false;
 }
 
 std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
