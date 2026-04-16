@@ -100,7 +100,6 @@ void PrimaryClient::errorMessageCallback(ErrorCode& code)
 
 void PrimaryClient::keyMessageCallback(KeyMessage& msg)
 {
-  std::cout << "Key message callback: " << msg.toString() << std::endl;
   std::lock_guard<std::mutex> lock_guard(key_message_queue_mutex_);
   key_message_queue_.push_back(msg);
 }
@@ -146,9 +145,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
 bool PrimaryClient::sendScript(const std::string& program, std::string script_name, ScriptTypes script_type,
                                std::chrono::milliseconds timeout)
 {
-  ScriptInfo script_with_name = prepare_script(program, script_name, script_type);
-
-  std::cout << script_with_name.script_code << std::endl;
+  ScriptInfo script_info = prepare_script(program, script_name, script_type);
 
   RobotMode robot_mode = getRobotMode();
   while (robot_mode == RobotMode::UNKNOWN)
@@ -185,17 +182,18 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
     }
   }
 
-  bool script_sent = sendScriptNoWrapping(script_with_name.script_code);
+  bool script_sent = sendScriptNoWrapping(script_info.script_code);
   if (!script_sent)
   {
     URCL_LOG_ERROR("Script could not be sent.");
     return false;
   }
   // No feedback from secondary programs, so we assume success
-  if (script_type == ScriptTypes::SEC)
+  if (script_info.script_type == ScriptTypes::SEC)
   {
     return true;
   }
+
   const auto script_start_time = std::chrono::system_clock::now();
   // Ignore start delay if it is 0
   bool script_started = timeout == std::chrono::milliseconds(0) ? true : false;
@@ -205,12 +203,13 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
       std::scoped_lock lock(runtime_exception_mutex_);
       if (latest_runtime_exception_ != nullptr && latest_runtime_exception_->timestamp_ > exception_timestamp)
       {
-        URCL_LOG_ERROR("Runtime exception occured during script execution");
+        URCL_LOG_ERROR("Runtime exception occured during script execution. Runtime exception type: %s",
+                       latest_runtime_exception_->text_.c_str());
         std::stringstream ss;
         ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
            << latest_runtime_exception_->column_number_ << "\n";
         // Debug print for the user
-        auto script_lines = splitString(script_with_name.script_code, "\n");
+        auto script_lines = splitString(script_info.script_code, "\n");
         for (int i = 0; i < static_cast<int>(script_lines.size()); i++)
         {
           if (!script_lines[i].empty())
@@ -227,7 +226,6 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
           }
         }
         URCL_LOG_ERROR(ss.str().c_str());
-        URCL_LOG_ERROR("Runtime exception text: %s", latest_runtime_exception_->text_.c_str());
         return false;
       }
     }
@@ -252,15 +250,15 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
         key_message_queue_.clear();
         for (auto message : key_messages)
         {
-          if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_with_name.script_name)
+          if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_info.script_name)
           {
-            URCL_LOG_INFO("Script with name %s executed successfully", script_with_name.script_name.c_str());
+            URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
             return true;
           }
           else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" &&
-                   message.text_ == script_with_name.script_name)
+                   message.text_ == script_info.script_name)
           {
-            URCL_LOG_INFO("Script with name %s started", script_with_name.script_name.c_str());
+            URCL_LOG_INFO("Script with name %s started", script_info.script_name.c_str());
             script_started = true;
           }
           else  // Put irrelevant messages back in the queue
