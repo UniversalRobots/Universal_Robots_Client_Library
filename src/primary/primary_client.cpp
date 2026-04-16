@@ -184,7 +184,6 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
   }
 
   bool script_sent = sendScriptNoWrapping(script_with_name.script_code);
-  const auto script_start_time = std::chrono::system_clock::now();
   if (!script_sent)
   {
     URCL_LOG_ERROR("Script could not be sent.");
@@ -195,9 +194,9 @@ bool PrimaryClient::sendScript(const std::string& program, std::string script_na
   {
     return true;
   }
-  bool script_finished = false;
-  bool script_started = false;
-  while (!script_finished)
+  const auto script_start_time = std::chrono::system_clock::now();
+  // Ignore start delay if it is 0
+  bool script_started = timeout == std::chrono::milliseconds(0) ? true : false;
   {
     {
       std::scoped_lock lock(runtime_exception_mutex_);
