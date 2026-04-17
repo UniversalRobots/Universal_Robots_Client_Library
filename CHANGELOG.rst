@@ -2,6 +2,16 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.10.0 (2026-04-17)
+-------------------
+* [primary] Add new fields to ConfigurationData object (`#485 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/485>`_)
+* Fix traj point time precision (`#482 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/482>`_)
+* Add parsing of safety mode messages to the primary interface (`#480 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/480>`_)
+* Capitalize constexpr variables in direct torque example (`#481 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/481>`_)
+* tool_communication.py: Add error handling for non-existing parent (`#477 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/477>`_)
+* Fix rtde client shutdown (`#474 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/474>`_)
+* Contributors: Felix Exner, URJala, dependabot[bot]
+
 2.9.0 (2026-03-27)
 ------------------
 * [RTDEClient] stop producer on destruction (`#472 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/472>`_)
