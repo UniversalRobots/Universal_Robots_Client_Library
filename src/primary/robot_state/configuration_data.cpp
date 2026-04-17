@@ -81,6 +81,15 @@ bool ConfigurationData::parseWith(comm::BinParser& bp)
   bp.parse(robot_type_);
   bp.parse(robot_sub_type_);
 
+  if (bp.checkSize<decltype(reserved_1_)>())
+  {
+    bp.parse(reserved_1_);
+  }
+  if (bp.checkSize<decltype(reserved_2_)>())
+  {
+    bp.parse(reserved_2_);
+  }
+
   return true;
 }
 

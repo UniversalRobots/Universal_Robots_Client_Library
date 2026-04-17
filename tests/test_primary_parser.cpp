@@ -26,15 +26,56 @@
  */
 //----------------------------------------------------------------------
 
+#include <cassert>
 #include <iostream>
+#include <vector>
 #include <gtest/gtest.h>
 #include <string.h>
 
 #include <ur_client_library/comm/bin_parser.h>
+#include <ur_client_library/primary/package_header.h>
 #include <ur_client_library/primary/primary_parser.h>
+#include <ur_client_library/primary/robot_state/configuration_data.h>
 #include "ur_client_library/primary/robot_message/key_message.h"
 
 using namespace urcl;
+
+namespace
+{
+// ConfigurationData payload before optional int16 reserved fields (older UR software).
+constexpr size_t kConfigurationDataPayloadBytes = 6 * 2 * sizeof(double) +  // joint position limits
+                                                  6 * 2 * sizeof(double) +  // joint motion limits
+                                                  5 * sizeof(double) +      // v/a joint/tool defaults + eq_radius
+                                                  4 * 6 * sizeof(double) +  // dh_a, dh_d, dh_alpha, dh_theta
+                                                  4 * sizeof(int32_t);  // masterboard, controller, robot type, sub type
+
+static_assert(kConfigurationDataPayloadBytes == 440);
+
+std::vector<uint8_t> makeRobotStatePacketWithConfigurationSubmessage(const std::vector<uint8_t>& configuration_payload)
+{
+  const uint32_t sub_size = static_cast<uint32_t>(sizeof(uint32_t) + sizeof(uint8_t) + configuration_payload.size());
+  const uint32_t total_packet_size = static_cast<uint32_t>(sizeof(int32_t) + sizeof(uint8_t) + sub_size);
+
+  std::vector<uint8_t> packet(total_packet_size);
+  size_t offset = 0;
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 24) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 16) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 8) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(total_packet_size & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(primary_interface::RobotPackageType::ROBOT_STATE);
+
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 24) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 16) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 8) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(sub_size & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(primary_interface::RobotStateType::CONFIGURATION_DATA);
+
+  memcpy(packet.data() + offset, configuration_payload.data(), configuration_payload.size());
+  offset += configuration_payload.size();
+  assert(offset == packet.size());
+  return packet;
+}
+}  // namespace
 
 /* First RobotState of UR5e from URSim v5.8
  *
@@ -547,6 +588,44 @@ TEST_F(PrimaryParserTest, parsing_safetymode_results_in_correct_string)
       }
     }
   }
+}
+
+TEST_F(PrimaryParserTest, parse_configuration_data_without_reserved_fields)
+{
+  std::vector<uint8_t> payload(kConfigurationDataPayloadBytes, 0);
+  std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+
+  comm::BinParser bp(packet.data(), packet.size());
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  ASSERT_TRUE(parser_.parse(bp, products));
+  ASSERT_EQ(products.size(), 1u);
+
+  auto* config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+  ASSERT_NE(config, nullptr);
+  EXPECT_EQ(config->reserved_1_, 0);
+  EXPECT_EQ(config->reserved_2_, 0);
+}
+
+TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
+{
+  std::vector<uint8_t> payload(kConfigurationDataPayloadBytes, 0);
+  // Big-endian int16 values appended after the legacy payload.
+  payload.push_back(0x12);
+  payload.push_back(0x34);
+  payload.push_back(0x56);
+  payload.push_back(0x78);
+
+  std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+
+  comm::BinParser bp(packet.data(), packet.size());
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  ASSERT_TRUE(parser_.parse(bp, products));
+  ASSERT_EQ(products.size(), 1u);
+
+  auto* config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+  ASSERT_NE(config, nullptr);
+  EXPECT_EQ(config->reserved_1_, static_cast<int16_t>(0x1234));
+  EXPECT_EQ(config->reserved_2_, static_cast<int16_t>(0x5678));
 }
 
 int main(int argc, char* argv[])
