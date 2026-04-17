@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.10.0 (2026-04-17)
+-------------------
 * [primary] Add new fields to ConfigurationData object (`#485 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/485>`_)
 * Fix traj point time precision (`#482 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/482>`_)
 * Add parsing of safety mode messages to the primary interface (`#480 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/480>`_)
