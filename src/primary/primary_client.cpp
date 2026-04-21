@@ -297,5 +297,22 @@ RobotType PrimaryClient::getRobotType()
   return static_cast<RobotType>(configuration_data->robot_type_);
 }
 
+RobotSeries PrimaryClient::getRobotSeries()
+{
+  auto robot_type = getRobotType();
+  if (robot_type == RobotType::UNDEFINED)
+  {
+    return RobotSeries::UNDEFINED;
+  }
+
+  auto version_info = getRobotVersion();
+  if (version_info == nullptr)
+  {
+    return RobotSeries::UNDEFINED;
+  }
+
+  return robotSeriesFromTypeAndVersion(robot_type, *version_info);
+}
+
 }  // namespace primary_interface
 }  // namespace urcl

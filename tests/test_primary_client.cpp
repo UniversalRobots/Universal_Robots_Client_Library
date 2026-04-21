@@ -197,6 +197,8 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
   ASSERT_THROW(client_->isRobotProtectiveStopped(), UrException);
   // The client is not started yet, so the robot type should be UNDEFINED
   ASSERT_EQ(client_->getRobotType(), RobotType::UNDEFINED);
+  // Without a robot type (and version), the robot series cannot be determined.
+  ASSERT_EQ(client_->getRobotSeries(), RobotSeries::UNDEFINED);
 }
 
 TEST_F(PrimaryClientTest, test_stop_command)
@@ -264,6 +266,34 @@ TEST_F(PrimaryClientTest, test_configuration_data)
 
   // Robot type should no longer be undefined once we have received configuration data.
   EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
+}
+
+TEST_F(PrimaryClientTest, test_get_robot_series)
+{
+  EXPECT_NO_THROW(client_->start());
+
+  // Wait until we have received configuration data so that the robot type is known.
+  auto start_time = std::chrono::system_clock::now();
+  const auto timeout = std::chrono::seconds(2);
+  while (client_->getConfigurationData() == nullptr && std::chrono::system_clock::now() - start_time < timeout)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_NE(client_->getConfigurationData(), nullptr);
+
+  const RobotType robot_type = client_->getRobotType();
+  ASSERT_NE(robot_type, RobotType::UNDEFINED);
+
+  auto version_info = client_->getRobotVersion();
+  ASSERT_NE(version_info, nullptr);
+
+  // The series returned by the client must match what robotSeriesFromTypeAndVersion computes
+  // from the type and version the client itself reports.
+  const RobotSeries expected_series = robotSeriesFromTypeAndVersion(robot_type, *version_info);
+  EXPECT_EQ(client_->getRobotSeries(), expected_series);
+
+  // A robot we successfully connected to should map to a known series.
+  EXPECT_NE(client_->getRobotSeries(), RobotSeries::UNDEFINED);
 }
 
 TEST_F(PrimaryClientTest, test_program_execution)

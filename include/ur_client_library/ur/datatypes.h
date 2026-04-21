@@ -112,6 +112,14 @@ enum class RobotType : int8_t
   UR15 = 9
 };
 
+enum class RobotSeries
+{
+  UNDEFINED = -128,
+  CB3 = 1,
+  E_SERIES = 2,
+  UR_SERIES = 3
+};
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)

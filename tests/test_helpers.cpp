@@ -32,6 +32,8 @@
 
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/exceptions.h>
+#include <ur_client_library/ur/datatypes.h>
+#include <ur_client_library/ur/version_information.h>
 
 using namespace urcl;
 
@@ -85,4 +87,53 @@ TEST(TestHelpers, splitString)
   const std::string version_string1 = "5.12.0.1101319";
   std::vector<std::string> expected = { "5", "12", "0", "1101319" };
   EXPECT_EQ(expected, splitString(version_string1, "."));
+}
+
+TEST(TestHelpers, robotSeriesFromTypeAndVersion)
+{
+  const VersionInformation cb3_version = VersionInformation::fromString("3.15.0.0");
+  const VersionInformation polyscope_5_version = VersionInformation::fromString("5.12.0.1101319");
+  const VersionInformation polyscope_x_version = VersionInformation::fromString("10.0.0.0");
+
+  // UR3/UR5/UR10: major >= 5 -> E_SERIES, otherwise CB3
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR3, cb3_version), RobotSeries::CB3);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR5, cb3_version), RobotSeries::CB3);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10, cb3_version), RobotSeries::CB3);
+
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR3, polyscope_5_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR5, polyscope_5_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10, polyscope_5_version), RobotSeries::E_SERIES);
+
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR3, polyscope_x_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR5, polyscope_x_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10, polyscope_x_version), RobotSeries::E_SERIES);
+
+  // UR16: major >= 5 -> E_SERIES, otherwise UNDEFINED
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR16, polyscope_5_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR16, polyscope_x_version), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR16, cb3_version), RobotSeries::UNDEFINED);
+
+  // UR15/UR18/UR20/UR30/UR8LONG: major >= 5 -> UR_SERIES, otherwise UNDEFINED
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR15, polyscope_x_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18, polyscope_x_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR20, polyscope_x_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR30, polyscope_x_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR8LONG, polyscope_x_version), RobotSeries::UR_SERIES);
+
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR15, polyscope_5_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18, polyscope_5_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR20, polyscope_5_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR30, polyscope_5_version), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR8LONG, polyscope_5_version), RobotSeries::UR_SERIES);
+
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR15, cb3_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18, cb3_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR20, cb3_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR30, cb3_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR8LONG, cb3_version), RobotSeries::UNDEFINED);
+
+  // UNDEFINED robot type yields UNDEFINED series
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_5_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, cb3_version), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_x_version), RobotSeries::UNDEFINED);
 }

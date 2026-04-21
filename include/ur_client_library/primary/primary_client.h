@@ -265,6 +265,13 @@ public:
    */
   RobotType getRobotType();
 
+  /*!
+   * \brief Get the Robot series
+   *
+   * If no robot type data has been received yet, this will return UNDEFINED.
+   */
+  RobotSeries getRobotSeries();
+
 private:
   /*!
    * \brief Reconnects the primary stream used to send program to the robot.
