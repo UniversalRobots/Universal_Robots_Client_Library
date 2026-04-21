@@ -98,7 +98,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   startPrimaryClientCommunication();
 
-  std::chrono::milliseconds timeout(1000);
+  std::chrono::milliseconds timeout(config.primary_configuration_timeout);
   try
   {
     waitFor([this]() { return primary_client_->getConfigurationData() != nullptr; }, timeout);

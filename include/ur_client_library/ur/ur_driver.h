@@ -136,6 +136,11 @@ struct UrDriverConfiguration
    */
   std::chrono::milliseconds rtde_initialization_timeout = std::chrono::seconds(5);
 
+  /*!
+   * \brief Timeout for waiting for primary client configuration data.
+   */
+  std::chrono::milliseconds primary_configuration_timeout = std::chrono::seconds(1);
+
   bool non_blocking_read = false;
 
   // TODO: Remove on 2027-05
