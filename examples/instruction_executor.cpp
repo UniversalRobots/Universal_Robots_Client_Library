@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  bool headless_mode = true;
+  bool headless_mode = false;
   g_my_robot = std::make_unique<urcl::ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                            "external_control.urp");
   if (!g_my_robot->getUrDriver()->checkCalibration(CALIBRATION_CHECKSUM))
@@ -89,6 +89,8 @@ int main(int argc, char* argv[])
 
     std::make_shared<urcl::control::MoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
                                                     std::chrono::seconds(2)),
+    std::make_shared<urcl::control::MoveLJointPrimitive>(urcl::vector6d_t{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1,
+                                                         std::chrono::seconds(2)),
     std::make_shared<urcl::control::MovePPrimitive>(urcl::Pose{ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.4,
                                                     0.4),
     std::make_shared<urcl::control::OptimoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.1, 0.4,
@@ -96,20 +98,22 @@ int main(int argc, char* argv[])
     std::make_shared<urcl::control::OptimoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
                                                         0.4, 0.7),
   };
-  instruction_executor->executeMotion(motion_sequence);
+  // instruction_executor->executeMotion(motion_sequence);
 
   double goal_time_sec = 2.0;
 
   // acceleration / velocity parametrization
-  instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
+  // instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
   // acceleration / velocity parametrization
   instruction_executor->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
+  instruction_executor->moveLToJointTarget({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 1.5, 1.5, goal_time_sec);
+  instruction_executor->moveJToPoseTarget({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
-  instruction_executor->moveP({ -0.203, 0.463, 0.759, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  // instruction_executor->moveP({ -0.203, 0.463, 0.759, 0.68, -1.083, -2.076 }, 1.5, 1.5);
 
   g_my_robot->getUrDriver()->stopControl();
   return 0;

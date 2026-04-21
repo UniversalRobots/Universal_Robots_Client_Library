@@ -96,6 +96,17 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       third_block.fill(primitive->acceleration);
       break;
     }
+    case MotionType::MOVEJ_POSE:
+    {
+      auto movej_primitive = std::static_pointer_cast<control::MoveJPosePrimitive>(primitive);
+      first_block = {
+        movej_primitive->target_pose.x,  movej_primitive->target_pose.y,  movej_primitive->target_pose.z,
+        movej_primitive->target_pose.rx, movej_primitive->target_pose.ry, movej_primitive->target_pose.rz
+      };
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
+      break;
+    }
     case MotionType::MOVEL:
     {
       auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
@@ -103,6 +114,14 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
         movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
         movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz
       };
+      second_block.fill(primitive->velocity);
+      third_block.fill(primitive->acceleration);
+      break;
+    }
+    case MotionType::MOVEL_JOINT:
+    {
+      auto movel_primitive = std::static_pointer_cast<control::MoveLJointPrimitive>(primitive);
+      first_block = movel_primitive->target_joint_configuration;
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -163,6 +182,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       break;
     }
     default:
+      URCL_LOG_ERROR("Unsupported motion type %d", primitive->type);
       throw UnsupportedMotionType();
   }
 

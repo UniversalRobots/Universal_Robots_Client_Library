@@ -71,11 +71,12 @@ bool urcl::InstructionExecutor::executeMotion(
   {
     try
     {
+      URCL_LOG_INFO("Sending motion primitive of type %d to robot", static_cast<int>(primitive->type));
       driver_->writeMotionPrimitive(primitive);
     }
     catch (const UnsupportedMotionType&)
     {
-      URCL_LOG_ERROR("Unsupported motion type");
+      URCL_LOG_ERROR("Unsupported motion type %d", static_cast<int>(primitive->type));
       // The hardware will complain about missing trajectory points and return a failure for
       // trajectory execution. Hence, we need to step into the running loop below.
     }
@@ -104,10 +105,24 @@ bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const doub
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
 }
 
+bool urcl::InstructionExecutor::moveJToPoseTarget(const urcl::Pose& target, const double acceleration,
+                                                  const double velocity, const double time, const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::MoveJPosePrimitive>(
+      target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
+}
+
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
   return executeMotion({ std::make_shared<control::MoveLPrimitive>(
+      target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
+}
+
+bool urcl::InstructionExecutor::moveLToJointTarget(const urcl::vector6d_t& target, const double acceleration,
+                                                   const double velocity, const double time, const double blend_radius)
+{
+  return executeMotion({ std::make_shared<control::MoveLJointPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
 }
 

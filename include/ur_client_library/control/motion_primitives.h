@@ -48,6 +48,8 @@ enum class MotionType : uint8_t
   MOVEC = 3,
   OPTIMOVEJ = 4,
   OPTIMOVEL = 5,
+  MOVEJ_POSE = 6,
+  MOVEL_JOINT = 7,
   SPLINE = 51,
   UNKNOWN = 255
 };
@@ -90,6 +92,23 @@ struct MoveJPrimitive : public MotionPrimitive
   urcl::vector6d_t target_joint_configuration;
 };
 
+struct MoveJPosePrimitive : public MotionPrimitive
+{
+  MoveJPosePrimitive(const urcl::Pose& target, const double blend_radius = 0,
+                     const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                     const double acceleration = 1.4, const double velocity = 1.04)
+  {
+    type = MotionType::MOVEJ_POSE;
+    target_pose = target;
+    this->duration = duration;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+  }
+
+  urcl::Pose target_pose;
+};
+
 struct MoveLPrimitive : public MotionPrimitive
 {
   MoveLPrimitive(const urcl::Pose& target, const double blend_radius = 0,
@@ -105,6 +124,23 @@ struct MoveLPrimitive : public MotionPrimitive
   }
 
   urcl::Pose target_pose;
+};
+
+struct MoveLJointPrimitive : public MotionPrimitive
+{
+  MoveLJointPrimitive(const urcl::vector6d_t& target, const double blend_radius = 0,
+                      const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                      const double acceleration = 1.4, const double velocity = 1.04)
+  {
+    type = MotionType::MOVEL_JOINT;
+    target_joint_configuration = target;
+    this->duration = duration;
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+  }
+
+  urcl::vector6d_t target_joint_configuration;
 };
 
 struct MovePPrimitive : public MotionPrimitive

@@ -81,6 +81,9 @@ public:
   bool moveJ(const urcl::vector6d_t& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double time = 0, const double blend_radius = 0);
 
+  bool moveJToPoseTarget(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
+                         const double time = 0, const double blend_radius = 0);
+
   /**
    * \brief Move the robot to a pose target using movel
    *
@@ -97,6 +100,9 @@ public:
    */
   bool moveL(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double time = 0, const double blend_radius = 0);
+
+  bool moveLToJointTarget(const urcl::vector6d_t& target, const double acceleration = 1.4, const double velocity = 1.04,
+                          const double time = 0, const double blend_radius = 0);
 
   /**
    * \brief Move the robot to a pose target using movep
