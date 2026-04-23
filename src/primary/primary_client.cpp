@@ -143,7 +143,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
 }
 
 bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
-                                       std::chrono::milliseconds timeout)
+                                       std::chrono::milliseconds timeout, bool fail_on_warnings)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
 
@@ -235,6 +235,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     if (errors.size() > 0)
     {
       bool is_error = false;
+      bool is_warning = false;
       bool is_read_only = false;
       for (auto error : errors)
       {
@@ -244,6 +245,13 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
                          "error code: %s",
                          error.to_string.c_str());
           is_error = true;
+        }
+        if (error.report_level == ReportLevel::WARNING)
+        {
+          URCL_LOG_ERROR("Robot error code with severity WARNING received during script execution. Robot "
+                         "error code: %s",
+                         error.to_string.c_str());
+          is_warning = true;
         }
         else if (error.message_code == 210)
         {
@@ -264,6 +272,10 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
                          "primary client and send the script code again.");
         }
         URCL_LOG_ERROR("Script execution failed due to error code(s) received from robot.");
+        return false;
+      }
+      if (is_warning && fail_on_warnings)
+      {
         return false;
       }
     }
