@@ -234,13 +234,38 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     auto errors = getErrorCodes();
     if (errors.size() > 0)
     {
-      URCL_LOG_ERROR("Robot encountered error(s) during script execution, stopping program");
+      bool is_error = false;
+      bool is_read_only = false;
       for (auto error : errors)
       {
-        URCL_LOG_ERROR("Robot error code: %s", error.to_string.c_str());
+        if (error.report_level == ReportLevel::VIOLATION || error.report_level == ReportLevel::FAULT)
+        {
+          URCL_LOG_ERROR("Robot error code with severity VIOLATION or FAULT received during script execution. Robot "
+                         "error code: %s",
+                         error.to_string.c_str());
+          is_error = true;
+        }
+        else if (error.message_code == 210)
+        {
+          is_error = true;
+          is_read_only = true;
+        }
       }
-      commandStop();
-      return false;
+      if (is_error)
+      {
+        if (!is_read_only)
+        {
+          commandStop();
+        }
+        else
+        {
+          URCL_LOG_ERROR("Script cannot be executed since primary client is connected to a read-only primary "
+                         "interface. If you have switched from local to remote mode recently, try reconnecting the "
+                         "primary client and send the script code again.");
+        }
+        URCL_LOG_ERROR("Script execution failed due to error code(s) received from robot.");
+        return false;
+      }
     }
 
     {
@@ -356,7 +381,8 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   if (!std::regex_match(actual_script_name, valid_name))
   {
     throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + script_name +
-                                          "'. Can only contain letters, numbers and underscores. First character must "
+                                          "'. Can only contain letters, numbers and underscores. First character "
+                                          "must "
                                           "be a letter or "
                                           "underscore.");
   }
@@ -370,7 +396,8 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   }
   if (stripped_script.back().find("end") == script.npos)
   {
-    throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process definition, "
+    throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process "
+                                          "definition, "
                                           "but no 'end' term. Script is invalid.");
   }
 
