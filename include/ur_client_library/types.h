@@ -24,6 +24,7 @@
 #include <array>
 #include <functional>
 #include <iostream>
+#include <variant>
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -32,6 +33,15 @@ using vector3d_t = std::array<double, 3>;
 using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
+
+struct Q
+{
+  constexpr Q(double q1, double q2, double q3, double q4, double q5, double q6) : values{ q1, q2, q3, q4, q5, q6 }
+  {
+  }
+
+  vector6d_t values;
+};
 
 struct Pose
 {
@@ -54,6 +64,8 @@ struct Pose
     return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
   }
 };
+
+using MotionTarget = std::variant<Q, Pose>;
 
 template <class T, std::size_t N>
 std::ostream& operator<<(std::ostream& out, const std::array<T, N>& item)

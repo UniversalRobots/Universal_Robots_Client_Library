@@ -33,6 +33,7 @@
 
 #include <chrono>
 #include <optional>
+#include <variant>
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -88,24 +89,33 @@ struct MoveJPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
-
-  urcl::vector6d_t target_joint_configuration;
-};
-
-struct MoveJPosePrimitive : public MotionPrimitive
-{
-  MoveJPosePrimitive(const urcl::Pose& target, const double blend_radius = 0,
-                     const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                     const double acceleration = 1.4, const double velocity = 1.04)
+  MoveJPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
+                 const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                 const double acceleration = 1.4, const double velocity = 1.04)
   {
-    type = MotionType::MOVEJ_POSE;
-    target_pose = target;
     this->duration = duration;
     this->acceleration = acceleration;
     this->velocity = velocity;
     this->blend_radius = blend_radius;
+
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            type = MotionType::MOVEJ_POSE;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            type = MotionType::MOVEJ;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        target);
   }
 
+  urcl::vector6d_t target_joint_configuration;
   urcl::Pose target_pose;
 };
 
@@ -122,24 +132,32 @@ struct MoveLPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
-
-  urcl::Pose target_pose;
-};
-
-struct MoveLJointPrimitive : public MotionPrimitive
-{
-  MoveLJointPrimitive(const urcl::vector6d_t& target, const double blend_radius = 0,
-                      const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                      const double acceleration = 1.4, const double velocity = 1.04)
+  MoveLPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
+                 const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                 const double acceleration = 1.4, const double velocity = 1.04)
   {
-    type = MotionType::MOVEL_JOINT;
-    target_joint_configuration = target;
     this->duration = duration;
     this->acceleration = acceleration;
     this->velocity = velocity;
     this->blend_radius = blend_radius;
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            type = MotionType::MOVEL;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            type = MotionType::MOVEL_JOINT;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        target);
   }
 
+  urcl::Pose target_pose;
   urcl::vector6d_t target_joint_configuration;
 };
 

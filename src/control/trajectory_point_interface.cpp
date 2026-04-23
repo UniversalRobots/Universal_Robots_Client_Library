@@ -89,39 +89,45 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   switch (primitive->type)
   {
     case MotionType::MOVEJ:
-    {
-      auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
-      first_block = movej_primitive->target_joint_configuration;
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
-      break;
-    }
     case MotionType::MOVEJ_POSE:
     {
-      auto movej_primitive = std::static_pointer_cast<control::MoveJPosePrimitive>(primitive);
-      first_block = {
-        movej_primitive->target_pose.x,  movej_primitive->target_pose.y,  movej_primitive->target_pose.z,
-        movej_primitive->target_pose.rx, movej_primitive->target_pose.ry, movej_primitive->target_pose.rz
-      };
+      auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
+      if (movej_primitive->type == MotionType::MOVEJ)
+      {
+        first_block = movej_primitive->target_joint_configuration;
+      }
+      else if (movej_primitive->type == MotionType::MOVEJ_POSE)
+      {
+        first_block = { movej_primitive->target_pose.x,  movej_primitive->target_pose.y,
+                        movej_primitive->target_pose.z,  movej_primitive->target_pose.rx,
+                        movej_primitive->target_pose.ry, movej_primitive->target_pose.rz };
+      }
+      else
+      {
+        throw InvalidData("Motion type does not match motion primitive type.");
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
     }
     case MotionType::MOVEL:
-    {
-      auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
-      first_block = {
-        movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
-        movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz
-      };
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
-      break;
-    }
     case MotionType::MOVEL_JOINT:
     {
-      auto movel_primitive = std::static_pointer_cast<control::MoveLJointPrimitive>(primitive);
-      first_block = movel_primitive->target_joint_configuration;
+      auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
+      if (movel_primitive->type == MotionType::MOVEL)
+      {
+        first_block = { movel_primitive->target_pose.x,  movel_primitive->target_pose.y,
+                        movel_primitive->target_pose.z,  movel_primitive->target_pose.rx,
+                        movel_primitive->target_pose.ry, movel_primitive->target_pose.rz };
+      }
+      else if (movel_primitive->type == MotionType::MOVEL_JOINT)
+      {
+        first_block = movel_primitive->target_joint_configuration;
+      }
+      else
+      {
+        throw InvalidData("Motion type does not match motion primitive type.");
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;

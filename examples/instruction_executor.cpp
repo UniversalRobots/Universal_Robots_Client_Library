@@ -89,8 +89,8 @@ int main(int argc, char* argv[])
 
     std::make_shared<urcl::control::MoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
                                                     std::chrono::seconds(2)),
-    std::make_shared<urcl::control::MoveLJointPrimitive>(urcl::vector6d_t{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1,
-                                                         std::chrono::seconds(2)),
+    std::make_shared<urcl::control::MoveLPrimitive>(urcl::Q{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1,
+                                                    std::chrono::seconds(2)),
     std::make_shared<urcl::control::MovePPrimitive>(urcl::Pose{ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.4,
                                                     0.4),
     std::make_shared<urcl::control::OptimoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.57, 1.6, -0.5, 0.4, 0.3 }, 0.1, 0.4,
@@ -106,12 +106,9 @@ int main(int argc, char* argv[])
   // instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
-  // acceleration / velocity parametrization
-  instruction_executor->moveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
-  // goal time parametrization -- acceleration and velocity will be ignored
-  instruction_executor->moveL({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
-  instruction_executor->moveLToJointTarget({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 1.5, 1.5, goal_time_sec);
-  instruction_executor->moveJToPoseTarget({ -0.203, 0.463, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
+  instruction_executor->moveL({ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  instruction_executor->moveL(urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 }, 1.5, 1.5, goal_time_sec);
+  instruction_executor->moveJ(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
   // instruction_executor->moveP({ -0.203, 0.463, 0.759, 0.68, -1.083, -2.076 }, 1.5, 1.5);
 

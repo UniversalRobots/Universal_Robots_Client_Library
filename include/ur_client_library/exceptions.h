@@ -217,6 +217,15 @@ public:
   }
 };
 
+class InvalidData : public UrException
+{
+public:
+  explicit InvalidData() = delete;
+  explicit InvalidData(const std::string& error_text) : std::runtime_error(error_text)
+  {
+  }
+};
+
 class UnknownVariable : public UrException
 {
 private:
