@@ -36,6 +36,7 @@
 #include <ur_client_library/primary/package_header.h>
 #include <ur_client_library/primary/primary_parser.h>
 #include <ur_client_library/primary/robot_state/configuration_data.h>
+#include <ur_client_library/primary/robot_state/masterboard_data.h>
 #include "ur_client_library/primary/robot_message/key_message.h"
 
 using namespace urcl;
@@ -74,6 +75,75 @@ std::vector<uint8_t> makeRobotStatePacketWithConfigurationSubmessage(const std::
   offset += configuration_payload.size();
   assert(offset == packet.size());
   return packet;
+}
+
+// Masterboard payload sizes (not including packageSize + packageType header).
+// Base payload up to and including `immiInterfaceInstalled` flag.
+constexpr size_t kMasterboardPayloadBytesBeforeImmi = 2 * sizeof(uint32_t) +  // digital input/output bits
+                                                      2 * sizeof(uint8_t) +   // analog input ranges
+                                                      2 * sizeof(double) +    // analog inputs
+                                                      2 * sizeof(char) +      // analog output domains
+                                                      2 * sizeof(double) +    // analog outputs
+                                                      4 * sizeof(float) +     // temperature + voltages + currents
+                                                      sizeof(uint8_t) +       // safety mode
+                                                      sizeof(uint8_t) +       // in reduced mode (bool)
+                                                      sizeof(uint8_t);        // immi interface installed (bool)
+constexpr size_t kMasterboardOptionalImmiBytes = 2 * sizeof(uint32_t) + 2 * sizeof(float);
+constexpr size_t kMasterboardPayloadBytesAfterImmi = sizeof(uint32_t) +  // reserved
+                                                     sizeof(uint8_t) +   // operational mode selector input
+                                                     sizeof(uint8_t) +   // three position enabling device (bool)
+                                                     sizeof(uint8_t);    // reserved
+
+std::vector<uint8_t> makeRobotStatePacketWithMasterboardSubmessage(const std::vector<uint8_t>& masterboard_payload)
+{
+  const uint32_t sub_size = static_cast<uint32_t>(sizeof(uint32_t) + sizeof(uint8_t) + masterboard_payload.size());
+  const uint32_t total_packet_size = static_cast<uint32_t>(sizeof(int32_t) + sizeof(uint8_t) + sub_size);
+
+  std::vector<uint8_t> packet(total_packet_size);
+  size_t offset = 0;
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 24) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 16) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((total_packet_size >> 8) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(total_packet_size & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(primary_interface::RobotPackageType::ROBOT_STATE);
+
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 24) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 16) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>((sub_size >> 8) & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(sub_size & 0xFF);
+  packet[offset++] = static_cast<uint8_t>(primary_interface::RobotStateType::MASTERBOARD_DATA);
+
+  memcpy(packet.data() + offset, masterboard_payload.data(), masterboard_payload.size());
+  offset += masterboard_payload.size();
+  assert(offset == packet.size());
+  return packet;
+}
+
+// Helpers for big-endian serialization of primitive values used by masterboard payload tests.
+template <typename T>
+void appendBigEndian(std::vector<uint8_t>& buffer, T value)
+{
+  uint8_t bytes[sizeof(T)];
+  std::memcpy(bytes, &value, sizeof(T));
+  // Host may be little-endian; the UR wire format is big-endian.
+  for (size_t i = 0; i < sizeof(T); ++i)
+  {
+    buffer.push_back(bytes[sizeof(T) - 1 - i]);
+  }
+}
+
+void appendBigEndianDouble(std::vector<uint8_t>& buffer, double value)
+{
+  uint64_t inner;
+  std::memcpy(&inner, &value, sizeof(double));
+  appendBigEndian<uint64_t>(buffer, inner);
+}
+
+void appendBigEndianFloat(std::vector<uint8_t>& buffer, float value)
+{
+  uint32_t inner;
+  std::memcpy(&inner, &value, sizeof(float));
+  appendBigEndian<uint32_t>(buffer, inner);
 }
 }  // namespace
 
@@ -626,6 +696,116 @@ TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
   ASSERT_NE(config, nullptr);
   EXPECT_EQ(config->reserved_1_, static_cast<int16_t>(0x1234));
   EXPECT_EQ(config->reserved_2_, static_cast<int16_t>(0x5678));
+}
+
+TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)
+{
+  std::vector<uint8_t> payload;
+  payload.reserve(kMasterboardPayloadBytesBeforeImmi + kMasterboardPayloadBytesAfterImmi);
+
+  appendBigEndian<uint32_t>(payload, 0xDEADBEEFu);  // digital input bits
+  appendBigEndian<uint32_t>(payload, 0xCAFEBABEu);  // digital output bits
+  payload.push_back(0x01);                          // analog input range 0
+  payload.push_back(0x02);                          // analog input range 1
+  appendBigEndianDouble(payload, 1.5);              // analog input 0
+  appendBigEndianDouble(payload, -2.25);            // analog input 1
+  payload.push_back(0x03);                          // analog output domain 0
+  payload.push_back(0x04);                          // analog output domain 1
+  appendBigEndianDouble(payload, 3.75);             // analog output 0
+  appendBigEndianDouble(payload, -4.5);             // analog output 1
+  appendBigEndianFloat(payload, 42.0f);             // master board temperature
+  appendBigEndianFloat(payload, 48.1f);             // robot voltage 48V
+  appendBigEndianFloat(payload, 1.23f);             // robot current
+  appendBigEndianFloat(payload, 0.5f);              // master IO current
+  payload.push_back(0x01);                          // safety mode (NORMAL)
+  payload.push_back(0x00);                          // in reduced mode (false)
+  payload.push_back(0x00);                          // immi interface installed (false)
+  appendBigEndian<uint32_t>(payload, 0u);           // reserved
+  payload.push_back(0x02);                          // operational mode selector input
+  payload.push_back(0x01);                          // three position enabling device input (true)
+  payload.push_back(0x00);                          // reserved
+
+  ASSERT_EQ(payload.size(), kMasterboardPayloadBytesBeforeImmi + kMasterboardPayloadBytesAfterImmi);
+
+  std::vector<uint8_t> packet = makeRobotStatePacketWithMasterboardSubmessage(payload);
+  comm::BinParser bp(packet.data(), packet.size());
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  ASSERT_TRUE(parser_.parse(bp, products));
+  ASSERT_EQ(products.size(), 1u);
+
+  auto* data = dynamic_cast<primary_interface::MasterboardData*>(products[0].get());
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->digital_input_bits_, std::bitset<32>(0xDEADBEEFu));
+  EXPECT_EQ(data->digital_output_bits_, std::bitset<32>(0xCAFEBABEu));
+  EXPECT_EQ(data->analog_input_range_0_, 0x01);
+  EXPECT_EQ(data->analog_input_range_1_, 0x02);
+  EXPECT_DOUBLE_EQ(data->analog_input_0_, 1.5);
+  EXPECT_DOUBLE_EQ(data->analog_input_1_, -2.25);
+  EXPECT_EQ(static_cast<int>(data->analog_output_domain_0_), 0x03);
+  EXPECT_EQ(static_cast<int>(data->analog_output_domain_1_), 0x04);
+  EXPECT_DOUBLE_EQ(data->analog_output_0_, 3.75);
+  EXPECT_DOUBLE_EQ(data->analog_output_1_, -4.5);
+  EXPECT_FLOAT_EQ(data->master_board_temperature_, 42.0f);
+  EXPECT_FLOAT_EQ(data->robot_voltage_48v_, 48.1f);
+  EXPECT_FLOAT_EQ(data->robot_current_, 1.23f);
+  EXPECT_FLOAT_EQ(data->master_io_current_, 0.5f);
+  EXPECT_EQ(data->safety_mode_, 1);
+  EXPECT_FALSE(data->in_reduced_mode_);
+  EXPECT_FALSE(data->immi_interface_installed_);
+  EXPECT_EQ(data->operational_mode_selector_input_, 2);
+  EXPECT_TRUE(data->three_position_enabling_device_input_);
+}
+
+TEST_F(PrimaryParserTest, parse_masterboard_data_with_immi)
+{
+  std::vector<uint8_t> payload;
+  payload.reserve(kMasterboardPayloadBytesBeforeImmi + kMasterboardOptionalImmiBytes +
+                  kMasterboardPayloadBytesAfterImmi);
+
+  appendBigEndian<uint32_t>(payload, 0x00000001u);
+  appendBigEndian<uint32_t>(payload, 0x00000002u);
+  payload.push_back(0x00);
+  payload.push_back(0x00);
+  appendBigEndianDouble(payload, 0.0);
+  appendBigEndianDouble(payload, 0.0);
+  payload.push_back(0x00);
+  payload.push_back(0x00);
+  appendBigEndianDouble(payload, 0.0);
+  appendBigEndianDouble(payload, 0.0);
+  appendBigEndianFloat(payload, 20.0f);
+  appendBigEndianFloat(payload, 48.0f);
+  appendBigEndianFloat(payload, 0.0f);
+  appendBigEndianFloat(payload, 0.0f);
+  payload.push_back(0x02);                          // safety mode (REDUCED)
+  payload.push_back(0x01);                          // in reduced mode (true)
+  payload.push_back(0x01);                          // immi interface installed (true)
+  appendBigEndian<uint32_t>(payload, 0x11112222u);  // immi input bits
+  appendBigEndian<uint32_t>(payload, 0x33334444u);  // immi output bits
+  appendBigEndianFloat(payload, 24.0f);             // immi voltage 24V
+  appendBigEndianFloat(payload, 0.75f);             // immi current
+  appendBigEndian<uint32_t>(payload, 0u);           // reserved
+  payload.push_back(0x00);
+  payload.push_back(0x00);
+  payload.push_back(0x00);
+
+  ASSERT_EQ(payload.size(),
+            kMasterboardPayloadBytesBeforeImmi + kMasterboardOptionalImmiBytes + kMasterboardPayloadBytesAfterImmi);
+
+  std::vector<uint8_t> packet = makeRobotStatePacketWithMasterboardSubmessage(payload);
+  comm::BinParser bp(packet.data(), packet.size());
+  std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+  ASSERT_TRUE(parser_.parse(bp, products));
+  ASSERT_EQ(products.size(), 1u);
+
+  auto* data = dynamic_cast<primary_interface::MasterboardData*>(products[0].get());
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->safety_mode_, 2);
+  EXPECT_TRUE(data->in_reduced_mode_);
+  EXPECT_TRUE(data->immi_interface_installed_);
+  EXPECT_EQ(data->immi_input_bits_, std::bitset<32>(0x11112222u));
+  EXPECT_EQ(data->immi_output_bits_, std::bitset<32>(0x33334444u));
+  EXPECT_FLOAT_EQ(data->immi_voltage_24v_, 24.0f);
+  EXPECT_FLOAT_EQ(data->immi_current_, 0.75f);
 }
 
 int main(int argc, char* argv[])

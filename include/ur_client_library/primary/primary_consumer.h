@@ -30,6 +30,7 @@
 
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/primary/robot_state/masterboard_data.h"
 #include "ur_client_library/ur/datatypes.h"
 #include "ur_client_library/ur/version_information.h"
 
@@ -186,6 +187,20 @@ public:
   }
 
   /*!
+   * \brief Handle a MasterboardData package
+   *
+   * \param pkg MasterboardData
+   *
+   * \returns True
+   */
+  virtual bool consume(MasterboardData& pkg) override
+  {
+    std::scoped_lock lock(masterboard_data_mutex_);
+    masterboard_data_ = std::make_shared<MasterboardData>(pkg);
+    return true;
+  }
+
+  /*!
    * \brief Set callback function which will be triggered whenever error code messages are received
    *
    * \param callback_function Function handling the event information. The error code message received is passed to the
@@ -267,6 +282,8 @@ private:
   std::mutex configuration_data_mutex_;
   std::mutex safety_mode_mutex_;
   std::shared_ptr<SafetyModeMessage> safety_mode_;
+  std::mutex masterboard_data_mutex_;
+  std::shared_ptr<MasterboardData> masterboard_data_;
 };
 
 }  // namespace primary_interface
