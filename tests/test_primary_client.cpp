@@ -39,7 +39,6 @@
 #include <thread>
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
-#include "ur_client_library/ur/dashboard_client.h"
 
 using namespace urcl;
 
@@ -204,21 +203,10 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
 
 TEST_F(PrimaryClientTest, test_stop_command)
 {
-  EXPECT_NO_THROW(client_->start());
-  auto version = client_->getRobotVersion();
-  urcl::DashboardClient::ClientPolicy policy = urcl::DashboardClient::ClientPolicy::G5;
-  std::string polyscope_prog_name = "wait_program.urp";
-  if (version->major == 10)
-  {
-    policy = urcl::DashboardClient::ClientPolicy::POLYSCOPE_X;
-    polyscope_prog_name = "wait_program";
-  }
-  auto dashboard_client_ = DashboardClient("192.168.56.101", policy);
-
-  ASSERT_TRUE(dashboard_client_.connect());
   // Without started communication the latest robot mode data is a nullptr
   EXPECT_THROW(client_->commandStop(), UrException);
 
+  EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
 
@@ -230,8 +218,7 @@ TEST_F(PrimaryClientTest, test_stop_command)
                                   "  end\n"
                                   "end";
 
-  EXPECT_TRUE(dashboard_client_.commandLoadProgram(polyscope_prog_name));
-  EXPECT_TRUE(dashboard_client_.commandPlay());
+  EXPECT_TRUE(client_->sendScript(script_code));
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
 
   EXPECT_NO_THROW(client_->commandStop());
@@ -240,7 +227,7 @@ TEST_F(PrimaryClientTest, test_stop_command)
   // Without a program running it should not throw an exception
   EXPECT_NO_THROW(client_->commandStop());
 
-  EXPECT_TRUE(dashboard_client_.commandPlay());
+  EXPECT_TRUE(client_->sendScript(script_code));
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
   EXPECT_THROW(client_->commandStop(true, std::chrono::milliseconds(1)), TimeoutException);
   EXPECT_NO_THROW(waitFor(
@@ -250,7 +237,7 @@ TEST_F(PrimaryClientTest, test_stop_command)
       std::chrono::seconds(5)));
 
   // without validation
-  EXPECT_TRUE(dashboard_client_.commandPlay());
+  EXPECT_TRUE(client_->sendScript(script_code));
   waitFor([this]() { return client_->getRobotModeData()->is_program_running_; }, std::chrono::seconds(5));
   EXPECT_NO_THROW(client_->commandStop(false));
   EXPECT_NO_THROW(waitFor(
@@ -433,25 +420,26 @@ TEST_F(PrimaryClientTest, test_send_script_happy_path)
                                            "  sleep(0.1)\n"
                                            "  sync()\n"
                                            "end";
-  EXPECT_TRUE(client_->sendScript(fully_defined_script));
+  EXPECT_TRUE(client_->sendScriptBlocking(fully_defined_script));
 
   const std::string part_defined_script = "textmsg(\"still running\")\n"
                                           "sleep(0.1)\n"
                                           "sync()\n";
-  EXPECT_TRUE(client_->sendScript(part_defined_script));
-  EXPECT_TRUE(client_->sendScript(part_defined_script, "test_def", urcl::primary_interface::DEF));
-  EXPECT_TRUE(client_->sendScript("textmsg(\"Still running\")", "test_sec", urcl::primary_interface::SEC));
+  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script));
+  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script, "test_def"));
+  std::string sec_script = "sec test_sec():\n  textmsg(\"Still running\")\nend";
+  EXPECT_TRUE(client_->sendScriptBlocking(sec_script, "test_sec"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_fails_on_nonrunning_robot)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
-  EXPECT_FALSE(client_->sendScript("textmsg(\"Still running\")"));
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
   EXPECT_NO_THROW(client_->commandPowerOn());
-  EXPECT_FALSE(client_->sendScript("textmsg(\"Still running\")"));
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
   EXPECT_NO_THROW(client_->commandBrakeRelease());
-  EXPECT_TRUE(client_->sendScript("textmsg(\"Still running\")"));
+  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_fails_on_bad_safety_mode)
@@ -460,10 +448,10 @@ TEST_F(PrimaryClientTest, test_send_script_fails_on_bad_safety_mode)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   ASSERT_TRUE(client_->safetyModeAllowsExecution());
-  EXPECT_FALSE(client_->sendScript("protective_stop()"));
-  EXPECT_FALSE(client_->sendScript("textmsg(\"Still running\")"));
+  EXPECT_FALSE(client_->sendScriptBlocking("protective_stop()"));
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
   EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
-  EXPECT_TRUE(client_->sendScript("textmsg(\"Still running\")"));
+  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
 TEST_F(PrimaryClientTest, test_throw_on_malformed_scripts)
@@ -471,12 +459,12 @@ TEST_F(PrimaryClientTest, test_throw_on_malformed_scripts)
   EXPECT_NO_THROW(client_->start());
   const std::string script_no_end = "def test_fun():\n"
                                     "  textmsg(\"testing\")";
-  EXPECT_THROW(client_->sendScript(script_no_end), urcl::ScriptCodeSyntaxException);
+  EXPECT_THROW(client_->sendScriptBlocking(script_no_end), urcl::ScriptCodeSyntaxException);
   const std::string script_bad_name = "def 7_eight_9():\n"
-                                      "  textmsg(\"testing\")"
+                                      "  textmsg(\"testing\")\n"
                                       "end";
-  EXPECT_THROW(client_->sendScript(script_bad_name), urcl::ScriptCodeSyntaxException);
-  EXPECT_THROW(client_->sendScript("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
+  EXPECT_THROW(client_->sendScriptBlocking(script_bad_name), urcl::ScriptCodeSyntaxException);
+  EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
 }
 
 TEST_F(PrimaryClientTest, test_fail_on_runtime_exception)
@@ -485,7 +473,7 @@ TEST_F(PrimaryClientTest, test_fail_on_runtime_exception)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Non-invertible goal, should throw runtime exception
-  EXPECT_FALSE(client_->sendScript("movej(p[0,0,0,0,0,0])"));
+  EXPECT_FALSE(client_->sendScriptBlocking("movej(p[0,0,0,0,0,0])"));
 }
 
 TEST_F(PrimaryClientTest, test_fail_on_robot_errors)
@@ -494,10 +482,10 @@ TEST_F(PrimaryClientTest, test_fail_on_robot_errors)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Impossible movement, will trigger an error and protective stop
-  EXPECT_FALSE(client_->sendScript("movel(p[0,0,0,0,0,0])"));
+  EXPECT_FALSE(client_->sendScriptBlocking("movel(p[0,0,0,0,0,0])"));
   // reset the robot
   client_->commandUnlockProtectiveStop();
-  EXPECT_TRUE(client_->sendScript("movej([0,0,0,0,0,0])"));
+  EXPECT_TRUE(client_->sendScriptBlocking("movej([0,0,0,0,0,0])"));
 }
 
 int main(int argc, char* argv[])
