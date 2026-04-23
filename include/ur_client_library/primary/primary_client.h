@@ -103,6 +103,27 @@ public:
    */
   bool sendScript(const std::string& program);
 
+  /*!
+   * \brief Send a custom script program to the robot, and wait for the execution result.
+   *
+   * The given code must be valid according the UR Scripting Manual. The given script code will be automatically wrapped
+   * in a function definition, if it is not already. Secondary programs can also be passed to this function, but must be
+   * fully defined as a secondary program when calling. Secondary programs create no feedback, so this function will
+   * return true as soon as the program is uploaded successfully to the robot (same as the sendScript function).
+   *
+   * \param program URScript code that shall be executed by the robot.
+   *
+   * \param script_name Name of the script to be executed. This will be ignored, if the given script already defines a
+   * function name. The script name will be used in log messages in both the client library and in the robot logs. If no
+   * name is defined in any way, the script will be given a generic, but unique, name.
+   *
+   * \param timeout Amount of time to allow before the robot must have confirmed that the script has been started. If
+   * timeout is 0, it will be ignored. Default value: 1 second
+   *
+   * \throw urcl::ScriptCodeSyntaxException if the given script code has syntax errors, which are checked here.
+   *
+   * \returns true on successful execution of the script, false otherwise
+   */
   bool sendScriptBlocking(const std::string& program, std::string script_name = "",
                           std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
