@@ -33,11 +33,11 @@ private:
 
   std::thread send_thread_;
 
-  virtual void connectionCallback(const socket_t filedescriptor);
+  void connectionCallback(const socket_t filedescriptor);
 
-  virtual void disconnectionCallback(const socket_t filedescriptor);
+  void disconnectionCallback(const socket_t filedescriptor);
 
-  virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
+  void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
   void sendDataLoop();
   std::atomic<bool> send_loop_running_;
