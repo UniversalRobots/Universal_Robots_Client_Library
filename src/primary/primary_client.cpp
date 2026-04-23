@@ -142,10 +142,10 @@ bool PrimaryClient::safetyModeAllowsExecution()
   }
 }
 
-bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name, ScriptTypes script_type,
+bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
                                        std::chrono::milliseconds timeout)
 {
-  ScriptInfo script_info = prepare_script(program, script_name, script_type);
+  ScriptInfo script_info = prepare_script(program, script_name);
 
   RobotMode robot_mode = getRobotMode();
   while (robot_mode == RobotMode::UNKNOWN)
@@ -307,7 +307,7 @@ std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vecto
   return stripped_script;
 }
 
-ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name, ScriptTypes script_type)
+ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name)
 {
   // Split the given script in to separate lines
   std::vector<std::string> split_script = splitString(script, "\n");
@@ -320,24 +320,12 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
   std::string actual_script_name = script_name.size() != 0 ? script_name : "script_" + std::to_string(current_time);
-  ScriptTypes actual_script_type = script_type;
+  ScriptTypes actual_script_type = urcl::primary_interface::ScriptTypes::DEF;
   // Is the script wrapped in a function definition? If not add one
   if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
       stripped_script[0].substr(0, 4).find("sec ") == script.npos)
   {
-    // Assign appropriate type
-    std::string type;
-    switch (script_type)
-    {
-      case ScriptTypes::DEF:
-        type = "def";
-        break;
-      case ScriptTypes::SEC:
-        type = "sec";
-        break;
-    }
-
-    std::string definition = type + " " + actual_script_name + "():";
+    std::string definition = "def " + actual_script_name + "():";
     std::string end = "end";
     // Add indentation to the existing script code
     for (std::size_t i = 0; i < stripped_script.size(); i++)
