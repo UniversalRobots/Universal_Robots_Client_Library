@@ -101,8 +101,11 @@ public:
    *
    * \returns true on successful upload, false otherwise.
    */
-  bool sendScript(const std::string& program, std::string script_name = "", ScriptTypes script_type = ScriptTypes::DEF,
-                  std::chrono::milliseconds timeout = std::chrono::seconds(1));
+  bool sendScript(const std::string& program);
+
+  bool sendScriptBlocking(const std::string& program, std::string script_name = "",
+                          ScriptTypes script_type = ScriptTypes::DEF,
+                          std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
   bool checkCalibration(const std::string& checksum);
 
@@ -308,8 +311,6 @@ private:
   void errorMessageCallback(ErrorCode& code);
   void keyMessageCallback(KeyMessage& msg);
   void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
-
-  bool sendScriptNoWrapping(const std::string& program);
 
   ScriptInfo prepare_script(std::string script, std::string script_name, ScriptTypes script_type);
   std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
