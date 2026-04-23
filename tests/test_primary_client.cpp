@@ -373,7 +373,7 @@ TEST_F(PrimaryClientTest, test_program_execution_reports_exception)
                                   "  calldoesntexist()\n"
                                   "end";
 
-  EXPECT_FALSE(client_->sendScript(script_code));
+  EXPECT_TRUE(client_->sendScript(script_code));
 
   {  // we get a RuntimeException message saying that out function doesn't exist
     bool answer_received = false;
@@ -409,7 +409,7 @@ TEST_F(PrimaryClientTest, test_read_safety_mode)
   EXPECT_EQ(client_->getSafetyMode(), urcl::SafetyMode::NORMAL);
 }
 
-TEST_F(PrimaryClientTest, test_send_script_happy_path)
+TEST_F(PrimaryClientTest, test_send_script_blocking_happy_path)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
@@ -431,7 +431,7 @@ TEST_F(PrimaryClientTest, test_send_script_happy_path)
   EXPECT_TRUE(client_->sendScriptBlocking(sec_script, "test_sec"));
 }
 
-TEST_F(PrimaryClientTest, test_send_script_fails_on_nonrunning_robot)
+TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_nonrunning_robot)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
@@ -442,19 +442,20 @@ TEST_F(PrimaryClientTest, test_send_script_fails_on_nonrunning_robot)
   EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
-TEST_F(PrimaryClientTest, test_send_script_fails_on_bad_safety_mode)
+TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_bad_safety_mode)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   ASSERT_TRUE(client_->safetyModeAllowsExecution());
+
   EXPECT_FALSE(client_->sendScriptBlocking("protective_stop()"));
   EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
   EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
   EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
-TEST_F(PrimaryClientTest, test_throw_on_malformed_scripts)
+TEST_F(PrimaryClientTest, test_send_script_blocking_throw_on_malformed_scripts)
 {
   EXPECT_NO_THROW(client_->start());
   const std::string script_no_end = "def test_fun():\n"
@@ -467,7 +468,7 @@ TEST_F(PrimaryClientTest, test_throw_on_malformed_scripts)
   EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
 }
 
-TEST_F(PrimaryClientTest, test_fail_on_runtime_exception)
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
@@ -476,7 +477,7 @@ TEST_F(PrimaryClientTest, test_fail_on_runtime_exception)
   EXPECT_FALSE(client_->sendScriptBlocking("movej(p[0,0,0,0,0,0])"));
 }
 
-TEST_F(PrimaryClientTest, test_fail_on_robot_errors)
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
