@@ -71,7 +71,6 @@ bool urcl::InstructionExecutor::executeMotion(
   {
     try
     {
-      URCL_LOG_INFO("Sending motion primitive of type %d to robot", static_cast<int>(primitive->type));
       driver_->writeMotionPrimitive(primitive);
     }
     catch (const UnsupportedMotionType&)

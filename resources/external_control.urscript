@@ -561,7 +561,6 @@ thread trajectoryThread():
       end
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ:
-        textmsg("movej")
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -570,7 +569,6 @@ thread trajectoryThread():
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ_POSE:
-        textmsg("movej_pose")
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -581,7 +579,6 @@ thread trajectoryThread():
 
         # Movel point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL:
-        textmsg("movel")
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
@@ -590,7 +587,6 @@ thread trajectoryThread():
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL_JOINT:
-        textmsg("movel_q")
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movel([q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)

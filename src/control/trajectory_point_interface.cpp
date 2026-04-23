@@ -188,7 +188,6 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       break;
     }
     default:
-      URCL_LOG_ERROR("Unsupported motion type %d", primitive->type);
       throw UnsupportedMotionType();
   }
 
