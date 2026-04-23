@@ -104,7 +104,6 @@ public:
   bool sendScript(const std::string& program);
 
   bool sendScriptBlocking(const std::string& program, std::string script_name = "",
-                          ScriptTypes script_type = ScriptTypes::DEF,
                           std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
   bool checkCalibration(const std::string& checksum);
@@ -312,7 +311,7 @@ private:
   void keyMessageCallback(KeyMessage& msg);
   void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
 
-  ScriptInfo prepare_script(std::string script, std::string script_name, ScriptTypes script_type);
+  ScriptInfo prepare_script(std::string script, std::string script_name);
   std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
 
   PrimaryParser parser_;
