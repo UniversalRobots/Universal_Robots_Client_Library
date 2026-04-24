@@ -578,7 +578,7 @@ thread trajectoryThread():
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         movej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
- 
+
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
@@ -595,12 +595,12 @@ thread trajectoryThread():
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL_JOINT:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
-        movel([q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
+        movel(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
-        
+
       # MoveP point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP:
         acceleration = raw_point[13] / MULT_jointstate
@@ -711,7 +711,7 @@ thread trajectoryThread():
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL or raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL_JOINT:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
-        
+
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
@@ -766,8 +766,8 @@ thread clearTrajectoryPointsThread():
     limit = 20
   {% else %}
     limit = 10
-  {% endif %}  
-  
+  {% endif %}
+
   while trajectory_points_left > 0:
     raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
     if raw_point[0] <= 0:
@@ -778,7 +778,7 @@ thread clearTrajectoryPointsThread():
     trajectory_points_left = trajectory_points_left - 1
     reads = reads + 1
     if reads >= limit:
-      sync()            
+      sync()
       reads = 0
     end
   end
@@ -999,17 +999,17 @@ end
 
 # NODE_CONTROL_LOOP_BEGINS
 
-# Attempt to establish the three required socket connections, if at least one socket is still disconnected, 
+# Attempt to establish the three required socket connections, if at least one socket is still disconnected,
 # a popup is shown and the loop continues until all three flags are True.
 traj_flag = False
 com_flag = False
 rev_flag = False
 while not (traj_flag and com_flag and rev_flag):
-  if not traj_flag: 
+  if not traj_flag:
     traj_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{TRAJECTORY_SERVER_PORT_REPLACE}}, "trajectory_socket")
   end
 
-  if traj_flag and not com_flag: 
+  if traj_flag and not com_flag:
     com_flag = connect_socket_with_retry("{{SERVER_IP_REPLACE}}", {{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}, "script_command_socket")
   end
 
@@ -1052,7 +1052,7 @@ while control_mode > MODE_STOPPED:
   if params_mult[0] > 0:
 
     # Convert read timeout from milliseconds to seconds
-    read_timeout = params_mult[1] / 1000.0 
+    read_timeout = params_mult[1] / 1000.0
 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points

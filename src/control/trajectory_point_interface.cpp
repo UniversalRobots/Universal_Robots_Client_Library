@@ -104,7 +104,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       }
       else
       {
-        throw InvalidData("Motion type does not match motion primitive type.");
+        throw InvalidData("Motion type " + motionTypeToString(movej_primitive->type) +
+                          " is not allowed in a MoveJPrimitive.");
       }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
@@ -126,7 +127,8 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       }
       else
       {
-        throw InvalidData("Motion type does not match motion primitive type.");
+        throw InvalidData("Motion type " + motionTypeToString(movel_primitive->type) +
+                          " is not allowed in a MoveLPrimitive.");
       }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
@@ -145,6 +147,11 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       else if (movep_primitive->type == MotionType::MOVEP_JOINT)
       {
         first_block = movep_primitive->target_joint_configuration;
+      }
+      else
+      {
+        throw InvalidData("Motion type " + motionTypeToString(movep_primitive->type) +
+                          " is not allowed in a MovePPrimitive.");
       }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
@@ -184,6 +191,11 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
                          movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
                          movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
       }
+      else
+      {
+        throw InvalidData("Motion type " + motionTypeToString(movec_primitive->type) +
+                          " is not allowed in a MoveCPrimitive.");
+      }
       third_block = {
         primitive->velocity, primitive->acceleration, static_cast<double>(movec_primitive->mode), 0, 0, 0
       };
@@ -214,6 +226,11 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
                         optimovej_primitive->target_pose.z,  optimovej_primitive->target_pose.rx,
                         optimovej_primitive->target_pose.ry, optimovej_primitive->target_pose.rz };
       }
+      else
+      {
+        throw InvalidData("Motion type " + motionTypeToString(optimovej_primitive->type) +
+                          " is not allowed in an OptimoveJPrimitive.");
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -231,6 +248,11 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       else if (optimovel_primitive->type == MotionType::OPTIMOVEL_JOINT)
       {
         first_block = optimovel_primitive->target_joint_configuration;
+      }
+      else
+      {
+        throw InvalidData("Motion type " + motionTypeToString(optimovel_primitive->type) +
+                          " is not allowed in an OptimoveLPrimitive.");
       }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);

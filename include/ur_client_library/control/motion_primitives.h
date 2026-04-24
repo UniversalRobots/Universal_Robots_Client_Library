@@ -34,7 +34,6 @@
 #include <chrono>
 #include <optional>
 #include <variant>
-#include "ur_client_library/exceptions.h"
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -75,6 +74,45 @@ enum class MotionType : uint8_t
   SPLINE = 51,
   UNKNOWN = 255
 };
+
+inline std::string motionTypeToString(const MotionType type)
+{
+  switch (type)
+  {
+    case MotionType::MOVEJ:
+      return "MOVEJ";
+    case MotionType::MOVEL:
+      return "MOVEL";
+    case MotionType::MOVEP:
+      return "MOVEP";
+    case MotionType::MOVEC:
+      return "MOVEC";
+    case MotionType::OPTIMOVEJ:
+      return "OPTIMOVEJ";
+    case MotionType::OPTIMOVEL:
+      return "OPTIMOVEL";
+    case MotionType::MOVEJ_POSE:
+      return "MOVEJ_POSE";
+    case MotionType::MOVEL_JOINT:
+      return "MOVEL_JOINT";
+    case MotionType::MOVEP_JOINT:
+      return "MOVEP_JOINT";
+    case MotionType::MOVEC_JOINT:
+      return "MOVEC_JOINT";
+    case MotionType::MOVEC_JOINT_POSE:
+      return "MOVEC_JOINT_POSE";
+    case MotionType::MOVEC_POSE_JOINT:
+      return "MOVEC_POSE_JOINT";
+    case MotionType::OPTIMOVEJ_POSE:
+      return "OPTIMOVEJ_POSE";
+    case MotionType::OPTIMOVEL_JOINT:
+      return "OPTIMOVEL_JOINT";
+    case MotionType::SPLINE:
+      return "SPLINE";
+    default:
+      return "UNKNOWN";
+  }
+}
 
 /*!
  * Spline types
@@ -144,8 +182,8 @@ struct MoveJPrimitive : public MotionPrimitive
         target);
   }
 
-  urcl::vector6d_t target_joint_configuration;
-  urcl::Pose target_pose;
+  urcl::vector6d_t target_joint_configuration{};
+  urcl::Pose target_pose{};
 };
 
 struct MoveLPrimitive : public MotionPrimitive
@@ -195,8 +233,8 @@ struct MoveLPrimitive : public MotionPrimitive
         target);
   }
 
-  urcl::Pose target_pose;
-  urcl::vector6d_t target_joint_configuration;
+  urcl::Pose target_pose{};
+  urcl::vector6d_t target_joint_configuration{};
 };
 
 struct MovePPrimitive : public MotionPrimitive
@@ -239,8 +277,8 @@ struct MovePPrimitive : public MotionPrimitive
     this->blend_radius = blend_radius;
   }
 
-  urcl::Pose target_pose;
-  urcl::vector6d_t target_joint_configuration;
+  urcl::Pose target_pose{};
+  urcl::vector6d_t target_joint_configuration{};
 };
 
 struct MoveCPrimitive : public MotionPrimitive
@@ -261,73 +299,62 @@ struct MoveCPrimitive : public MotionPrimitive
    * \brief Construct a MoveC primitive from two \ref urcl::MotionTarget values.
    *
    * Every combination of \ref urcl::Pose and \ref urcl::Q for the via point and the target is
-   * supported and mapped to the corresponding \ref MotionType (``MOVEC``,
-   * ``MOVEC_JOINT``, ``MOVEC_POSE_JOINT``, or ``MOVEC_JOINT_POSE``). When a joint configuration
-   * is used for either role, only the corresponding joint member is populated and the pose
-   * member is set to a default-constructed \ref urcl::Pose.
+   * supported and mapped to the corresponding \ref MotionType (``MOVEC``, ``MOVEC_JOINT``,
+   * ``MOVEC_POSE_JOINT``, or ``MOVEC_JOINT_POSE``). The naming convention is
+   * ``MOVEC_<target>_<via>``, i.e. ``MOVEC_POSE_JOINT`` denotes a movec whose target is a pose
+   * and whose via point is a joint configuration.
    *
-   * \throws urcl::UrException if either variant is ever extended with an alternative that is
-   * not handled here.
+   * Unhandled variant alternatives are caught at compile time via ``static_assert``.
    */
   MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius = 0,
                  const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
   {
-    if (std::holds_alternative<Q>(via_point))
-    {
-      if (std::holds_alternative<Q>(target))
-      {
-        type = MotionType::MOVEC_JOINT;
-        via_point_pose = urcl::Pose();
-        target_pose = urcl::Pose();
-        via_point_joint_configuration = std::get<Q>(via_point).values;
-        target_joint_configuration = std::get<Q>(target).values;
-      }
-      else if (std::holds_alternative<urcl::Pose>(target))
-      {
-        type = MotionType::MOVEC_POSE_JOINT;
-        via_point_pose = urcl::Pose();
-        target_pose = std::get<urcl::Pose>(target);
-        via_point_joint_configuration = std::get<Q>(via_point).values;
-      }
-      else
-      {
-        throw urcl::UrException("Unhandled motion target type for target point passed to MoveCPrimitive constructor");
-      }
-    }
-    else if (std::holds_alternative<urcl::Pose>(via_point))
-    {
-      if (std::holds_alternative<Q>(target))
-      {
-        type = MotionType::MOVEC_JOINT_POSE;
-        via_point_pose = std::get<urcl::Pose>(via_point);
-        target_pose = urcl::Pose();
-        target_joint_configuration = std::get<Q>(target).values;
-      }
-      else if (std::holds_alternative<urcl::Pose>(target))
-      {
-        type = MotionType::MOVEC;
-        via_point_pose = std::get<urcl::Pose>(via_point);
-        target_pose = std::get<urcl::Pose>(target);
-      }
-      else
-      {
-        throw urcl::UrException("Unhandled motion target type for target point passed to MoveCPrimitive constructor");
-      }
-    }
-    else
-    {
-      throw urcl::UrException("Unhandled motion target type for via_point passed to MoveCPrimitive constructor");
-    }
+    std::visit(
+        [&](const auto& via_variant, const auto& target_variant) {
+          using ViaT = std::decay_t<decltype(via_variant)>;
+          using TargetT = std::decay_t<decltype(target_variant)>;
+          static_assert(std::is_same_v<ViaT, Q> || std::is_same_v<ViaT, urcl::Pose>, "Unhandled MotionTarget "
+                                                                                     "alternative for via_point");
+          static_assert(std::is_same_v<TargetT, Q> || std::is_same_v<TargetT, urcl::Pose>, "Unhandled MotionTarget "
+                                                                                           "alternative for target");
+
+          if constexpr (std::is_same_v<ViaT, urcl::Pose> && std::is_same_v<TargetT, urcl::Pose>)
+          {
+            type = MotionType::MOVEC;
+            via_point_pose = via_variant;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<ViaT, Q> && std::is_same_v<TargetT, Q>)
+          {
+            type = MotionType::MOVEC_JOINT;
+            via_point_joint_configuration = via_variant.values;
+            target_joint_configuration = target_variant.values;
+          }
+          else if constexpr (std::is_same_v<ViaT, Q> && std::is_same_v<TargetT, urcl::Pose>)
+          {
+            type = MotionType::MOVEC_POSE_JOINT;
+            via_point_joint_configuration = via_variant.values;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<ViaT, urcl::Pose> && std::is_same_v<TargetT, Q>)
+          {
+            type = MotionType::MOVEC_JOINT_POSE;
+            via_point_pose = via_variant;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        via_point, target);
+
     this->acceleration = acceleration;
     this->velocity = velocity;
     this->blend_radius = blend_radius;
     this->mode = mode;
   }
 
-  urcl::Pose via_point_pose;
-  urcl::Pose target_pose;
-  urcl::vector6d_t via_point_joint_configuration;
-  urcl::vector6d_t target_joint_configuration;
+  urcl::Pose via_point_pose{};
+  urcl::Pose target_pose{};
+  urcl::vector6d_t via_point_joint_configuration{};
+  urcl::vector6d_t target_joint_configuration{};
   int32_t mode = 0;
 };
 
@@ -406,8 +433,8 @@ struct OptimoveJPrimitive : public MotionPrimitive
 
   bool validate() const override;
 
-  urcl::vector6d_t target_joint_configuration;
-  Pose target_pose;
+  urcl::vector6d_t target_joint_configuration{};
+  Pose target_pose{};
 };
 
 struct OptimoveLPrimitive : public MotionPrimitive
@@ -452,8 +479,8 @@ struct OptimoveLPrimitive : public MotionPrimitive
 
   bool validate() const override;
 
-  urcl::Pose target_pose;
-  vector6d_t target_joint_configuration;
+  urcl::Pose target_pose{};
+  vector6d_t target_joint_configuration{};
 };
 }  // namespace control
 }  // namespace urcl

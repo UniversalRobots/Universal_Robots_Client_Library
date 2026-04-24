@@ -50,6 +50,9 @@ struct Q
   constexpr Q(double q1, double q2, double q3, double q4, double q5, double q6) : values{ q1, q2, q3, q4, q5, q6 }
   {
   }
+  explicit constexpr Q(const vector6d_t& values) : values(values)
+  {
+  }
 
   vector6d_t values;
 };
