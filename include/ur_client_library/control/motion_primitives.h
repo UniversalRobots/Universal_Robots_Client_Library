@@ -42,22 +42,36 @@ namespace urcl
 namespace control
 {
 
+/*!
+ * \brief Discriminator for the motion primitive type sent over the trajectory interface.
+ *
+ * The base values (``MOVEJ``, ``MOVEL``, ``MOVEP``, ``MOVEC``, ``OPTIMOVEJ``, ``OPTIMOVEL``) use
+ * their "natural" target type for the URScript command (joint configuration for ``movej`` /
+ * ``optimovej``, Cartesian pose for ``movel`` / ``movep`` / ``movec`` / ``optimovel``). The
+ * additional ``*_POSE`` and ``*_JOINT`` entries indicate that the *other* target kind was
+ * requested, e.g. ``MOVEJ_POSE`` performs a ``movej`` towards a Cartesian pose, and
+ * ``MOVEC_POSE_JOINT`` performs a ``movec`` whose via point is a Cartesian pose and whose target
+ * is a joint configuration.
+ *
+ * These values must stay in sync with the ``MOTION_TYPE_*`` constants in
+ * ``resources/external_control.urscript``.
+ */
 enum class MotionType : uint8_t
 {
-  MOVEJ = 0,
-  MOVEL = 1,
-  MOVEP = 2,
-  MOVEC = 3,
-  OPTIMOVEJ = 4,
-  OPTIMOVEL = 5,
-  MOVEJ_POSE = 6,
-  MOVEL_JOINT = 7,
-  MOVEP_JOINT = 8,
-  MOVEC_JOINT = 9,
-  MOVEC_JOINT_POSE = 10,
-  MOVEC_POSE_JOINT = 11,
-  OPTIMOVEJ_POSE = 12,
-  OPTIMOVEL_JOINT = 13,
+  MOVEJ = 0,              //!< ``movej`` towards a joint configuration.
+  MOVEL = 1,              //!< ``movel`` towards a Cartesian pose.
+  MOVEP = 2,              //!< ``movep`` towards a Cartesian pose.
+  MOVEC = 3,              //!< ``movec`` with via and target as Cartesian poses.
+  OPTIMOVEJ = 4,          //!< ``optimovej`` towards a joint configuration.
+  OPTIMOVEL = 5,          //!< ``optimovel`` towards a Cartesian pose.
+  MOVEJ_POSE = 6,         //!< ``movej`` towards a Cartesian pose.
+  MOVEL_JOINT = 7,        //!< ``movel`` towards a joint configuration.
+  MOVEP_JOINT = 8,        //!< ``movep`` towards a joint configuration.
+  MOVEC_JOINT = 9,        //!< ``movec`` with via and target both as joint configurations.
+  MOVEC_JOINT_POSE = 10,  //!< ``movec`` with a Cartesian via and a joint target.
+  MOVEC_POSE_JOINT = 11,  //!< ``movec`` with a joint via and a Cartesian target.
+  OPTIMOVEJ_POSE = 12,    //!< ``optimovej`` towards a Cartesian pose.
+  OPTIMOVEL_JOINT = 13,   //!< ``optimovel`` towards a joint configuration.
   SPLINE = 51,
   UNKNOWN = 255
 };
@@ -96,6 +110,14 @@ struct MoveJPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
+  /*!
+   * \brief Construct a MoveJ primitive from a \ref urcl::MotionTarget.
+   *
+   * If ``target`` holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEJ and
+   * ``target_joint_configuration`` is populated. If ``target`` holds a \ref urcl::Pose, ``type``
+   * is set to \ref MotionType::MOVEJ_POSE and ``target_pose`` is populated instead; the robot
+   * will internally solve inverse kinematics to reach the pose with a ``movej``.
+   */
   MoveJPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
                  const double acceleration = 1.4, const double velocity = 1.04)
@@ -139,6 +161,15 @@ struct MoveLPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
+  /*!
+   * \brief Construct a MoveL primitive from a \ref urcl::MotionTarget.
+   *
+   * If ``target`` holds a \ref urcl::Pose, ``type`` is set to \ref MotionType::MOVEL. If it
+   * holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEL_JOINT and the configuration
+   * is stored in ``target_joint_configuration``. The robot will still execute a tool-space
+   * linear motion, resolving the joint configuration to its forward kinematics pose on the
+   * controller.
+   */
   MoveLPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
                  const double acceleration = 1.4, const double velocity = 1.04)
@@ -179,6 +210,12 @@ struct MovePPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
+  /*!
+   * \brief Construct a MoveP primitive from a \ref urcl::MotionTarget.
+   *
+   * Analogous to \ref MoveJPrimitive / \ref MoveLPrimitive: a \ref urcl::Pose selects
+   * \ref MotionType::MOVEP, a \ref urcl::Q selects \ref MotionType::MOVEP_JOINT.
+   */
   MovePPrimitive(const MotionTarget& target, const double blend_radius = 0, const double acceleration = 1.4,
                  const double velocity = 1.04)
   {
@@ -220,6 +257,18 @@ struct MoveCPrimitive : public MotionPrimitive
     this->mode = mode;
   }
 
+  /*!
+   * \brief Construct a MoveC primitive from two \ref urcl::MotionTarget values.
+   *
+   * Every combination of \ref urcl::Pose and \ref urcl::Q for the via point and the target is
+   * supported and mapped to the corresponding \ref MotionType (``MOVEC``,
+   * ``MOVEC_JOINT``, ``MOVEC_POSE_JOINT``, or ``MOVEC_JOINT_POSE``). When a joint configuration
+   * is used for either role, only the corresponding joint member is populated and the pose
+   * member is set to a default-constructed \ref urcl::Pose.
+   *
+   * \throws urcl::UrException if either variant is ever extended with an alternative that is
+   * not handled here.
+   */
   MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius = 0,
                  const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
   {
@@ -326,6 +375,12 @@ struct OptimoveJPrimitive : public MotionPrimitive
     this->velocity = velocity_fraction;
   }
 
+  /*!
+   * \brief Construct an OptimoveJ primitive from a \ref urcl::MotionTarget.
+   *
+   * A \ref urcl::Q selects \ref MotionType::OPTIMOVEJ, a \ref urcl::Pose selects
+   * \ref MotionType::OPTIMOVEJ_POSE.
+   */
   OptimoveJPrimitive(const MotionTarget& target, const double blend_radius = 0,
                      const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
   {
@@ -366,6 +421,12 @@ struct OptimoveLPrimitive : public MotionPrimitive
     this->acceleration = acceleration_fraction;
     this->velocity = velocity_fraction;
   }
+  /*!
+   * \brief Construct an OptimoveL primitive from a \ref urcl::MotionTarget.
+   *
+   * A \ref urcl::Pose selects \ref MotionType::OPTIMOVEL, a \ref urcl::Q selects
+   * \ref MotionType::OPTIMOVEL_JOINT.
+   */
   OptimoveLPrimitive(const MotionTarget& target, const double blend_radius = 0,
                      const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
   {

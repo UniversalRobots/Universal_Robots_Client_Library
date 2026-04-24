@@ -41,28 +41,53 @@ representations in 21 datafields. The data fields have the following meaning:
    =====  =====
    index  meaning
    =====  =====
-   0-5    trajectory point positions (Multiplied by ``MULT_JOINTSTATE``)
-   6-11   trajectory point velocities (Multiplied by ``MULT_JOINTSTATE``). For MOVEC, this contains the "via pose".
-   12-17  trajectory point accelerations (Multiplied by ``MULT_JOINTSTATE``).
+   0-5    trajectory point positions (multiplied by ``MULT_JOINTSTATE``).
 
-          For MOVEC:
+          Interpreted as joint positions [rad] or as a Cartesian pose ([m, m, m, rad, rad, rad])
+          depending on the motion type at index 18 (see below).
 
-          - 12: velocity (Multiplied by ``MULT_JOINTSTATE``)
-          - 13: acceleration (Multiplied by ``MULT_JOINTSTATE``)
-          - 14: mode (Multiplied by ``MULT_JOINTSTATE``)
+   6-11   trajectory point velocities (multiplied by ``MULT_JOINTSTATE``).
 
-   18     trajectory point type
+          For all MOVEC variants this field is repurposed to carry the via point (same
+          joint-vs-pose interpretation as the target at indices 0-5, see the motion type at
+          index 18).
 
-          - 0: MOVEJ
-          - 1: MOVEL
-          - 2: MOVEP
-          - 3: MOVEC
-          - 51: SPLINE)
+   12-17  trajectory point accelerations (multiplied by ``MULT_JOINTSTATE``).
+
+          For all MOVEC variants:
+
+          - 12: velocity (multiplied by ``MULT_JOINTSTATE``)
+          - 13: acceleration (multiplied by ``MULT_JOINTSTATE``)
+          - 14: mode (multiplied by ``MULT_JOINTSTATE``)
+
+   18     trajectory point type. The base values below use the URScript command's "natural"
+          target type (joints for ``movej`` / ``optimovej``, Cartesian pose for ``movel`` /
+          ``movep`` / ``movec`` / ``optimovel``). The ``*_POSE`` / ``*_JOINT`` variants indicate
+          that the other target kind is being sent instead.
+
+          - 0: MOVEJ – ``movej`` to a joint target
+          - 1: MOVEL – ``movel`` to a pose target
+          - 2: MOVEP – ``movep`` to a pose target
+          - 3: MOVEC – ``movec`` with pose via and pose target
+          - 4: OPTIMOVEJ – ``optimovej`` to a joint target
+          - 5: OPTIMOVEL – ``optimovel`` to a pose target
+          - 6: MOVEJ_POSE – ``movej`` to a pose target (IK on the robot controller)
+          - 7: MOVEL_JOINT – ``movel`` to the pose implied by a joint target (FK on the
+            robot controller)
+          - 8: MOVEP_JOINT – ``movep`` to the pose implied by a joint target (FK on the
+            robot controller)
+          - 9: MOVEC_JOINT – ``movec`` with joint via and joint target
+          - 10: MOVEC_JOINT_POSE – ``movec`` with pose via and joint target
+          - 11: MOVEC_POSE_JOINT – ``movec`` with joint via and pose target
+          - 12: OPTIMOVEJ_POSE – ``optimovej`` to a pose target
+          - 13: OPTIMOVEL_JOINT – ``optimovel`` to the pose implied by a joint target
+          - 51: SPLINE
 
    19     trajectory point time (in seconds, multiplied by ``MULT_TIME``)
    20     depending on trajectory point type
 
-          - MOVEJ, MOVEL, MOVEP and MOVEC: point blend radius (in meters, multiplied by ``MULT_TIME``)
+          - All MOVE* and OPTIMOVE* variants: point blend radius (in meters, multiplied by
+            ``MULT_TIME``)
           - SPLINE: spline type (1: CUBIC, 2: QUINTIC)
    =====  =====
 
@@ -75,3 +100,13 @@ where
    With ``MULT_TIME`` being 1000000, the maximum duration that can be sent is 2147 seconds, while
    precision is cut off at 1 microsecond. (The same applies to the blend radius, respectively being
    max 2147 m and 1 μm precision.)
+
+.. note::
+   The ``*_POSE`` / ``*_JOINT`` motion-type variants let callers mix joint-space and Cartesian
+   targets freely through the high-level APIs (see :ref:`instruction_executor` and the
+   ``urcl::MotionTarget`` type). On the wire the positions are always packed as a 6-tuple of
+   ``MULT_JOINTSTATE``-scaled integers; which physical quantity they represent (joint angles or
+   Cartesian pose components) is determined solely by the motion type field at index 18. The
+   corresponding mapping back to ``movej`` / ``movel`` / ``movep`` / ``movec`` / ``optimovej`` /
+   ``optimovel`` calls with either ``q`` or ``p[...]`` arguments is performed on the robot side
+   by ``resources/external_control.urscript``.

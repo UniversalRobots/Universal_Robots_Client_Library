@@ -34,6 +34,17 @@ using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 
+/*!
+ * \brief A joint configuration (6 joint positions in radians).
+ *
+ * This is a strong type around a \ref vector6d_t meant to unambiguously express "this 6-tuple
+ * represents joint values", as opposed to a Cartesian pose. It is primarily used together with
+ * \ref MotionTarget to select between joint-space and Cartesian-space targets when calling
+ * motion functions that can accept either.
+ *
+ * Unlike raw initializer lists (``{...}``) which may bind to either \ref vector6d_t or
+ * \ref Pose, wrapping values in ``urcl::Q{...}`` always forces a joint-target interpretation.
+ */
 struct Q
 {
   constexpr Q(double q1, double q2, double q3, double q4, double q5, double q6) : values{ q1, q2, q3, q4, q5, q6 }
@@ -65,6 +76,20 @@ struct Pose
   }
 };
 
+/*!
+ * \brief A tagged union representing either a joint target (\ref Q) or a Cartesian target
+ * (\ref Pose).
+ *
+ * ``MotionTarget`` is used throughout the motion API (e.g.
+ * \ref InstructionExecutor::moveJ "InstructionExecutor::moveJ" and the ``Move*Primitive``
+ * constructors) to let callers choose at call site whether a motion should be parametrized in
+ * joint space or in Cartesian space without needing separate overloads for every combination.
+ *
+ * The overloads that take a ``MotionTarget`` are provided alongside explicit \ref vector6d_t and
+ * \ref Pose overloads so that plain braced-initializer calls keep binding to the previous
+ * behaviour; only explicitly constructed \ref Q or \ref Pose values (or an already-built
+ * ``MotionTarget``) select the variant-based path.
+ */
 using MotionTarget = std::variant<Q, Pose>;
 
 template <class T, std::size_t N>

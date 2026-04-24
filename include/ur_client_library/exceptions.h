@@ -217,6 +217,13 @@ public:
   }
 };
 
+/*!
+ * \brief Thrown when data received from or passed through the library does not match the
+ * expected structure or value range.
+ *
+ * Examples include motion targets whose variant alternative is not handled by the corresponding
+ * primitive constructor.
+ */
 class InvalidData : public UrException
 {
 public:

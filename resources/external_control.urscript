@@ -638,8 +638,6 @@ thread trajectoryThread():
           target = q
         end
 
-        textmsg(str_cat(str_cat("MOVEC via: ", via), str_cat(" target: ", target)))
-
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[14] / MULT_jointstate
         mode = raw_point[15] / MULT_jointstate
