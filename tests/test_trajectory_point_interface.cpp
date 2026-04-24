@@ -707,7 +707,7 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec)
   urcl::Pose send_target = { 1.2, 3.1, 2.2, -3.4, -1.1, -1.2 };
   urcl::Pose send_via = { 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
   double blend_radius = 0.5;
-  double acceleration = 0.7;
+  double acceleration = 0.4;
   double velocity = 0.7;
   int32_t mode = 1;
   auto primitive =
@@ -720,7 +720,7 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec)
   EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->via_point_pose, send_via);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
-  EXPECT_EQ(received_primitive->acceleration, velocity);
+  EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->mode, mode);
 }
 
