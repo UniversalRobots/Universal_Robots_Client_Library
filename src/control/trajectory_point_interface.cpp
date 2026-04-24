@@ -133,26 +133,57 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       break;
     }
     case MotionType::MOVEP:
+    case MotionType::MOVEP_JOINT:
     {
       auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
-      first_block = {
-        movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
-        movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz
-      };
+      if (movep_primitive->type == MotionType::MOVEP)
+      {
+        first_block = { movep_primitive->target_pose.x,  movep_primitive->target_pose.y,
+                        movep_primitive->target_pose.z,  movep_primitive->target_pose.rx,
+                        movep_primitive->target_pose.ry, movep_primitive->target_pose.rz };
+      }
+      else if (movep_primitive->type == MotionType::MOVEP_JOINT)
+      {
+        first_block = movep_primitive->target_joint_configuration;
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
     }
     case MotionType::MOVEC:
+    case MotionType::MOVEC_JOINT:
+    case MotionType::MOVEC_POSE_JOINT:
+    case MotionType::MOVEC_JOINT_POSE:
     {
       auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
-      first_block = {
-        movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
-        movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz
-      };
-      second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
-                       movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
-                       movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+      if (movec_primitive->type == MotionType::MOVEC)
+      {
+        first_block = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,
+                        movec_primitive->target_pose.z,  movec_primitive->target_pose.rx,
+                        movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+        second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
+                         movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
+                         movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+      }
+      else if (movec_primitive->type == MotionType::MOVEC_JOINT)
+      {
+        first_block = movec_primitive->target_joint_configuration;
+        second_block = movec_primitive->via_point_joint_configuration;
+      }
+      else if (movec_primitive->type == MotionType::MOVEC_POSE_JOINT)
+      {
+        first_block = { movec_primitive->target_pose.x,  movec_primitive->target_pose.y,
+                        movec_primitive->target_pose.z,  movec_primitive->target_pose.rx,
+                        movec_primitive->target_pose.ry, movec_primitive->target_pose.rz };
+        second_block = movec_primitive->via_point_joint_configuration;
+      }
+      else if (movec_primitive->type == MotionType::MOVEC_JOINT_POSE)
+      {
+        first_block = movec_primitive->target_joint_configuration;
+        second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
+                         movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
+                         movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+      }
       third_block = {
         primitive->velocity, primitive->acceleration, static_cast<double>(movec_primitive->mode), 0, 0, 0
       };
@@ -170,19 +201,37 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       break;
     }
     case control::MotionType::OPTIMOVEJ:
+    case control::MotionType::OPTIMOVEJ_POSE:
     {
       auto optimovej_primitive = std::static_pointer_cast<control::OptimoveJPrimitive>(primitive);
-      first_block = optimovej_primitive->target_joint_configuration;
+      if (optimovej_primitive->type == MotionType::OPTIMOVEJ)
+      {
+        first_block = optimovej_primitive->target_joint_configuration;
+      }
+      else if (optimovej_primitive->type == MotionType::OPTIMOVEJ_POSE)
+      {
+        first_block = { optimovej_primitive->target_pose.x,  optimovej_primitive->target_pose.y,
+                        optimovej_primitive->target_pose.z,  optimovej_primitive->target_pose.rx,
+                        optimovej_primitive->target_pose.ry, optimovej_primitive->target_pose.rz };
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
     }
     case control::MotionType::OPTIMOVEL:
+    case control::MotionType::OPTIMOVEL_JOINT:
     {
       auto optimovel_primitive = std::static_pointer_cast<control::OptimoveLPrimitive>(primitive);
-      first_block = { optimovel_primitive->target_pose.x,  optimovel_primitive->target_pose.y,
-                      optimovel_primitive->target_pose.z,  optimovel_primitive->target_pose.rx,
-                      optimovel_primitive->target_pose.ry, optimovel_primitive->target_pose.rz };
+      if (optimovel_primitive->type == MotionType::OPTIMOVEL)
+      {
+        first_block = { optimovel_primitive->target_pose.x,  optimovel_primitive->target_pose.y,
+                        optimovel_primitive->target_pose.z,  optimovel_primitive->target_pose.rx,
+                        optimovel_primitive->target_pose.ry, optimovel_primitive->target_pose.rz };
+      }
+      else if (optimovel_primitive->type == MotionType::OPTIMOVEL_JOINT)
+      {
+        first_block = optimovel_primitive->target_joint_configuration;
+      }
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;

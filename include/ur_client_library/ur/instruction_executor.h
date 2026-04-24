@@ -118,6 +118,8 @@ public:
    */
   bool moveP(const urcl::Pose& target, const double acceleration = 1.4, const double velocity = 1.04,
              const double blend_radius = 0.0);
+  bool moveP(const MotionTarget& target, const double acceleration = 1.4, const double velocity = 1.04,
+             const double blend_radius = 0.0);
 
   /**
    * \brief Move the robot to a pose target using movec
@@ -135,6 +137,8 @@ public:
    * \return True if the robot has reached the target, false otherwise.
    */
   bool moveC(const urcl::Pose& via, const urcl::Pose& target, const double acceleration = 1.4,
+             const double velocity = 1.04, const double blend_radius = 0.0, const int32_t mode = 0);
+  bool moveC(const MotionTarget& via, const MotionTarget& target, const double acceleration = 1.4,
              const double velocity = 1.04, const double blend_radius = 0.0, const int32_t mode = 0);
 
   /**
@@ -154,6 +158,8 @@ public:
    */
   bool optimoveJ(const urcl::vector6d_t& target, const double acceleration_fraction = 0.3,
                  const double velocity_fraction = 0.3, const double blend_radius = 0);
+  bool optimoveJ(const MotionTarget& target, const double acceleration_fraction = 0.3,
+                 const double velocity_fraction = 0.3, const double blend_radius = 0);
 
   /**
    * \brief Move the robot to a pose target using optimoveL.
@@ -171,6 +177,8 @@ public:
    * \return True if the robot has reached the target, false otherwise.
    */
   bool optimoveL(const urcl::Pose& target, const double acceleration_fraction = 0.3,
+                 const double velocity_fraction = 0.3, const double blend_radius = 0);
+  bool optimoveL(const MotionTarget& target, const double acceleration_fraction = 0.3,
                  const double velocity_fraction = 0.3, const double blend_radius = 0);
 
   /**

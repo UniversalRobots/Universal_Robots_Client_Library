@@ -42,6 +42,12 @@ MOTION_TYPE_OPTIMOVEJ = 4
 MOTION_TYPE_OPTIMOVEL = 5
 MOTION_TYPE_MOVEJ_POSE = 6
 MOTION_TYPE_MOVEL_JOINT = 7
+MOTION_TYPE_MOVEP_JOINT = 8
+MOTION_TYPE_MOVEC_JOINT = 9
+MOTION_TYPE_MOVEC_JOINT_POSE = 10
+MOTION_TYPE_MOVEC_POSE_JOINT = 11
+MOTION_TYPE_OPTIMOVEJ_POSE = 12
+MOTION_TYPE_OPTIMOVEL_JOINT = 13
 MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
@@ -604,11 +610,36 @@ thread trajectoryThread():
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP_JOINT:
+        acceleration = raw_point[13] / MULT_jointstate
+        velocity = raw_point[7] / MULT_jointstate
+        movep(q, a = acceleration, v = velocity, r = blend_radius)
 
-      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC:
+        # reset old acceleration
+        spline_qdd = [0, 0, 0, 0, 0, 0]
+        spline_qd = [0, 0, 0, 0, 0, 0]
+
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC or
+        raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT or
+        raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_POSE_JOINT or
+        raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT_POSE:
         local v = [raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
-        via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
-        target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC:
+          via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
+          target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT:
+          via = v
+          target = q
+        elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_POSE_JOINT:
+          via = v
+          target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT_POSE:
+          via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
+          target = q
+        end
+
+        textmsg(str_cat(str_cat("MOVEC via: ", via), str_cat(" target: ", target)))
+
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[14] / MULT_jointstate
         mode = raw_point[15] / MULT_jointstate
@@ -643,14 +674,22 @@ thread trajectoryThread():
         end
 
       # OptimoveJ point
-      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ or raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ_POSE:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-        optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+        if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
+          optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+        else:
+          optimovej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        end
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
-        optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+        if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
+          optimovej(q, a = acceleration, v = velocity, r = blend_radius)
+        else:
+          optimovej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        end
           {% else %}
         popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
           {% endif %}
@@ -671,15 +710,23 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
 
       # OptimoveL point
-      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
+      elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL or raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL_JOINT:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
         
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-        optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
+          optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        else:
+          optimovel(q, a = acceleration, v = velocity, r = blend_radius)
+        end
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
-        optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
+          optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+        else:
+          optimovel(q, a = acceleration, v = velocity, r = blend_radius)
+        end
           {% else %}
         popup("Optimovel is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
           {% endif %}

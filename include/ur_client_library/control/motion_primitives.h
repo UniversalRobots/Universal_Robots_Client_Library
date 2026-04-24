@@ -34,6 +34,7 @@
 #include <chrono>
 #include <optional>
 #include <variant>
+#include "ur_client_library/exceptions.h"
 #include <ur_client_library/types.h>
 
 namespace urcl
@@ -51,6 +52,12 @@ enum class MotionType : uint8_t
   OPTIMOVEL = 5,
   MOVEJ_POSE = 6,
   MOVEL_JOINT = 7,
+  MOVEP_JOINT = 8,
+  MOVEC_JOINT = 9,
+  MOVEC_JOINT_POSE = 10,
+  MOVEC_POSE_JOINT = 11,
+  OPTIMOVEJ_POSE = 12,
+  OPTIMOVEL_JOINT = 13,
   SPLINE = 51,
   UNKNOWN = 255
 };
@@ -172,8 +179,31 @@ struct MovePPrimitive : public MotionPrimitive
     this->velocity = velocity;
     this->blend_radius = blend_radius;
   }
+  MovePPrimitive(const MotionTarget& target, const double blend_radius = 0, const double acceleration = 1.4,
+                 const double velocity = 1.04)
+  {
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            type = MotionType::MOVEP;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            type = MotionType::MOVEP_JOINT;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        target);
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+  }
 
   urcl::Pose target_pose;
+  urcl::vector6d_t target_joint_configuration;
 };
 
 struct MoveCPrimitive : public MotionPrimitive
@@ -190,8 +220,65 @@ struct MoveCPrimitive : public MotionPrimitive
     this->mode = mode;
   }
 
+  MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius = 0,
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
+  {
+    if (std::holds_alternative<Q>(via_point))
+    {
+      if (std::holds_alternative<Q>(target))
+      {
+        type = MotionType::MOVEC_JOINT;
+        via_point_pose = urcl::Pose();
+        target_pose = urcl::Pose();
+        via_point_joint_configuration = std::get<Q>(via_point).values;
+        target_joint_configuration = std::get<Q>(target).values;
+      }
+      else if (std::holds_alternative<urcl::Pose>(target))
+      {
+        type = MotionType::MOVEC_POSE_JOINT;
+        via_point_pose = urcl::Pose();
+        target_pose = std::get<urcl::Pose>(target);
+        via_point_joint_configuration = std::get<Q>(via_point).values;
+      }
+      else
+      {
+        throw urcl::UrException("Unhandled motion target type for target point passed to MoveCPrimitive constructor");
+      }
+    }
+    else if (std::holds_alternative<urcl::Pose>(via_point))
+    {
+      if (std::holds_alternative<Q>(target))
+      {
+        type = MotionType::MOVEC_JOINT_POSE;
+        via_point_pose = std::get<urcl::Pose>(via_point);
+        target_pose = urcl::Pose();
+        target_joint_configuration = std::get<Q>(target).values;
+      }
+      else if (std::holds_alternative<urcl::Pose>(target))
+      {
+        type = MotionType::MOVEC;
+        via_point_pose = std::get<urcl::Pose>(via_point);
+        target_pose = std::get<urcl::Pose>(target);
+      }
+      else
+      {
+        throw urcl::UrException("Unhandled motion target type for target point passed to MoveCPrimitive constructor");
+      }
+    }
+    else
+    {
+      throw urcl::UrException("Unhandled motion target type for via_point passed to MoveCPrimitive constructor");
+    }
+    this->acceleration = acceleration;
+    this->velocity = velocity;
+    this->blend_radius = blend_radius;
+    this->mode = mode;
+  }
+
   urcl::Pose via_point_pose;
   urcl::Pose target_pose;
+  urcl::vector6d_t via_point_joint_configuration;
+  urcl::vector6d_t target_joint_configuration;
   int32_t mode = 0;
 };
 
@@ -239,9 +326,33 @@ struct OptimoveJPrimitive : public MotionPrimitive
     this->velocity = velocity_fraction;
   }
 
+  OptimoveJPrimitive(const MotionTarget& target, const double blend_radius = 0,
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
+  {
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            type = MotionType::OPTIMOVEJ_POSE;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            type = MotionType::OPTIMOVEJ;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        target);
+    this->blend_radius = blend_radius;
+    this->acceleration = acceleration_fraction;
+    this->velocity = velocity_fraction;
+  }
+
   bool validate() const override;
 
   urcl::vector6d_t target_joint_configuration;
+  Pose target_pose;
 };
 
 struct OptimoveLPrimitive : public MotionPrimitive
@@ -255,10 +366,33 @@ struct OptimoveLPrimitive : public MotionPrimitive
     this->acceleration = acceleration_fraction;
     this->velocity = velocity_fraction;
   }
+  OptimoveLPrimitive(const MotionTarget& target, const double blend_radius = 0,
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
+  {
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            type = MotionType::OPTIMOVEL;
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            type = MotionType::OPTIMOVEL_JOINT;
+            target_joint_configuration = target_variant.values;
+          }
+        },
+        target);
+    this->blend_radius = blend_radius;
+    this->acceleration = acceleration_fraction;
+    this->velocity = velocity_fraction;
+  }
 
   bool validate() const override;
 
   urcl::Pose target_pose;
+  vector6d_t target_joint_configuration;
 };
 }  // namespace control
 }  // namespace urcl

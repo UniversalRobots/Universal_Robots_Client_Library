@@ -98,20 +98,44 @@ int main(int argc, char* argv[])
     std::make_shared<urcl::control::OptimoveLPrimitive>(urcl::Pose(-0.203, 0.263, 0.559, 0.68, -1.083, -2.076), 0.1,
                                                         0.4, 0.7),
   };
-  // instruction_executor->executeMotion(motion_sequence);
+  instruction_executor->executeMotion(motion_sequence);
 
   double goal_time_sec = 2.0;
 
-  // acceleration / velocity parametrization
-  // instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
+  // acceleration / velocity parametrization brace-init style will be interpreted as joint
+  // positions
+  instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
+
   // goal time parametrization -- acceleration and velocity will be ignored
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
+
+  // moveL calls with brace-init style is interpreted as a pose
   instruction_executor->moveL({ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  // A pose can also be explicitly passed to moveL
+  instruction_executor->moveL(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  // moveL can also accept a joint position target, if explicitly wrapped into a urcl::Q object
   instruction_executor->moveL(urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 }, 1.5, 1.5, goal_time_sec);
+
+  // moveJ can also accept a Cartesian pose, when given explicitly
   instruction_executor->moveJ(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
-  // instruction_executor->moveP({ -0.203, 0.463, 0.759, 0.68, -1.083, -2.076 }, 1.5, 1.5);
+  // moveP can also be called with brace-init (interpreted as pose) or explicitly using a Pose or Q
+  instruction_executor->moveP({ -0.2, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
+  instruction_executor->moveP(urcl::Pose{ -0.0203, 0.303, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
+  instruction_executor->moveP(urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 }, 0.1, 0.1, goal_time_sec);
 
-  g_my_robot->getUrDriver()->stopControl();
+  // For moveC via and target can be a Pose or Q. When brace-init style lists are given, values are
+  // interpreted as Pose.
+  instruction_executor->moveC(urcl::Pose{ -0.1, 0.463, 0.559, 0.68, -1.083, -2.076 },
+                              urcl::Pose{ -0.0203, 0.303, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
+  instruction_executor->moveC(urcl::Pose{ -0.1, 0.463, 0.559, 0.68, -1.083, -2.076 },
+                              urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 }, 0.1, 0.1, goal_time_sec);
+
+  // For optimove functions, the same target rules as for moveJ and moveL apply.
+  instruction_executor->optimoveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 1.0, 1.0);
+  instruction_executor->optimoveL(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.0, 1.0);
+  instruction_executor->optimoveL(urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 }, 1.0, 1.0);
+  instruction_executor->optimoveJ(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.0, 1.0);
+
   return 0;
 }
