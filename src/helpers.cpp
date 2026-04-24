@@ -160,4 +160,47 @@ std::vector<std::string> splitString(const std::string& input, const std::string
   return result;
 }
 
+RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version_info)
+{
+  switch (type)
+  {
+    case RobotType::UR3:
+    case RobotType::UR5:
+    case RobotType::UR10:
+      if (version_info.major >= 5)
+      {
+        return RobotSeries::E_SERIES;
+      }
+      else
+      {
+        return RobotSeries::CB3;
+      }
+    case RobotType::UR16:
+      if (version_info.major >= 5)
+      {
+        return RobotSeries::E_SERIES;
+      }
+      else
+      {
+        return RobotSeries::UNDEFINED;
+      }
+    case RobotType::UR15:
+    case RobotType::UR18:
+    case RobotType::UR20:
+    case RobotType::UR30:
+    case RobotType::UR8LONG:
+      if (version_info.major >= 5)
+      {
+        return RobotSeries::UR_SERIES;
+      }
+      else
+      {
+        return RobotSeries::UNDEFINED;
+      }
+    case RobotType::UNDEFINED:
+      return RobotSeries::UNDEFINED;
+  }
+  return RobotSeries::UNDEFINED;
+}
+
 }  // namespace urcl
