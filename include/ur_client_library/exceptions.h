@@ -217,22 +217,6 @@ public:
   }
 };
 
-/*!
- * \brief Thrown when data received from or passed through the library does not match the
- * expected structure or value range.
- *
- * Examples include motion targets whose variant alternative is not handled by the corresponding
- * primitive constructor.
- */
-class InvalidData : public UrException
-{
-public:
-  explicit InvalidData() = delete;
-  explicit InvalidData(const std::string& error_text) : std::runtime_error(error_text)
-  {
-  }
-};
-
 class UnknownVariable : public UrException
 {
 private:
