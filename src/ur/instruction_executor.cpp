@@ -100,7 +100,7 @@ bool urcl::InstructionExecutor::executeMotion(
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
-  return moveJ(MotionTarget(target), acceleration, velocity, time, blend_radius);
+  return moveJ(Q(target), acceleration, velocity, time, blend_radius);
 }
 
 bool urcl::InstructionExecutor::moveJ(const MotionTarget& target, const double acceleration, const double velocity,
@@ -151,7 +151,7 @@ bool urcl::InstructionExecutor::moveC(const MotionTarget& via, const MotionTarge
 bool urcl::InstructionExecutor::optimoveJ(const urcl::vector6d_t& target, const double acceleration,
                                           const double velocity, const double blend_radius)
 {
-  return optimoveJ(MotionTarget(target), acceleration, velocity, blend_radius);
+  return optimoveJ(Q(target), acceleration, velocity, blend_radius);
 }
 
 bool urcl::InstructionExecutor::optimoveJ(const MotionTarget& target, const double acceleration, const double velocity,
