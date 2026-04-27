@@ -97,4 +97,44 @@ bool OptimoveLPrimitive::validate() const
   }
   return true;
 }
+
+std::string motionTypeToString(const MotionType type)
+{
+  switch (type)
+  {
+    case MotionType::MOVEJ:
+      return "MOVEJ";
+    case MotionType::MOVEL:
+      return "MOVEL";
+    case MotionType::MOVEP:
+      return "MOVEP";
+    case MotionType::MOVEC:
+      return "MOVEC";
+    case MotionType::OPTIMOVEJ:
+      return "OPTIMOVEJ";
+    case MotionType::OPTIMOVEL:
+      return "OPTIMOVEL";
+    case MotionType::MOVEJ_POSE:
+      return "MOVEJ_POSE";
+    case MotionType::MOVEL_JOINT:
+      return "MOVEL_JOINT";
+    case MotionType::MOVEP_JOINT:
+      return "MOVEP_JOINT";
+    case MotionType::MOVEC_JOINT:
+      return "MOVEC_JOINT";
+    case MotionType::MOVEC_JOINT_POSE:
+      return "MOVEC_JOINT_POSE";
+    case MotionType::MOVEC_POSE_JOINT:
+      return "MOVEC_POSE_JOINT";
+    case MotionType::OPTIMOVEJ_POSE:
+      return "OPTIMOVEJ_POSE";
+    case MotionType::OPTIMOVEL_JOINT:
+      return "OPTIMOVEL_JOINT";
+    case MotionType::SPLINE:
+      return "SPLINE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 }  // namespace urcl::control
