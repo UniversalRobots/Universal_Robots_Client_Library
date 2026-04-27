@@ -86,8 +86,15 @@ enum class TrajectorySplineType : int32_t
   SPLINE_QUINTIC = 2
 };
 
-struct MotionPrimitive
+class MotionPrimitive
 {
+public:
+  MotionPrimitive(const double blend_radius = 0,
+                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                  const double acceleration = 1.4, const double velocity = 1.04)
+    : duration(duration), acceleration(acceleration), velocity(velocity), blend_radius(blend_radius)
+  {
+  }
   virtual ~MotionPrimitive() = default;
   MotionType type = MotionType::UNKNOWN;
   std::chrono::duration<double> duration;
@@ -98,119 +105,85 @@ struct MotionPrimitive
   virtual bool validate() const;
 };
 
-struct MoveJPrimitive : public MotionPrimitive
+class MotionPrimitiveWithTarget : public MotionPrimitive
 {
+public:
+  MotionPrimitiveWithTarget(const MotionTarget& target, const double blend_radius = 0,
+                            const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
+                            const double acceleration = 1.4, const double velocity = 1.04)
+    : MotionPrimitive(blend_radius, duration, acceleration, velocity)
+  {
+    setTarget(target);
+  }
+  virtual void setTarget(const MotionTarget& target)
+  {
+    target_ = std::make_unique<MotionTarget>(target);
+  }
+  MotionTarget getTarget() const
+  {
+    return *target_;
+  }
+
+protected:
+  std::unique_ptr<MotionTarget> target_;
+};
+
+class MoveJPrimitive : public MotionPrimitiveWithTarget
+{
+public:
   MoveJPrimitive(const urcl::vector6d_t& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                 const double acceleration = 1.4, const double velocity = 1.04)
-  {
-    type = MotionType::MOVEJ;
-    target_joint_configuration = target;
-    this->duration = duration;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-  }
+                 const double acceleration = 1.4, const double velocity = 1.04);
+
   /*!
    * \brief Construct a MoveJ primitive from a \ref urcl::MotionTarget.
    *
-   * If ``target`` holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEJ and
-   * ``target_joint_configuration`` is populated. If ``target`` holds a \ref urcl::Pose, ``type``
-   * is set to \ref MotionType::MOVEJ_POSE and ``target_pose`` is populated instead; the robot
-   * will internally solve inverse kinematics to reach the pose with a ``movej``.
+   * If ``target`` holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEJ. If ``target``
+   * holds a \ref urcl::Pose, ``type`` is set to \ref MotionType::MOVEJ_POSE; the robot will
+   * internally solve inverse kinematics to reach the pose with a ``movej``. The stored target is
+   * accessible via ``getTarget()``.
    */
   MoveJPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                 const double acceleration = 1.4, const double velocity = 1.04)
-  {
-    this->duration = duration;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
+                 const double acceleration = 1.4, const double velocity = 1.04);
 
-    std::visit(
-        [&](const auto& target_variant) {
-          using T = std::decay_t<decltype(target_variant)>;
-          if constexpr (std::is_same_v<T, urcl::Pose>)
-          {
-            type = MotionType::MOVEJ_POSE;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<T, Q>)
-          {
-            type = MotionType::MOVEJ;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        target);
-  }
+  void setTarget(const MotionTarget& target) override;
 
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::vector6d_t target_joint_configuration{};
-  urcl::Pose target_pose{};
 };
 
-struct MoveLPrimitive : public MotionPrimitive
+class MoveLPrimitive : public MotionPrimitiveWithTarget
 {
+public:
   MoveLPrimitive(const urcl::Pose& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                 const double acceleration = 1.4, const double velocity = 1.04)
-  {
-    type = MotionType::MOVEL;
-    target_pose = target;
-    this->duration = duration;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-  }
+                 const double acceleration = 1.4, const double velocity = 1.04);
+
   /*!
    * \brief Construct a MoveL primitive from a \ref urcl::MotionTarget.
    *
    * If ``target`` holds a \ref urcl::Pose, ``type`` is set to \ref MotionType::MOVEL. If it
-   * holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEL_JOINT and the configuration
-   * is stored in ``target_joint_configuration``. The robot will still execute a tool-space
-   * linear motion, resolving the joint configuration to its forward kinematics pose on the
-   * controller.
+   * holds a \ref urcl::Q, ``type`` is set to \ref MotionType::MOVEL_JOINT. The robot will still
+   * execute a tool-space linear motion, resolving the joint configuration to its forward
+   * kinematics pose on the controller. The stored target is accessible via ``getTarget()``.
    */
   MoveLPrimitive(const urcl::MotionTarget& target, const double blend_radius = 0,
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
-                 const double acceleration = 1.4, const double velocity = 1.04)
-  {
-    this->duration = duration;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-    std::visit(
-        [&](const auto& target_variant) {
-          using T = std::decay_t<decltype(target_variant)>;
-          if constexpr (std::is_same_v<T, urcl::Pose>)
-          {
-            type = MotionType::MOVEL;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<T, Q>)
-          {
-            type = MotionType::MOVEL_JOINT;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        target);
-  }
+                 const double acceleration = 1.4, const double velocity = 1.04);
 
+  void setTarget(const MotionTarget& target) override;
+
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::Pose target_pose{};
-  urcl::vector6d_t target_joint_configuration{};
 };
 
-struct MovePPrimitive : public MotionPrimitive
+class MovePPrimitive : public MotionPrimitiveWithTarget
 {
+public:
   MovePPrimitive(const urcl::Pose& target, const double blend_radius = 0, const double acceleration = 1.4,
-                 const double velocity = 1.04)
-  {
-    type = MotionType::MOVEP;
-    target_pose = target;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-  }
+                 const double velocity = 1.04);
+
   /*!
    * \brief Construct a MoveP primitive from a \ref urcl::MotionTarget.
    *
@@ -218,45 +191,19 @@ struct MovePPrimitive : public MotionPrimitive
    * \ref MotionType::MOVEP, a \ref urcl::Q selects \ref MotionType::MOVEP_JOINT.
    */
   MovePPrimitive(const MotionTarget& target, const double blend_radius = 0, const double acceleration = 1.4,
-                 const double velocity = 1.04)
-  {
-    std::visit(
-        [&](const auto& target_variant) {
-          using T = std::decay_t<decltype(target_variant)>;
-          if constexpr (std::is_same_v<T, urcl::Pose>)
-          {
-            type = MotionType::MOVEP;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<T, Q>)
-          {
-            type = MotionType::MOVEP_JOINT;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        target);
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-  }
+                 const double velocity = 1.04);
 
+  void setTarget(const MotionTarget& target) override;
+
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::Pose target_pose{};
-  urcl::vector6d_t target_joint_configuration{};
 };
 
-struct MoveCPrimitive : public MotionPrimitive
+class MoveCPrimitive : public MotionPrimitiveWithTarget
 {
+public:
   MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& target, const double blend_radius = 0,
-                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
-  {
-    type = MotionType::MOVEC;
-    via_point_pose = via_point;
-    target_pose = target;
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-    this->mode = mode;
-  }
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0);
 
   /*!
    * \brief Construct a MoveC primitive from two \ref urcl::MotionTarget values.
@@ -266,59 +213,32 @@ struct MoveCPrimitive : public MotionPrimitive
    * ``MOVEC_POSE_JOINT``, or ``MOVEC_JOINT_POSE``). The naming convention is
    * ``MOVEC_<target>_<via>``, i.e. ``MOVEC_POSE_JOINT`` denotes a movec whose target is a pose
    * and whose via point is a joint configuration.
-   *
-   * Unhandled variant alternatives are caught at compile time via ``static_assert``.
    */
   MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius = 0,
-                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0)
+                 const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0);
+
+  void setTarget(const MotionTarget& target) override;
+
+  void setVia(const MotionTarget& via_point);
+
+  MotionTarget getVia() const
   {
-    std::visit(
-        [&](const auto& via_variant, const auto& target_variant) {
-          using ViaT = std::decay_t<decltype(via_variant)>;
-          using TargetT = std::decay_t<decltype(target_variant)>;
-          static_assert(std::is_same_v<ViaT, Q> || std::is_same_v<ViaT, urcl::Pose>, "Unhandled MotionTarget "
-                                                                                     "alternative for via_point");
-          static_assert(std::is_same_v<TargetT, Q> || std::is_same_v<TargetT, urcl::Pose>, "Unhandled MotionTarget "
-                                                                                           "alternative for target");
-
-          if constexpr (std::is_same_v<ViaT, urcl::Pose> && std::is_same_v<TargetT, urcl::Pose>)
-          {
-            type = MotionType::MOVEC;
-            via_point_pose = via_variant;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<ViaT, Q> && std::is_same_v<TargetT, Q>)
-          {
-            type = MotionType::MOVEC_JOINT;
-            via_point_joint_configuration = via_variant.values;
-            target_joint_configuration = target_variant.values;
-          }
-          else if constexpr (std::is_same_v<ViaT, Q> && std::is_same_v<TargetT, urcl::Pose>)
-          {
-            type = MotionType::MOVEC_POSE_JOINT;
-            via_point_joint_configuration = via_variant.values;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<ViaT, urcl::Pose> && std::is_same_v<TargetT, Q>)
-          {
-            type = MotionType::MOVEC_JOINT_POSE;
-            via_point_pose = via_variant;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        via_point, target);
-
-    this->acceleration = acceleration;
-    this->velocity = velocity;
-    this->blend_radius = blend_radius;
-    this->mode = mode;
+    return via_point_;
   }
 
+  [[deprecated("Use getVia() and setVia() instead.")]]
   urcl::Pose via_point_pose{};
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::Pose target_pose{};
-  urcl::vector6d_t via_point_joint_configuration{};
-  urcl::vector6d_t target_joint_configuration{};
   int32_t mode = 0;
+
+protected:
+  urcl::MotionTarget via_point_;
+
+private:
+  void recomputeType();
+
+  void refreshLegacyFields();
 };
 
 struct SplinePrimitive : public MotionPrimitive
@@ -353,17 +273,11 @@ struct SplinePrimitive : public MotionPrimitive
   std::optional<vector6d_t> target_accelerations;
 };
 
-struct OptimoveJPrimitive : public MotionPrimitive
+class OptimoveJPrimitive : public MotionPrimitiveWithTarget
 {
+public:
   OptimoveJPrimitive(const urcl::vector6d_t& target, const double blend_radius = 0,
-                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
-  {
-    type = MotionType::OPTIMOVEJ;
-    target_joint_configuration = target;
-    this->blend_radius = blend_radius;
-    this->acceleration = acceleration_fraction;
-    this->velocity = velocity_fraction;
-  }
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3);
 
   /*!
    * \brief Construct an OptimoveJ primitive from a \ref urcl::MotionTarget.
@@ -372,45 +286,21 @@ struct OptimoveJPrimitive : public MotionPrimitive
    * \ref MotionType::OPTIMOVEJ_POSE.
    */
   OptimoveJPrimitive(const MotionTarget& target, const double blend_radius = 0,
-                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
-  {
-    std::visit(
-        [&](const auto& target_variant) {
-          using T = std::decay_t<decltype(target_variant)>;
-          if constexpr (std::is_same_v<T, urcl::Pose>)
-          {
-            type = MotionType::OPTIMOVEJ_POSE;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<T, Q>)
-          {
-            type = MotionType::OPTIMOVEJ;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        target);
-    this->blend_radius = blend_radius;
-    this->acceleration = acceleration_fraction;
-    this->velocity = velocity_fraction;
-  }
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3);
+
+  void setTarget(const MotionTarget& target) override;
 
   bool validate() const override;
 
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::vector6d_t target_joint_configuration{};
-  Pose target_pose{};
 };
 
-struct OptimoveLPrimitive : public MotionPrimitive
+class OptimoveLPrimitive : public MotionPrimitiveWithTarget
 {
+public:
   OptimoveLPrimitive(const urcl::Pose& target, const double blend_radius = 0, const double acceleration_fraction = 0.3,
-                     const double velocity_fraction = 0.3)
-  {
-    type = MotionType::OPTIMOVEL;
-    target_pose = target;
-    this->blend_radius = blend_radius;
-    this->acceleration = acceleration_fraction;
-    this->velocity = velocity_fraction;
-  }
+                     const double velocity_fraction = 0.3);
   /*!
    * \brief Construct an OptimoveL primitive from a \ref urcl::MotionTarget.
    *
@@ -418,32 +308,14 @@ struct OptimoveLPrimitive : public MotionPrimitive
    * \ref MotionType::OPTIMOVEL_JOINT.
    */
   OptimoveLPrimitive(const MotionTarget& target, const double blend_radius = 0,
-                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3)
-  {
-    std::visit(
-        [&](const auto& target_variant) {
-          using T = std::decay_t<decltype(target_variant)>;
-          if constexpr (std::is_same_v<T, urcl::Pose>)
-          {
-            type = MotionType::OPTIMOVEL;
-            target_pose = target_variant;
-          }
-          else if constexpr (std::is_same_v<T, Q>)
-          {
-            type = MotionType::OPTIMOVEL_JOINT;
-            target_joint_configuration = target_variant.values;
-          }
-        },
-        target);
-    this->blend_radius = blend_radius;
-    this->acceleration = acceleration_fraction;
-    this->velocity = velocity_fraction;
-  }
+                     const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3);
+
+  void setTarget(const MotionTarget& target) override;
 
   bool validate() const override;
 
+  [[deprecated("Use getTarget() and setTarget() instead.")]]
   urcl::Pose target_pose{};
-  vector6d_t target_joint_configuration{};
 };
 }  // namespace control
 }  // namespace urcl

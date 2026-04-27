@@ -657,8 +657,9 @@ TEST_F(TrajectoryPointInterfaceTest, send_movej)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEJ);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveJPrimitive>(received_primitive)->target_joint_configuration,
-            send_positions);
+  EXPECT_EQ(
+      std::get<urcl::Q>(std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget()),
+      send_positions);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -678,7 +679,9 @@ TEST_F(TrajectoryPointInterfaceTest, send_movel)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEL);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveLPrimitive>(received_primitive)->target_pose, send_positions);
+  EXPECT_EQ(std::get<urcl::Pose>(
+                std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget()),
+            send_positions);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -696,7 +699,9 @@ TEST_F(TrajectoryPointInterfaceTest, send_movep)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEP);
-  EXPECT_EQ(std::static_pointer_cast<control::MovePPrimitive>(received_primitive)->target_pose, send_positions);
+  EXPECT_EQ(std::get<urcl::Pose>(
+                std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget()),
+            send_positions);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -716,12 +721,13 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEC);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->target_pose, send_target);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->via_point_pose, send_via);
+  auto received_movec = std::static_pointer_cast<control::MoveCPrimitive>(received_primitive);
+  EXPECT_EQ(std::get<urcl::Pose>(received_movec->getTarget()), send_target);
+  EXPECT_EQ(std::get<urcl::Pose>(received_movec->getVia()), send_via);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
   EXPECT_EQ(received_primitive->velocity, velocity);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveCPrimitive>(received_primitive)->mode, mode);
+  EXPECT_EQ(received_movec->mode, mode);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, send_movej_pose)
@@ -737,7 +743,9 @@ TEST_F(TrajectoryPointInterfaceTest, send_movej_pose)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEJ_POSE);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveJPrimitive>(received_primitive)->target_pose, send_pose);
+  EXPECT_EQ(std::get<urcl::Pose>(
+                std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget()),
+            send_pose);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -757,8 +765,10 @@ TEST_F(TrajectoryPointInterfaceTest, send_movel_joint)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEL_JOINT);
-  EXPECT_EQ(std::static_pointer_cast<control::MoveLPrimitive>(received_primitive)->target_joint_configuration,
-            send_joints.values);
+  EXPECT_EQ(
+      std::get<urcl::Q>(std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget())
+          .values,
+      send_joints.values);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -777,8 +787,10 @@ TEST_F(TrajectoryPointInterfaceTest, send_movep_joint)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEP_JOINT);
-  EXPECT_EQ(std::static_pointer_cast<control::MovePPrimitive>(received_primitive)->target_joint_configuration,
-            send_joints.values);
+  EXPECT_EQ(
+      std::get<urcl::Q>(std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget())
+          .values,
+      send_joints.values);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
@@ -799,8 +811,8 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec_joint_joint)
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEC_JOINT);
   auto movec = std::static_pointer_cast<control::MoveCPrimitive>(received_primitive);
-  EXPECT_EQ(movec->target_joint_configuration, send_target.values);
-  EXPECT_EQ(movec->via_point_joint_configuration, send_via.values);
+  EXPECT_EQ(std::get<urcl::Q>(movec->getTarget()).values, send_target.values);
+  EXPECT_EQ(std::get<urcl::Q>(movec->getVia()).values, send_via.values);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
   EXPECT_EQ(received_primitive->velocity, velocity);
@@ -824,8 +836,8 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec_pose_joint)
   // The via is a pose, the target is a joint configuration -> MOVEC_JOINT_POSE
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEC_JOINT_POSE);
   auto movec = std::static_pointer_cast<control::MoveCPrimitive>(received_primitive);
-  EXPECT_EQ(movec->via_point_pose, send_via);
-  EXPECT_EQ(movec->target_joint_configuration, send_target.values);
+  EXPECT_EQ(std::get<urcl::Pose>(movec->getVia()), send_via);
+  EXPECT_EQ(std::get<urcl::Q>(movec->getTarget()).values, send_target.values);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
   EXPECT_EQ(received_primitive->velocity, velocity);
@@ -849,8 +861,8 @@ TEST_F(TrajectoryPointInterfaceTest, send_movec_joint_pose)
   // via is a joint configuration, target is a pose -> MOVEC_POSE_JOINT
   EXPECT_EQ(received_primitive->type, control::MotionType::MOVEC_POSE_JOINT);
   auto movec = std::static_pointer_cast<control::MoveCPrimitive>(received_primitive);
-  EXPECT_EQ(movec->via_point_joint_configuration, send_via.values);
-  EXPECT_EQ(movec->target_pose, send_target);
+  EXPECT_EQ(std::get<urcl::Q>(movec->getVia()).values, send_via.values);
+  EXPECT_EQ(std::get<urcl::Pose>(movec->getTarget()), send_target);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->acceleration, acceleration);
   EXPECT_EQ(received_primitive->velocity, velocity);
@@ -869,7 +881,9 @@ TEST_F(TrajectoryPointInterfaceTest, send_optimovej_pose)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::OPTIMOVEJ_POSE);
-  EXPECT_EQ(std::static_pointer_cast<control::OptimoveJPrimitive>(received_primitive)->target_pose, send_pose);
+  EXPECT_EQ(std::get<urcl::Pose>(
+                std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget()),
+            send_pose);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity_fraction);
   EXPECT_EQ(received_primitive->acceleration, acceleration_fraction);
@@ -887,8 +901,10 @@ TEST_F(TrajectoryPointInterfaceTest, send_optimovel_joint)
   traj_point_interface_->writeMotionPrimitive(primitive);
   auto received_primitive = client_->getMotionPrimitive();
   EXPECT_EQ(received_primitive->type, control::MotionType::OPTIMOVEL_JOINT);
-  EXPECT_EQ(std::static_pointer_cast<control::OptimoveLPrimitive>(received_primitive)->target_joint_configuration,
-            send_joints.values);
+  EXPECT_EQ(
+      std::get<urcl::Q>(std::static_pointer_cast<control::MotionPrimitiveWithTarget>(received_primitive)->getTarget())
+          .values,
+      send_joints.values);
   EXPECT_EQ(received_primitive->blend_radius, blend_radius);
   EXPECT_EQ(received_primitive->velocity, velocity_fraction);
   EXPECT_EQ(received_primitive->acceleration, acceleration_fraction);

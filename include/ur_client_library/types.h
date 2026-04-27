@@ -47,14 +47,17 @@ using vector6uint32_t = std::array<uint32_t, 6>;
  */
 struct Q
 {
-  constexpr Q(double q1, double q2, double q3, double q4, double q5, double q6) : values{ q1, q2, q3, q4, q5, q6 }
+  Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6)
   {
+    values = { q1, q2, q3, q4, q5, q6 };
   }
-  explicit constexpr Q(const vector6d_t& values) : values(values)
+  explicit Q(const vector6d_t& values)
   {
+    this->values.resize(6);
+    std::copy(values.begin(), values.end(), this->values.begin());
   }
 
-  vector6d_t values;
+  std::vector<double> values;
 };
 
 struct Pose
@@ -78,6 +81,11 @@ struct Pose
     return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
   }
 };
+
+inline bool operator==(const Q& lhs, const vector6d_t& rhs)
+{
+  return lhs.values.size() == rhs.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.begin());
+}
 
 /*!
  * \brief A tagged union representing either a joint target (\ref Q) or a Cartesian target
