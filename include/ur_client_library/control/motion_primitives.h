@@ -117,9 +117,14 @@ public:
 
   virtual void setTarget(const MotionTarget& target) = 0;
 
-  MotionTarget getTarget() const
+  [[nodiscard]]
+  std::optional<MotionTarget> getTarget() const
   {
-    return *target_;
+    if (target_ != nullptr)
+    {
+      return *target_;
+    }
+    return std::nullopt;
   }
 
 protected:

@@ -122,7 +122,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::OPTIMOVEL_JOINT:
     {
       auto with_target = std::static_pointer_cast<control::MotionPrimitiveWithTarget>(primitive);
-      first_block = motionTargetToBlock(with_target->getTarget());
+      first_block = motionTargetToBlock(with_target->getTarget().value());
       second_block.fill(primitive->velocity);
       third_block.fill(primitive->acceleration);
       break;
@@ -133,7 +133,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     case MotionType::MOVEC_JOINT_POSE:
     {
       auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
-      first_block = motionTargetToBlock(movec_primitive->getTarget());
+      first_block = motionTargetToBlock(movec_primitive->getTarget().value());
       second_block = motionTargetToBlock(movec_primitive->getVia());
       third_block = {
         primitive->velocity, primitive->acceleration, static_cast<double>(movec_primitive->mode), 0, 0, 0
