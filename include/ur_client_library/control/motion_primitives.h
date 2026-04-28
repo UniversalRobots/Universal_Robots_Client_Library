@@ -108,17 +108,15 @@ public:
 class MotionPrimitiveWithTarget : public MotionPrimitive
 {
 public:
-  MotionPrimitiveWithTarget(const MotionTarget& target, const double blend_radius = 0,
+  MotionPrimitiveWithTarget(const double blend_radius = 0,
                             const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
                             const double acceleration = 1.4, const double velocity = 1.04)
     : MotionPrimitive(blend_radius, duration, acceleration, velocity)
   {
-    setTarget(target);
   }
-  virtual void setTarget(const MotionTarget& target)
-  {
-    target_ = std::make_unique<MotionTarget>(target);
-  }
+
+  virtual void setTarget(const MotionTarget& target) = 0;
+
   MotionTarget getTarget() const
   {
     return *target_;

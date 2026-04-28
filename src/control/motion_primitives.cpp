@@ -142,15 +142,17 @@ std::string motionTypeToString(const MotionType type)
 MoveJPrimitive::MoveJPrimitive(const MotionTarget& target, const double blend_radius,
                                const std::chrono::duration<double> duration, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(target, blend_radius, duration, acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, duration, acceleration, velocity)
 {
+  setTarget(target);
 }
 
 MoveJPrimitive::MoveJPrimitive(const urcl::vector6d_t& target, const double blend_radius,
                                const std::chrono::duration<double> duration, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(Q(target), blend_radius, duration, acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, duration, acceleration, velocity)
 {
+  setTarget(Q(target));
 }
 
 void MoveJPrimitive::setTarget(const MotionTarget& target)
@@ -177,15 +179,17 @@ void MoveJPrimitive::setTarget(const MotionTarget& target)
 MoveLPrimitive::MoveLPrimitive(const urcl::Pose& target, const double blend_radius,
                                const std::chrono::duration<double> duration, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(target, blend_radius, duration, acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, duration, acceleration, velocity)
 {
+  setTarget(target);
 }
 
 MoveLPrimitive::MoveLPrimitive(const MotionTarget& target, const double blend_radius,
                                const std::chrono::duration<double> duration, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(target, blend_radius, duration, acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, duration, acceleration, velocity)
 {
+  setTarget(target);
 }
 void MoveLPrimitive::setTarget(const MotionTarget& target)
 {
@@ -209,14 +213,16 @@ void MoveLPrimitive::setTarget(const MotionTarget& target)
 
 MovePPrimitive::MovePPrimitive(const urcl::Pose& target, const double blend_radius, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
 {
+  setTarget(target);
 }
 
 MovePPrimitive::MovePPrimitive(const MotionTarget& target, const double blend_radius, const double acceleration,
                                const double velocity)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
 {
+  setTarget(target);
 }
 
 void MovePPrimitive::setTarget(const MotionTarget& target)
@@ -241,7 +247,7 @@ void MovePPrimitive::setTarget(const MotionTarget& target)
 
 MoveCPrimitive::MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& target, const double blend_radius,
                                const double acceleration, const double velocity, const int32_t mode)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
   , mode(mode)
   , via_point_(via_point)
 {
@@ -251,7 +257,7 @@ MoveCPrimitive::MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& ta
 
 MoveCPrimitive::MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius,
                                const double acceleration, const double velocity, const int32_t mode)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
   , mode(mode)
   , via_point_(via_point)
 {
@@ -275,6 +281,11 @@ void MoveCPrimitive::setVia(const MotionTarget& via_point)
 
 void MoveCPrimitive::recomputeType()
 {
+  if (target_ == nullptr || via_point_.index() == std::variant_npos)
+  {
+    type = MotionType::UNKNOWN;
+    return;
+  }
   const bool target_is_pose = std::holds_alternative<urcl::Pose>(*target_);
   const bool via_is_pose = std::holds_alternative<urcl::Pose>(via_point_);
   if (target_is_pose && via_is_pose)
@@ -297,46 +308,52 @@ void MoveCPrimitive::recomputeType()
 
 void MoveCPrimitive::refreshLegacyFields()
 {
-  std::visit(
-      [&](const auto& target_variant) {
-        using T = std::decay_t<decltype(target_variant)>;
-        if constexpr (std::is_same_v<T, urcl::Pose>)
-        {
-          target_pose = target_variant;
-        }
-        else if constexpr (std::is_same_v<T, Q>)
-        {
-          target_pose = urcl::Pose{};
-        }
-      },
-      *target_);
-  std::visit(
-      [&](const auto& via_variant) {
-        using T = std::decay_t<decltype(via_variant)>;
-        if constexpr (std::is_same_v<T, urcl::Pose>)
-        {
-          via_point_pose = via_variant;
-        }
-        else if constexpr (std::is_same_v<T, Q>)
-        {
-          via_point_pose = urcl::Pose{};
-        }
-      },
-      via_point_);
+  if (target_ != nullptr)
+  {
+    std::visit(
+        [&](const auto& target_variant) {
+          using T = std::decay_t<decltype(target_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            target_pose = target_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            target_pose = urcl::Pose{};
+          }
+        },
+        *target_);
+  }
+  if (via_point_.index() != std::variant_npos)
+  {
+    std::visit(
+        [&](const auto& via_variant) {
+          using T = std::decay_t<decltype(via_variant)>;
+          if constexpr (std::is_same_v<T, urcl::Pose>)
+          {
+            via_point_pose = via_variant;
+          }
+          else if constexpr (std::is_same_v<T, Q>)
+          {
+            via_point_pose = urcl::Pose{};
+          }
+        },
+        via_point_);
+  }
 }
 
 OptimoveJPrimitive::OptimoveJPrimitive(const urcl::vector6d_t& target, const double blend_radius,
                                        const double acceleration_fraction, const double velocity_fraction)
-  : MotionPrimitiveWithTarget(Q(target), blend_radius, std::chrono::milliseconds(0), acceleration_fraction,
-                              velocity_fraction)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration_fraction, velocity_fraction)
 {
+  setTarget(Q(target));
 }
 
 OptimoveJPrimitive::OptimoveJPrimitive(const MotionTarget& target, const double blend_radius,
                                        const double acceleration_fraction, const double velocity_fraction)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration_fraction,
-                              velocity_fraction)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration_fraction, velocity_fraction)
 {
+  setTarget(target);
 }
 
 void OptimoveJPrimitive::setTarget(const MotionTarget& target)
@@ -361,16 +378,16 @@ void OptimoveJPrimitive::setTarget(const MotionTarget& target)
 
 OptimoveLPrimitive::OptimoveLPrimitive(const urcl::Pose& target, const double blend_radius,
                                        const double acceleration_fraction, const double velocity_fraction)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration_fraction,
-                              velocity_fraction)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration_fraction, velocity_fraction)
 {
+  setTarget(target);
 }
 
 OptimoveLPrimitive::OptimoveLPrimitive(const MotionTarget& target, const double blend_radius,
                                        const double acceleration_fraction, const double velocity_fraction)
-  : MotionPrimitiveWithTarget(target, blend_radius, std::chrono::milliseconds(0), acceleration_fraction,
-                              velocity_fraction)
+  : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration_fraction, velocity_fraction)
 {
+  setTarget(target);
 }
 
 void OptimoveLPrimitive::setTarget(const MotionTarget& target)
