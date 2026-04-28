@@ -67,6 +67,7 @@ jobs:
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCHECK_RTDE_DOCS_RECIPE=ON
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
