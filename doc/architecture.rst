@@ -10,6 +10,7 @@ well as a couple of standalone modules to directly use subsets of the library's 
    :maxdepth: 1
 
    architecture/dashboard_client
+   architecture/primary_client
    architecture/reverse_interface
    architecture/rtde_client
    architecture/script_command_interface
