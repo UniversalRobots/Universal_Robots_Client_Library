@@ -474,7 +474,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Non-invertible goal, should throw runtime exception
-  EXPECT_FALSE(client_->sendScriptBlocking("movej(p[0,0,0,0,0,0])"));
+  EXPECT_FALSE(client_->sendScriptBlocking("movej(p[10,0,0,0,0,0])"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
@@ -482,8 +482,8 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
-  // Impossible movement, will trigger an error and protective stop
-  EXPECT_FALSE(client_->sendScriptBlocking("movel(p[0,0,0,0,0,0])"));
+  // Impossible movement, will trigger a warning and protective stop
+  EXPECT_FALSE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])"));
   // reset the robot
   client_->commandUnlockProtectiveStop();
   EXPECT_TRUE(client_->sendScriptBlocking("movej([0,0,0,0,0,0])"));
@@ -502,6 +502,15 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
                                   "end";
 
   EXPECT_FALSE(client_->sendScriptBlocking(script_code));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  // Impossible movement, will trigger an error and protective stop
+  EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::seconds(1), false));
 }
 
 int main(int argc, char* argv[])
