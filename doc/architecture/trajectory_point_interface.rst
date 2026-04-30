@@ -46,19 +46,31 @@ representations in 21 datafields. The data fields have the following meaning:
           Interpreted as joint positions [rad] or as a Cartesian pose ([m, m, m, rad, rad, rad])
           depending on the motion type at index 18 (see below).
 
-   6-11   trajectory point velocities (multiplied by ``MULT_JOINTSTATE``).
+   6-11   Depending on the motion type, this represents either
 
-          For all MOVEC variants this field is repurposed to carry the via point (same
-          joint-vs-pose interpretation as the target at indices 0-5, see the motion type at
-          index 18).
+          - Q-near (joint configuration closest to the target pose) when passing a pose to MoveJ or
+            OptimoveJ (``MOVEJ_POSE`` and ``OPTIMOVEJ_POSE``). Used, when the "has Q-near" (see
+            byte 14) flag is set.
 
-   12-17  trajectory point accelerations (multiplied by ``MULT_JOINTSTATE``).
+          - For all MOVEC variants this field contains the via point (same
+            joint-vs-pose interpretation as the target at indices 0-5, see the motion type at
+            index 18).
+          - trajectory point velicities (multiplied by ``MULT_JOINTSTATE``) for spline joint types
 
-          For all MOVEC variants:
+   12-17  Depending on the motion type, this represents either
 
-          - 12: velocity (multiplied by ``MULT_JOINTSTATE``)
-          - 13: acceleration (multiplied by ``MULT_JOINTSTATE``)
-          - 14: mode (multiplied by ``MULT_JOINTSTATE``)
+          - trajectory point accelerations (multiplied by ``MULT_JOINTSTATE``) for spline joint
+            types.
+
+          - for all other motion types
+
+            - 12: velocity (multiplied by ``MULT_JOINTSTATE``)
+            - 13: acceleration (multiplied by ``MULT_JOINTSTATE``)
+            - 14: Depending on motion type:
+
+                - ``MOVEC_*``: mode (multiplied by ``MULT_JOINTSTATE``)
+                - ``MOVEJ_POSE`` and ``OPTIMOVEJ_POSE``: boolean "has Q-near" (multiplied by ``MULT_JOINTSTATE``)
+
 
    18     trajectory point type. The base values below use the URScript command's "natural"
           target type (joints for ``movej`` / ``optimovej``, Cartesian pose for ``movel`` /
