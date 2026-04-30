@@ -174,13 +174,9 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     return false;
   }
 
-  uint64_t exception_timestamp = 0;
   {
     std::scoped_lock lock(runtime_exception_mutex_);
-    if (latest_runtime_exception_ != nullptr)
-    {
-      exception_timestamp = latest_runtime_exception_->timestamp_;
-    }
+    latest_runtime_exception_ = nullptr;
   }
 
   bool script_sent = sendScript(script_info.script_code);
@@ -202,7 +198,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   {
     {
       std::scoped_lock lock(runtime_exception_mutex_);
-      if (latest_runtime_exception_ != nullptr && latest_runtime_exception_->timestamp_ > exception_timestamp)
+      if (latest_runtime_exception_ != nullptr)
       {
         URCL_LOG_ERROR("Runtime exception occured during script execution. Runtime exception type: %s",
                        latest_runtime_exception_->text_.c_str());
