@@ -308,7 +308,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     if (!script_started && elapsed_time > timeout)
     {
       // Should this stop the running program?
-      URCL_LOG_ERROR("Script not started within timeout");
+      URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
       return false;
     }
     std::chrono::milliseconds wait_period(10);
