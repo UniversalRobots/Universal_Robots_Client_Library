@@ -44,18 +44,20 @@ representations in 21 datafields. The data fields have the following meaning:
    0-5    trajectory point positions (multiplied by ``MULT_JOINTSTATE``).
 
           Interpreted as joint positions [rad] or as a Cartesian pose ([m, m, m, rad, rad, rad])
-          depending on the motion type at index 18 (see below).
+          depending on the motion type at index 20 (see below).
 
    6-11   Depending on the motion type, this represents either
 
-          - Q-near (joint configuration closest to the target pose) when passing a pose to MoveJ or
-            OptimoveJ (``MOVEJ_POSE`` and ``OPTIMOVEJ_POSE``). Used, when the "has Q-near" (see
-            byte 14) flag is set.
+          - Joint hint ``q_near`` (six joint positions in radians, ``MULT_JOINTSTATE``-scaled) when
+            the motion target is a Cartesian ``urcl::Pose`` with ``Pose::q_near`` set on the library
+            side. The bundled ``external_control.urscript`` applies this hint for ``MOVEJ_POSE`` and
+            ``OPTIMOVEJ_POSE`` (``get_inverse_kin`` seed); other pose motion types still receive the
+            block on the wire but ignore it in the default script.
 
           - For all MOVEC variants this field contains the via point (same
             joint-vs-pose interpretation as the target at indices 0-5, see the motion type at
-            index 18).
-          - trajectory point velicities (multiplied by ``MULT_JOINTSTATE``) for spline joint types
+            index 20).
+          - trajectory point velocities (multiplied by ``MULT_JOINTSTATE``) for spline joint types
 
    12-17  Depending on the motion type, this represents either
 
@@ -68,11 +70,21 @@ representations in 21 datafields. The data fields have the following meaning:
             - 13: acceleration (multiplied by ``MULT_JOINTSTATE``)
             - 14: Depending on motion type:
 
-                - ``MOVEC_*``: mode (multiplied by ``MULT_JOINTSTATE``)
-                - ``MOVEJ_POSE`` and ``OPTIMOVEJ_POSE``: boolean "has Q-near" (multiplied by ``MULT_JOINTSTATE``)
+                - ``MOVEC_*``: arc mode (multiplied by ``MULT_JOINTSTATE``)
+                - Other non-spline primitives with a Cartesian ``Pose`` target: ``1.0`` or ``0.0``
+                  (scaled by ``MULT_JOINTSTATE``) indicating whether indices 6–11 carry ``q_near``.
+                  The bundled URScript consumes ``q_near`` for ``MOVEJ_POSE`` and ``OPTIMOVEJ_POSE``
+                  only; the flag and joint block are still defined this way for all such pose motions.
 
+   18     segment duration (seconds, multiplied by ``MULT_TIME``; integer microseconds on the wire).
 
-   18     trajectory point type. The base values below use the URScript command's "natural"
+   19     depending on trajectory point type
+
+          - All MOVE* and OPTIMOVE* variants: point blend radius (in meters, multiplied by
+            ``MULT_TIME``)
+          - SPLINE: spline type (1: CUBIC, 2: QUINTIC; raw integer, not ``MULT_TIME``-scaled)
+
+   20     trajectory point type. The base values below use the URScript command's "natural"
           target type (joints for ``movej`` / ``optimovej``, Cartesian pose for ``movel`` /
           ``movep`` / ``movec`` / ``optimovel``). The ``*_POSE`` / ``*_JOINT`` variants indicate
           that the other target kind is being sent instead.
@@ -94,13 +106,6 @@ representations in 21 datafields. The data fields have the following meaning:
           - 12: OPTIMOVEJ_POSE – ``optimovej`` to a pose target
           - 13: OPTIMOVEL_JOINT – ``optimovel`` to the pose implied by a joint target
           - 51: SPLINE
-
-   19     trajectory point time (in seconds, multiplied by ``MULT_TIME``)
-   20     depending on trajectory point type
-
-          - All MOVE* and OPTIMOVE* variants: point blend radius (in meters, multiplied by
-            ``MULT_TIME``)
-          - SPLINE: spline type (1: CUBIC, 2: QUINTIC)
    =====  =====
 
 where
@@ -118,7 +123,7 @@ where
    targets freely through the high-level APIs (see :ref:`instruction_executor` and the
    ``urcl::MotionTarget`` type). On the wire the positions are always packed as a 6-tuple of
    ``MULT_JOINTSTATE``-scaled integers; which physical quantity they represent (joint angles or
-   Cartesian pose components) is determined solely by the motion type field at index 18. The
+   Cartesian pose components) is determined solely by the motion type field at index 20. The
    corresponding mapping back to ``movej`` / ``movel`` / ``movep`` / ``movec`` / ``optimovej`` /
    ``optimovel`` calls with either ``q`` or ``p[...]`` arguments is performed on the robot side
    by ``resources/external_control.urscript``.

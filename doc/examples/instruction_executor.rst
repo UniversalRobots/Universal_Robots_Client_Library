@@ -84,3 +84,7 @@ natural overload, so ``moveJ({ ... })`` continues to be interpreted as joint pos
 ``moveJ(urcl::Pose{...})`` performs a ``movej`` towards a Cartesian target and
 ``moveL(urcl::Q{...})`` performs a ``movel`` towards the pose implied by a joint configuration.
 The same rules apply to ``moveP``, ``moveC``, ``optimoveJ`` and ``optimoveL``.
+
+For Cartesian targets, ``urcl::Pose`` may optionally set ``q_near`` (a ``urcl::Q``): a joint-space
+hint forwarded on the trajectory socket for inverse kinematics. The bundled external-control
+URScript uses it for ``movej`` / ``optimovej`` to a pose; see :ref:`trajectory_point_interface`.
