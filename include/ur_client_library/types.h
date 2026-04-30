@@ -21,9 +21,11 @@
 #pragma once
 
 #include <inttypes.h>
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <variant>
 #include "ur_client_library/log.h"
 
@@ -60,13 +62,18 @@ struct Q
   std::vector<double> values;
 };
 
+inline bool operator==(const Q& lhs, const Q& rhs)
+{
+  return lhs.values.size() == rhs.values.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.values.begin());
+}
+
 struct Pose
 {
-  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0)
+  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0), q_near(std::nullopt)
   {
   }
   Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
-    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz)
+    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(std::nullopt)
   {
   }
   double x;
@@ -76,9 +83,27 @@ struct Pose
   double ry;
   double rz;
 
+  /*!
+   * Optional joint-space hint (six joint positions in radians) passed to the controller for inverse
+   * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
+   */
+  std::optional<Q> q_near;
+
   bool operator==(const Pose& other) const
   {
-    return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
+    if (x != other.x || y != other.y || z != other.z || rx != other.rx || ry != other.ry || rz != other.rz)
+    {
+      return false;
+    }
+    if (q_near.has_value() != other.q_near.has_value())
+    {
+      return false;
+    }
+    if (!q_near.has_value())
+    {
+      return true;
+    }
+    return *q_near == *other.q_near;
   }
 };
 

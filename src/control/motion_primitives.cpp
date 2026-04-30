@@ -191,6 +191,11 @@ MoveLPrimitive::MoveLPrimitive(const MotionTarget& target, const double blend_ra
 {
   setTarget(target);
 }
+
+MoveLPrimitive::~MoveLPrimitive()
+{
+}
+
 void MoveLPrimitive::setTarget(const MotionTarget& target)
 {
   std::visit(
@@ -223,6 +228,10 @@ MovePPrimitive::MovePPrimitive(const MotionTarget& target, const double blend_ra
   : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration, velocity)
 {
   setTarget(target);
+}
+
+MovePPrimitive::~MovePPrimitive()
+{
 }
 
 void MovePPrimitive::setTarget(const MotionTarget& target)
@@ -263,6 +272,10 @@ MoveCPrimitive::MoveCPrimitive(const MotionTarget& via_point, const MotionTarget
 {
   setVia(via_point);
   setTarget(target);
+}
+
+MoveCPrimitive::~MoveCPrimitive()
+{
 }
 
 void MoveCPrimitive::setTarget(const MotionTarget& target)
@@ -388,6 +401,10 @@ OptimoveLPrimitive::OptimoveLPrimitive(const MotionTarget& target, const double 
   : MotionPrimitiveWithTarget(blend_radius, std::chrono::milliseconds(0), acceleration_fraction, velocity_fraction)
 {
   setTarget(target);
+}
+
+OptimoveLPrimitive::~OptimoveLPrimitive()
+{
 }
 
 void OptimoveLPrimitive::setTarget(const MotionTarget& target)

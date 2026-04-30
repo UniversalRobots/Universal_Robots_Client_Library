@@ -123,8 +123,33 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
     {
       auto with_target = std::static_pointer_cast<control::MotionPrimitiveWithTarget>(primitive);
       first_block = motionTargetToBlock(with_target->getTarget().value());
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
+      bool has_qnear = false;
+      second_block = std::visit(
+          [&has_qnear](const auto& alternative) -> vector6d_t {
+            using T = std::decay_t<decltype(alternative)>;
+            if constexpr (std::is_same_v<T, urcl::Pose>)
+            {
+              if (alternative.q_near.has_value())
+              {
+                has_qnear = true;
+                return vector6d_t{ alternative.q_near->values[0], alternative.q_near->values[1],
+                                   alternative.q_near->values[2], alternative.q_near->values[3],
+                                   alternative.q_near->values[4], alternative.q_near->values[5] };
+              }
+              else
+              {
+                has_qnear = false;
+                return vector6d_t{ 0, 0, 0, 0, 0, 0 };
+              }
+            }
+            else
+            {
+              static_assert(std::is_same_v<T, urcl::Q>, "Unhandled MotionTarget alternative");
+              return { 0, 0, 0, 0, 0, 0 };
+            }
+          },
+          with_target->getTarget().value());
+      third_block = { primitive->velocity, primitive->acceleration, static_cast<double>(has_qnear), 0, 0, 0 };
       break;
     }
     case MotionType::MOVEC:

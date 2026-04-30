@@ -104,9 +104,17 @@ int main(int argc, char* argv[])
 
   // acceleration / velocity parametrization brace-init style will be interpreted as joint
   // positions
-  instruction_executor->moveJ({ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0);
+  instruction_executor->moveJ({ -1.742, -1.726, -2.214, -0.773, 1.572, -0.171 }, 2.0, 2.0);
 
-  // goal time parametrization -- acceleration and velocity will be ignored
+  // Passing a pose to moveJ will make it internally solve inverse kinematics.
+  instruction_executor->moveJ(urcl::Pose{ -0.206, -0.6437, 0.202, 0.0, 3.140, 0.0 }, 2.0, 2.0);
+
+  // To provide a q_near hint for the IK solver a joint configuration near the target can be added to a pose.
+  urcl::Pose target_pose{ -0.206, -0.6437, 0.202, 0.0, 3.140, 0.0 };
+  target_pose.q_near = urcl::Q{ -1.7, -4, 1.5, -1, 1.5, 0 };
+  instruction_executor->moveJ(target_pose);
+
+  // goal time parametrization -- acceleration and velocity will be scaled to meed the goal time.
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
 
   // moveL calls with brace-init style is interpreted as a pose

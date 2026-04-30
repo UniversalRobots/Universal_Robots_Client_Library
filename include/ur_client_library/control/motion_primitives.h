@@ -175,6 +175,8 @@ public:
                  const std::chrono::duration<double> duration = std::chrono::milliseconds(0),
                  const double acceleration = 1.4, const double velocity = 1.04);
 
+  ~MoveLPrimitive() override;
+
   void setTarget(const MotionTarget& target) override;
 
   [[deprecated("Use getTarget() and setTarget() instead.")]]
@@ -195,6 +197,8 @@ public:
    */
   MovePPrimitive(const MotionTarget& target, const double blend_radius = 0, const double acceleration = 1.4,
                  const double velocity = 1.04);
+
+  ~MovePPrimitive() override;
 
   void setTarget(const MotionTarget& target) override;
 
@@ -219,6 +223,8 @@ public:
    */
   MoveCPrimitive(const MotionTarget& via_point, const MotionTarget& target, const double blend_radius = 0,
                  const double acceleration = 1.4, const double velocity = 1.04, const int32_t mode = 0);
+
+  ~MoveCPrimitive() override;
 
   void setTarget(const MotionTarget& target) override;
 
@@ -312,6 +318,8 @@ public:
    */
   OptimoveLPrimitive(const MotionTarget& target, const double blend_radius = 0,
                      const double acceleration_fraction = 0.3, const double velocity_fraction = 0.3);
+
+  ~OptimoveLPrimitive() override;
 
   void setTarget(const MotionTarget& target) override;
 

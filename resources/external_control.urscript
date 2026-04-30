@@ -565,19 +565,29 @@ thread trajectoryThread():
         blend_radius = 0.0
         is_last_point = True
       end
+
+      second_block = [raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
+      velocity = raw_point[13] / MULT_jointstate
+      acceleration = raw_point[14] / MULT_jointstate
+      has_qnear = raw_point[15] / MULT_jointstate
+
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
+        textmsg("Moving to joint position: ", q)
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ_POSE:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
-        movej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
+        target_pose = p[q[0], q[1], q[2], q[3], q[4], q[5]]
+        textmsg("Moving to pose: ", target_pose)
+        target_q = get_inverse_kin(target_pose, get_target_joint_positions())
+        if has_qnear:
+          target_q = get_inverse_kin(target_pose, second_block)
+        end
+          movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
+
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
@@ -585,16 +595,12 @@ thread trajectoryThread():
 
         # Movel point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
         movel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEL_JOINT:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
         movel(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
@@ -603,16 +609,12 @@ thread trajectoryThread():
 
       # MoveP point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
         movep(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
 
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP_JOINT:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
         movep(q, a = acceleration, v = velocity, r = blend_radius)
 
         # reset old acceleration
@@ -623,7 +625,7 @@ thread trajectoryThread():
         raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT or
         raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_POSE_JOINT or
         raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC_JOINT_POSE:
-        local v = [raw_point[7], raw_point[8], raw_point[9], raw_point[10], raw_point[11], raw_point[12]] / MULT_jointstate
+        local v = second_block
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEC:
           via = p[v[0], v[1], v[2], v[3], v[4], v[5]]
           target = p[q[0], q[1], q[2], q[3], q[4], q[5]]
@@ -638,8 +640,6 @@ thread trajectoryThread():
           target = q
         end
 
-        velocity = raw_point[13] / MULT_jointstate
-        acceleration = raw_point[14] / MULT_jointstate
         mode = raw_point[15] / MULT_jointstate
         movec(via, target, acceleration, velocity, blend_radius, mode)
 
@@ -673,20 +673,28 @@ thread trajectoryThread():
 
       # OptimoveJ point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ or raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ_POSE:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
           optimovej(q, a = acceleration, v = velocity, r = blend_radius)
         else:
-          optimovej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+          if has_qnear:
+            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], second_block)
+          else:
+            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], get_target_joint_positions())
+          end
+          optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
         end
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
           optimovej(q, a = acceleration, v = velocity, r = blend_radius)
         else:
-          optimovej(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
+          if has_qnear:
+            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], second_block)
+          else:
+            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], get_target_joint_positions())
+          end
+          optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
         end
           {% else %}
         popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
@@ -709,8 +717,6 @@ thread trajectoryThread():
 
       # OptimoveL point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL or raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL_JOINT:
-        acceleration = raw_point[13] / MULT_jointstate
-        velocity = raw_point[7] / MULT_jointstate
 
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
