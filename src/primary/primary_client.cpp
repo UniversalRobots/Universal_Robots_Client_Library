@@ -249,7 +249,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
                          error.to_string.c_str());
           is_warning = true;
         }
-        else if (error.message_code == 210)
+        if (error.message_code == 210)
         {
           is_error = true;
           is_read_only = true;
