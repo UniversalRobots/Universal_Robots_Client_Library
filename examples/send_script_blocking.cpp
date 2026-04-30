@@ -57,11 +57,11 @@ end)""";
   // wait indefinitely.
   client.sendScriptBlocking(R"(textmsg("hello"))", "cool_function_name", std::chrono::milliseconds(0));
   // There is no feedback on secondary programs, so it will return successful as soon as the script is sent to the
-  // robot (Behavior is the same the sendScript function)
+  // robot (Behavior is the same the sendScript function, except that robot state is checked before script is sent)
   // Note that secondary scripts have to be "fully defined" by the user.
   std::string secondary_script = R"(
 sec sec_script():
-  textmsg("Named secondary program"
+  textmsg("Named secondary program")
 end
 )";
   client.sendScriptBlocking(secondary_script);
