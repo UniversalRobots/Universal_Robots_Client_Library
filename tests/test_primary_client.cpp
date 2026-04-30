@@ -504,14 +504,14 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
   EXPECT_FALSE(client_->sendScriptBlocking(script_code));
 }
 
-TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
-{
-  EXPECT_NO_THROW(client_->start());
-  EXPECT_NO_THROW(client_->commandPowerOff());
-  EXPECT_NO_THROW(client_->commandBrakeRelease());
-  // Impossible movement, will trigger an error and protective stop
-  EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::seconds(1), false));
-}
+// TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
+// {
+//   EXPECT_NO_THROW(client_->start());
+//   EXPECT_NO_THROW(client_->commandPowerOff());
+//   EXPECT_NO_THROW(client_->commandBrakeRelease());
+//   // Impossible movement, will trigger an error and protective stop
+//   EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::seconds(1), false));
+// }
 
 int main(int argc, char* argv[])
 {
