@@ -313,7 +313,7 @@ public:
    * If no robot type data has been received yet, this will return UNDEFINED.
    */
   RobotSeries getRobotSeries();
-  
+
   /* \brief Check if the current safety mode allows for script execution
    *
    * Safety modes allowing for execution are: NORMAL, REDUCED, RECOVERY, UNDEFINED_SAFETY_MODE
