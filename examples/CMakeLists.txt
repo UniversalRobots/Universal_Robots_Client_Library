@@ -11,9 +11,9 @@ add_executable(primary_pipeline_example
   primary_pipeline.cpp)
 target_link_libraries(primary_pipeline_example ur_client_library::urcl)
 
-add_executable(primary_client
-  primary_client.cpp)
-target_link_libraries(primary_client ur_client_library::urcl)
+add_executable(send_script_blocking
+  send_script_blocking.cpp)
+target_link_libraries(send_script_blocking ur_client_library::urcl)
 
 add_executable(primary_pipeline_calibration_example
   primary_pipeline_calibration.cpp)
