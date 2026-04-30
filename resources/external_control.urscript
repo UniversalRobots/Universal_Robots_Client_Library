@@ -28,6 +28,7 @@ MODE_POSE = 5
 MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
 MODE_TORQUE = 8
+MODE_RESOLVED_ACCELERATION = 9
 # Data dimensions of the message received on the reverse interface
 REVERSE_INTERFACE_DATA_DIMENSION = 8
 
@@ -86,6 +87,7 @@ global violation_popup_counter = 0
 global cmd_servo_state = SERVO_UNINITIALIZED
 global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_torque = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global cmd_acceleration = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_servo_q = get_joint_positions()
 global cmd_servo_q_last = cmd_servo_q
 global cmd_twist = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -249,50 +251,101 @@ thread speedThread():
   stopj(STOPJ_ACCELERATION)
 end
 
+# Helper function to call the direct torque control function depending on the software version
+def directTorqueControlCall(tau):
+  {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+  {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
+  if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+      {% if ROBOT_SOFTWARE_VERSION < v5.25.1 %}
+    popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1. This robot runs an older version.", error=True, blocking=True)
+      {% else %}
+    direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+      {% endif %}
+  elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
+    direct_torque(tau, friction_comp=deprecated_friction_compensation_enabled)
+  else:
+    direct_torque(tau)
+  end
+    {% else %}
+  popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
+    {% endif %}
+  {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+  if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
+    {% if ROBOT_SOFTWARE_VERSION < v10.12.1 %}
+    popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X 10.12.1. This robot runs an older version.", error=True, blocking=True)
+    {% else %}
+    direct_torque(tau, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
+    {% endif %}
+  elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
+    direct_torque(tau, friction_comp=deprecated_friction_compensation_enabled)
+  else:
+    direct_torque(tau)
+  end
+  {% else %}
+  popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
+  {% endif %}
+end
+
 # Helpers for torque control
 def set_torque(target_torque):
   cmd_torque = target_torque
   control_mode = MODE_TORQUE
 end
 
+# Helpers for resolved acceleration control
+def set_resolved_acceleration(target_acceleration):
+  cmd_acceleration = target_acceleration
+  control_mode = MODE_RESOLVED_ACCELERATION
+end
+
 thread torqueThread():
   textmsg("ExternalControl: Starting torque thread")
   while control_mode == MODE_TORQUE:
-    torque = cmd_torque
-    {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
-      {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
-    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
-        {% if ROBOT_SOFTWARE_VERSION < v5.25.1 %}
-      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope 5.25.1. This robot runs an older version.", error=True, blocking=True)
-        {% else %}
-      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
-        {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
-      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
-    else:
-      direct_torque(torque) # Uses robot defaults
-    end
-      {% else %}
-    popup("Torque control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
-      {% endif %}
-    {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
-    if friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_SCALES:
-      {% if ROBOT_SOFTWARE_VERSION < v10.12.1 %}
-      popup("Friction scales (viscous_scale/coulomb_scale) are supported from PolyScope X 10.12.1. This robot runs an older version.", error=True, blocking=True)
-      {% else %}
-      direct_torque(torque, viscous_scale=viscous_scale, coulomb_scale=coulomb_scale)
-      {% endif %}
-    elif friction_compensation_mode == FRICTION_COMP_MODE_FRICTION_LEGACY:
-      direct_torque(torque, friction_comp=deprecated_friction_compensation_enabled)
-    else:
-      direct_torque(torque) # Uses robot defaults
-    end
-    {% else %}
-    popup("Torque control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
-    {% endif %}
+    local tau = cmd_torque
+    directTorqueControlCall(tau)
   end
-  textmsg("ExternalControl: torque thread ended")
+  textmsg("ExternalControl: Torque thread ended")
   stopj(STOPJ_ACCELERATION)
+end
+
+# Get the measured wrench at the tool flange
+def get_flange_wrench():
+  local ft = get_tcp_force() #Tcp force returns the force and torques at the tool flange with base orientation
+  local t_end_base = pose_trans(get_target_tcp_pose(), pose_inv(get_tcp_offset()))
+  local current_rot_in_tool = pose_inv(p[0, 0, 0, t_end_base[3], t_end_base[4], t_end_base[5]])
+  local f = pose_trans(current_rot_in_tool, p[ft[0], ft[1], ft[2], 0, 0, 0])
+  local t = pose_trans(current_rot_in_tool, p[ft[3], ft[4], ft[5], 0, 0, 0])
+  return [f[0], f[1], f[2], t[0], t[1], t[2]]
+end
+
+thread resolvedAccelerationThread():
+  {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
+  {% if ROBOT_SOFTWARE_VERSION >= v5.23.0 %}
+  textmsg("ExternalControl: Starting resolved acceleration thread")
+  while control_mode == MODE_RESOLVED_ACCELERATION:
+    # We do the transformation in the tool flange frame.
+    local external_torque = transpose(get_jacobian(tcp=p[0,0,0,0,0,0])) * get_flange_wrench()
+    local tau = get_mass_matrix(include_rotor_inertia=True) * cmd_acceleration + get_coriolis_and_centrifugal_torques() + external_torque
+    directTorqueControlCall(tau)
+  end
+  textmsg("ExternalControl: Resolved acceleration thread ended")
+  stopj(STOPJ_ACCELERATION)
+    {% else %}
+  popup("Resolved acceleration control is only supported from software 5.23.0 and upwards.", error=True, blocking=True)
+    {% endif %}
+  {% elif ROBOT_SOFTWARE_VERSION >= v10.11.0 %}
+  textmsg("ExternalControl: Starting resolved acceleration thread")
+  while control_mode == MODE_RESOLVED_ACCELERATION:
+    # We do the transformation in the tool flange frame.
+    local external_torque = transpose(get_jacobian(tcp=p[0,0,0,0,0,0])) * get_flange_wrench()
+    local tau = get_mass_matrix(include_rotor_inertia=True) * cmd_acceleration + get_coriolis_and_centrifugal_torques() + external_torque
+    directTorqueControlCall(tau)
+  end
+  textmsg("ExternalControl: Resolved acceleration thread ended")
+  stopj(STOPJ_ACCELERATION)
+  {% else %}
+  popup("Resolved acceleration control is only supported from software 10.11.0 and upwards.", error=True, blocking=True)
+  {% endif %}
 end
 
 # Function return value (bool) determines whether the robot is moving after this spline segment or
@@ -576,7 +629,7 @@ thread trajectoryThread():
         # reset old acceleration
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
-        
+
       # MoveP point
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEP:
         acceleration = raw_point[13] / MULT_jointstate
@@ -656,7 +709,7 @@ thread trajectoryThread():
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEL:
         acceleration = raw_point[13] / MULT_jointstate
         velocity = raw_point[7] / MULT_jointstate
-        
+
         {% if ROBOT_SOFTWARE_VERSION >= v5.21.0 %}
           {% if ROBOT_SOFTWARE_VERSION < v6.0.0 %}
         optimovel(p[q[0], q[1], q[2], q[3], q[4], q[5]], a = acceleration, v = velocity, r = blend_radius)
@@ -989,7 +1042,7 @@ while control_mode > MODE_STOPPED:
   if params_mult[0] > 0:
 
     # Convert read timeout from milliseconds to seconds
-    read_timeout = params_mult[1] / 1000.0 
+    read_timeout = params_mult[1] / 1000.0
 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
       # Clear remaining trajectory points
@@ -1023,6 +1076,8 @@ while control_mode > MODE_STOPPED:
         thread_move = run speedThread()
       elif control_mode == MODE_TORQUE:
         thread_move = run torqueThread()
+      elif control_mode == MODE_RESOLVED_ACCELERATION:
+        thread_move = run resolvedAccelerationThread()
       elif control_mode == MODE_FORWARD:
         kill thread_move
         stopj(STOPJ_ACCELERATION)
@@ -1044,10 +1099,13 @@ while control_mode > MODE_STOPPED:
     elif control_mode == MODE_TORQUE:
       torque = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
       set_torque(torque)
+    elif control_mode == MODE_RESOLVED_ACCELERATION:
+      acceleration = [params_mult[2]/ MULT_jointstate, params_mult[3]/ MULT_jointstate, params_mult[4]/ MULT_jointstate, params_mult[5]/ MULT_jointstate, params_mult[6]/ MULT_jointstate, params_mult[7]/ MULT_jointstate]
+      set_resolved_acceleration(acceleration)
     elif control_mode == MODE_FORWARD:
       if trajectory_cleanup_running:
-          textmsg("Trajectory buffer cleanup in progress, new trajectory ignored")
-          popup("Trajectory buffer cleanup in progress, new trajectory ignored", error = True, blocking = True)
+        textmsg("Trajectory buffer cleanup in progress, new trajectory ignored")
+        popup("Trajectory buffer cleanup in progress, new trajectory ignored", error = True, blocking = True)
       elif params_mult[2] == TRAJECTORY_MODE_RECEIVE:
         kill thread_trajectory
         request_trajectory_cleanup()
