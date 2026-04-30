@@ -276,29 +276,29 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       }
     }
 
+    // Copy out key messages
+    std::deque<urcl::primary_interface::KeyMessage> key_messages;
     {
       std::scoped_lock lock(key_message_queue_mutex_);
-      if (key_message_queue_.size() > 0)
+      for (auto msg : key_message_queue_)
       {
-        auto key_messages = key_message_queue_;
-        key_message_queue_.clear();
-        for (auto message : key_messages)
+        key_messages.push_back(msg);
+      }
+      key_message_queue_.clear();
+    }
+    if (key_messages.size() > 0)
+    {
+      for (auto message : key_messages)
+      {
+        if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_info.script_name)
         {
-          if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_info.script_name)
-          {
-            URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
-            return true;
-          }
-          else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" &&
-                   message.text_ == script_info.script_name)
-          {
-            URCL_LOG_INFO("Script with name %s started", script_info.script_name.c_str());
-            script_started = true;
-          }
-          else  // Put irrelevant messages back in the queue
-          {
-            key_message_queue_.push_back(message);
-          }
+          URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
+          return true;
+        }
+        else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" && message.text_ == script_info.script_name)
+        {
+          URCL_LOG_INFO("Script with name %s started", script_info.script_name.c_str());
+          script_started = true;
         }
       }
     }
