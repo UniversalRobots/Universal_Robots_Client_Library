@@ -2,6 +2,8 @@
 #include <thread>
 #include <chrono>
 
+using namespace urcl;
+
 std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 
 int main(int argc, char* argv[])
@@ -15,8 +17,8 @@ int main(int argc, char* argv[])
   {
     robot_ip = std::string(argv[1]);
   }
-  auto notif = urcl::comm::INotifier();
-  auto client = urcl::primary_interface::PrimaryClient(robot_ip, notif);
+  auto notif = comm::INotifier();
+  auto client = primary_interface::PrimaryClient(robot_ip, notif);
   client.start(10);
   std::cout << "Client connected" << std::endl;
 
