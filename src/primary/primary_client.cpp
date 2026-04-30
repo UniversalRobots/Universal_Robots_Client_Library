@@ -356,7 +356,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   unsigned int current_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
-  std::string actual_script_name = script_name.size() != 0 ? script_name : "script_" + std::to_string(current_time);
+  std::string actual_script_name = script_name.empty() ? "script_" + std::to_string(current_time) : script_name;
   ScriptTypes actual_script_type = urcl::primary_interface::ScriptTypes::DEF;
   // Is the script wrapped in a function definition? If not add one
   if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
