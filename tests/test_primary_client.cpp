@@ -489,6 +489,28 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
   EXPECT_TRUE(client_->sendScriptBlocking("movej([0,0,0,0,0,0])"));
 }
 
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  // auto consumer = std::make_shared<RobotMessageConsumer>();
+
+  // client_->addPrimaryConsumer(consumer);
+
+  EXPECT_FALSE(client_->sendScriptBlocking("non_existing_func()"));
+
+  // auto message = consumer->getOrWaitForMessage();
+  // auto typed_msg = std::dynamic_pointer_cast<primary_interface::RuntimeExceptionMessage>(message);
+  // std::cout << typed_msg->toString() << std::endl;
+  const std::string script_code = "def illegal_fun():\n"
+                                  "  calldoesntexist()\n"
+                                  "end";
+
+  EXPECT_FALSE(client_->sendScriptBlocking(script_code));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
