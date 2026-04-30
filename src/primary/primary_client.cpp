@@ -36,6 +36,7 @@
 #include <ur_client_library/compile_options.h>
 
 #include <chrono>
+#include <regex>
 namespace urcl
 {
 namespace primary_interface
@@ -48,6 +49,9 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 
   consumer_.reset(new PrimaryConsumer());
   consumer_->setErrorCodeMessageCallback(std::bind(&PrimaryClient::errorMessageCallback, this, std::placeholders::_1));
+  consumer_->setKeyMessageCallback(std::bind(&PrimaryClient::keyMessageCallback, this, std::placeholders::_1));
+  consumer_->setRuntimeExceptionCallback(
+      std::bind(&PrimaryClient::runtimeExceptionCallback, this, std::placeholders::_1));
 
   // Configure multi consumer even though we only have one consumer as default, as this enables the user to add more
   // consumers after the object has been created
@@ -94,6 +98,18 @@ void PrimaryClient::errorMessageCallback(ErrorCode& code)
   error_code_queue_.push_back(code);
 }
 
+void PrimaryClient::keyMessageCallback(KeyMessage& msg)
+{
+  std::lock_guard<std::mutex> lock_guard(key_message_queue_mutex_);
+  key_message_queue_.push_back(msg);
+}
+
+void PrimaryClient::runtimeExceptionCallback(RuntimeExceptionMessage& msg)
+{
+  std::scoped_lock lock(runtime_exception_mutex_);
+  latest_runtime_exception_ = std::make_shared<primary_interface::RuntimeExceptionMessage>(msg);
+}
+
 std::deque<ErrorCode> PrimaryClient::getErrorCodes()
 {
   std::lock_guard<std::mutex> lock_guard(error_code_queue_mutex_);
@@ -103,12 +119,314 @@ std::deque<ErrorCode> PrimaryClient::getErrorCodes()
   return error_codes;
 }
 
+bool PrimaryClient::safetyModeAllowsExecution()
+{
+  SafetyMode mode = getSafetyMode();
+  switch (mode)
+  {
+    case SafetyMode::NORMAL:
+      return true;
+
+    case SafetyMode::REDUCED:
+      return true;
+
+    case SafetyMode::RECOVERY:
+      return true;
+
+    // Safety mode might be unknown, as it is only updated on changes.
+    case SafetyMode::UNDEFINED_SAFETY_MODE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
+                                       std::chrono::milliseconds timeout, bool fail_on_warnings)
+{
+  ScriptInfo script_info = prepare_script(program, script_name);
+
+  RobotMode robot_mode = getRobotMode();
+  while (robot_mode == RobotMode::UNKNOWN)
+  {
+    URCL_LOG_INFO("Robot mode not received yet, waiting for it to be received.");
+    std::chrono::milliseconds update_period(100);
+    std::this_thread::sleep_for(update_period);
+    robot_mode = getRobotMode();
+  }
+
+  if (robot_mode != RobotMode::RUNNING)
+  {
+    URCL_LOG_ERROR("Robot is not running, cannot execute script.");
+    std::stringstream ss;
+    ss << "Robot is in mode: " << urcl::robotModeString(robot_mode) << " (" << int(robot_mode) << ")";
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  if (!safetyModeAllowsExecution())
+  {
+    URCL_LOG_ERROR("Robot safety mode does not allow for script execution, cannot execute script.");
+    std::stringstream ss;
+    ss << "Robot safety mode is: " << safetyModeString(getSafetyMode()) << " (" << unsigned(getSafetyMode()) << ")";
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  {
+    std::scoped_lock lock(runtime_exception_mutex_);
+    latest_runtime_exception_ = nullptr;
+  }
+
+  bool script_sent = sendScript(script_info.script_code);
+  if (!script_sent)
+  {
+    URCL_LOG_ERROR("Script could not be sent.");
+    return false;
+  }
+  // No feedback from secondary programs, so we assume success
+  if (script_info.script_type == ScriptTypes::SEC)
+  {
+    return true;
+  }
+
+  const auto script_start_time = std::chrono::system_clock::now();
+  // Ignore start delay if it is 0
+  bool script_started = timeout == std::chrono::milliseconds(0) ? true : false;
+  while (true)
+  {
+    {
+      std::scoped_lock lock(runtime_exception_mutex_);
+      if (latest_runtime_exception_ != nullptr)
+      {
+        URCL_LOG_ERROR("Runtime exception occured during script execution. Runtime exception type: %s",
+                       latest_runtime_exception_->text_.c_str());
+        std::stringstream ss;
+        ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
+           << latest_runtime_exception_->column_number_ << "\n";
+        // Debug print for the user
+        auto script_lines = splitString(script_info.script_code, "\n");
+        for (int i = 0; i < static_cast<int>(script_lines.size()); i++)
+        {
+          if (!script_lines[i].empty())
+          {
+            ss << script_lines[i] << "\n";
+          }
+          if (i == latest_runtime_exception_->line_number_ - 1)
+          {
+            for (int j = 0; j < latest_runtime_exception_->column_number_ - 1; j++)
+            {
+              ss << " ";
+            }
+            ss << "^\n";
+          }
+        }
+        URCL_LOG_ERROR(ss.str().c_str());
+        return false;
+      }
+    }
+
+    auto errors = getErrorCodes();
+    if (errors.size() > 0)
+    {
+      bool is_error = false;
+      bool is_warning = false;
+      bool is_read_only = false;
+      for (auto error : errors)
+      {
+        if (error.report_level == ReportLevel::VIOLATION || error.report_level == ReportLevel::FAULT)
+        {
+          URCL_LOG_ERROR("Robot error code with severity VIOLATION or FAULT received during script execution. Robot "
+                         "error code: %s",
+                         error.to_string.c_str());
+          is_error = true;
+        }
+        if (error.report_level == ReportLevel::WARNING)
+        {
+          URCL_LOG_ERROR("Robot error code with severity WARNING received during script execution. Robot "
+                         "error code: %s",
+                         error.to_string.c_str());
+          is_warning = true;
+        }
+        if (error.message_code == 210)
+        {
+          is_error = true;
+          is_read_only = true;
+        }
+      }
+      if (is_error)
+      {
+        if (!is_read_only)
+        {
+          commandStop();
+        }
+        else
+        {
+          URCL_LOG_ERROR("Script cannot be executed since primary client is connected to a read-only primary "
+                         "interface. If you have switched from local to remote mode recently, try reconnecting the "
+                         "primary client and send the script code again.");
+        }
+        URCL_LOG_ERROR("Script execution failed due to error code(s) received from robot.");
+        return false;
+      }
+      if (is_warning && fail_on_warnings)
+      {
+        return false;
+      }
+    }
+
+    // Copy out key messages
+    std::deque<urcl::primary_interface::KeyMessage> key_messages;
+    {
+      std::scoped_lock lock(key_message_queue_mutex_);
+      for (auto msg : key_message_queue_)
+      {
+        key_messages.push_back(msg);
+      }
+      key_message_queue_.clear();
+    }
+    if (key_messages.size() > 0)
+    {
+      for (auto message : key_messages)
+      {
+        if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_info.script_name)
+        {
+          URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
+          return true;
+        }
+        else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" && message.text_ == script_info.script_name)
+        {
+          URCL_LOG_INFO("Script with name %s started", script_info.script_name.c_str());
+          script_started = true;
+        }
+      }
+    }
+    auto current_time = std::chrono::system_clock::now();
+    auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time);
+
+    if (!script_started && elapsed_time > timeout)
+    {
+      // Should this stop the running program?
+      URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
+      return false;
+    }
+    std::chrono::milliseconds wait_period(10);
+    std::this_thread::sleep_for(wait_period);
+  }
+}
+
+std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
+{
+  std::vector<std::string> stripped_script;
+  for (auto line : split_script)
+  {
+    for (auto c : line)
+    {
+      if (!isspace(c))
+      {
+        if (c == '#')
+        {
+          break;
+        }
+        else
+        {
+          stripped_script.push_back(line);
+          break;
+        }
+      }
+    }
+  }
+  return stripped_script;
+}
+
+ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name)
+{
+  // Split the given script in to separate lines
+  std::vector<std::string> split_script = splitString(script, "\n");
+
+  // Remove all comments and white-space-only lines
+  std::vector<std::string> stripped_script = strip_comments_and_whitespace(split_script);
+
+  // Use given scipt name or create one
+  int64_t current_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  std::string actual_script_name = script_name.empty() ? "script_" + std::to_string(current_time) : script_name;
+  ScriptTypes actual_script_type = urcl::primary_interface::ScriptTypes::DEF;
+  // Is the script wrapped in a function definition? If not add one
+  if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
+      stripped_script[0].substr(0, 4).find("sec ") == script.npos)
+  {
+    std::string definition = "def " + actual_script_name + "():";
+    std::string end = "end";
+    // Add indentation to the existing script code
+    for (std::size_t i = 0; i < stripped_script.size(); i++)
+    {
+      stripped_script[i] = "  " + stripped_script[i];
+    }
+    // Add function definition and end statement to the stripped script lines vector
+    stripped_script.insert(stripped_script.begin(), definition);
+    stripped_script.push_back(end);
+  }
+  // Otherwise extract script name and type from function
+  else
+  {
+    size_t name_end = stripped_script[0].find("(");
+    actual_script_name = stripped_script[0].substr(4, name_end - 4);
+    if (stripped_script[0].find("def") != stripped_script[0].npos)
+    {
+      actual_script_type = ScriptTypes::DEF;
+    }
+    else
+    {
+      actual_script_type = ScriptTypes::SEC;
+    }
+  }
+
+  // Validate script_name
+  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
+  if (!std::regex_match(actual_script_name, valid_name))
+  {
+    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + script_name +
+                                          "'. Can only contain letters, numbers and underscores. First character "
+                                          "must "
+                                          "be a letter or "
+                                          "underscore.");
+  }
+
+  // Limit script name length to 31, to ensure backwards compatibility
+  if (actual_script_name.size() > 31)
+  {
+    actual_script_name = actual_script_name.substr(0, 31);
+    URCL_LOG_WARN("Given script name was too long, and has been truncated. New script name is: %s",
+                  actual_script_name.c_str());
+  }
+  if (stripped_script.back().find("end") == script.npos)
+  {
+    throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process "
+                                          "definition, "
+                                          "but no 'end' term. Script is invalid.");
+  }
+
+  // Concatenate all the script lines in to the final script
+  std::string prepared_script = "";
+  for (auto line : stripped_script)
+  {
+    prepared_script.append(line + "\n");
+  }
+
+  // Return final script code as well as the name of the script as it will be exectuted
+  return ScriptInfo(actual_script_name, prepared_script, actual_script_type);
+}
+
 bool PrimaryClient::sendScript(const std::string& program)
 {
   // urscripts (snippets) must end with a newline, or otherwise the controller's runtime will
   // not execute them. To avoid problems, we always just append a newline here, even if
   // there may already be one.
-  auto program_with_newline = program + '\n';
+
+  auto program_with_newline = program + "\n";
 
   size_t len = program_with_newline.size();
   const uint8_t* data = reinterpret_cast<const uint8_t*>(program_with_newline.c_str());

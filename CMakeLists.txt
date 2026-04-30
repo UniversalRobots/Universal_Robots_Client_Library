@@ -85,6 +85,7 @@ else()
       src/ur/dashboard_client.cpp
       src/ur/dashboard_client_implementation_g5.cpp
       src/ur/dashboard_client_implementation_x.cpp
+      src/primary/primary_client.cpp
       PROPERTIES COMPILE_OPTIONS "-Wno-maybe-uninitialized")
   endif()
 

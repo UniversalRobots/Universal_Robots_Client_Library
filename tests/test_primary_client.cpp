@@ -409,6 +409,110 @@ TEST_F(PrimaryClientTest, test_read_safety_mode)
   EXPECT_EQ(client_->getSafetyMode(), urcl::SafetyMode::NORMAL);
 }
 
+TEST_F(PrimaryClientTest, test_send_script_blocking_happy_path)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  const std::string fully_defined_script = "def test_fun():\n"
+                                           "  textmsg(\"still running\")\n"
+                                           "  sleep(0.1)\n"
+                                           "  sync()\n"
+                                           "end";
+  EXPECT_TRUE(client_->sendScriptBlocking(fully_defined_script));
+
+  const std::string part_defined_script = "textmsg(\"still running\")\n"
+                                          "sleep(0.1)\n"
+                                          "sync()\n";
+  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script));
+  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script, "test_def"));
+  std::string sec_script = "sec test_sec():\n  textmsg(\"Still running\")\nend";
+  EXPECT_TRUE(client_->sendScriptBlocking(sec_script, "test_sec"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_nonrunning_robot)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_NO_THROW(client_->commandPowerOn());
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_bad_safety_mode)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  ASSERT_TRUE(client_->safetyModeAllowsExecution());
+
+  EXPECT_FALSE(client_->sendScriptBlocking("protective_stop()"));
+  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
+  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_throw_on_malformed_scripts)
+{
+  EXPECT_NO_THROW(client_->start());
+  const std::string script_no_end = "def test_fun():\n"
+                                    "  textmsg(\"testing\")";
+  EXPECT_THROW(client_->sendScriptBlocking(script_no_end), urcl::ScriptCodeSyntaxException);
+  const std::string script_bad_name = "def 7_eight_9():\n"
+                                      "  textmsg(\"testing\")\n"
+                                      "end";
+  EXPECT_THROW(client_->sendScriptBlocking(script_bad_name), urcl::ScriptCodeSyntaxException);
+  EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  // Non-invertible goal, should throw runtime exception
+  EXPECT_FALSE(client_->sendScriptBlocking("movej(p[10,0,0,0,0,0])"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  // Impossible movement, will trigger a warning and protective stop
+  EXPECT_FALSE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])"));
+  // reset the robot
+  client_->commandUnlockProtectiveStop();
+  EXPECT_TRUE(client_->sendScriptBlocking("movej([0,0,0,0,0,0])"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+
+  EXPECT_FALSE(client_->sendScriptBlocking("non_existing_func()"));
+
+  const std::string script_code = "def illegal_fun():\n"
+                                  "  calldoesntexist()\n"
+                                  "end";
+
+  EXPECT_FALSE(client_->sendScriptBlocking(script_code));
+}
+
+// TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
+// {
+//   EXPECT_NO_THROW(client_->start());
+//   EXPECT_NO_THROW(client_->commandPowerOff());
+//   EXPECT_NO_THROW(client_->commandBrakeRelease());
+//   // Impossible movement, will trigger an error and protective stop
+//   EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::seconds(1), false));
+// }
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
