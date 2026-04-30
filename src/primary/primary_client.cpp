@@ -353,7 +353,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   std::vector<std::string> stripped_script = strip_comments_and_whitespace(split_script);
 
   // Use given scipt name or create one
-  unsigned int current_time =
+  int64_t current_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
   std::string actual_script_name = script_name.empty() ? "script_" + std::to_string(current_time) : script_name;
@@ -376,7 +376,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   // Otherwise extract script name and type from function
   else
   {
-    int name_end = stripped_script[0].find("(");
+    size_t name_end = stripped_script[0].find("(");
     actual_script_name = stripped_script[0].substr(4, name_end - 4);
     if (stripped_script[0].find("def") != stripped_script[0].npos)
     {
