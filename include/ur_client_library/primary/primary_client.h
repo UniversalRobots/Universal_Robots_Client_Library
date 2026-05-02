@@ -259,6 +259,20 @@ public:
   }
 
   /*!
+   * \brief Get the latest kinematics info.
+   *
+   * The kinematics info contains the controller's calibrated DH parameters: the nominal model
+   * combined with the per-arm calibration deltas, plus the calibration checksum/status. It
+   * will be updated in the background. This will always show the latest received kinematics
+   * info independent of the time that has passed since receiving it. If no kinematics info
+   * has been received yet, this will return a nullptr.
+   */
+  std::shared_ptr<KinematicsInfo> getKinematicsInfo()
+  {
+    return consumer_->getKinematicsInfo();
+  }
+
+  /*!
    * \brief Get the Robot type
    *
    * If no robot type data has been received yet, this will return UNDEFINED.
