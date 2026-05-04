@@ -107,6 +107,7 @@ public:
   virtual bool consume(KinematicsInfo& pkg) override
   {
     URCL_LOG_DEBUG("%s", pkg.toString().c_str());
+    std::scoped_lock lock(kinematics_info_mutex_);
     kinematics_info_ = std::make_shared<KinematicsInfo>(pkg);
     return true;
   }
@@ -203,6 +204,7 @@ public:
    */
   std::shared_ptr<KinematicsInfo> getKinematicsInfo()
   {
+    std::scoped_lock lock(kinematics_info_mutex_);
     return kinematics_info_;
   }
 
@@ -259,6 +261,7 @@ public:
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
   std::shared_ptr<KinematicsInfo> kinematics_info_;
+  std::mutex kinematics_info_mutex_;
   std::mutex robot_mode_mutex_;
   std::shared_ptr<RobotModeData> robot_mode_;
   std::mutex version_information_mutex_;
