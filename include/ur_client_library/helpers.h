@@ -66,6 +66,34 @@ static inline int sched_get_priority_max(int policy)
 
 #endif  // _WIN32
 
+/*!
+ * \file
+ * \brief Portable helpers to temporarily silence deprecation diagnostics.
+ *
+ * Use \ref URCL_SILENCE_DEPRECATED_BEGIN before and \ref URCL_SILENCE_DEPRECATED_END after the
+ * code that must call deprecated APIs (e.g. deprecated library methods implemented for backward
+ * compatibility). Expands to nothing on unsupported compilers.
+ *
+ * Example:
+ * \code
+ * URCL_SILENCE_DEPRECATED_BEGIN
+ * legacy_call();
+ * URCL_SILENCE_DEPRECATED_END
+ * \endcode
+ */
+
+#if defined(_MSC_VER)
+#  define URCL_SILENCE_DEPRECATED_BEGIN __pragma(warning(push)) __pragma(warning(disable : 4996))
+#  define URCL_SILENCE_DEPRECATED_END __pragma(warning(pop))
+#elif defined(__GNUC__)
+#  define URCL_SILENCE_DEPRECATED_BEGIN                                                                                \
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#  define URCL_SILENCE_DEPRECATED_END _Pragma("GCC diagnostic pop")
+#else
+#  define URCL_SILENCE_DEPRECATED_BEGIN
+#  define URCL_SILENCE_DEPRECATED_END
+#endif
+
 namespace urcl
 {
 bool setFiFoScheduling(pthread_t& thread, const int priority);

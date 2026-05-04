@@ -34,13 +34,6 @@
 #include <cstddef>
 #include "test_utils.h"
 
-// This file adds a test for a deprecated function. To avoid a compiler warning in CI (where we want
-// to treat warnings as errors) we suppress the warning inside this file.
-#ifdef _MSC_VER
-#  pragma warning(disable : 4996)
-#else
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include "ur_client_library/types.h"
@@ -302,7 +295,9 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
 
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
 {
+  URCL_SILENCE_DEPRECATED_BEGIN
   client_->setReconnectionTime(std::chrono::milliseconds(100));
+  URCL_SILENCE_DEPRECATED_END
   EXPECT_TRUE(client_->setup(2));
 }
 

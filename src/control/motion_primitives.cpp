@@ -28,13 +28,13 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/control/motion_primitives.h>
 #include <ur_client_library/log.h>
 
 namespace urcl::control
 {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+URCL_SILENCE_DEPRECATED_BEGIN
 
 bool MotionPrimitive::validate() const
 {
@@ -164,7 +164,6 @@ void MoveJPrimitive::setTarget(const MotionTarget& target)
         if constexpr (std::is_same_v<T, urcl::Pose>)
         {
           type = MotionType::MOVEJ_POSE;
-
           target_joint_configuration.fill(0);
         }
         else if constexpr (std::is_same_v<T, Q>)
@@ -426,6 +425,7 @@ void OptimoveLPrimitive::setTarget(const MotionTarget& target)
       },
       target);
 }
-#pragma GCC diagnostic pop
+
+URCL_SILENCE_DEPRECATED_END
 
 }  // namespace urcl::control
