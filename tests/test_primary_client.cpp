@@ -268,6 +268,24 @@ TEST_F(PrimaryClientTest, test_configuration_data)
   EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
 }
 
+TEST_F(PrimaryClientTest, test_kinematics_info)
+{
+  EXPECT_NO_THROW(client_->start());
+
+  // Once we connect to the primary client we should receive kinematics info
+  auto start_time = std::chrono::system_clock::now();
+  const auto timeout = std::chrono::seconds(1);
+  auto kinematics_info = client_->getKinematicsInfo();
+  while (kinematics_info == nullptr && std::chrono::system_clock::now() - start_time < timeout)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    kinematics_info = client_->getKinematicsInfo();
+  }
+
+  // We should have received a kinematics info package
+  EXPECT_NE(kinematics_info, nullptr);
+}
+
 TEST_F(PrimaryClientTest, test_get_robot_series)
 {
   EXPECT_NO_THROW(client_->start());
