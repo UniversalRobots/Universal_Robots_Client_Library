@@ -50,13 +50,20 @@ functions, so the parameter descriptions for them apply, as well. Particularly, 
 choose between either a time-based execution or an acceleration / velocity parametrization
 for some move functions. The latter will be ignored if a time > 0 is given.
 
+Each motion primitive can be constructed either with its "native" target type (``vector6d_t`` for
+``MoveJ`` / ``OptimoveJ``, ``urcl::Pose`` for ``MoveL`` / ``MoveP`` / ``MoveC`` / ``OptimoveL``)
+or with a ``urcl::MotionTarget``, which can hold either a ``urcl::Q`` (joint configuration) or a
+``urcl::Pose`` (Cartesian pose). This makes it possible, for example, to use a
+``MoveLPrimitive`` with a joint configuration – the robot will then compute the forward
+kinematics on the controller and linearly interpolate in tool space towards the resulting pose.
+
 Please refer to the script manual for details.
 
 Execute a single motion
 -----------------------
 
-To run a single motion, the ``InstructionExecutor`` provides the methods ``moveJ(...)`` and
-``moveL(...)``:
+To run a single motion, the ``InstructionExecutor`` provides the methods ``moveJ(...)``,
+``moveL(...)``, ``moveP(...)``, ``moveC(...)``, ``optimoveJ(...)`` and ``optimoveL(...)``:
 
 .. literalinclude:: ../../examples/instruction_executor.cpp
    :language: c++
@@ -64,6 +71,20 @@ To run a single motion, the ``InstructionExecutor`` provides the methods ``moveJ
    :linenos:
    :lineno-match:
    :start-at: double goal_time_sec = 2.0;
-   :end-before: g_my_robot->getUrDriver()->stopControl();
+   :end-before: return 0;
 
 Again, time parametrization has priority over acceleration / velocity parameters.
+
+Each motion function has two overloads: one taking the "natural" target type
+(``vector6d_t`` for ``moveJ`` / ``optimoveJ``, ``urcl::Pose`` for the other motions), and one
+taking a ``urcl::MotionTarget``. Passing a braced-initializer-list of six doubles selects the
+natural overload, so ``moveJ({ ... })`` continues to be interpreted as joint positions and
+``moveL({ ... })`` as a Cartesian pose. To select the other interpretation, wrap the values in
+``urcl::Q{...}`` or ``urcl::Pose{...}`` explicitly – for example,
+``moveJ(urcl::Pose{...})`` performs a ``movej`` towards a Cartesian target and
+``moveL(urcl::Q{...})`` performs a ``movel`` towards the pose implied by a joint configuration.
+The same rules apply to ``moveP``, ``moveC``, ``optimoveJ`` and ``optimoveL``.
+
+For Cartesian targets, ``urcl::Pose`` may optionally set ``q_near`` (a ``urcl::Q``): a joint-space
+hint forwarded on the trajectory socket for inverse kinematics. The bundled external-control
+URScript uses it for ``movej`` / ``optimovej`` to a pose; see :ref:`trajectory_point_interface`.

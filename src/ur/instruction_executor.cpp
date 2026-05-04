@@ -75,7 +75,7 @@ bool urcl::InstructionExecutor::executeMotion(
     }
     catch (const UnsupportedMotionType&)
     {
-      URCL_LOG_ERROR("Unsupported motion type");
+      URCL_LOG_ERROR("Unsupported motion type %s", motionTypeToString(primitive->type).c_str());
       // The hardware will complain about missing trajectory points and return a failure for
       // trajectory execution. Hence, we need to step into the running loop below.
     }
@@ -100,11 +100,23 @@ bool urcl::InstructionExecutor::executeMotion(
 bool urcl::InstructionExecutor::moveJ(const urcl::vector6d_t& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
+  return moveJ(Q(target), acceleration, velocity, time, blend_radius);
+}
+
+bool urcl::InstructionExecutor::moveJ(const MotionTarget& target, const double acceleration, const double velocity,
+                                      const double time, const double blend_radius)
+{
   return executeMotion({ std::make_shared<control::MoveJPrimitive>(
       target, blend_radius, std::chrono::milliseconds(static_cast<int>(time * 1000)), acceleration, velocity) });
 }
 
 bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acceleration, const double velocity,
+                                      const double time, const double blend_radius)
+{
+  return moveL(MotionTarget(target), acceleration, velocity, time, blend_radius);
+}
+
+bool urcl::InstructionExecutor::moveL(const MotionTarget& target, const double acceleration, const double velocity,
                                       const double time, const double blend_radius)
 {
   return executeMotion({ std::make_shared<control::MoveLPrimitive>(
@@ -114,10 +126,22 @@ bool urcl::InstructionExecutor::moveL(const urcl::Pose& target, const double acc
 bool urcl::InstructionExecutor::moveP(const urcl::Pose& target, const double acceleration, const double velocity,
                                       const double blend_radius)
 {
+  return moveP(MotionTarget(target), acceleration, velocity, blend_radius);
+}
+
+bool urcl::InstructionExecutor::moveP(const MotionTarget& target, const double acceleration, const double velocity,
+                                      const double blend_radius)
+{
   return executeMotion({ std::make_shared<control::MovePPrimitive>(target, blend_radius, acceleration, velocity) });
 }
 
 bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& target, const double acceleration,
+                                      const double velocity, const double blend_radius, const int32_t mode)
+{
+  return moveC(MotionTarget(via), MotionTarget(target), acceleration, velocity, blend_radius, mode);
+}
+
+bool urcl::InstructionExecutor::moveC(const MotionTarget& via, const MotionTarget& target, const double acceleration,
                                       const double velocity, const double blend_radius, const int32_t mode)
 {
   return executeMotion(
@@ -127,10 +151,22 @@ bool urcl::InstructionExecutor::moveC(const urcl::Pose& via, const urcl::Pose& t
 bool urcl::InstructionExecutor::optimoveJ(const urcl::vector6d_t& target, const double acceleration,
                                           const double velocity, const double blend_radius)
 {
+  return optimoveJ(Q(target), acceleration, velocity, blend_radius);
+}
+
+bool urcl::InstructionExecutor::optimoveJ(const MotionTarget& target, const double acceleration, const double velocity,
+                                          const double blend_radius)
+{
   return executeMotion({ std::make_shared<control::OptimoveJPrimitive>(target, blend_radius, acceleration, velocity) });
 }
 
 bool urcl::InstructionExecutor::optimoveL(const urcl::Pose& target, const double acceleration, const double velocity,
+                                          const double blend_radius)
+{
+  return optimoveL(MotionTarget(target), acceleration, velocity, blend_radius);
+}
+
+bool urcl::InstructionExecutor::optimoveL(const MotionTarget& target, const double acceleration, const double velocity,
                                           const double blend_radius)
 {
   return executeMotion({ std::make_shared<control::OptimoveLPrimitive>(target, blend_radius, acceleration, velocity) });

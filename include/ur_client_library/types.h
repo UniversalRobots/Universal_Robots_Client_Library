@@ -21,9 +21,12 @@
 #pragma once
 
 #include <inttypes.h>
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <iostream>
+#include <optional>
+#include <variant>
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -33,13 +36,49 @@ using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 
+/*!
+ * \brief A joint configuration (6 joint positions in radians).
+ *
+ * This is a strong type around a \ref vector6d_t meant to unambiguously express "this 6-tuple
+ * represents joint values", as opposed to a Cartesian pose. It is primarily used together with
+ * \ref MotionTarget to select between joint-space and Cartesian-space targets when calling
+ * motion functions that can accept either.
+ *
+ * Unlike raw initializer lists (``{...}``) which may bind to either \ref vector6d_t or
+ * \ref Pose, wrapping values in ``urcl::Q{...}`` always forces a joint-target interpretation.
+ */
+struct Q
+{
+  Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6)
+  {
+    values = { q1, q2, q3, q4, q5, q6 };
+  }
+  explicit Q(const vector6d_t& values)
+  {
+    this->values.resize(6);
+    std::copy(values.begin(), values.end(), this->values.begin());
+  }
+
+  std::vector<double> values;
+};
+
+inline bool operator==(const Q& lhs, const Q& rhs)
+{
+  return lhs.values.size() == rhs.values.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.values.begin());
+}
+
 struct Pose
 {
-  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0)
+  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0), q_near(std::nullopt)
   {
   }
   Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
-    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz)
+    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(std::nullopt)
+  {
+  }
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz,
+       const Q& q_near)
+    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(q_near)
   {
   }
   double x;
@@ -49,11 +88,50 @@ struct Pose
   double ry;
   double rz;
 
+  /*!
+   * Optional joint-space hint (six joint positions in radians) passed to the controller for inverse
+   * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
+   */
+  std::optional<Q> q_near;
+
   bool operator==(const Pose& other) const
   {
-    return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
+    if (x != other.x || y != other.y || z != other.z || rx != other.rx || ry != other.ry || rz != other.rz)
+    {
+      return false;
+    }
+    if (q_near.has_value() != other.q_near.has_value())
+    {
+      return false;
+    }
+    if (!q_near.has_value())
+    {
+      return true;
+    }
+    return *q_near == *other.q_near;
   }
 };
+
+inline bool operator==(const Q& lhs, const vector6d_t& rhs)
+{
+  return lhs.values.size() == rhs.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.begin());
+}
+
+/*!
+ * \brief A tagged union representing either a joint target (\ref Q) or a Cartesian target
+ * (\ref Pose).
+ *
+ * ``MotionTarget`` is used throughout the motion API (e.g.
+ * \ref InstructionExecutor::moveJ "InstructionExecutor::moveJ" and the ``Move*Primitive``
+ * constructors) to let callers choose at call site whether a motion should be parametrized in
+ * joint space or in Cartesian space without needing separate overloads for every combination.
+ *
+ * The overloads that take a ``MotionTarget`` are provided alongside explicit \ref vector6d_t and
+ * \ref Pose overloads so that plain braced-initializer calls keep binding to the previous
+ * behaviour; only explicitly constructed \ref Q or \ref Pose values (or an already-built
+ * ``MotionTarget``) select the variant-based path.
+ */
+using MotionTarget = std::variant<Q, Pose>;
 
 template <class T, std::size_t N>
 std::ostream& operator<<(std::ostream& out, const std::array<T, N>& item)

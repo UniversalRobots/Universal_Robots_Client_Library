@@ -39,6 +39,28 @@ namespace urcl
 {
 namespace control
 {
+namespace
+{
+// Flatten a MotionTarget into a 6-element block, regardless of whether it holds a Q or a Pose.
+vector6d_t motionTargetToBlock(const urcl::MotionTarget& target)
+{
+  return std::visit(
+      [](const auto& alternative) -> vector6d_t {
+        using T = std::decay_t<decltype(alternative)>;
+        if constexpr (std::is_same_v<T, urcl::Pose>)
+        {
+          return { alternative.x, alternative.y, alternative.z, alternative.rx, alternative.ry, alternative.rz };
+        }
+        else
+        {
+          static_assert(std::is_same_v<T, urcl::Q>, "Unhandled MotionTarget alternative");
+          return { alternative.values[0], alternative.values[1], alternative.values[2],
+                   alternative.values[3], alternative.values[4], alternative.values[5] };
+        }
+      },
+      target);
+}
+}  // namespace
 
 std::string trajectoryResultToString(const TrajectoryResult result)
 {
@@ -89,45 +111,55 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   switch (primitive->type)
   {
     case MotionType::MOVEJ:
-    {
-      auto movej_primitive = std::static_pointer_cast<control::MoveJPrimitive>(primitive);
-      first_block = movej_primitive->target_joint_configuration;
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
-      break;
-    }
+    case MotionType::MOVEJ_POSE:
     case MotionType::MOVEL:
-    {
-      auto movel_primitive = std::static_pointer_cast<control::MoveLPrimitive>(primitive);
-      first_block = {
-        movel_primitive->target_pose.x,  movel_primitive->target_pose.y,  movel_primitive->target_pose.z,
-        movel_primitive->target_pose.rx, movel_primitive->target_pose.ry, movel_primitive->target_pose.rz
-      };
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
-      break;
-    }
+    case MotionType::MOVEL_JOINT:
     case MotionType::MOVEP:
+    case MotionType::MOVEP_JOINT:
+    case MotionType::OPTIMOVEJ:
+    case MotionType::OPTIMOVEJ_POSE:
+    case MotionType::OPTIMOVEL:
+    case MotionType::OPTIMOVEL_JOINT:
     {
-      auto movep_primitive = std::static_pointer_cast<control::MovePPrimitive>(primitive);
-      first_block = {
-        movep_primitive->target_pose.x,  movep_primitive->target_pose.y,  movep_primitive->target_pose.z,
-        movep_primitive->target_pose.rx, movep_primitive->target_pose.ry, movep_primitive->target_pose.rz
-      };
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
+      auto with_target = std::static_pointer_cast<control::MotionPrimitiveWithTarget>(primitive);
+      first_block = motionTargetToBlock(with_target->getTarget().value());
+      bool has_qnear = false;
+      second_block = std::visit(
+          [&has_qnear](const auto& alternative) -> vector6d_t {
+            using T = std::decay_t<decltype(alternative)>;
+            if constexpr (std::is_same_v<T, urcl::Pose>)
+            {
+              if (alternative.q_near.has_value())
+              {
+                has_qnear = true;
+                return vector6d_t{ alternative.q_near->values[0], alternative.q_near->values[1],
+                                   alternative.q_near->values[2], alternative.q_near->values[3],
+                                   alternative.q_near->values[4], alternative.q_near->values[5] };
+              }
+              else
+              {
+                has_qnear = false;
+                return vector6d_t{ 0, 0, 0, 0, 0, 0 };
+              }
+            }
+            else
+            {
+              static_assert(std::is_same_v<T, urcl::Q>, "Unhandled MotionTarget alternative");
+              return { 0, 0, 0, 0, 0, 0 };
+            }
+          },
+          with_target->getTarget().value());
+      third_block = { primitive->velocity, primitive->acceleration, static_cast<double>(has_qnear), 0, 0, 0 };
       break;
     }
     case MotionType::MOVEC:
+    case MotionType::MOVEC_JOINT:
+    case MotionType::MOVEC_POSE_JOINT:
+    case MotionType::MOVEC_JOINT_POSE:
     {
       auto movec_primitive = std::static_pointer_cast<control::MoveCPrimitive>(primitive);
-      first_block = {
-        movec_primitive->target_pose.x,  movec_primitive->target_pose.y,  movec_primitive->target_pose.z,
-        movec_primitive->target_pose.rx, movec_primitive->target_pose.ry, movec_primitive->target_pose.rz
-      };
-      second_block = { movec_primitive->via_point_pose.x,  movec_primitive->via_point_pose.y,
-                       movec_primitive->via_point_pose.z,  movec_primitive->via_point_pose.rx,
-                       movec_primitive->via_point_pose.ry, movec_primitive->via_point_pose.rz };
+      first_block = motionTargetToBlock(movec_primitive->getTarget().value());
+      second_block = motionTargetToBlock(movec_primitive->getVia());
       third_block = {
         primitive->velocity, primitive->acceleration, static_cast<double>(movec_primitive->mode), 0, 0, 0
       };
@@ -142,24 +174,6 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       {
         third_block = spline_primitive->target_accelerations.value();
       }
-      break;
-    }
-    case control::MotionType::OPTIMOVEJ:
-    {
-      auto optimovej_primitive = std::static_pointer_cast<control::OptimoveJPrimitive>(primitive);
-      first_block = optimovej_primitive->target_joint_configuration;
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
-      break;
-    }
-    case control::MotionType::OPTIMOVEL:
-    {
-      auto optimovel_primitive = std::static_pointer_cast<control::OptimoveLPrimitive>(primitive);
-      first_block = { optimovel_primitive->target_pose.x,  optimovel_primitive->target_pose.y,
-                      optimovel_primitive->target_pose.z,  optimovel_primitive->target_pose.rx,
-                      optimovel_primitive->target_pose.ry, optimovel_primitive->target_pose.rz };
-      second_block.fill(primitive->velocity);
-      third_block.fill(primitive->acceleration);
       break;
     }
     default:

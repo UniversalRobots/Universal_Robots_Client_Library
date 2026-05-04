@@ -16,6 +16,26 @@ to point motions easily accessible. Currently, it supports the following instruc
 * Execute OptimoveL point to point motions (For PolyScope 5.21 / PolyScope 10.8 and later)
 * Execute sequences consisting of the motion primitives above
 
+Joint and Cartesian targets
+---------------------------
+
+Every motion function comes in two flavours:
+
+* A "native" overload whose parameter is the target type that matches the underlying URScript
+  command (``vector6d_t`` for ``moveJ`` / ``optimoveJ``, ``urcl::Pose`` for ``moveL``, ``moveP``,
+  ``moveC`` and ``optimoveL``). Braced-initializer-list calls such as
+  ``moveJ({ q1, q2, q3, q4, q5, q6 })`` bind to this overload and keep the behaviour from older
+  releases.
+* A ``urcl::MotionTarget`` overload that accepts either a ``urcl::Q`` (joint configuration) or a
+  ``urcl::Pose`` (Cartesian pose). This lets the same function perform a motion whose target type
+  does not match the URScript command's natural argument, e.g. ``moveJ(urcl::Pose{...})`` to reach
+  a Cartesian target with a joint-interpolated motion, or ``moveL(urcl::Q{...})`` to perform a
+  linear tool-space motion towards the pose implied by a joint configuration.
+
+An ``urcl::Pose`` may optionally carry ``q_near`` (``std::optional<urcl::Q>``), a joint configuration
+hint for inverse kinematic solver to select the desired joint angle solution,
+when the pose is sent over the trajectory interface; see :ref:`trajectory_point_interface`.
+
 The Instruction Executor uses the :ref:`trajectory_point_interface` and the
 :ref:`reverse_interface`
 for sending motion instructions to the robot. Hence, it requires a :ref:`ur_driver` object.
