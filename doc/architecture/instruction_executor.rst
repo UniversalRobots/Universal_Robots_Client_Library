@@ -33,7 +33,8 @@ Every motion function comes in two flavours:
   linear tool-space motion towards the pose implied by a joint configuration.
 
 An ``urcl::Pose`` may optionally carry ``q_near`` (``std::optional<urcl::Q>``), a joint configuration
-hint for IK when the pose is sent over the trajectory interface; see :ref:`trajectory_point_interface`.
+hint for inverse kinematic solver to select the desired joint angle solution,
+when the pose is sent over the trajectory interface; see :ref:`trajectory_point_interface`.
 
 The Instruction Executor uses the :ref:`trajectory_point_interface` and the
 :ref:`reverse_interface`

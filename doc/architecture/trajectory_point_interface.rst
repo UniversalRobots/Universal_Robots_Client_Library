@@ -105,7 +105,7 @@ representations in 21 datafields. The data fields have the following meaning:
           - 11: MOVEC_POSE_JOINT – ``movec`` with joint via and pose target
           - 12: OPTIMOVEJ_POSE – ``optimovej`` to a pose target
           - 13: OPTIMOVEL_JOINT – ``optimovel`` to the pose implied by a joint target
-          - 51: SPLINE
+          - 51: SPLINE - Cubic or quintic spline.
    =====  =====
 
 where
