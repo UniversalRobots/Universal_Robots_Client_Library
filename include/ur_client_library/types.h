@@ -76,6 +76,11 @@ struct Pose
     : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(std::nullopt)
   {
   }
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz,
+       const Q& q_near)
+    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(q_near)
+  {
+  }
   double x;
   double y;
   double z;
