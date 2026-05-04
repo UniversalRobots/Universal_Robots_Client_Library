@@ -573,7 +573,6 @@ thread trajectoryThread():
 
       # MoveJ point
       if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ:
-        textmsg("Moving to joint position: ", q)
         movej(q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
         # reset old acceleration
@@ -581,10 +580,11 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
       elif raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_MOVEJ_POSE:
         target_pose = p[q[0], q[1], q[2], q[3], q[4], q[5]]
-        textmsg("Moving to pose: ", target_pose)
-        target_q = get_inverse_kin(target_pose, get_target_joint_positions())
+        target_q = get_target_joint_positions()
         if has_qnear:
           target_q = get_inverse_kin(target_pose, second_block)
+        else:
+          target_q = get_inverse_kin(target_pose, get_target_joint_positions())
         end
         movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
