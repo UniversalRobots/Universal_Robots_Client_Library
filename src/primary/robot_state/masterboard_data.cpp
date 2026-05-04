@@ -111,6 +111,7 @@ bool MasterboardData::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string MasterboardData::toString() const
 {
   std::stringstream os;
+  os << std::boolalpha;
   os << "MasterboardData:" << std::endl;
   os << "Digital input bits: 0b" << digital_input_bits_ << std::endl;
   os << "Digital output bits: 0b" << digital_output_bits_ << std::endl;

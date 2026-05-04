@@ -44,13 +44,14 @@ using namespace urcl;
 namespace
 {
 // ConfigurationData payload before optional int16 reserved fields (older UR software).
-constexpr size_t kConfigurationDataPayloadBytes = 6 * 2 * sizeof(double) +  // joint position limits
-                                                  6 * 2 * sizeof(double) +  // joint motion limits
-                                                  5 * sizeof(double) +      // v/a joint/tool defaults + eq_radius
-                                                  4 * 6 * sizeof(double) +  // dh_a, dh_d, dh_alpha, dh_theta
-                                                  4 * sizeof(int32_t);  // masterboard, controller, robot type, sub type
+constexpr size_t CONFIGURATION_DATA_PAYLOAD_BYTES =
+    6 * 2 * sizeof(double) +  // joint position limits
+    6 * 2 * sizeof(double) +  // joint motion limits
+    5 * sizeof(double) +      // v/a joint/tool defaults + eq_radius
+    4 * 6 * sizeof(double) +  // dh_a, dh_d, dh_alpha, dh_theta
+    4 * sizeof(int32_t);      // masterboard, controller, robot type, sub type
 
-static_assert(kConfigurationDataPayloadBytes == 440);
+static_assert(CONFIGURATION_DATA_PAYLOAD_BYTES == 440);
 
 std::vector<uint8_t> makeRobotStatePacketWithConfigurationSubmessage(const std::vector<uint8_t>& configuration_payload)
 {
@@ -79,20 +80,20 @@ std::vector<uint8_t> makeRobotStatePacketWithConfigurationSubmessage(const std::
 
 // Masterboard payload sizes (not including packageSize + packageType header).
 // Base payload up to and including `immiInterfaceInstalled` flag.
-constexpr size_t kMasterboardPayloadBytesBeforeImmi = 2 * sizeof(uint32_t) +  // digital input/output bits
-                                                      2 * sizeof(uint8_t) +   // analog input ranges
-                                                      2 * sizeof(double) +    // analog inputs
-                                                      2 * sizeof(char) +      // analog output domains
-                                                      2 * sizeof(double) +    // analog outputs
-                                                      4 * sizeof(float) +     // temperature + voltages + currents
-                                                      sizeof(uint8_t) +       // safety mode
-                                                      sizeof(uint8_t) +       // in reduced mode (bool)
-                                                      sizeof(uint8_t);        // immi interface installed (bool)
-constexpr size_t kMasterboardOptionalImmiBytes = 2 * sizeof(uint32_t) + 2 * sizeof(float);
-constexpr size_t kMasterboardPayloadBytesAfterImmi = sizeof(uint32_t) +  // reserved
-                                                     sizeof(uint8_t) +   // operational mode selector input
-                                                     sizeof(uint8_t) +   // three position enabling device (bool)
-                                                     sizeof(uint8_t);    // reserved
+constexpr size_t MASTERBOARD_PAYLOAD_BYTES_BEFORE_IMMI = 2 * sizeof(uint32_t) +  // digital input/output bits
+                                                         2 * sizeof(uint8_t) +   // analog input ranges
+                                                         2 * sizeof(double) +    // analog inputs
+                                                         2 * sizeof(char) +      // analog output domains
+                                                         2 * sizeof(double) +    // analog outputs
+                                                         4 * sizeof(float) +     // temperature + voltages + currents
+                                                         sizeof(uint8_t) +       // safety mode
+                                                         sizeof(uint8_t) +       // in reduced mode (bool)
+                                                         sizeof(uint8_t);        // immi interface installed (bool)
+constexpr size_t MASTERBOARD_OPTIONAL_IMMI_BYTES = 2 * sizeof(uint32_t) + 2 * sizeof(float);
+constexpr size_t MASTERBOARD_PAYLOAD_BYTES_AFTER_IMMI = sizeof(uint32_t) +  // reserved
+                                                        sizeof(uint8_t) +   // operational mode selector input
+                                                        sizeof(uint8_t) +   // three position enabling device (bool)
+                                                        sizeof(uint8_t);    // reserved
 
 std::vector<uint8_t> makeRobotStatePacketWithMasterboardSubmessage(const std::vector<uint8_t>& masterboard_payload)
 {
@@ -611,7 +612,7 @@ TEST_F(PrimaryParserTest, parse_safetymode_msg)
   }
 }
 
-std::string construct_string(int data_type, std::string data)
+std::string constructString(int data_type, std::string data)
 {
   std::stringstream ss;
   ss << "SafetyModeMessage\n";
@@ -642,19 +643,19 @@ TEST_F(PrimaryParserTest, parsing_safetymode_results_in_correct_string)
       EXPECT_EQ(data->report_data_type_, static_cast<uint32_t>(i));
       if (data->report_data_type_ == 0 || data->report_data_type_ == 1)
       {
-        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "2147943941"));
+        EXPECT_EQ(data->toString(), constructString(data->report_data_type_, "2147943941"));
       }
       else if (data->report_data_type_ == 2)
       {
-        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "-2147023355"));
+        EXPECT_EQ(data->toString(), constructString(data->report_data_type_, "-2147023355"));
       }
       else if (data->report_data_type_ == 3)
       {
-        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "6.30203e-36"));
+        EXPECT_EQ(data->toString(), constructString(data->report_data_type_, "6.30203e-36"));
       }
       else
       {
-        EXPECT_EQ(data->toString(), construct_string(data->report_data_type_, "0x80070605"));
+        EXPECT_EQ(data->toString(), constructString(data->report_data_type_, "0x80070605"));
       }
     }
   }
@@ -662,7 +663,7 @@ TEST_F(PrimaryParserTest, parsing_safetymode_results_in_correct_string)
 
 TEST_F(PrimaryParserTest, parse_configuration_data_without_reserved_fields)
 {
-  std::vector<uint8_t> payload(kConfigurationDataPayloadBytes, 0);
+  std::vector<uint8_t> payload(CONFIGURATION_DATA_PAYLOAD_BYTES, 0);
   std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
 
   comm::BinParser bp(packet.data(), packet.size());
@@ -678,7 +679,7 @@ TEST_F(PrimaryParserTest, parse_configuration_data_without_reserved_fields)
 
 TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
 {
-  std::vector<uint8_t> payload(kConfigurationDataPayloadBytes, 0);
+  std::vector<uint8_t> payload(CONFIGURATION_DATA_PAYLOAD_BYTES, 0);
   // Big-endian int16 values appended after the legacy payload.
   payload.push_back(0x12);
   payload.push_back(0x34);
@@ -701,7 +702,7 @@ TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
 TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)
 {
   std::vector<uint8_t> payload;
-  payload.reserve(kMasterboardPayloadBytesBeforeImmi + kMasterboardPayloadBytesAfterImmi);
+  payload.reserve(MASTERBOARD_PAYLOAD_BYTES_BEFORE_IMMI + MASTERBOARD_PAYLOAD_BYTES_AFTER_IMMI);
 
   appendBigEndian<uint32_t>(payload, 0xDEADBEEFu);  // digital input bits
   appendBigEndian<uint32_t>(payload, 0xCAFEBABEu);  // digital output bits
@@ -725,7 +726,7 @@ TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)
   payload.push_back(0x01);                          // three position enabling device input (true)
   payload.push_back(0x00);                          // reserved
 
-  ASSERT_EQ(payload.size(), kMasterboardPayloadBytesBeforeImmi + kMasterboardPayloadBytesAfterImmi);
+  ASSERT_EQ(payload.size(), MASTERBOARD_PAYLOAD_BYTES_BEFORE_IMMI + MASTERBOARD_PAYLOAD_BYTES_AFTER_IMMI);
 
   std::vector<uint8_t> packet = makeRobotStatePacketWithMasterboardSubmessage(payload);
   comm::BinParser bp(packet.data(), packet.size());
@@ -754,13 +755,21 @@ TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)
   EXPECT_FALSE(data->immi_interface_installed_);
   EXPECT_EQ(data->operational_mode_selector_input_, 2);
   EXPECT_TRUE(data->three_position_enabling_device_input_);
+
+  auto msg_str = data->toString();
+  std::cout << msg_str << std::endl;
+  EXPECT_NE(msg_str.find("IMMI interface installed: false"), std::string::npos);
+  EXPECT_EQ(msg_str.find("IMMI input bits:"), std::string::npos);
+  EXPECT_EQ(msg_str.find("IMMI output bits:"), std::string::npos);
+  EXPECT_EQ(msg_str.find("IMMI voltage 24V:"), std::string::npos);
+  EXPECT_EQ(msg_str.find("IMMI current:"), std::string::npos);
 }
 
 TEST_F(PrimaryParserTest, parse_masterboard_data_with_immi)
 {
   std::vector<uint8_t> payload;
-  payload.reserve(kMasterboardPayloadBytesBeforeImmi + kMasterboardOptionalImmiBytes +
-                  kMasterboardPayloadBytesAfterImmi);
+  payload.reserve(MASTERBOARD_PAYLOAD_BYTES_BEFORE_IMMI + MASTERBOARD_OPTIONAL_IMMI_BYTES +
+                  MASTERBOARD_PAYLOAD_BYTES_AFTER_IMMI);
 
   appendBigEndian<uint32_t>(payload, 0x00000001u);
   appendBigEndian<uint32_t>(payload, 0x00000002u);
@@ -788,8 +797,8 @@ TEST_F(PrimaryParserTest, parse_masterboard_data_with_immi)
   payload.push_back(0x00);
   payload.push_back(0x00);
 
-  ASSERT_EQ(payload.size(),
-            kMasterboardPayloadBytesBeforeImmi + kMasterboardOptionalImmiBytes + kMasterboardPayloadBytesAfterImmi);
+  ASSERT_EQ(payload.size(), MASTERBOARD_PAYLOAD_BYTES_BEFORE_IMMI + MASTERBOARD_OPTIONAL_IMMI_BYTES +
+                                MASTERBOARD_PAYLOAD_BYTES_AFTER_IMMI);
 
   std::vector<uint8_t> packet = makeRobotStatePacketWithMasterboardSubmessage(payload);
   comm::BinParser bp(packet.data(), packet.size());
@@ -806,6 +815,15 @@ TEST_F(PrimaryParserTest, parse_masterboard_data_with_immi)
   EXPECT_EQ(data->immi_output_bits_, std::bitset<32>(0x33334444u));
   EXPECT_FLOAT_EQ(data->immi_voltage_24v_, 24.0f);
   EXPECT_FLOAT_EQ(data->immi_current_, 0.75f);
+
+  auto msg_str = data->toString();  // also verify that the presence of IMMI fields does not cause issues in the
+  // toString() method
+  std::cout << msg_str << std::endl;
+  EXPECT_NE(msg_str.find("IMMI interface installed: true"), std::string::npos);
+  EXPECT_NE(msg_str.find("IMMI input bits: 0b00010001000100010010001000100010"), std::string::npos);
+  EXPECT_NE(msg_str.find("IMMI output bits: 0b00110011001100110100010001000100"), std::string::npos);
+  EXPECT_NE(msg_str.find("IMMI voltage 24V: 24"), std::string::npos);
+  EXPECT_NE(msg_str.find("IMMI current: 0.75"), std::string::npos);
 }
 
 int main(int argc, char* argv[])
