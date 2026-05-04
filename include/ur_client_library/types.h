@@ -27,7 +27,6 @@
 #include <iostream>
 #include <optional>
 #include <variant>
-#include "ur_client_library/log.h"
 
 namespace urcl
 {
@@ -49,6 +48,7 @@ using vector6uint32_t = std::array<uint32_t, 6>;
  */
 struct Q
 {
+  Q() = delete;
   Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6)
   {
     values = { q1, q2, q3, q4, q5, q6 };
