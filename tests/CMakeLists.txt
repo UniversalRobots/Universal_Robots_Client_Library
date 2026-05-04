@@ -271,3 +271,13 @@ add_executable(helpers_tests test_helpers.cpp)
 target_link_libraries(helpers_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET helpers_tests
 )
+
+add_executable(types_tests test_types.cpp)
+target_link_libraries(types_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET types_tests
+)
+
+add_executable(motion_primitives_tests test_motion_primitives.cpp)
+target_link_libraries(motion_primitives_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET motion_primitives_tests
+)
