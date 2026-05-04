@@ -92,6 +92,7 @@ TEST(TestTypes, Pose_equality)
   const Pose a(1.0, 2.0, 3.0, 0.1, 0.2, 0.3);
   const Pose b(1.0, 2.0, 3.0, 0.1, 0.2, 0.3);
   const Pose c(1.1, 2.0, 3.0, 0.1, 0.2, 0.3);
+  const Pose d(1.1, 2.1, 3.1, 5.1, 5.2, 5.3);
 
   const Q q{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
   const Pose with_q(1.0, 2.0, 3.0, 0.1, 0.2, 0.3, q);
@@ -99,6 +100,7 @@ TEST(TestTypes, Pose_equality)
 
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == c);
+  EXPECT_FALSE(a == d);
   EXPECT_FALSE(with_q == without_q_near);
 
   const Pose with_same_q(1.0, 2.0, 3.0, 0.1, 0.2, 0.3, q);
