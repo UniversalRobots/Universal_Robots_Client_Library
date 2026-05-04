@@ -586,7 +586,7 @@ thread trajectoryThread():
         if has_qnear:
           target_q = get_inverse_kin(target_pose, second_block)
         end
-          movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
+        movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
 
         # reset old acceleration
