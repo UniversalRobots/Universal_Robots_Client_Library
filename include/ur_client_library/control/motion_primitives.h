@@ -32,6 +32,7 @@
 #define UR_CLIENT_LIBRARY_MOTION_PRIMITIVES_H_INCLUDED
 
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <variant>
 #include <ur_client_library/types.h>
