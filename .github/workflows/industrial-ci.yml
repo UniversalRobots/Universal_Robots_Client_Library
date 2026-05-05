@@ -16,19 +16,14 @@ jobs:
         ROS_DISTRO:
           - NAME: noetic
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master"
-            CLANG_TIDY: ""
           - NAME: humble
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble"
-            CLANG_TIDY: ""
           - NAME: jazzy
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#jazzy"
-            CLANG_TIDY: ""
           - NAME: kilted
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#kilted"
-            CLANG_TIDY: ""
           - NAME: lyrical
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
-            CLANG_TIDY: ""
           - NAME: rolling
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
             CLANG_TIDY: pedantic
