@@ -193,10 +193,9 @@ public:
    *
    * \returns True
    */
-  virtual bool consume(MasterboardData& pkg) override
+  virtual bool consume(MasterboardData&) override
   {
-    std::scoped_lock lock(masterboard_data_mutex_);
-    masterboard_data_ = std::make_shared<MasterboardData>(pkg);
+    // Nothing to do here for now.
     return true;
   }
 
@@ -282,8 +281,6 @@ private:
   std::mutex configuration_data_mutex_;
   std::mutex safety_mode_mutex_;
   std::shared_ptr<SafetyModeMessage> safety_mode_;
-  std::mutex masterboard_data_mutex_;
-  std::shared_ptr<MasterboardData> masterboard_data_;
 };
 
 }  // namespace primary_interface
