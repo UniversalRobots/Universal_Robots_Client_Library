@@ -582,11 +582,11 @@ thread trajectoryThread():
         target_pose = p[q[0], q[1], q[2], q[3], q[4], q[5]]
         target_q = get_target_joint_positions()
         if has_qnear:
-          target_q = get_inverse_kin(target_pose, second_block)
+          local target_q = get_inverse_kin(target_pose, second_block)
+          movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
         else:
-          target_q = get_inverse_kin(target_pose, get_target_joint_positions())
+          movej(target_pose, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
         end
-        movej(target_q, a = acceleration, v = velocity, t = tmptime, r = blend_radius)
 
 
         # reset old acceleration
