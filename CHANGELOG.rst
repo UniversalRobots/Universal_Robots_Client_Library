@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.11.0 (2026-05-05)
+-------------------
 * Remove programs.UR5 linking to /ursim/programs (`#500 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/500>`_)
 * Fix data race (`#498 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/498>`_)
 * Fix flaky reverse_interface test (`#497 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/497>`_)
