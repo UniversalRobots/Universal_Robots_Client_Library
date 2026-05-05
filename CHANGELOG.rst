@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.11.0 (2026-05-05)
+-------------------
+* Remove programs.UR5 linking to /ursim/programs (`#500 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/500>`_)
+* Fix data race (`#498 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/498>`_)
+* Fix flaky reverse_interface test (`#497 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/497>`_)
+* Add getKinematicsInfo accessor to PrimaryClient (`#496 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/496>`_)
+* Make downloading and checking RTDE outputs from docs optional (`#493 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/493>`_)
+* Add helper function to get robot series (`#488 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/488>`_)
+* Make sure motion control returns to main thread before stopping (`#490 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/490>`_)
+* Fix broken links (`#487 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/487>`_)
+* Contributors: Felix Exner, Nick Franczak
+
 2.10.0 (2026-04-17)
 -------------------
 * [primary] Add new fields to ConfigurationData object (`#485 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/485>`_)
