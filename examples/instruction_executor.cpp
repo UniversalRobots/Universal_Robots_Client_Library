@@ -111,8 +111,12 @@ int main(int argc, char* argv[])
 
   // To provide a q_near hint for the IK solver a joint configuration near the target can be added to a pose.
   urcl::Pose target_pose{ -0.206, -0.6437, 0.202, 0.0, 3.140, 0.0 };
-  target_pose.q_near = urcl::Q{ -1.7, -4, 1.5, -1, 1.5, 0 };
-  instruction_executor->moveJ(target_pose);
+  target_pose.setQNear(urcl::Q{ -1.7, -4, 1.5, -1, 1.5, 0 });
+  instruction_executor->moveJ(target_pose, 2.0, 2.0);
+
+  // q_near can also be set directly upon pose construction
+  instruction_executor->moveJ(
+      urcl::Pose{ -0.206, -0.6437, 0.202, 0.0, 3.140, 0.0, urcl::Q{ -1.7, -4, 1.5, -1, 1.5, 0 } }, 2.0, 2.0);
 
   // goal time parametrization -- acceleration and velocity will be scaled to meed the goal time.
   instruction_executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1, 0.1, goal_time_sec);
@@ -128,14 +132,14 @@ int main(int argc, char* argv[])
   instruction_executor->moveJ(urcl::Pose{ -0.0203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.1, 0.1, goal_time_sec);
 
   // moveP can also be called with brace-init (interpreted as pose) or explicitly using a Pose or Q
-  instruction_executor->moveP({ -0.2, 0.363, 0.559, 0.68, -1.083, -2.076 });
-  instruction_executor->moveP(urcl::Pose{ -0.0203, 0.303, 0.559, 0.68, -1.083, -2.076 });
-  instruction_executor->moveP(urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 });
+  instruction_executor->moveP({ -0.2, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.2, 0.2);
+  instruction_executor->moveP(urcl::Pose{ -0.0203, 0.303, 0.559, 0.68, -1.083, -2.076 }, 0.2, 0.2);
+  instruction_executor->moveP(urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 }, 0.2, 0.2);
 
   // For moveC via and target can be a Pose or Q. When brace-init style lists are given, values are
   // interpreted as Pose.
   instruction_executor->moveC(urcl::Pose{ -0.1, 0.463, 0.559, 0.68, -1.083, -2.076 },
-                              urcl::Pose{ -0.0203, 0.303, 0.559, 0.68, -1.083, -2.076 });
+                              urcl::Pose{ -0.3203, 0.303, 0.559, 0.68, -1.083, -2.076 });
   instruction_executor->moveC(urcl::Pose{ -0.1, 0.463, 0.559, 0.68, -1.083, -2.076 },
                               urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 });
 

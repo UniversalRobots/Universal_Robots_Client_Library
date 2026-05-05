@@ -44,8 +44,8 @@ TEST(TestTypes, Q_constructors_and_equality)
   const Q from_array(arr);
 
   EXPECT_EQ(from_doubles, from_array);
-  EXPECT_EQ(from_doubles.values.size(), 6u);
-  EXPECT_EQ(from_array.values.size(), 6u);
+  EXPECT_EQ(from_doubles.getValues().size(), 6u);
+  EXPECT_EQ(from_array.getValues().size(), 6u);
 
   const Q different{ 1.0, 0.2, 0.3, 0.4, 0.5, 0.6 };
   EXPECT_FALSE(from_doubles == different);
@@ -70,7 +70,7 @@ TEST(TestTypes, Pose_default_and_constructors)
   EXPECT_DOUBLE_EQ(default_pose.rx, 0.0);
   EXPECT_DOUBLE_EQ(default_pose.ry, 0.0);
   EXPECT_DOUBLE_EQ(default_pose.rz, 0.0);
-  EXPECT_FALSE(default_pose.q_near.has_value());
+  EXPECT_FALSE(default_pose.getQNear().has_value());
 
   const Pose cartesian(1.0, 2.0, 3.0, 0.1, 0.2, 0.3);
   EXPECT_DOUBLE_EQ(cartesian.x, 1.0);
@@ -79,12 +79,12 @@ TEST(TestTypes, Pose_default_and_constructors)
   EXPECT_DOUBLE_EQ(cartesian.rx, 0.1);
   EXPECT_DOUBLE_EQ(cartesian.ry, 0.2);
   EXPECT_DOUBLE_EQ(cartesian.rz, 0.3);
-  EXPECT_FALSE(cartesian.q_near.has_value());
+  EXPECT_FALSE(cartesian.getQNear().has_value());
 
   const Q hint{ 0.0, -0.5, 1.0, 0.0, 0.5, 0.0 };
   const Pose with_hint(10.0, 20.0, 30.0, 1.0, 2.0, 3.0, hint);
-  ASSERT_TRUE(with_hint.q_near.has_value());
-  EXPECT_EQ(*with_hint.q_near, hint);
+  ASSERT_TRUE(with_hint.getQNear().has_value());
+  EXPECT_EQ(*with_hint.getQNear(), hint);
 }
 
 TEST(TestTypes, Pose_equality)

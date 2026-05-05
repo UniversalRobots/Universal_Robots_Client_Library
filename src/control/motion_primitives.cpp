@@ -169,7 +169,8 @@ void MoveJPrimitive::setTarget(const MotionTarget& target)
         else if constexpr (std::is_same_v<T, Q>)
         {
           type = MotionType::MOVEJ;
-          std::copy(target_variant.values.begin(), target_variant.values.end(), target_joint_configuration.begin());
+          const auto& values = target_variant.getValues();
+          std::copy(values.begin(), values.end(), target_joint_configuration.begin());
         }
       },
       target);
@@ -382,7 +383,8 @@ void OptimoveJPrimitive::setTarget(const MotionTarget& target)
         else if constexpr (std::is_same_v<T, Q>)
         {
           type = MotionType::OPTIMOVEJ;
-          std::copy(target_variant.values.begin(), target_variant.values.end(), target_joint_configuration.begin());
+          const auto& values = target_variant.getValues();
+          std::copy(values.begin(), values.end(), target_joint_configuration.begin());
         }
       },
       target);

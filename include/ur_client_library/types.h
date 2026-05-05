@@ -1,4 +1,6 @@
 /*
+ * Copyright 2026, Universal Robots A/S (Adding Q and Pose)
+ *
  * Copyright 2019, FZI Forschungszentrum Informatik (refactor)
  *
  * Copyright 2017, 2018 Simon Rasmussen (refactor)
@@ -21,12 +23,12 @@
 #pragma once
 
 #include <inttypes.h>
-#include <algorithm>
 #include <array>
 #include <functional>
 #include <iostream>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace urcl
 {
@@ -46,41 +48,45 @@ using vector6uint32_t = std::array<uint32_t, 6>;
  * Unlike raw initializer lists (``{...}``) which may bind to either \ref vector6d_t or
  * \ref Pose, wrapping values in ``urcl::Q{...}`` always forces a joint-target interpretation.
  */
-struct Q
+class Q
 {
+public:
   Q() = delete;
-  Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6)
-  {
-    values = { q1, q2, q3, q4, q5, q6 };
-  }
-  explicit Q(const vector6d_t& values)
-  {
-    this->values.resize(6);
-    std::copy(values.begin(), values.end(), this->values.begin());
-  }
+  Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6);
+  explicit Q(const vector6d_t& values);
 
-  std::vector<double> values;
+  const std::vector<double>& getValues() const;
+  void setValues(const vector6d_t& values);
+  void setValues(const std::vector<double>& values);
+
+private:
+  std::vector<double> values_;
 };
 
-inline bool operator==(const Q& lhs, const Q& rhs)
-{
-  return lhs.values.size() == rhs.values.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.values.begin());
-}
+bool operator==(const Q& lhs, const Q& rhs);
 
-struct Pose
+/*!
+ * \brief A Cartesian pose (position and orientation) for a robot manipulator.
+ *
+ * The position is represented by ``x``, ``y``, and ``z`` in meters, and the orientation is
+ * represented by AngleAxis ``rx``, ``ry``, and ``rz`` in radians.
+ *
+ * The optional \ref q_near member can be used to provide a hint to the solver for inverse
+ * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
+ */
+class Pose
 {
-  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0), q_near(std::nullopt)
-  {
-  }
-  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
-    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(std::nullopt)
-  {
-  }
+public:
+  Pose();
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz);
   Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz,
-       const Q& q_near)
-    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz), q_near(q_near)
-  {
-  }
+       const Q& q_near);
+
+  bool operator==(const Pose& other) const;
+
+  const std::optional<Q>& getQNear() const;
+  void setQNear(const Q& q_near);
+
   double x;
   double y;
   double z;
@@ -88,34 +94,15 @@ struct Pose
   double ry;
   double rz;
 
+private:
   /*!
    * Optional joint-space hint (six joint positions in radians) passed to the controller for inverse
    * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
    */
-  std::optional<Q> q_near;
-
-  bool operator==(const Pose& other) const
-  {
-    if (x != other.x || y != other.y || z != other.z || rx != other.rx || ry != other.ry || rz != other.rz)
-    {
-      return false;
-    }
-    if (q_near.has_value() != other.q_near.has_value())
-    {
-      return false;
-    }
-    if (!q_near.has_value())
-    {
-      return true;
-    }
-    return *q_near == *other.q_near;
-  }
+  std::optional<Q> q_near_;
 };
 
-inline bool operator==(const Q& lhs, const vector6d_t& rhs)
-{
-  return lhs.values.size() == rhs.size() && std::equal(lhs.values.begin(), lhs.values.end(), rhs.begin());
-}
+bool operator==(const Q& lhs, const vector6d_t& rhs);
 
 /*!
  * \brief A tagged union representing either a joint target (\ref Q) or a Cartesian target

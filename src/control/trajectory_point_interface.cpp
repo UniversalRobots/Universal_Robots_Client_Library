@@ -54,8 +54,8 @@ vector6d_t motionTargetToBlock(const urcl::MotionTarget& target)
         else
         {
           static_assert(std::is_same_v<T, urcl::Q>, "Unhandled MotionTarget alternative");
-          return { alternative.values[0], alternative.values[1], alternative.values[2],
-                   alternative.values[3], alternative.values[4], alternative.values[5] };
+          const auto& values = alternative.getValues();
+          return { values[0], values[1], values[2], values[3], values[4], values[5] };
         }
       },
       target);
@@ -129,12 +129,11 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
             using T = std::decay_t<decltype(alternative)>;
             if constexpr (std::is_same_v<T, urcl::Pose>)
             {
-              if (alternative.q_near.has_value())
+              if (alternative.getQNear().has_value())
               {
                 has_qnear = true;
-                return vector6d_t{ alternative.q_near->values[0], alternative.q_near->values[1],
-                                   alternative.q_near->values[2], alternative.q_near->values[3],
-                                   alternative.q_near->values[4], alternative.q_near->values[5] };
+                const auto& values = alternative.getQNear()->getValues();
+                return vector6d_t{ values[0], values[1], values[2], values[3], values[4], values[5] };
               }
               else
               {
