@@ -7,7 +7,7 @@ on:
 jobs:
   prerelease_test:
     runs-on: ubuntu-latest
-    #if: contains(github.event.pull_request.labels.*.name, 'release')
+    if: contains(github.event.pull_request.labels.*.name, 'release')
 
     strategy:
       fail-fast: false
