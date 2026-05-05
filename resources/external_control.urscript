@@ -678,23 +678,25 @@ thread trajectoryThread():
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
           optimovej(q, a = acceleration, v = velocity, r = blend_radius)
         else:
+          target_pose = p[q[0], q[1], q[2], q[3], q[4], q[5]]
           if has_qnear:
-            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], second_block)
+            local target_q = get_inverse_kin(target_pose, second_block)
+            optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
           else:
-            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], get_target_joint_positions())
+            optimovej(target_pose, a = acceleration, v = velocity, r = blend_radius)
           end
-          optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
         end
           {% elif ROBOT_SOFTWARE_VERSION >= v10.8.0 %}
         if raw_point[INDEX_POINT_TYPE] == MOTION_TYPE_OPTIMOVEJ:
           optimovej(q, a = acceleration, v = velocity, r = blend_radius)
         else:
+          target_pose = p[q[0], q[1], q[2], q[3], q[4], q[5]]
           if has_qnear:
-            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], second_block)
+            local target_q = get_inverse_kin(target_pose, second_block)
+            optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
           else:
-            target_q = get_inverse_kin(p[q[0], q[1], q[2], q[3], q[4], q[5]], get_target_joint_positions())
+            optimovej(target_pose, a = acceleration, v = velocity, r = blend_radius)
           end
-          optimovej(target_q, a = acceleration, v = velocity, r = blend_radius)
         end
           {% else %}
         popup("Optimovej is only supported from software 10.8.0 and upwards.", error=True, blocking=False)
