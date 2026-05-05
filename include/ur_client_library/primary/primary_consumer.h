@@ -35,7 +35,6 @@
 
 #include <functional>
 #include <mutex>
-#include <condition_variable>
 
 namespace urcl
 {
@@ -89,7 +88,7 @@ public:
   virtual bool consume(VersionMessage& pkg) override
   {
     std::scoped_lock lock(version_information_mutex_);
-    version_information_ = std::make_shared<VersionInformation>();
+    version_information_ = VersionInformation();
     version_information_->major = pkg.major_version_;
     version_information_->minor = pkg.minor_version_;
     version_information_->bugfix = pkg.svn_version_;
@@ -108,7 +107,7 @@ public:
   {
     URCL_LOG_DEBUG("%s", pkg.toString().c_str());
     std::scoped_lock lock(kinematics_info_mutex_);
-    kinematics_info_ = std::make_shared<KinematicsInfo>(pkg);
+    kinematics_info_ = std::make_unique<KinematicsInfo>(pkg);
     return true;
   }
 
@@ -167,7 +166,7 @@ public:
   {
     URCL_LOG_DEBUG("Robot mode is now %s", robotModeString(static_cast<RobotMode>(pkg.robot_mode_)).c_str());
     std::scoped_lock lock(robot_mode_mutex_);
-    robot_mode_ = std::make_shared<RobotModeData>(pkg);
+    robot_mode_ = std::make_unique<RobotModeData>(pkg);
     return true;
   }
 
@@ -175,14 +174,14 @@ public:
   {
     URCL_LOG_DEBUG("Robot safety mode is now %s", safetyModeString(pkg.safety_mode_type_).c_str());
     std::scoped_lock lock(safety_mode_mutex_);
-    safety_mode_ = std::make_shared<SafetyModeMessage>(pkg);
+    safety_mode_ = std::make_unique<SafetyModeMessage>(pkg);
     return true;
   }
 
   virtual bool consume(ConfigurationData& pkg) override
   {
     std::scoped_lock lock(configuration_data_mutex_);
-    configuration_data_ = std::make_shared<ConfigurationData>(pkg);
+    configuration_data_ = std::make_unique<ConfigurationData>(pkg);
     return true;
   }
 
@@ -205,7 +204,11 @@ public:
   std::shared_ptr<KinematicsInfo> getKinematicsInfo()
   {
     std::scoped_lock lock(kinematics_info_mutex_);
-    return kinematics_info_;
+    if (kinematics_info_ == nullptr)
+    {
+      return nullptr;
+    }
+    return std::make_shared<KinematicsInfo>(*kinematics_info_);
   }
 
   /*!
@@ -217,7 +220,11 @@ public:
   std::shared_ptr<RobotModeData> getRobotModeData()
   {
     std::scoped_lock lock(robot_mode_mutex_);
-    return robot_mode_;
+    if (robot_mode_ == nullptr)
+    {
+      return nullptr;
+    }
+    return std::make_shared<RobotModeData>(*robot_mode_);
   }
 
   /*!
@@ -229,7 +236,11 @@ public:
   std::shared_ptr<SafetyModeMessage> getSafetyModeMessage()
   {
     std::scoped_lock lock(safety_mode_mutex_);
-    return safety_mode_;
+    if (safety_mode_ == nullptr)
+    {
+      return nullptr;
+    }
+    return std::make_shared<SafetyModeMessage>(*safety_mode_);
   }
 
   /*!
@@ -242,7 +253,11 @@ public:
   std::shared_ptr<VersionInformation> getVersionInformation()
   {
     std::scoped_lock lock(version_information_mutex_);
-    return version_information_;
+    if (!version_information_.has_value())
+    {
+      return nullptr;
+    }
+    return std::make_shared<VersionInformation>(*version_information_);
   }
 
   /*!
@@ -255,21 +270,25 @@ public:
   std::shared_ptr<ConfigurationData> getConfigurationData()
   {
     std::scoped_lock lock(configuration_data_mutex_);
-    return configuration_data_;
+    if (configuration_data_ == nullptr)
+    {
+      return nullptr;
+    }
+    return std::make_shared<ConfigurationData>(*configuration_data_);
   }
 
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
-  std::shared_ptr<KinematicsInfo> kinematics_info_;
   std::mutex kinematics_info_mutex_;
+  std::unique_ptr<KinematicsInfo> kinematics_info_;
   std::mutex robot_mode_mutex_;
-  std::shared_ptr<RobotModeData> robot_mode_;
+  std::unique_ptr<RobotModeData> robot_mode_;
   std::mutex version_information_mutex_;
-  std::shared_ptr<VersionInformation> version_information_;
-  std::shared_ptr<ConfigurationData> configuration_data_;
+  std::optional<VersionInformation> version_information_;
   std::mutex configuration_data_mutex_;
+  std::unique_ptr<ConfigurationData> configuration_data_;
   std::mutex safety_mode_mutex_;
-  std::shared_ptr<SafetyModeMessage> safety_mode_;
+  std::unique_ptr<SafetyModeMessage> safety_mode_;
 };
 
 }  // namespace primary_interface
