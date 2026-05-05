@@ -536,8 +536,11 @@ TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
   // Close the client connection
   client_->close();
   EXPECT_TRUE(waitForProgramState(1000, false));
-  std::unique_lock<std::mutex> lk(g_connection_mutex);
-  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
+  {
+    std::unique_lock<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                    [&]() { return !reverse_interface_->connected.load(); });
+  }
   EXPECT_TRUE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
 
@@ -548,7 +551,11 @@ TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_1);
   client_->close();
-  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
+  {
+    std::unique_lock<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                    [&]() { return !reverse_interface_->connected.load(); });
+  }
   EXPECT_TRUE(waitForProgramState(1000, false));
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_TRUE(disconnect_called_2);
@@ -560,7 +567,11 @@ TEST_F(ReverseInterfaceTest, disconnected_callbacks_are_called)
   EXPECT_TRUE(waitForProgramState(1000, true));
   reverse_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);
   client_->close();
-  g_connection_condition.wait_for(lk, std::chrono::seconds(1), [&]() { return !reverse_interface_->connected.load(); });
+  {
+    std::unique_lock<std::mutex> lk(g_connection_mutex);
+    g_connection_condition.wait_for(lk, std::chrono::seconds(1),
+                                    [&]() { return !reverse_interface_->connected.load(); });
+  }
   EXPECT_TRUE(waitForProgramState(1000, false));
   EXPECT_FALSE(disconnect_called_1);
   EXPECT_FALSE(disconnect_called_2);
