@@ -58,6 +58,10 @@ void Q::setValues(const vector6d_t& values)
 
 void Q::setValues(const std::vector<double>& values)
 {
+  if (values.size() != 6)
+  {
+    throw std::invalid_argument("Q must have exactly 6 values");
+  }
   values_ = values;
 }
 
@@ -113,6 +117,16 @@ bool operator==(const Q& lhs, const vector6d_t& rhs)
 {
   return lhs.getValues().size() == rhs.size() &&
          std::equal(lhs.getValues().begin(), lhs.getValues().end(), rhs.begin());
+}
+
+void Pose::setPose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
+{
+  this->x = x;
+  this->y = y;
+  this->z = z;
+  this->rx = rx;
+  this->ry = ry;
+  this->rz = rz;
 }
 
 }  // namespace urcl

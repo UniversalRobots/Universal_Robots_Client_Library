@@ -61,6 +61,21 @@ TEST(TestTypes, Q_equals_vector6d)
   EXPECT_FALSE(q == mismatch);
 }
 
+TEST(TestTypes, Q_setValues_and_getValues)
+{
+  Q q{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  const vector6d_t from_array{ { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 } };
+  q.setValues(from_array);
+  EXPECT_TRUE(q == from_array);
+  EXPECT_EQ(q.getValues().size(), 6u);
+
+  const std::vector<double> from_vector{ 1.1, 1.2, 1.3, 1.4, 1.5, 1.6 };
+  q.setValues(from_vector);
+  EXPECT_EQ(q.getValues(), from_vector);
+  EXPECT_EQ(q.getValues().size(), 6u);
+}
+
 TEST(TestTypes, Pose_default_and_constructors)
 {
   Pose default_pose;
@@ -109,6 +124,18 @@ TEST(TestTypes, Pose_equality)
   const Q q2{ 1.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
   const Pose different_hint(1.0, 2.0, 3.0, 0.1, 0.2, 0.3, q2);
   EXPECT_FALSE(with_q == different_hint);
+}
+
+TEST(TestTypes, set_pose)
+{
+  Pose p;
+  p.setPose(1.0, 2.0, 3.0, 0.1, 0.2, 0.3);
+  EXPECT_DOUBLE_EQ(p.x, 1.0);
+  EXPECT_DOUBLE_EQ(p.y, 2.0);
+  EXPECT_DOUBLE_EQ(p.z, 3.0);
+  EXPECT_DOUBLE_EQ(p.rx, 0.1);
+  EXPECT_DOUBLE_EQ(p.ry, 0.2);
+  EXPECT_DOUBLE_EQ(p.rz, 0.3);
 }
 
 TEST(TestTypes, MotionTarget_variant)

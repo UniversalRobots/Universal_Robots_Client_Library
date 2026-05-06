@@ -87,6 +87,8 @@ public:
   const std::optional<Q>& getQNear() const;
   void setQNear(const Q& q_near);
 
+  void setPose(const double x, const double y, const double z, const double rx, const double ry, const double rz);
+
   double x;
   double y;
   double z;
