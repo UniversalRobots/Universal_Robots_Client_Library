@@ -260,7 +260,6 @@ MoveCPrimitive::MoveCPrimitive(const urcl::Pose& via_point, const urcl::Pose& ta
   , mode(mode)
   , via_point_(via_point)
 {
-  setVia(via_point);
   setTarget(target);
 }
 
@@ -270,7 +269,6 @@ MoveCPrimitive::MoveCPrimitive(const MotionTarget& via_point, const MotionTarget
   , mode(mode)
   , via_point_(via_point)
 {
-  setVia(via_point);
   setTarget(target);
 }
 
