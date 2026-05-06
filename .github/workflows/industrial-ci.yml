@@ -16,19 +16,18 @@ jobs:
         ROS_DISTRO:
           - NAME: noetic
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master"
-            CLANG_TIDY: ""
           - NAME: humble
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble"
-            CLANG_TIDY: ""
           - NAME: jazzy
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#jazzy"
-            CLANG_TIDY: ""
           - NAME: kilted
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#kilted"
+          - NAME: lyrical
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
-            CLANG_TIDY: ""
           - NAME: rolling
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
             CLANG_TIDY: pedantic
+            OS_CODE_NAME: "resolute"
         ROS_REPO:
           - main
           - testing
@@ -47,3 +46,4 @@ jobs:
           ROS_DISTRO: ${{matrix.ROS_DISTRO.NAME}}
           ROS_REPO: ${{matrix.ROS_REPO}}
           CLANG_TIDY: ${{matrix.ROS_DISTRO.CLANG_TIDY}}
+          OS_CODE_NAME: ${{matrix.ROS_DISTRO.OS_CODE_NAME}}

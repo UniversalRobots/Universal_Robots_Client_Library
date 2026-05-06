@@ -32,6 +32,9 @@
 #include <string>
 #include <chrono>
 #include <functional>
+
+#include "ur_client_library/ur/version_information.h"
+#include "ur_client_library/ur/datatypes.h"
 #ifdef _WIN32
 
 #  define NOMINMAX
@@ -127,6 +130,16 @@ void clampToUnitRange(std::array<T, N>& values)
       v = 1.0;
   }
 }
+
+/*!
+ * \brief Get the robot series from the robot type and version information.
+ *
+ * \param type The robot type.
+ * \param version The version information of the robot.
+ *
+ * \returns The robot series corresponding to the given robot type and version information.
+ */
+RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version);
 
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

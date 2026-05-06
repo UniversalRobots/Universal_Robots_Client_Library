@@ -681,6 +681,7 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_->pause();
 }
 
+#ifdef CHECK_RTDE_DOCS_RECIPE
 TEST_F(RTDEClientTest, check_rtde_data_fields_match_docs)
 {
   std::ifstream docs_file(docs_output_recipe_file_);
@@ -725,6 +726,7 @@ TEST_F(RTDEClientTest, check_rtde_data_fields_match_docs)
     GTEST_FAIL();
   }
 }
+#endif
 
 TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
 {

@@ -21,23 +21,27 @@ include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
 option(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL "Run Polyscope X tests that require remote control" OFF)
+option(CHECK_RTDE_DOCS_RECIPE "Fetch the RTDE documentation to auto-generate a recipe containing all output fields and check that with the RTDE client. Requires python3 and pandas and an internet connection." OFF)
 # Build Tests
 if (INTEGRATION_TESTS)
   # Integration tests require a robot reachable at 192.168.56.101. Therefore, they have to be
   # activated separately.
   
-  find_package(Python3 COMPONENTS Interpreter REQUIRED)
   if(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL)
     add_compile_definitions(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL=1 )
   endif()
 
-  add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
   add_executable(rtde_tests test_rtde_client.cpp fake_rtde_server.cpp)
-  add_dependencies(rtde_tests generate_outputs)
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
+  if (CHECK_RTDE_DOCS_RECIPE)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
+    add_dependencies(rtde_tests generate_outputs)
+    target_compile_definitions(rtde_tests PRIVATE CHECK_RTDE_DOCS_RECIPE=1)
+  endif()
 
   add_executable(dashboard_client_g5_tests test_dashboard_client_g5.cpp)
   target_link_libraries(dashboard_client_g5_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
