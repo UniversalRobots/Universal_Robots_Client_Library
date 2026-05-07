@@ -271,19 +271,9 @@ TEST(rtde_parser, test_deprecated_parse_method)
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
   {
     comm::BinParser bp(raw_data, sizeof(raw_data));
-#ifdef __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(_MSC_VER)
-#  pragma warning(push)
-#  pragma warning(disable : 4996)
-#endif
+    URCL_SILENCE_DEPRECATED_BEGIN
     parser.parse(bp, products);
-#ifdef __GNUC__
-#  pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#  pragma warning(pop)
-#endif
+    URCL_SILENCE_DEPRECATED_END
   }
 
   EXPECT_EQ(products.size(), 1);

@@ -456,6 +456,100 @@ TEST_F(InstructionExecutorTest, optimovel_with_illegal_parameters_fails)
   ASSERT_FALSE(executor_->optimoveL({ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, -0.1));
 }
 
+TEST_F(InstructionExecutorTest, movej_accepts_pose_via_motion_target)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  // Using an explicit urcl::Pose selects the MotionTarget overload and triggers a MOVEJ_POSE
+  // execution on the robot.
+  ASSERT_TRUE(executor_->moveJ(urcl::Pose{ -0.203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.0, 1.0));
+}
+
+TEST_F(InstructionExecutorTest, movej_accepts_joint_via_motion_target)
+{
+  // Wrapping joint positions in urcl::Q selects the MotionTarget overload and triggers a normal
+  // MOVEJ execution.
+  ASSERT_TRUE(executor_->moveJ(urcl::Q{ -1.57, -1.57, 0, 0, 0, 0 }, 2.0, 2.0));
+}
+
+TEST_F(InstructionExecutorTest, movel_accepts_joint_via_motion_target)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  // urcl::Q selects the MotionTarget overload and executes a MOVEL_JOINT: linear motion in tool
+  // space towards the pose implied by the joint configuration.
+  ASSERT_TRUE(executor_->moveL(urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 }, 1.5, 1.5, 2.0));
+}
+
+TEST_F(InstructionExecutorTest, movep_accepts_joint_via_motion_target)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->moveP(urcl::Q{ -1.57, -1.83, 1.707, -0.833, 0.782, 0.479 }, 1.0, 1.0));
+}
+
+TEST_F(InstructionExecutorTest, movec_accepts_mixed_motion_targets)
+{
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+  ASSERT_TRUE(executor_->moveP({ -0.209, 0.492, 0.5522, 0.928, -1.134, -2.168 }, 1.2, 0.25, 0.025));
+
+  // via as Pose, target as Q
+  ASSERT_TRUE(executor_->moveC(urcl::MotionTarget{ urcl::Pose{ -0.209, 0.487, 0.671, 1.026, -0.891, -2.337 } },
+                               urcl::MotionTarget{ urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 } }, 0.1, 0.25,
+                               0.025, 0));
+}
+
+TEST_F(InstructionExecutorTest, optimovej_accepts_pose_via_motion_target)
+{
+  if (robotVersionLessThan(g_ROBOT_IP, "5.21.0"))
+  {
+    GTEST_SKIP_("optimoveJ is not supported on robots with a version lower than 5.21.0.");
+  }
+  else if (!robotVersionLessThan(g_ROBOT_IP, "10.0.0") && robotVersionLessThan(g_ROBOT_IP, "10.8.0"))
+  {
+    GTEST_SKIP_("optimoveJ is not supported on PolyScope X with a version lower than 10.8.0.");
+  }
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->optimoveJ(urcl::Pose{ -0.203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, optimovel_accepts_joint_via_motion_target)
+{
+  if (robotVersionLessThan(g_ROBOT_IP, "5.21.0"))
+  {
+    GTEST_SKIP_("optimoveL is not supported on robots with a version lower than 5.21.0.");
+  }
+  else if (!robotVersionLessThan(g_ROBOT_IP, "10.0.0") && robotVersionLessThan(g_ROBOT_IP, "10.8.0"))
+  {
+    GTEST_SKIP_("optimoveL is not supported on PolyScope X with a version lower than 10.8.0.");
+  }
+  // move to a feasible starting pose
+  ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
+
+  ASSERT_TRUE(executor_->optimoveL(urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 }, 0.4, 0.7, 0.1));
+}
+
+TEST_F(InstructionExecutorTest, mixed_sequence_with_motion_target_primitives_succeeds)
+{
+  std::vector<std::shared_ptr<urcl::control::MotionPrimitive>> motion_sequence{
+    std::make_shared<urcl::control::MoveJPrimitive>(urcl::vector6d_t{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }, 0.1,
+                                                    std::chrono::seconds(3)),
+    // MoveL using joint configuration -> MOVEL_JOINT
+    std::make_shared<urcl::control::MoveLPrimitive>(
+        urcl::MotionTarget{ urcl::Q{ -1.572, -1.686, 1.707, -0.833, 0.782, 0.479 } }, 0.1, std::chrono::seconds(2)),
+    // MoveJ using a pose -> MOVEJ_POSE
+    std::make_shared<urcl::control::MoveJPrimitive>(
+        urcl::MotionTarget{ urcl::Pose{ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 } }, 0.1, std::chrono::seconds(2)),
+  };
+  ASSERT_TRUE(executor_->executeMotion(motion_sequence));
+}
+
 TEST_F(InstructionExecutorTest, no_new_trajectory_doesnt_stop_execution)
 {
   // move to a feasible starting pose

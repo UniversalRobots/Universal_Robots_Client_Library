@@ -37,12 +37,12 @@
 #include <iostream>
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/exceptions.h"
+#include "ur_client_library/helpers.h"
 
 #include <ur_client_library/rtde/rtde_client.h>
 #include <ur_client_library/ur/version_information.h>
 
 #include "fake_rtde_server.h"
-#include "ur_client_library/helpers.h"
 #include "ur_client_library/log.h"
 
 using namespace urcl;
@@ -301,10 +301,9 @@ TEST_F(RTDEClientTest, get_data_package_w_background_deprecated)
 
   // Test that we can receive a package and extract data from the received package
   const std::chrono::milliseconds read_timeout{ 100 };
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  URCL_SILENCE_DEPRECATED_BEGIN
   std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(read_timeout);
-#pragma GCC diagnostic pop
+  URCL_SILENCE_DEPRECATED_END
   if (data_pkg == nullptr)
   {
     std::cout << "Failed to get data package from robot" << std::endl;

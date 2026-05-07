@@ -1,4 +1,6 @@
 /*
+ * Copyright 2026, Universal Robots A/S (Adding Q and Pose)
+ *
  * Copyright 2019, FZI Forschungszentrum Informatik (refactor)
  *
  * Copyright 2017, 2018 Simon Rasmussen (refactor)
@@ -24,7 +26,9 @@
 #include <array>
 #include <functional>
 #include <iostream>
-#include "ur_client_library/log.h"
+#include <optional>
+#include <variant>
+#include <vector>
 
 namespace urcl
 {
@@ -33,15 +37,58 @@ using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 
-struct Pose
+/*!
+ * \brief A joint configuration (6 joint positions in radians).
+ *
+ * This is a strong type around a \ref vector6d_t meant to unambiguously express "this 6-tuple
+ * represents joint values", as opposed to a Cartesian pose. It is primarily used together with
+ * \ref MotionTarget to select between joint-space and Cartesian-space targets when calling
+ * motion functions that can accept either.
+ *
+ * Unlike raw initializer lists (``{...}``) which may bind to either \ref vector6d_t or
+ * \ref Pose, wrapping values in ``urcl::Q{...}`` always forces a joint-target interpretation.
+ */
+class Q
 {
-  Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0)
-  {
-  }
-  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz)
-    : x(x), y(y), z(z), rx(rx), ry(ry), rz(rz)
-  {
-  }
+public:
+  Q() = delete;
+  Q(const double q1, const double q2, const double q3, const double q4, const double q5, const double q6);
+  explicit Q(const vector6d_t& values);
+
+  const std::vector<double>& getValues() const;
+  void setValues(const vector6d_t& values);
+  void setValues(const std::vector<double>& values);
+
+private:
+  std::vector<double> values_;
+};
+
+bool operator==(const Q& lhs, const Q& rhs);
+
+/*!
+ * \brief A Cartesian pose (position and orientation) for a robot manipulator.
+ *
+ * The position is represented by ``x``, ``y``, and ``z`` in meters, and the orientation is
+ * represented by AngleAxis ``rx``, ``ry``, and ``rz`` in radians.
+ *
+ * The optional \ref q_near member can be used to provide a hint to the solver for inverse
+ * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
+ */
+class Pose
+{
+public:
+  Pose();
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz);
+  Pose(const double x, const double y, const double z, const double rx, const double ry, const double rz,
+       const Q& q_near);
+
+  bool operator==(const Pose& other) const;
+
+  const std::optional<Q>& getQNear() const;
+  void setQNear(const Q& q_near);
+
+  void setPose(const double x, const double y, const double z, const double rx, const double ry, const double rz);
+
   double x;
   double y;
   double z;
@@ -49,11 +96,31 @@ struct Pose
   double ry;
   double rz;
 
-  bool operator==(const Pose& other) const
-  {
-    return x == other.x && y == other.y && z == other.z && rx == other.rx && ry == other.ry && rz == other.rz;
-  }
+private:
+  /*!
+   * Optional joint-space hint (six joint positions in radians) passed to the controller for inverse
+   * kinematics when this pose is used as a Cartesian motion target over the trajectory interface.
+   */
+  std::optional<Q> q_near_;
 };
+
+bool operator==(const Q& lhs, const vector6d_t& rhs);
+
+/*!
+ * \brief A tagged union representing either a joint target (\ref Q) or a Cartesian target
+ * (\ref Pose).
+ *
+ * ``MotionTarget`` is used throughout the motion API (e.g.
+ * \ref InstructionExecutor::moveJ "InstructionExecutor::moveJ" and the ``Move*Primitive``
+ * constructors) to let callers choose at call site whether a motion should be parametrized in
+ * joint space or in Cartesian space without needing separate overloads for every combination.
+ *
+ * The overloads that take a ``MotionTarget`` are provided alongside explicit \ref vector6d_t and
+ * \ref Pose overloads so that plain braced-initializer calls keep binding to the previous
+ * behaviour; only explicitly constructed \ref Q or \ref Pose values (or an already-built
+ * ``MotionTarget``) select the variant-based path.
+ */
+using MotionTarget = std::variant<Q, Pose>;
 
 template <class T, std::size_t N>
 std::ostream& operator<<(std::ostream& out, const std::array<T, N>& item)

@@ -35,7 +35,6 @@
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/script_reader.h"
 #include "ur_client_library/exceptions.h"
-#include "ur_client_library/helpers.h"
 #include "ur_client_library/primary/primary_parser.h"
 #include "ur_client_library/helpers.h"
 #include <memory>
@@ -188,13 +187,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   URCL_LOG_DEBUG("Initialization done");
 }
 
-#ifdef __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(_MSC_VER)
-#  pragma warning(push)
-#  pragma warning(disable : 4996)
-#endif
+URCL_SILENCE_DEPRECATED_BEGIN
 std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 {
   // This can take one of two values, 0ms or 100ms. The large timeout is for when the robot is commanding the control
@@ -204,11 +197,7 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
 
   return rtde_client_->getDataPackage(timeout);
 }
-#ifdef __GNUC__
-#  pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#  pragma warning(pop)
-#endif
+URCL_SILENCE_DEPRECATED_END
 
 bool UrDriver::getDataPackage(rtde_interface::DataPackage& data_package)
 {
@@ -708,20 +697,10 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
                 "set the "
                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                 "to the write functions.");
-// TODO: Remove 2027-05
-#ifdef _MSC_VER
-#  pragma warning(push)
-#  pragma warning(disable : 4996)
-#else
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
+  // TODO: Remove 2027-05
+  URCL_SILENCE_DEPRECATED_BEGIN
   reverse_interface_->setKeepaliveCount(count);
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#else
-#  pragma GCC diagnostic pop
-#endif
+  URCL_SILENCE_DEPRECATED_END
 }
 
 void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,

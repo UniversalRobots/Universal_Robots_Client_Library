@@ -103,10 +103,9 @@ TEST_F(PrimaryClientTest, start_communication_succeeds)
 
 TEST_F(PrimaryClientTest, add_and_remove_consumer)
 {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  URCL_SILENCE_DEPRECATED_BEGIN
   auto calibration_consumer = std::make_shared<urcl::CalibrationChecker>("test");
-#pragma GCC diagnostic pop
+  URCL_SILENCE_DEPRECATED_END
 
   client_->addPrimaryConsumer(calibration_consumer);
 
