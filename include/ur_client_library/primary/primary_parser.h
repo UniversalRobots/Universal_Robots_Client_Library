@@ -34,6 +34,7 @@
 #include "ur_client_library/primary/robot_message/error_code_message.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
 #include "ur_client_library/primary/robot_state/configuration_data.h"
+#include "ur_client_library/primary/robot_state/masterboard_data.h"
 #include "ur_client_library/primary/robot_message/safety_mode_message.h"
 
 namespace urcl
@@ -209,10 +210,8 @@ private:
     {
       case RobotStateType::ROBOT_MODE_DATA:
         return new RobotModeData(type);
-
-        // return new rmd;
-      // case robot_state_type::MASTERBOARD_DATA:
-      // return new MBD;*/
+      case RobotStateType::MASTERBOARD_DATA:
+        return new MasterboardData(type);
       case RobotStateType::KINEMATICS_INFO:
         return new KinematicsInfo(type);
       case RobotStateType::CONFIGURATION_DATA:

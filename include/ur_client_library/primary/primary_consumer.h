@@ -30,6 +30,7 @@
 
 #include "ur_client_library/primary/abstract_primary_consumer.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/primary/robot_state/masterboard_data.h"
 #include "ur_client_library/ur/datatypes.h"
 #include "ur_client_library/ur/version_information.h"
 
@@ -182,6 +183,19 @@ public:
   {
     std::scoped_lock lock(configuration_data_mutex_);
     configuration_data_ = std::make_unique<ConfigurationData>(pkg);
+    return true;
+  }
+
+  /*!
+   * \brief Handle a MasterboardData package
+   *
+   * \param pkg MasterboardData
+   *
+   * \returns True
+   */
+  virtual bool consume(MasterboardData&) override
+  {
+    // Nothing to do here for now.
     return true;
   }
 
