@@ -227,11 +227,15 @@ void rtdeWorker(const int second_to_run)
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.
       data_pkg->getData("actual_TCP_force", actual_tcp_force);
+      std::stringstream ss;
+      ss << std::fixed << std::setprecision(2) << actual_tcp_force;
       // Throttle output to once per second
       if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count() %
               1000 <
           period_ms)
-        std::cout << "Force-torque reported by robot: " << actual_tcp_force << std::endl;
+      {
+        URCL_LOG_INFO("Force-torque reported by robot: %s", ss.str().c_str());
+      }
     }
     else
     {
@@ -258,6 +262,10 @@ void rtdeWorker(const int second_to_run)
       g_RUNNING =
           std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
           second_to_run;
+      if (!g_RUNNING)
+      {
+        std::cout << "Time limit reached. Stopping." << std::endl;
+      }
     }
   }
 }
