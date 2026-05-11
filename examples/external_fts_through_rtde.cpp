@@ -213,6 +213,12 @@ void rtdeWorker(const int second_to_run)
   auto start_time = std::chrono::steady_clock::now();
   std::unique_ptr<rtde_interface::DataPackage> data_pkg =
       std::make_unique<rtde_interface::DataPackage>(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  int frequency = g_my_robot->getUrDriver()->getControlFrequency();
+  int period_ms = 2;
+  if (frequency > 0)
+  {
+    period_ms = static_cast<int>(1000.0 / frequency);
+  }
   while (g_RUNNING)
   {
     urcl::vector6d_t local_ft_vec = g_FT_VEC;
@@ -224,7 +230,7 @@ void rtdeWorker(const int second_to_run)
       // Throttle output to once per second
       if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count() %
               1000 <
-          2)
+          period_ms)
         std::cout << "Force-torque reported by robot: " << actual_tcp_force << std::endl;
     }
     else
