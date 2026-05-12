@@ -95,6 +95,8 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
+        env:
+          URCL_EXAMPLES_IN_CI: 1
       - name: install gcovr
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sudo apt-get install -y gcovr

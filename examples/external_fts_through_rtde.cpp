@@ -298,11 +298,19 @@ int main(int argc, char* argv[])
   // The RTDE thread sends the force-torque data to the robot and receives the wrench data from the
   // robot.
   std::thread rtde_thread(rtdeWorker, second_to_run);
-
   // Modify the artificial force-torque input through keyboard input
-  ftInputTui();
-
-  g_RUNNING = false;
+  if (std::getenv("URCL_EXAMPLES_IN_CI") == nullptr)
+  {
+    ftInputTui();
+  }
+  else
+  {
+    // In CI mode, just keep the main thread alive while g_RUNNING is true
+    while (g_RUNNING)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
   if (rtde_thread.joinable())
   {
     rtde_thread.join();
