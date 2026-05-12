@@ -169,5 +169,7 @@ void clampToUnitRange(std::array<T, N>& values)
  */
 RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version);
 
+RobotType robotTypeFromString(const std::string& robot_type_str);
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

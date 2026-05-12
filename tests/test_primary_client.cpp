@@ -267,6 +267,27 @@ TEST_F(PrimaryClientTest, test_configuration_data)
   EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
 }
 
+TEST_F(PrimaryClientTest, test_robot_type)
+{
+  if (std::getenv("ROBOT_MODEL") == nullptr)
+  {
+    GTEST_SKIP() << "ROBOT_MODEL environment variable not set. Skipping test.";
+  }
+  EXPECT_NO_THROW(client_->start());
+
+  // Wait until we have received configuration data so that the robot type is known.
+  auto start_time = std::chrono::system_clock::now();
+  const auto timeout = std::chrono::seconds(10);
+  while (client_->getConfigurationData() == nullptr && std::chrono::system_clock::now() - start_time < timeout)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_NE(client_->getConfigurationData(), nullptr);
+  const std::string robot_model_env = std::getenv("ROBOT_MODEL");
+  const RobotType expected_series_from_env = robotTypeFromString(robot_model_env);
+  EXPECT_EQ(client_->getRobotType(), expected_series_from_env);
+}
+
 TEST_F(PrimaryClientTest, test_kinematics_info)
 {
   EXPECT_NO_THROW(client_->start());

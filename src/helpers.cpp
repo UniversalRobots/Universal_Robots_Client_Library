@@ -203,4 +203,69 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
   return RobotSeries::UNDEFINED;
 }
 
+RobotType robotTypeFromString(const std::string& robot_type_str)
+{
+  if (robot_type_str == "ur3")
+  {
+    return RobotType::UR3;
+  }
+  else if (robot_type_str == "ur3e")
+  {
+    return RobotType::UR3;
+  }
+  else if (robot_type_str == "ur5")
+  {
+    return RobotType::UR5;
+  }
+  else if (robot_type_str == "ur5e")
+  {
+    return RobotType::UR5;
+  }
+  else if (robot_type_str == "ur7e")
+  {  // UR7e reports as UR5
+    return RobotType::UR5;
+  }
+  else if (robot_type_str == "ur10")
+  {
+    return RobotType::UR10;
+  }
+  else if (robot_type_str == "ur10e")
+  {
+    return RobotType::UR10;
+  }
+  else if (robot_type_str == "ur12e")
+  {  // UR12e reports as UR10
+    return RobotType::UR10;
+  }
+  else if (robot_type_str == "ur16e")
+  {
+    return RobotType::UR16;
+  }
+  else if (robot_type_str == "ur15")
+  {
+    return RobotType::UR15;
+  }
+  else if (robot_type_str == "ur18")
+  {
+    return RobotType::UR18;
+  }
+  else if (robot_type_str == "ur20")
+  {
+    return RobotType::UR20;
+  }
+  else if (robot_type_str == "ur30")
+  {
+    return RobotType::UR30;
+  }
+  else if (robot_type_str == "ur8long")
+  {
+    return RobotType::UR8LONG;
+  }
+  else
+  {
+    return RobotType::UR5;
+    throw std::invalid_argument("Unknown robot type: " + robot_type_str);
+  }
+}
+
 }  // namespace urcl
