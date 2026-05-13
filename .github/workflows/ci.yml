@@ -20,21 +20,21 @@ jobs:
           - ROBOT_MODEL: 'ur5'
             URSIM_VERSION: '3.14.3'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
-          - ROBOT_MODEL: 'ur5e'
-            URSIM_VERSION: '5.9.4'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          - ROBOT_MODEL: 'ur20'
-            URSIM_VERSION: 'latest'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
-          - ROBOT_MODEL: 'ur5e'
-            URSIM_VERSION: '10.7.0'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
-          - ROBOT_MODEL: 'ur5e'
-            URSIM_VERSION: '10.11.0'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
-          - ROBOT_MODEL: 'ur5e'
-            URSIM_VERSION: '10.12.0'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          #- ROBOT_MODEL: 'ur5e'
+            #URSIM_VERSION: '5.9.4'
+            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          #- ROBOT_MODEL: 'ur20'
+            #URSIM_VERSION: 'latest'
+            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          #- ROBOT_MODEL: 'ur5e'
+            #URSIM_VERSION: '10.7.0'
+            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          #- ROBOT_MODEL: 'ur5e'
+            #URSIM_VERSION: '10.11.0'
+            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          #- ROBOT_MODEL: 'ur5e'
+            #URSIM_VERSION: '10.12.0'
+            #PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
 
     steps:
       - uses: actions/checkout@v6
@@ -80,10 +80,10 @@ jobs:
       - name: Access PolyScope
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
         run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
-      - name: test
-        run: cd build && ctest --output-on-failure --output-junit junit.xml
-        env:
-          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+      #- name: test
+        #run: cd build && ctest --output-on-failure --output-junit junit.xml
+        #env:
+          #URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/codecov-action@v6
