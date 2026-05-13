@@ -104,6 +104,8 @@ jobs:
       - name: Access PolyScope
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
         run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
+      - name: Install Python dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-pandas python3-lxml
       - name: Generate rtde outputs lists
         run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
