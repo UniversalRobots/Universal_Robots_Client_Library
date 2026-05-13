@@ -213,6 +213,12 @@ void rtdeWorker(const int second_to_run)
   auto start_time = std::chrono::steady_clock::now();
   std::unique_ptr<rtde_interface::DataPackage> data_pkg =
       std::make_unique<rtde_interface::DataPackage>(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  // int frequency = g_my_robot->getUrDriver()->getControlFrequency();
+  //  int period_ms = 2;
+  //  if (frequency > 0)
+  //{
+  //  period_ms = static_cast<int>(1000.0 / frequency);
+  // }
   while (g_RUNNING)
   {
     urcl::vector6d_t local_ft_vec = g_FT_VEC;
@@ -221,11 +227,15 @@ void rtdeWorker(const int second_to_run)
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.
       data_pkg->getData("actual_TCP_force", actual_tcp_force);
+      std::stringstream ss;
+      ss << std::fixed << std::setprecision(2) << actual_tcp_force;
       // Throttle output to once per second
-      if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count() %
-              1000 <
-          2)
-        std::cout << "Force-torque reported by robot: " << actual_tcp_force << std::endl;
+      // if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+      // start_time).count() % 1000 <
+      // period_ms)
+      //{
+      URCL_LOG_INFO("Force-torque reported by robot: %s", ss.str().c_str());
+      //}
     }
     else
     {
@@ -252,6 +262,10 @@ void rtdeWorker(const int second_to_run)
       g_RUNNING =
           std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
           second_to_run;
+      if (!g_RUNNING)
+      {
+        std::cout << "Time limit reached. Stopping." << std::endl;
+      }
     }
   }
 }
@@ -284,11 +298,19 @@ int main(int argc, char* argv[])
   // The RTDE thread sends the force-torque data to the robot and receives the wrench data from the
   // robot.
   std::thread rtde_thread(rtdeWorker, second_to_run);
-
   // Modify the artificial force-torque input through keyboard input
-  ftInputTui();
-
-  g_RUNNING = false;
+  if (std::getenv("URCL_EXAMPLES_IN_CI") == nullptr)
+  {
+    ftInputTui();
+  }
+  else
+  {
+    // In CI mode, just keep the main thread alive while g_RUNNING is true
+    while (g_RUNNING)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
   if (rtde_thread.joinable())
   {
     rtde_thread.join();
