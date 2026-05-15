@@ -43,6 +43,37 @@ using namespace std::chrono_literals;
 namespace urcl
 {
 
+std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command_list = {
+  { "get_loaded_program",
+    { "/program/v1/loaded", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") } },
+  { "get_program_list",
+    { "/programs/v1", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") } },
+  { "upload_program",
+    { "/programs/v1", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") } },
+  { "update_program",
+    { "/programs/v1", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") } },
+  { "download_program",
+    { "/programs/v1/", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") } },
+  { "robot_mode",
+    { "/robotstate/v1/robotmode", VersionInformation::fromString("3.1.4"),
+      VersionInformation::fromString("10.12.0") } },
+  { "safety_mode",
+    { "/robotstate/v1/safetymode", VersionInformation::fromString("3.1.4"),
+      VersionInformation::fromString("10.12.0") } },
+  { "get_operational_mode",
+    { "/system/v1/operationalmode", VersionInformation::fromString("3.1.4"),
+      VersionInformation::fromString("10.12.0") } },
+  { "popup", { "/popup/v1", VersionInformation::fromString("3.3.3"), VersionInformation::fromString("10.14.0") } },
+  { "close_popup",
+    { "/popup/v1", VersionInformation::fromString("3.3.3"), VersionInformation::fromString("10.14.0") } },
+  { "close_safety_popup",
+    { "/popup/v1/safety", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  {
+      "is_in_remote_control",
+      { "/system/v1/controlmode", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") },
+  }
+};
+
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
 {
   cli_ = std::make_unique<httplib::Client>("http://" + host);
@@ -137,11 +168,17 @@ VersionInformation DashboardClientImplX::queryPolyScopeVersion()
   throw NotImplementedException("queryPolyScopeVersion is not implemented for DashboardClientImplX.");
 }
 
-void DashboardClientImplX::assertHasCommand([[maybe_unused]] const std::string& command) const
+void DashboardClientImplX::assertHasCommand(const std::string& command) const
 {
-  // Currently, there is only one set of implemented commands. Once the first software release has
-  // been made with a Dashboard Server, following versions will support more commands, which is
-  // when we might have to deal with that here.
+  if (robot_api_version_ < g_command_list.at(command).robotAPIVersion)
+  {
+    std::stringstream ss;
+    ss << "The command '" << command << "' requires Robot API version " << g_command_list.at(command).robotAPIVersion
+       << " or higher. The connected robot has Robot API version " << robot_api_version_
+       << ". Please upgrade the robot to PolyScope " << g_command_list.at(command).marketingVersion
+       << " or higher to use this command.";
+    throw NotImplementedException(ss.str());
+  }
 }
 
 bool DashboardClientImplX::sendRequest([[maybe_unused]] const std::string& command_str,
@@ -297,11 +334,7 @@ DashboardResponse DashboardClientImplX::commandIsProgramSaved()
 
 DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandIsInRemoteControl is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("is_in_remote_control");
   auto response = get("/system/v1/controlmode");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -346,11 +379,7 @@ DashboardResponse DashboardClientImplX::commandGetSerialNumber()
 
 DashboardResponse DashboardClientImplX::commandRobotMode()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandRobotMode is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("robot_mode");
   auto response = get("/robotstate/v1/robotmode");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -362,11 +391,7 @@ DashboardResponse DashboardClientImplX::commandRobotMode()
 
 DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandGetLoadedProgram is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("get_loaded_program");
   auto response = get("/program/v1/loaded");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -378,11 +403,7 @@ DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 
 DashboardResponse DashboardClientImplX::commandSafetyMode()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandSafetyMode is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("safety_mode");
   auto response = get("/robotstate/v1/safetymode");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -410,11 +431,7 @@ DashboardResponse DashboardClientImplX::commandProgramState()
 
 DashboardResponse DashboardClientImplX::commandGetOperationalMode()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandGetOperationalMode is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("get_operational_mode");
   auto response = get("/system/v1/operationalmode");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -461,11 +478,7 @@ DashboardResponse DashboardClientImplX::commandSaveLog()
 
 DashboardResponse DashboardClientImplX::commandGetProgramList()
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandGetProgramList is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("get_program_list");
   auto response = get("/programs/v1/");
   auto json_data = json::parse(response.message);
   if (response.ok)
@@ -526,11 +539,7 @@ DashboardResponse DashboardClientImplX::performProgramUpload(
 
 DashboardResponse DashboardClientImplX::commandUploadProgram(const std::string& file_path)
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandUploadProgram is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("upload_program");
   URCL_LOG_INFO("Uploading program from file: %s", file_path.c_str());
   return performProgramUpload(
       file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return post(e, f, true); });
@@ -538,11 +547,7 @@ DashboardResponse DashboardClientImplX::commandUploadProgram(const std::string& 
 
 DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& file_path)
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandUpdateProgram is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("update_program");
   return performProgramUpload(
       file_path, [this](const std::string& e, const httplib::UploadFormDataItems& f) { return put(e, f); });
 }
@@ -550,11 +555,7 @@ DashboardResponse DashboardClientImplX::commandUpdateProgram(const std::string& 
 DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string& program_name,
                                                                const std::string& save_path)
 {
-  if (robot_api_version_ < VersionInformation::fromString("3.1.4"))
-  {
-    throw NotImplementedException("commandDownloadProgram is not implemented for Robot API version < 3.1.4. Please "
-                                  "upgrade the robot to PolyScope 10.12.0 or higher to use this command.");
-  }
+  assertHasCommand("download_program");
   if (program_name.size() == 0 || save_path.size() == 0)
   {
     std::string error = "Both program_name and save_path parameters should be populated.";

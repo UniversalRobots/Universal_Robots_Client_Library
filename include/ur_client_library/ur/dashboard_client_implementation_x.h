@@ -42,6 +42,13 @@ class Result;
 namespace urcl
 {
 
+struct RobotAPICommand
+{
+  std::string endpoint;
+  VersionInformation robotAPIVersion;
+  VersionInformation marketingVersion;
+};
+
 class DashboardClientImplX : public DashboardClientImpl
 {
 public:
@@ -186,8 +193,11 @@ protected:
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
+
   timeval recv_timeout_ = { 10, 0 };
   timeval send_timeout_ = { 10, 0 };
+
+  static std::unordered_map<std::string, RobotAPICommand> g_command_list;
 };
 
 }  // namespace urcl
