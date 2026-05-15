@@ -113,7 +113,7 @@ jobs:
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
@@ -300,29 +300,6 @@ jobs:
           flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Generate URSim log files
-        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
-        run: |
-          nc -q 1 192.168.56.101 29999 <<END
-          saveLog
-          END
-          mkdir -p ursim_logs
-          docker cp ursim:/ursim/URControl.log ursim_logs/URControl.log
-          docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
-          docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
-      - name: Copy flight reports
-        if: ${{ failure() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
-        run: |
-          mkdir -p ursim_logs/flightreports
-          docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
-      - name: Upload logfiles
-        uses: actions/upload-artifact@v7
-        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
-        with:
-          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_model_check_URSim_Logs
-          path: ursim_logs
-          if-no-files-found: error
-          retention-days: 10
 
   test_start_ursim:
     runs-on: ubuntu-latest
