@@ -478,6 +478,22 @@ TEST_F(ReverseInterfaceTest, write_freedrive_control_message)
   EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
 }
 
+TEST_F(ReverseInterfaceTest, write_constrained_freedrive_message)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+  control::FreedriveControlMessage written_freedrive_message = control::FreedriveControlMessage::FREEDRIVE_START;
+
+  std::array<int32_t, 6> free_axes = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> feature_pos = { 0.1, -0.2, 0.5, 1.1, 0.0, 3.14 };
+
+  reverse_interface_->writeFreedriveControlMessage(written_freedrive_message, RobotReceiveTimeout::millisec(200),
+                                                   free_axes, feature_pos);
+
+  int32_t received_freedrive_message = client_->getFreedriveControlMode();
+  EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
+}
+
 TEST_F(ReverseInterfaceTest, deprecated_set_keep_alive_count)
 {
   // Wait for the client to connect to the server

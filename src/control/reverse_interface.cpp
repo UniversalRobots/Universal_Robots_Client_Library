@@ -169,9 +169,11 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
 }
 
 bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
-                                                    const RobotReceiveTimeout& robot_receive_timeout)
+                                                    const RobotReceiveTimeout& robot_receive_timeout,
+                                                    const std::array<int32_t, 6>& free_axes,
+                                                    const std::array<double, 6>& feature_pose)
 {
-  const int message_length = 2;
+  const int message_length = 14;
   if (client_fd_ == INVALID_SOCKET)
   {
     return false;
@@ -196,6 +198,20 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
 
   val = htobe32(toUnderlying(freedrive_action));
   b_pos += append(b_pos, val);
+
+  // Add allowed axes for movement
+  for (int32_t axis : free_axes)
+  {
+    val = htobe32(axis);
+    b_pos += append(b_pos, val);
+  }
+
+  // Add feature pose scaled to microns microradians to avoid precision loss in integer conversion
+  for (double p : feature_pose)
+  {
+    val = htobe32(static_cast<int32_t>(p * MULT_JOINTSTATE));
+    b_pos += append(b_pos, val);
+  }
 
   // writing zeros to allow usage with other script commands
   for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)

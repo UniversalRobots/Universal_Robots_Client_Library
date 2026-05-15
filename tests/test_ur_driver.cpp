@@ -155,8 +155,11 @@ TEST_F(UrDriverTest, read_existing_script_file)
 TEST_F(UrDriverTest, robot_receive_timeout)
 {
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
-  vector6d_t zeros = { 0, 0, 0, 0, 0, 0 };
-  g_my_robot->getUrDriver()->writeJointCommand(zeros, comm::ControlMode::MODE_IDLE, RobotReceiveTimeout::millisec(200));
+  std::array<int32_t, 6> zeros_int = { 0, 0, 0, 0, 0, 0 };
+  std::array<double, 6> zeros_double = { 0, 0, 0, 0, 0, 0 };
+
+  g_my_robot->getUrDriver()->writeJointCommand(zeros_double, comm::ControlMode::MODE_IDLE,
+                                               RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 
   // Start robot program
@@ -166,6 +169,15 @@ TEST_F(UrDriverTest, robot_receive_timeout)
   // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
   g_my_robot->getUrDriver()->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
                                                           RobotReceiveTimeout::millisec(200));
+  EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
+
+  // Start robot program
+  g_my_robot->resendRobotProgram();
+  EXPECT_TRUE(g_my_robot->waitForProgramRunning(1000));
+
+  // Robot program should time out after the robot receive timeout, whether it takes exactly 200 ms is not so important
+  g_my_robot->getUrDriver()->writeConstrainedFreedriveControlMessage(
+      control::FreedriveControlMessage::FREEDRIVE_NOOP, zeros_int, zeros_double, RobotReceiveTimeout::millisec(200));
   EXPECT_TRUE(g_my_robot->waitForProgramNotRunning(400));
 
   // Start robot program
@@ -195,6 +207,11 @@ TEST_F(UrDriverTest, robot_receive_timeout_off)
   // Program should keep running when setting receive timeout off
   g_my_robot->getUrDriver()->writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
                                                           RobotReceiveTimeout::off());
+  EXPECT_FALSE(g_my_robot->waitForProgramNotRunning(1000));
+
+  g_my_robot->getUrDriver()->writeConstrainedFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP,
+                                                                     { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 },
+                                                                     RobotReceiveTimeout::off());
   EXPECT_FALSE(g_my_robot->waitForProgramNotRunning(1000));
 
   // Program should keep running when setting receive timeout off
