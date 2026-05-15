@@ -347,7 +347,7 @@ std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vecto
   return stripped_script;
 }
 
-std::string PrimaryClient::truncate_and_check_script_name(const std::string candidate_name)
+std::string PrimaryClient::truncate_script_name(const std::string candidate_name)
 {
   std::string final_name = candidate_name;
   // Limit script name length to 31, to ensure backwards compatibility
@@ -356,14 +356,7 @@ std::string PrimaryClient::truncate_and_check_script_name(const std::string cand
     final_name = final_name.substr(0, 31);
     URCL_LOG_WARN("Given script name was too long, and has been truncated. New script name is: %s", final_name.c_str());
   }
-  // Validate script_name
-  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
-  if (!std::regex_match(final_name, valid_name))
-  {
-    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + final_name +
-                                          "'. Can only contain letters, numbers and underscores. First character "
-                                          "must be a letter or underscore.");
-  }
+
   return final_name;
 }
 
@@ -387,14 +380,13 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   // Assign name according to inputs
   std::string actual_script_name = script_name.empty() ? "script_" + std::to_string(current_time) : script_name;
 
-  // Check that the final name is valid
-  actual_script_name = truncate_and_check_script_name(actual_script_name);
-
   ScriptTypes actual_script_type = urcl::primary_interface::ScriptTypes::DEF;
   // Is the script wrapped in a function definition? If not add one
   if (stripped_script[0].substr(0, 4).find("def ") == script.npos &&
       stripped_script[0].substr(0, 4).find("sec ") == script.npos)
   {
+    // Check that the final name is not too long
+    actual_script_name = truncate_script_name(actual_script_name);
     std::string definition = "def " + actual_script_name + "():";
     std::string end = "end";
     // Add indentation to the existing script code
@@ -411,7 +403,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   {
     size_t name_end = stripped_script[0].find("(");
     std::string name_in_script = stripped_script[0].substr(4, name_end - 4);
-    if (stripped_script[0].find("def") != stripped_script[0].npos)
+    if (stripped_script[0].substr(0, 4).find("def ") != stripped_script[0].npos)
     {
       actual_script_type = ScriptTypes::DEF;
     }
@@ -419,15 +411,24 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
     {
       actual_script_type = ScriptTypes::SEC;
     }
-    // Check that the script name is valid, replace it if it is not
-    actual_script_name = truncate_and_check_script_name(name_in_script);
+    // Check that the script name is not too long, replace it, if it is
+    actual_script_name = truncate_script_name(name_in_script);
     if (actual_script_name.size() != name_in_script.size())
     {
       stripped_script[0].replace(stripped_script[0].find(name_in_script), name_in_script.size(), actual_script_name);
     }
   }
 
-  if (stripped_script.back().find("end") == script.npos)
+  // Validate script_name
+  static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
+  if (!std::regex_match(actual_script_name, valid_name))
+  {
+    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + actual_script_name +
+                                          "'. Can only contain letters, numbers and underscores. First character "
+                                          "must be a letter or underscore.");
+  }
+
+  if (stripped_script.back().substr(0, 3).find("end") == script.npos)
   {
     throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process "
                                           "definition, "
