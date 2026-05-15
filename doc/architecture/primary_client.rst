@@ -37,6 +37,6 @@ Method signature:
 | If the robot is ready, the program is then transferred, and the method will wait for the robot to report that the program has either started, finished or encountered an error.
 | If the program has not started within the given ``timeout``, the method returns false.
 | If the robot encounters an error or runtime exception during program execution the method also returns false.
-| If ``fail_on_warnings`` is true, it will also return false, if the robot reports a warning during program execution.
+| If ``fail_on_warnings`` is true, it will also return false, if the robot reports a warning during program execution. Note: protective stops are reported as warnings by the robot.
 | The method only returns true if the program is successfully executed on the robot.
 | This method also accepts secondary programs, but no feedback is available for those, so it will behave similarly to the ``sendScript`` method in those cases, except for the pre-transfer checks.
