@@ -146,7 +146,7 @@ public:
   DashboardResponse commandResume() override;
   DashboardResponse commandPlay() override;
   DashboardResponse commandPolyscopeVersion() override;
-  DashboardResponse commandPopup(const std::string& popup_text) override;
+  DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") override;
   DashboardResponse commandPowerOff() override;
   DashboardResponse commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300)) override;
   DashboardResponse commandProgramState() override;

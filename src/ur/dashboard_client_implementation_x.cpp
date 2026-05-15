@@ -293,12 +293,14 @@ DashboardResponse DashboardClientImplX::commandStop()
 
 DashboardResponse DashboardClientImplX::commandClosePopup()
 {
-  throw NotImplementedException("commandClosePopup is not implemented for DashboardClientImplX.");
+  assertHasCommand("close_popup");
+  return del("/popup/v1");
 }
 
 DashboardResponse DashboardClientImplX::commandCloseSafetyPopup()
 {
-  throw NotImplementedException("commandCloseSafetyPopup is not implemented for DashboardClientImplX.");
+  assertHasCommand("close_safety_popup");
+  return del("/popup/v1/safety");
 }
 
 DashboardResponse DashboardClientImplX::commandRestartSafety()
@@ -352,9 +354,10 @@ DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
   return response;
 }
 
-DashboardResponse DashboardClientImplX::commandPopup([[maybe_unused]] const std::string& popup_text)
+DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_text, const std::string& title)
 {
-  throw NotImplementedException("commandPopup is not implemented for DashboardClientImplX.");
+  assertHasCommand("popup");
+  return post("/popup/v1", R"({"title": "TITLE )" + title + R"(", "message": ")" + popup_text + R"("})");
 }
 
 DashboardResponse DashboardClientImplX::commandAddToLog([[maybe_unused]] const std::string& log_text)
@@ -599,7 +602,15 @@ DashboardResponse DashboardClientImplX::handleHttpResult(const httplib::Result& 
   }
   response.message = res->body;
   response.data["status_code"] = res->status;
-  response.ok = res->status == 200;
+  if (res->status >= 200 && res->status < 300)
+  {
+    response.ok = true;
+  }
+  else
+  {
+    response.ok = false;
+  }
+
   return response;
 }
 
@@ -686,6 +697,24 @@ DashboardResponse DashboardClientImplX::get(const std::string& endpoint, const b
   }
   DashboardResponse response;
   if (auto res = cli_->Get(base_url_ + endpoint))
+  {
+    response = handleHttpResult(res, debug);
+  }
+  else
+  {
+    throw UrException("Error code: " + to_string(res.error()));
+  }
+  return response;
+}
+
+DashboardResponse DashboardClientImplX::del(const std::string& endpoint, const bool debug)
+{
+  if (robot_api_version_.isEmpty())
+  {
+    connect();
+  }
+  DashboardResponse response;
+  if (auto res = cli_->Delete(base_url_ + endpoint))
   {
     response = handleHttpResult(res, debug);
   }

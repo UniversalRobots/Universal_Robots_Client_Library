@@ -405,12 +405,12 @@ public:
    *
    * \return True succeeded
    */
-  bool commandPopup(const std::string& popup_text);
+  bool commandPopup(const std::string& popup_text, const std::string& popup_title = "");
 
   /*!
    * \brief Send popup command
    */
-  DashboardResponse commandPopupWithResponse(const std::string& popup_text);
+  DashboardResponse commandPopupWithResponse(const std::string& popup_text, const std::string& popup_title = "");
 
   /*!
    * \brief Send text to log

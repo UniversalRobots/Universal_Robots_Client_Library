@@ -323,7 +323,7 @@ public:
    *
    * \throws an NotImplementedException when called on PolyScope X robots
    */
-  virtual DashboardResponse commandPopup(const std::string& popup_text) = 0;
+  virtual DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") = 0;
 
   /*!
    * \brief Send text to log

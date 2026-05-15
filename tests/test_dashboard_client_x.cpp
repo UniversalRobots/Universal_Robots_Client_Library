@@ -507,6 +507,51 @@ TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
   EXPECT_FALSE(dashboard_client_->connect());
 }
 
+TEST_F(DashboardClientTestX, open_and_close_popups)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandPopup(""), NotImplementedException);
+    ASSERT_THROW(dashboard_client_->commandClosePopup(), NotImplementedException);
+    ASSERT_THROW(dashboard_client_->commandCloseSafetyPopup(), NotImplementedException);
+  }
+  else
+  {
+    // Can only be tested in remote mode, so just check that we get the correct error message
+    // Then we know the endpoint exists and the client is sending the correct message
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandPopup("Test popup", "Test");
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandCloseSafetyPopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Failed to close system dialog") != response.message.npos);
+      response = dashboard_client_->commandPopup("Test popup", "Test");
+      ASSERT_TRUE(response.ok);
+      ASSERT_TRUE(response.message.find("Popup opened successfully") != response.message.npos);
+      response = dashboard_client_->commandClosePopup();
+      ASSERT_TRUE(response.ok);
+      response = dashboard_client_->commandCloseSafetyPopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Failed to close safety popup") != response.message.npos);
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

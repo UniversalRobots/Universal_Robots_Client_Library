@@ -148,7 +148,7 @@ public:
   DashboardResponse commandResume() override;
   DashboardResponse commandPlay() override;
   DashboardResponse commandPolyscopeVersion() override;
-  DashboardResponse commandPopup(const std::string& popup_text) override;
+  DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") override;
   DashboardResponse commandPowerOff() override;
   DashboardResponse commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300)) override;
   DashboardResponse commandProgramState() override;
@@ -186,6 +186,9 @@ protected:
   DashboardResponse put(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
                         const bool debug = true);
   DashboardResponse get(const std::string& endpoint, const bool debug = true);
+
+  DashboardResponse del(const std::string& endpoint, const bool debug = true);
+
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) const override;
 

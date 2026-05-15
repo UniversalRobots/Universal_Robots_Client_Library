@@ -776,7 +776,8 @@ DashboardResponse DashboardClientImplG5::commandIsInRemoteControl()
   return response;
 }
 
-DashboardResponse DashboardClientImplG5::commandPopup(const std::string& popup_text)
+DashboardResponse DashboardClientImplG5::commandPopup(const std::string& popup_text,
+                                                      [[maybe_unused]] const std::string& popup_title)
 {
   DashboardResponse response;
   try
