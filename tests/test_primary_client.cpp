@@ -284,8 +284,8 @@ TEST_F(PrimaryClientTest, test_robot_type)
   }
   ASSERT_NE(client_->getConfigurationData(), nullptr);
   const std::string robot_model_env = std::getenv("ROBOT_MODEL");
-  const RobotType expected_series_from_env = robotTypeFromString(robot_model_env);
-  EXPECT_EQ(client_->getRobotType(), expected_series_from_env);
+  const RobotType expected_robot_type = robotTypeFromString(robot_model_env);
+  EXPECT_EQ(client_->getRobotType(), expected_robot_type);
 }
 
 TEST_F(PrimaryClientTest, test_kinematics_info)

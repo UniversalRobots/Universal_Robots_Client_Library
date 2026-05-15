@@ -169,6 +169,14 @@ void clampToUnitRange(std::array<T, N>& values)
  */
 RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version);
 
+/*!
+ * \brief Get the robot type from a string.
+ *
+ * \param robot_type_str The string representation of the robot type as used in the start_ursim.sh
+ * script. All lower-case, e.g. "ur3e", "ur5", "ur10e", "ur16e", "ur7e", "ur15e", "ur30", "ur8long".
+ *
+ * \returns The robot type corresponding to the given string.
+ */
 RobotType robotTypeFromString(const std::string& robot_type_str);
 
 }  // namespace urcl

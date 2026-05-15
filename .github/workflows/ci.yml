@@ -274,11 +274,6 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: build.tar.gz
-        env:
-          DOCKER_RUN_OPTS: --network ursim_net
-          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
-          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
-          PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
       - name: Extract CMake build directory
         run: tar -xzf build.tar.gz
       - name: inspect build folder
