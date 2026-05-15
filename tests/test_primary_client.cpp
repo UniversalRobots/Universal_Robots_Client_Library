@@ -483,6 +483,8 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_throw_on_malformed_scripts)
                                       "end";
   EXPECT_THROW(client_->sendScriptBlocking(script_bad_name), urcl::ScriptCodeSyntaxException);
   EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
+  const std::string comments_only = "#only\n#comments\n\n\n#and\n#whitespace";
+  EXPECT_THROW(client_->sendScriptBlocking(comments_only), urcl::ScriptCodeSyntaxException);
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
@@ -527,10 +529,26 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Impossible movement, will trigger an error and protective stop
-  EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::seconds(1), false));
+  EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::milliseconds(1000), false));
   // reset the robot
   ASSERT_NO_THROW(client_->commandUnlockProtectiveStop());
   EXPECT_TRUE(client_->sendScriptBlocking("movej([0.5,-0.5,0.5,0,0,0])"));
+}
+
+TEST_F(PrimaryClientTest, test_send_script_blocking_replace_long_names)
+{
+  EXPECT_NO_THROW(client_->start());
+  EXPECT_NO_THROW(client_->commandPowerOff());
+  EXPECT_NO_THROW(client_->commandBrakeRelease());
+  const std::string name = "this_is_a_very_long_script_name_that_should_be_truncated";
+  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")", name));
+  const std::string long_name_script = "def " + name +
+                                       "():\n"
+                                       "  textmsg(\"still running\")\n"
+                                       "  sleep(0.1)\n"
+                                       "  sync()\n"
+                                       "end";
+  EXPECT_TRUE(client_->sendScriptBlocking(long_name_script));
 }
 
 int main(int argc, char* argv[])
