@@ -410,6 +410,11 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   else
   {
     size_t name_end = stripped_script[0].find("(");
+    if (name_end == stripped_script[0].npos)
+    {
+      throw urcl::ScriptCodeSyntaxException("Function definition detected in script, but a '(' could not be found. "
+                                            "Definition is invalid.");
+    }
     std::string name_in_script = stripped_script[0].substr(4, name_end - 4);
     if (stripped_script[0].substr(0, 4).find("def ") != stripped_script[0].npos)
     {
