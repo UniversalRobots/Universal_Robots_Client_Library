@@ -148,8 +148,16 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   ScriptInfo script_info = prepare_script(program, script_name);
 
   RobotMode robot_mode = getRobotMode();
+  std::chrono::milliseconds robot_mode_timeout(1000);
+  auto start = std::chrono::system_clock::now();
   while (robot_mode == RobotMode::UNKNOWN)
   {
+    auto now = std::chrono::system_clock::now();
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() > robot_mode_timeout.count())
+    {
+      URCL_LOG_ERROR("Robot mode not received within %lld ms, exiting.", robot_mode_timeout.count());
+      return false;
+    }
     URCL_LOG_INFO("Robot mode not received yet, waiting for it to be received.");
     std::chrono::milliseconds update_period(100);
     std::this_thread::sleep_for(update_period);
