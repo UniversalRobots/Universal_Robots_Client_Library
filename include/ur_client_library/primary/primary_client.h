@@ -124,6 +124,8 @@ public:
    * error during execution. Default true
    *
    * \throw urcl::ScriptCodeSyntaxException if the given script code has syntax errors, which are checked here.
+   * \throw urcl::UrException if the stop command cannot be sent to the robot.
+   * \throw urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
    *
    * \returns true on successful execution of the script, false otherwise
    */
