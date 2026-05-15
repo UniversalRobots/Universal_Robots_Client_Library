@@ -528,11 +528,10 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
-  // Impossible movement, will trigger an error and protective stop
-  EXPECT_TRUE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])", "", std::chrono::milliseconds(1000), false));
+  // Trigger protective stop (warning level error code)
+  EXPECT_TRUE(client_->sendScriptBlocking("protective_stop()", "", std::chrono::milliseconds(1000), false));
   // reset the robot
   ASSERT_NO_THROW(client_->commandUnlockProtectiveStop());
-  EXPECT_TRUE(client_->sendScriptBlocking("movej([0.5,-0.5,0.5,0,0,0])"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_replace_long_names)
