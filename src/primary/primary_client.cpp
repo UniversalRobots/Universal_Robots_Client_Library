@@ -348,6 +348,11 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   // Remove all comments and white-space-only lines
   std::vector<std::string> stripped_script = strip_comments_and_whitespace(split_script);
 
+  if (stripped_script.size() == 0)
+  {
+    throw urcl::ScriptCodeSyntaxException("Script is empty after stripping comments and whitespace.");
+  }
+
   // Use given scipt name or create one
   int64_t current_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
