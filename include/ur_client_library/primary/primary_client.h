@@ -351,6 +351,7 @@ private:
 
   ScriptInfo prepare_script(std::string script, std::string script_name);
   std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
+  std::string truncate_and_check_script_name(std::string candidate_name);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;
