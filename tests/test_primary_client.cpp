@@ -485,6 +485,10 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_throw_on_malformed_scripts)
   EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"testing\")", "0_errors"), urcl::ScriptCodeSyntaxException);
   const std::string comments_only = "#only\n#comments\n\n\n#and\n#whitespace";
   EXPECT_THROW(client_->sendScriptBlocking(comments_only), urcl::ScriptCodeSyntaxException);
+  const std::string script_no_paren = "def test_fun:\n"
+                                      "  textmsg(\"testing\")"
+                                      "end";
+  EXPECT_THROW(client_->sendScriptBlocking(script_no_paren), urcl::ScriptCodeSyntaxException);
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
