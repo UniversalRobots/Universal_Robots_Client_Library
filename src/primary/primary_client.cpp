@@ -251,9 +251,9 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         }
         if (error.report_level == ReportLevel::WARNING)
         {
-          URCL_LOG_ERROR("Robot error code with severity WARNING received during script execution. Robot "
-                         "error code: %s",
-                         error.to_string.c_str());
+          URCL_LOG_WARN("Robot error code with severity WARNING received during script execution. Robot "
+                        "error code: %s",
+                        error.to_string.c_str());
           is_warning = true;
         }
         if (error.message_code == 210)
