@@ -173,10 +173,17 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     URCL_LOG_ERROR(ss.str().c_str());
     return false;
   }
-
+  // Clear runtime exception
   {
     std::scoped_lock lock(runtime_exception_mutex_);
     latest_runtime_exception_ = nullptr;
+  }
+  // Clear existing error codes
+  getErrorCodes();
+  // Clear key messages
+  {
+    std::scoped_lock lock(key_message_queue_mutex_);
+    key_message_queue_.clear();
   }
 
   bool script_sent = sendScript(script_info.script_code);
