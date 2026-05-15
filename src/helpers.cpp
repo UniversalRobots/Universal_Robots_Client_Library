@@ -263,7 +263,6 @@ RobotType robotTypeFromString(const std::string& robot_type_str)
   }
   else
   {
-    return RobotType::UR5;
     throw std::invalid_argument("Unknown robot type: " + robot_type_str);
   }
 }
