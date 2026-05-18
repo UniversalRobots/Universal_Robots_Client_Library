@@ -605,6 +605,29 @@ TEST_F(DashboardClientTestX, get_serial_number)
   }
 }
 
+TEST_F(DashboardClientTestX, shutdown_robot)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandShutdown(), NotImplementedException);
+  }
+  else
+  {
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandShutdown();
+      ASSERT_FALSE(response.ok);
+      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandShutdown();
+      ASSERT_TRUE(response.ok);
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

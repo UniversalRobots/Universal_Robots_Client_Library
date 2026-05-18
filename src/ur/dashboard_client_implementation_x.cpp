@@ -78,6 +78,8 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
     { "/system/v1/information", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
   { "get_serial_number",
     { "/system/v1/information", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "shutdown",
+    { "/system/v1/shutdown", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
 };
 
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
@@ -323,7 +325,9 @@ DashboardResponse DashboardClientImplX::commandUnlockProtectiveStop()
 
 DashboardResponse DashboardClientImplX::commandShutdown()
 {
-  throw NotImplementedException("commandShutdown is not implemented for DashboardClientImplX.");
+  assertHasCommand("shutdown");
+  const std::string endpoint = g_command_list["shutdown"].endpoint;
+  return put(endpoint, "");
 }
 
 DashboardResponse DashboardClientImplX::commandQuit()
