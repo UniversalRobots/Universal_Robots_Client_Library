@@ -82,6 +82,14 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
     { "/system/v1/shutdown", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
   { "add_to_log",
     { "/system/v1/log", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "generate_flight_report",
+    { "/supportfiles/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "download_flight_reports",
+    { "/supportfiles/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "set_operational_mode",
+    { "/operational-mode/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "clear_operational_mode",
+    { "/operational-mode/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } }
 };
 
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
@@ -376,7 +384,11 @@ DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_te
 
 DashboardResponse DashboardClientImplX::commandAddToLog([[maybe_unused]] const std::string& log_text)
 {
-  throw NotImplementedException("commandAddToLog is not implemented for DashboardClientImplX.");
+  assertHasCommand("add_to_log");
+  const std::string endpoint = g_command_list["add_to_log"].endpoint;
+  const std::string message = R"({"message": ")" + log_text + R"("})";
+  std::cout << message << std::endl;
+  return post(endpoint, message);
 }
 
 DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
@@ -504,7 +516,14 @@ DashboardResponse DashboardClientImplX::commandGetUserRole()
 
 DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unused]] const std::string& report_type)
 {
-  throw NotImplementedException("commandGenerateFlightReport is not implemented for DashboardClientImplX.");
+  assertHasCommand("generate_flight_report");
+  const std::string endpoint = g_command_list["generate_flight_report"].endpoint;
+  auto response = post(endpoint, "", "application/json");
+  auto json = json::parse(response.message);
+  std::cout << json << std::endl;
+  // std::cout << response << std::endl;
+  return response;
+  // throw NotImplementedException("commandGenerateFlightReport is not implemented for DashboardClientImplX.");
 }
 
 DashboardResponse DashboardClientImplX::commandGenerateSupportFile([[maybe_unused]] const std::string& dir_path)
