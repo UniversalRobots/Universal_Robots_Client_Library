@@ -35,7 +35,9 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <thread>
+#include <unordered_map>
 
 // clang-format off
 // We want to keep the URL in one line to avoid formatting issues. This will make it easier to
