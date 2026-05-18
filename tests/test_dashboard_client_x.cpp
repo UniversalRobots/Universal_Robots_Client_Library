@@ -628,6 +628,30 @@ TEST_F(DashboardClientTestX, shutdown_robot)
   }
 }
 
+TEST_F(DashboardClientTestX, add_to_log)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandAddToLog(""), NotImplementedException);
+  }
+  else
+  {
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandAddToLog("Test log");
+      ASSERT_FALSE(response.ok);
+      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandAddToLog("Test log");
+      ASSERT_TRUE(response.ok);
+      EXPECT_TRUE(response.message.find("Log entry added") != response.message.npos);
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

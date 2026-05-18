@@ -80,6 +80,8 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
     { "/system/v1/information", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
   { "shutdown",
     { "/system/v1/shutdown", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "add_to_log",
+    { "/system/v1/log", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
 };
 
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)

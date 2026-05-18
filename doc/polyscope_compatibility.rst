@@ -73,6 +73,9 @@ table below or checkout the latest tag before the breaking changes were introduc
           * - 10.14.0
             - System control
             - Shut down robot
+          * - 10.14.0
+            - Logging
+            - Add entry to system log
 
      - Using external control on |polyscope| X requires another URCapX for making external control
        work. This is currently in the process of being created.
