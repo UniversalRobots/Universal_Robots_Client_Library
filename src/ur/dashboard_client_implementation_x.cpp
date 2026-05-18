@@ -74,6 +74,10 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
   },
   { "PolyscopeVersion",
     { "/versions/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "get_robot_model",
+    { "/system/v1/information", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
+  { "get_serial_number",
+    { "/system/v1/information", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
 };
 
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
@@ -384,12 +388,28 @@ DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
 
 DashboardResponse DashboardClientImplX::commandGetRobotModel()
 {
-  throw NotImplementedException("commandGetRobotModel is not implemented for DashboardClientImplX.");
+  assertHasCommand("get_robot_model");
+  const std::string endpoint = g_command_list["get_robot_model"].endpoint;
+  auto response = get(endpoint);
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["robot_model"] = std::string(json_data["robotType"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandGetSerialNumber()
 {
-  throw NotImplementedException("commandGetSerialNumber is not implemented for DashboardClientImplX.");
+  assertHasCommand("get_serial_number");
+  const std::string endpoint = g_command_list["get_serial_number"].endpoint;
+  auto response = get(endpoint);
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["serial_number"] = std::string(json_data["serialNumber"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandRobotMode()

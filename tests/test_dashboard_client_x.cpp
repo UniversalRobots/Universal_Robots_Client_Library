@@ -568,6 +568,43 @@ TEST_F(DashboardClientTestX, get_polyscope_version)
   }
 }
 
+TEST_F(DashboardClientTestX, get_robot_model)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetRobotModel(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetRobotModel();
+    ASSERT_TRUE(response.ok);
+    const std::string model_string = std::get<std::string>(response.data["robot_model"]);
+
+    waitFor([this]() { return primary_client_->getRobotType() != urcl::RobotType::UNDEFINED; },
+            std::chrono::milliseconds(1000));
+
+    const std::string true_robot = robotTypeString(primary_client_->getRobotType());
+    EXPECT_EQ(model_string, true_robot);
+  }
+}
+
+TEST_F(DashboardClientTestX, get_serial_number)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetSerialNumber(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetSerialNumber();
+    ASSERT_TRUE(response.ok);
+    const std::string serial_number = std::get<std::string>(response.data["serial_number"]);
+    EXPECT_FALSE(serial_number.empty());  // Dont know what to check for here otherwise
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
