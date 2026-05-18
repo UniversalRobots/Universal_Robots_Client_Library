@@ -552,6 +552,22 @@ TEST_F(DashboardClientTestX, open_and_close_popups)
   }
 }
 
+TEST_F(DashboardClientTestX, get_polyscope_version)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandPolyscopeVersion(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandPolyscopeVersion();
+    ASSERT_TRUE(response.ok);
+    std::string version_string = std::get<std::string>(response.data["polyscope_version"]);
+    EXPECT_EQ(*polyscope_version_, VersionInformation::fromString(version_string));
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

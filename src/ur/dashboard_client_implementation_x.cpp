@@ -71,7 +71,9 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
   {
       "is_in_remote_control",
       { "/system/v1/controlmode", VersionInformation::fromString("3.1.4"), VersionInformation::fromString("10.12.0") },
-  }
+  },
+  { "PolyscopeVersion",
+    { "/versions/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
 };
 
 DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardClientImpl(host)
@@ -165,7 +167,9 @@ timeval DashboardClientImplX::getConfiguredSendTimeout() const
 
 VersionInformation DashboardClientImplX::queryPolyScopeVersion()
 {
-  throw NotImplementedException("queryPolyScopeVersion is not implemented for DashboardClientImplX.");
+  DashboardResponse response = commandPolyscopeVersion();
+  std::string version_string = std::get<std::string>(response.data["polyscope_version"]);
+  return VersionInformation::fromString(version_string);
 }
 
 void DashboardClientImplX::assertHasCommand(const std::string& command) const
@@ -367,7 +371,15 @@ DashboardResponse DashboardClientImplX::commandAddToLog([[maybe_unused]] const s
 
 DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
 {
-  throw NotImplementedException("commandPolyscopeVersion is not implemented for DashboardClientImplX.");
+  assertHasCommand("PolyscopeVersion");
+  const std::string endpoint = g_command_list["PolyscopeVersion"].endpoint;
+  auto response = get(endpoint);  // This returns both marketing version and baseline version
+  auto json_data = json::parse(response.message);
+  if (response.ok)
+  {
+    response.data["polyscope_version"] = std::string(json_data["marketingVersion"]);
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandGetRobotModel()

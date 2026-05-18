@@ -67,6 +67,9 @@ table below or checkout the latest tag before the breaking changes were introduc
           * - 10.14.0
             - Popup interactions
             - open, close, close safety popup
+          * - 10.14.0
+            - Get robot information
+            - Polyscope version
 
      - Using external control on |polyscope| X requires another URCapX for making external control
        work. This is currently in the process of being created.
