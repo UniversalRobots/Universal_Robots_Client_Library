@@ -267,4 +267,31 @@ inline std::string robotTypeString(const RobotType& type)
   }
 }
 
+/**
+ * @brief Converts a RobotSeries enum value to its corresponding string representation.
+ *
+ * This function takes a RobotSeries enum value and returns a string that represents the robot series.
+ * If the provided RobotSeries value does not match any known series, it logs a warning and returns "UNDEFINED".
+ *
+ * @param series The RobotSeries enum value to convert.
+ * @return A string representation of the robot series.
+ */
+inline std::string robotSeriesString(const RobotSeries& series)
+{
+  switch (series)
+  {
+    case RobotSeries::CB3:
+      return "CB3";
+    case RobotSeries::E_SERIES:
+      return "E_SERIES";
+    case RobotSeries::UR_SERIES:
+      return "UR_SERIES";
+    default:
+      std::stringstream ss;
+      ss << "Unknown Robot Series: " << static_cast<int>(series);
+      URCL_LOG_WARN(ss.str().c_str());
+      return "UNDEFINED";
+  }
+}
+
 }  // namespace urcl
