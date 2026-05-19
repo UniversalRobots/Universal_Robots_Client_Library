@@ -267,6 +267,32 @@ TEST_F(PrimaryClientTest, test_configuration_data)
   EXPECT_NE(client_->getRobotType(), RobotType::UNDEFINED);
 }
 
+TEST_F(PrimaryClientTest, test_robot_type)
+{
+  if (std::getenv("ROBOT_MODEL") == nullptr)
+  {
+    GTEST_SKIP() << "ROBOT_MODEL environment variable not set. Skipping test.";
+  }
+  // When this test runs as the only test against a freshly started URSim (as it does in the
+  // robot_model_check CI matrix), the robot may still be initialising and drop the first
+  // primary connection. Use a short socket reconnection interval so that the producer retries
+  // quickly, and a generous outer timeout so we can ride out URSim's full warm-up.
+  constexpr auto reconnection_time = std::chrono::milliseconds(500);
+  EXPECT_NO_THROW(client_->start(/*max_num_tries=*/0, reconnection_time));
+
+  // Wait until we have received configuration data so that the robot type is known.
+  const auto start_time = std::chrono::system_clock::now();
+  const auto timeout = std::chrono::seconds(60);
+  while (client_->getConfigurationData() == nullptr && std::chrono::system_clock::now() - start_time < timeout)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ASSERT_NE(client_->getConfigurationData(), nullptr);
+  const std::string robot_model_env = std::getenv("ROBOT_MODEL");
+  const RobotType expected_robot_type = robotTypeFromString(robot_model_env);
+  EXPECT_EQ(client_->getRobotType(), expected_robot_type);
+}
+
 TEST_F(PrimaryClientTest, test_kinematics_info)
 {
   EXPECT_NO_THROW(client_->start());

@@ -415,9 +415,17 @@ setup() {
 
   strip_robot_model ur7e e-series
   echo "Robot model is: $ROBOT_MODEL"
+  [ "$ROBOT_MODEL" = "UR7" ]
+
+  strip_robot_model ur7e polyscopex
+  echo "Robot model is: $ROBOT_MODEL"
   [ "$ROBOT_MODEL" = "UR7e" ]
 
   strip_robot_model ur12e e-series
+  echo "Robot model is: $ROBOT_MODEL"
+  [ "$ROBOT_MODEL" = "UR12" ]
+
+  strip_robot_model ur12e polyscopex
   echo "Robot model is: $ROBOT_MODEL"
   [ "$ROBOT_MODEL" = "UR12e" ]
 }

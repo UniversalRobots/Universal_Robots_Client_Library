@@ -129,7 +129,13 @@ strip_robot_model()
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     elif [[ "$robot_model" = @(ur7e|ur12e) ]]; then
-      ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
+      # PolyScope X uses UR7e and UR12e, but PolyScope 5 uses UR7 and UR12. So we
+      # need to strip the "e" for PolyScope 5
+      if [[ "$robot_series" == "polyscopex" ]]; then
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}e")
+      else
+        ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
+      fi
     fi
   fi
 }

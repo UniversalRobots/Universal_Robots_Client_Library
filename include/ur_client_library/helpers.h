@@ -169,5 +169,22 @@ void clampToUnitRange(std::array<T, N>& values)
  */
 RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version);
 
+/*!
+ * \brief Get the robot type from a string.
+ *
+ * The \c RobotType enum has no dedicated entries for UR7 and UR12, so "ur7e" is mapped to
+ * \c RobotType::UR5 and "ur12e" is mapped to \c RobotType::UR10, matching what the robot
+ * reports over the primary interface.
+ *
+ * \param robot_type_str The string representation of the robot type as used in the start_ursim.sh
+ * script. Must be all lower-case, e.g. "ur3e", "ur5", "ur10e", "ur16e", "ur7e", "ur15", "ur30",
+ * "ur8long".
+ *
+ * \throws std::invalid_argument if \p robot_type_str does not match a known robot type.
+ *
+ * \returns The robot type corresponding to the given string.
+ */
+RobotType robotTypeFromString(const std::string& robot_type_str);
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

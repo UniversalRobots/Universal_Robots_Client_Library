@@ -9,10 +9,48 @@ on:
     - cron: '38 2 * * *'
 
 jobs:
-  build:
+  ubuntu_build:
+    name: ubuntu_build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install build-tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-pandas python3-lxml
+      - name: configure
+        run: >
+          mkdir build &&
+          cd build &&
+          cmake ..
+          -DBUILDING_TESTS=1
+          -DINTEGRATION_TESTS=1
+          -DWITH_ASAN=ON
+          -DPRIMARY_CLIENT_STRICT_PARSING_=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCHECK_RTDE_DOCS_RECIPE=ON
+        env:
+          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          LDFLAGS: -fprofile-arcs -ftest-coverage
+      - name: build
+        id: build
+        run: cmake --build build --config Debug
+      - name: Archive CMake build directory
+        if: steps.build.outcome == 'success'
+        run: tar -czf build.tar.gz build
+      - name: Upload CMake build archive
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          path: build.tar.gz
+          if-no-files-found: error
+          retention-days: 5
+          archive: false
+
+  run_tests:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    name: run_tests (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    needs: ubuntu_build
     strategy:
       fail-fast: false
       matrix:
@@ -46,8 +84,6 @@ jobs:
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
-      - name: install-pips
-        run: pip install pandas lxml
       - id: check_polyscopex
         run: |
           if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
@@ -57,35 +93,26 @@ jobs:
           fi
       - name: setup chrome
         uses: browser-actions/setup-chrome@v2
-      - name: configure
-        run: >
-          mkdir build &&
-          cd build &&
-          cmake ..
-          -DBUILDING_TESTS=1
-          -DINTEGRATION_TESTS=1
-          -DWITH_ASAN=ON
-          -DPRIMARY_CLIENT_STRICT_PARSING=ON
-          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-          -DCHECK_RTDE_DOCS_RECIPE=ON
-        env:
-          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
-          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
-          LDFLAGS: -fprofile-arcs -ftest-coverage
-      - name: build
-        id: build
-        run: cmake --build build --config Debug
+      - name: Download CMake build archive
+        uses: actions/download-artifact@v8
+        with:
+          name: build.tar.gz
+      - name: Extract CMake build directory
+        run: tar -xzf build.tar.gz
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts
       - name: Access PolyScope
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
         run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
+      - name: Install Python dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-pandas python3-lxml
+      - name: Generate rtde outputs lists
+        run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
@@ -96,13 +123,10 @@ jobs:
       - name: run examples
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
@@ -149,6 +173,127 @@ jobs:
           path: test_artifacts/generated_scripts
           if-no-files-found: warn
           retention-days: 10
+
+  robot_model_check:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    needs: ubuntu_build
+    name: check_model (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - ROBOT_MODEL: 'ur3'
+            URSIM_VERSION: '3.14.3'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - ROBOT_MODEL: 'ur5'
+            URSIM_VERSION: '3.15.8'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - ROBOT_MODEL: 'ur10'
+            URSIM_VERSION: '3.15.8'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - ROBOT_MODEL: 'ur3e'
+            URSIM_VERSION: '5.9.4'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.12.8'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur7e'
+            URSIM_VERSION: '5.22.2'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur10e'
+            URSIM_VERSION: '5.15.2'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur12e'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur16e'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur8long'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur15'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur18'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur20'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur30'
+            URSIM_VERSION: '5.25.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur3e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur7e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur10e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur12e'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur16e'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur8long'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur15'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur18'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur20'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur30'
+            URSIM_VERSION: '10.12.1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: start ursim
+        run: |
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
+        env:
+          DOCKER_RUN_OPTS: --network ursim_net
+          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
+      - name: Download CMake build archive
+        uses: actions/download-artifact@v8
+        with:
+          name: build.tar.gz
+      - name: Extract CMake build directory
+        run: tar -xzf build.tar.gz
+      - name: inspect build folder
+        run: ls -la build && ls -la build/tests
+      - name: test robot type
+        run: cd build && ctest -R PrimaryClientTest.test_robot_type --verbose --output-junit junit.xml
+        env:
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+      - name: install gcovr
+        run: sudo apt-get install -y gcovr
+      - name: gcovr
+        run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v6
+        with:
+          fail_ci_if_error: true
+          files: build/coverage.xml
+          flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test_start_ursim:
     runs-on: ubuntu-latest
