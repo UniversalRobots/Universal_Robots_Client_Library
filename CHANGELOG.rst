@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* [CI] Make circular motion in example more compatible (`#508 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/508>`_)
+* [CI], [bugfix] Added a test to check all robot model parametrizations (`#505 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/505>`_)
+* [CI]Add cppreference link to ignore list (`#506 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/506>`_)
+* [Instruction Executor], [wire-breaking] Allow joint and pose targets for all motion functions (`#491 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/491>`_)
+* Add parsing masterboard data (`#492 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/492>`_)
+* [Docs] Make default group tab point to PolyScope X (`#502 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/502>`_)
+* [Fix] primary_configuration_timeout as configurable field in UrDriverConfiguration (`#489 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/489>`_)
+* [CI] Add lyrical build and migrate rolling to resolute (`#499 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/499>`_)
+* Contributors: Felix Exner, Litzia Carla Vilchez
+
 2.11.0 (2026-05-05)
 -------------------
 * Remove programs.UR5 linking to /ursim/programs (`#500 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/500>`_)
