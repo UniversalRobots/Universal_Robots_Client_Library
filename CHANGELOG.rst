@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.12.0 (2026-05-19)
+-------------------
 * [CI] Make circular motion in example more compatible (`#508 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/508>`_)
 * [CI], [bugfix] Added a test to check all robot model parametrizations (`#505 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/505>`_)
 * [CI]Add cppreference link to ignore list (`#506 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/506>`_)
