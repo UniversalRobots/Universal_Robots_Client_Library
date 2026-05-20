@@ -48,7 +48,7 @@ namespace urcl
 namespace primary_interface
 {
 
-enum ScriptTypes
+enum class ScriptTypes
 {
   DEF = 0,
   SEC = 1,
@@ -117,7 +117,7 @@ public:
    * function name. The script name will be used in log messages in both the client library and in the robot logs. If no
    * name is defined in any way, the script will be given a generic, but unique, name.
    *
-   * \param timeout Amount of time to allow before the robot must have confirmed that the script has been started. If
+   * \param start_timeout Amount of time to allow before the robot must have confirmed that the script has been started. If
    * timeout is 0, it will be ignored. Default value: 1 second
    *
    * \param fail_on_warnings Whether or not the function should report a failure, if the robot reports a warning-level
@@ -130,7 +130,7 @@ public:
    * \returns true on successful execution of the script, false otherwise
    */
   bool sendScriptBlocking(const std::string& program, std::string script_name = "",
-                          std::chrono::milliseconds timeout = std::chrono::seconds(1), bool fail_on_warnings = true);
+                          std::chrono::milliseconds start_timeout = std::chrono::seconds(1), bool fail_on_warnings = true);
 
   bool checkCalibration(const std::string& checksum);
 

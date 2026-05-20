@@ -125,14 +125,8 @@ bool PrimaryClient::safetyModeAllowsExecution()
   switch (mode)
   {
     case SafetyMode::NORMAL:
-      return true;
-
     case SafetyMode::REDUCED:
-      return true;
-
     case SafetyMode::RECOVERY:
-      return true;
-
     // Safety mode might be unknown, as it is only updated on changes.
     case SafetyMode::UNDEFINED_SAFETY_MODE:
       return true;
@@ -322,7 +316,6 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
     if (!script_started && elapsed_time > timeout)
     {
-      // Should this stop the running program?
       URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
       return false;
     }
@@ -381,7 +374,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
     throw urcl::ScriptCodeSyntaxException("Script is empty after stripping comments and whitespace.");
   }
 
-  // Use given scipt name or create one
+  // Use given script name or create one
   int64_t current_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
