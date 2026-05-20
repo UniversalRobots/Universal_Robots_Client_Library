@@ -1,10 +1,9 @@
 #include <ur_client_library/primary/primary_client.h>
-#include <thread>
 #include <chrono>
 
 using namespace urcl;
 
-std::string DEFAULT_ROBOT_IP = "192.168.56.101";
+std::string g_DEFAULT_ROBOT_IP = "192.168.56.101";
 
 int main(int argc, char* argv[])
 {
@@ -12,7 +11,7 @@ int main(int argc, char* argv[])
   urcl::setLogLevel(urcl::LogLevel::INFO);
 
   // Parse the ip arguments if given
-  std::string robot_ip = DEFAULT_ROBOT_IP;
+  std::string robot_ip = g_DEFAULT_ROBOT_IP;
   if (argc > 1)
   {
     robot_ip = std::string(argv[1]);
@@ -20,7 +19,6 @@ int main(int argc, char* argv[])
   auto notif = comm::INotifier();
   auto client = primary_interface::PrimaryClient(robot_ip, notif);
   client.start(10);
-  std::cout << "Client connected" << std::endl;
 
   // --------------- INITIALIZATION END -------------------
 
@@ -29,8 +27,8 @@ int main(int argc, char* argv[])
 
   if (!client.safetyModeAllowsExecution())
   {
-    std::cout << "Robot is not in a safety state where script execution is possible. Exiting." << std::endl;
-    return 0;
+    URCL_LOG_ERROR("Robot is not in a safety state where script execution is possible. Exiting.");
+    return 1;
   }
 
   // The sendScriptBlocking accepts script code, and will return true or false,
@@ -41,9 +39,11 @@ int main(int argc, char* argv[])
 
 # Any whitespace-only lines will also be removed
 def example_fun():
-  movej([0,-0.75,0,0,0,0])
+  movej([0,-0.9,0.9,0,0,0])
   sleep(0.1)
-  movel([0,0,-1.5,0,0,0], t=5)
+  current_pose = get_target_tcp_pose()
+  relative_move = p[0,0,-0.1,0,0,0]
+  movel(pose_trans(current_pose, relative_move), t=1)
 end)""";
 
   if (client.sendScriptBlocking(fully_defined_script))
@@ -65,4 +65,32 @@ sec sec_script():
 end
 )";
   client.sendScriptBlocking(secondary_script);
+
+  // Sending wrong script code will result in a clear error
+  const std::string bad_script_code = R"""(
+def bad_code():
+  current_pose = get_target_tcp_pose()
+  movel(current_pos) # note pose vs pos
+end)""";
+  URCL_LOG_INFO("Sending bad script code...");
+  bool success = client.sendScriptBlocking(bad_script_code);
+  {
+    std::stringstream ss;
+    ss << "Execution of bad code successful? " << std::boolalpha << success;
+    URCL_LOG_INFO("%s", ss.str().c_str());
+  }
+
+  // We can also send script code without any checks
+  URCL_LOG_INFO("Executing motion without feedback");
+  client.sendScript("movej([0.1,-0.9,0.9,0,0,0])");
+  // But we won't know when that is done or even if our code was correct.
+  // E.g. sending the bad script here will not give us any information
+  // The return value will only tell us that the script code has been sent to the robot.
+  URCL_LOG_INFO("Sending bad script code without feedback...");
+  success = client.sendScript(bad_script_code);
+  {
+    std::stringstream ss;
+    ss << "Bad code sent to robot successfully? " << std::boolalpha << success;
+    URCL_LOG_INFO("%s", ss.str().c_str());
+  }
 }
