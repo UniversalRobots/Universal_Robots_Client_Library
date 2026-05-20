@@ -39,10 +39,10 @@ int main(int argc, char* argv[])
 
 # Any whitespace-only lines will also be removed
 def example_fun():
-  movej([0,-0.9,0.9,0,0,0])
+  movej([0,-1.2,1.2,-0.1,1.57,0])
   sleep(0.1)
   current_pose = get_target_tcp_pose()
-  relative_move = p[0,0,-0.1,0,0,0]
+  relative_move = p[0,-0.1,0,0,0,0]
   movel(pose_trans(current_pose, relative_move), t=1)
 end)""";
 
