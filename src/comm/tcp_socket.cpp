@@ -126,35 +126,58 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         continue;
       }
 
+      bool connect_success = false;
+
 #ifndef _WIN32
       int flags = ::fcntl(socket_fd_, F_GETFL, 0);
+      if (flags < 0)
+      {
+        socket_error = getLastSocketErrorCode();
+        ::ur_close(socket_fd_);
+        socket_fd_ = INVALID_SOCKET;
+        continue;
+      }
       ::fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK);
+#else
+      unsigned long mode = 1;
+      ::ioctlsocket(socket_fd_, FIONBIO, &mode);
+#endif
 
+#ifndef _WIN32
       int connect_res = ::connect(socket_fd_, p->ai_addr, static_cast<socklen_t>(p->ai_addrlen));
-      bool connect_success = false;
+      bool is_in_progress = (connect_res != 0 && errno == EINPROGRESS);
+#else
+      int connect_res = ::connect(socket_fd_, p->ai_addr, static_cast<int>(p->ai_addrlen));
+      bool is_in_progress = (connect_res != 0 && ::WSAGetLastError() == WSAEWOULDBLOCK);
+#endif
 
       if (connect_res == 0)
       {
         connect_success = true;
       }
-      else if (errno == EINPROGRESS)
+      else if (is_in_progress)
       {
         auto timeout_ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
         struct timeval tv;
-        tv.tv_sec = timeout_ms / 1000;
-        tv.tv_usec = (timeout_ms % 1000) * 1000;
+        tv.tv_sec = static_cast<long>(timeout_ms / 1000);
+        tv.tv_usec = static_cast<long>((timeout_ms % 1000) * 1000);
 
         fd_set write_fds;
         FD_ZERO(&write_fds);
         FD_SET(socket_fd_, &write_fds);
 
-        int select_res = ::select(socket_fd_ + 1, nullptr, &write_fds, nullptr, &tv);
+        int select_res = ::select(static_cast<int>(socket_fd_ + 1), nullptr, &write_fds, nullptr, &tv);
 
         if (select_res > 0)
         {
           int so_error = 0;
+#ifndef _WIN32
           socklen_t len = sizeof(so_error);
           ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &so_error, &len);
+#else
+          int len = sizeof(so_error);
+          ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len);
+#endif
           if (so_error == 0)
           {
             connect_success = true;
@@ -178,7 +201,12 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         socket_error = getLastSocketErrorCode();
       }
 
+#ifndef _WIN32
       ::fcntl(socket_fd_, F_SETFL, flags);
+#else
+      mode = 0;
+      ::ioctlsocket(socket_fd_, FIONBIO, &mode);
+#endif
 
       if (connect_success)
       {
@@ -190,19 +218,6 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         ::ur_close(socket_fd_);
         socket_fd_ = INVALID_SOCKET;
       }
-#else
-      if (open(socket_fd_, p->ai_addr, p->ai_addrlen))
-      {
-        connected = true;
-        break;
-      }
-      else
-      {
-        socket_error = getLastSocketErrorCode();
-        ::ur_close(socket_fd_);
-        socket_fd_ = INVALID_SOCKET;
-      }
-#endif
     }
 
     freeaddrinfo(result);
