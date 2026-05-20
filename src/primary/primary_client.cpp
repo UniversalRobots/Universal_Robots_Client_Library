@@ -225,10 +225,11 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
           {
             ss << std::setw(line_number_width) << (i + 1) << ": " << script_lines[i] << "\n";
           }
-          if (static_cast<int32_t>(i) == latest_runtime_exception_->line_number_ - 1)
+          if (static_cast<uint32_t>(i) == latest_runtime_exception_->line_number_ - 1)
           {
-            int output_column = latest_runtime_exception_->column_number_ - 1 + (line_number_width + 2);
-            for (int j = 0; j < output_column; j++)
+            uint32_t output_column =
+                latest_runtime_exception_->column_number_ - 1 + (static_cast<uint32_t>(line_number_width) + 2);
+            for (uint32_t j = 0; j < output_column; j++)
             {
               ss << " ";
             }

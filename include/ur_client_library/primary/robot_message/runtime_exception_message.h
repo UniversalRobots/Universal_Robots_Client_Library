@@ -99,8 +99,8 @@ public:
    */
   virtual std::string toString() const;
 
-  int32_t line_number_;
-  int32_t column_number_;
+  uint32_t line_number_;
+  uint32_t column_number_;
   std::string text_;
 };
 }  // namespace primary_interface
