@@ -264,6 +264,9 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         }
         if (error.message_code == 210)
         {
+          // C210 means that the primary client is connected to a read-only primary interface,
+          // which means that scripts cannot be executed. We check for this error code to give the
+          // user a more specific error message in this case.
           is_error = true;
           is_read_only = true;
         }
