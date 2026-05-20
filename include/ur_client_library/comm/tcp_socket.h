@@ -62,12 +62,14 @@ protected:
   }
 
   bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
-             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME,
+             const std::chrono::milliseconds timeout = DEFAULT_CONNECTION_TIME);
 
   std::unique_ptr<timeval> recv_timeout_;
 
 public:
   static constexpr std::chrono::milliseconds DEFAULT_RECONNECTION_TIME{ 10000 };
+  static constexpr std::chrono::milliseconds DEFAULT_CONNECTION_TIME{ 500 };
   /*!
    * \brief Creates a TCPSocket object
    */

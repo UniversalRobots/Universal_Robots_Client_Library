@@ -28,6 +28,8 @@
 #ifndef _WIN32
 #  include <arpa/inet.h>
 #  include <netinet/tcp.h>
+#  include <fcntl.h>
+#  include <sys/select.h>
 #endif
 
 #include "ur_client_library/log.h"
@@ -73,7 +75,7 @@ void TCPSocket::setupOptions()
 }
 
 bool TCPSocket::setup(const std::string& host, const int port, const size_t max_num_tries,
-                      const std::chrono::milliseconds reconnection_time)
+                      const std::chrono::milliseconds reconnection_time, const std::chrono::milliseconds timeout)
 {
   // This can be removed once we remove the setReconnectionTime() method
   auto reconnection_time_resolved = reconnection_time;
@@ -111,16 +113,96 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
       URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
       return false;
     }
-    // loop through the list of addresses untill we find one that's connectable
+
+    std::error_code socket_error;
+
     for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
     {
       socket_fd_ = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 
-      if (socket_fd_ != -1 && open(socket_fd_, p->ai_addr, p->ai_addrlen))
+      if (socket_fd_ == -1)
+      {
+        socket_error = getLastSocketErrorCode();
+        continue;
+      }
+
+#ifndef _WIN32
+      int flags = ::fcntl(socket_fd_, F_GETFL, 0);
+      ::fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK);
+
+      int connect_res = ::connect(socket_fd_, p->ai_addr, static_cast<socklen_t>(p->ai_addrlen));
+      bool connect_success = false;
+
+      if (connect_res == 0)
+      {
+        connect_success = true;
+      }
+      else if (errno == EINPROGRESS)
+      {
+        auto timeout_ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
+        struct timeval tv;
+        tv.tv_sec = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+        fd_set write_fds;
+        FD_ZERO(&write_fds);
+        FD_SET(socket_fd_, &write_fds);
+
+        int select_res = ::select(socket_fd_ + 1, nullptr, &write_fds, nullptr, &tv);
+
+        if (select_res > 0)
+        {
+          int so_error = 0;
+          socklen_t len = sizeof(so_error);
+          ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &so_error, &len);
+          if (so_error == 0)
+          {
+            connect_success = true;
+          }
+          else
+          {
+            socket_error = std::error_code(so_error, std::generic_category());
+          }
+        }
+        else if (select_res == 0)
+        {
+          socket_error = std::make_error_code(std::errc::timed_out);
+        }
+        else
+        {
+          socket_error = getLastSocketErrorCode();
+        }
+      }
+      else
+      {
+        socket_error = getLastSocketErrorCode();
+      }
+
+      ::fcntl(socket_fd_, F_SETFL, flags);
+
+      if (connect_success)
       {
         connected = true;
         break;
       }
+      else
+      {
+        ::ur_close(socket_fd_);
+        socket_fd_ = INVALID_SOCKET;
+      }
+#else
+      if (open(socket_fd_, p->ai_addr, p->ai_addrlen))
+      {
+        connected = true;
+        break;
+      }
+      else
+      {
+        socket_error = getLastSocketErrorCode();
+        ::ur_close(socket_fd_);
+        socket_fd_ = INVALID_SOCKET;
+      }
+#endif
     }
 
     freeaddrinfo(result);
@@ -136,8 +218,8 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
       else
       {
         std::stringstream ss;
-        ss << "Failed to connect to robot on IP " << host_name << ":" << port
-           << ". Please check that the robot is booted and reachable on " << host_name << ". Retrying in "
+        ss << "Failed to connect to robot on IP " << host_name << ":" << port << ". Reason: " << socket_error.message()
+           << ". Retrying in "
            << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count()
            << " seconds.";
         URCL_LOG_ERROR("%s", ss.str().c_str());
