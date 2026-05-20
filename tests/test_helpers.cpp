@@ -137,3 +137,11 @@ TEST(TestHelpers, robotSeriesFromTypeAndVersion)
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, cb3_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_x_version), RobotSeries::UNDEFINED);
 }
+
+TEST(TestHelpers, robotSeriesString)
+{
+  EXPECT_EQ(robotSeriesString(RobotSeries::CB3), "CB3");
+  EXPECT_EQ(robotSeriesString(RobotSeries::E_SERIES), "E_SERIES");
+  EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
+  EXPECT_EQ(robotSeriesString(RobotSeries::UNDEFINED), "UNDEFINED");
+}
