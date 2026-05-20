@@ -204,6 +204,15 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   const auto script_start_time = std::chrono::system_clock::now();
   // Ignore start delay if it is 0
   bool script_started = timeout == std::chrono::milliseconds(0) ? true : false;
+  // Error codes and key messages are produced by the same pipeline thread, but they live in two
+  // separate queues that are drained independently in this loop. A warning ErrorCode and the
+  // PROGRAM_XXX_STOPPED KeyMessage may therefore be visible to consecutive iterations rather than
+  // to the same one. To avoid returning success before such a "straggler" warning/error has been
+  // observed, we don't return immediately when STOPPED is seen. Instead we record that fact and
+  // keep draining the error / runtime exception queues for a short grace period.
+  bool program_stopped = false;
+  std::chrono::system_clock::time_point program_stopped_time;
+  const std::chrono::milliseconds post_stop_drain_period(100);
   while (true)
   {
     {
@@ -309,8 +318,18 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       {
         if (message.title_ == "PROGRAM_XXX_STOPPED" && message.text_ == script_info.script_name)
         {
-          URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
-          return true;
+          if (!program_stopped)
+          {
+            URCL_LOG_DEBUG("Script with name %s reported as stopped. Draining residual error / "
+                           "runtime exception messages for up to %lld ms before reporting success.",
+                           script_info.script_name.c_str(), static_cast<long long>(post_stop_drain_period.count()));
+            program_stopped = true;
+            program_stopped_time = std::chrono::system_clock::now();
+            // STOPPED implies the script was started, otherwise the controller could not have
+            // stopped it. This avoids a spurious "not started within timeout" failure if the
+            // STARTED message was never observed in this loop.
+            script_started = true;
+          }
         }
         else if (!script_started && message.title_ == "PROGRAM_XXX_STARTED" && message.text_ == script_info.script_name)
         {
@@ -319,13 +338,30 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         }
       }
     }
-    auto current_time = std::chrono::system_clock::now();
-    auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time);
 
-    if (!script_started && elapsed_time > timeout)
+    // After STOPPED has been observed, give the pipeline a short grace period to deliver any
+    // warning / fault / violation error codes that may have been parsed just before STOPPED but
+    // ended up in the error queue after this iteration's getErrorCodes() snapshot. Only declare
+    // success once that grace period elapsed without any reportable issue.
+    if (program_stopped)
     {
-      URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
-      return false;
+      const auto now = std::chrono::system_clock::now();
+      if (now - program_stopped_time >= post_stop_drain_period)
+      {
+        URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
+        return true;
+      }
+    }
+    else
+    {
+      const auto current_time = std::chrono::system_clock::now();
+      const auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - script_start_time);
+
+      if (!script_started && elapsed_time > timeout)
+      {
+        URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
+        return false;
+      }
     }
     std::chrono::milliseconds wait_period(10);
     std::this_thread::sleep_for(wait_period);
