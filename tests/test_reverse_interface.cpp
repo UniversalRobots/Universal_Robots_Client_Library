@@ -43,6 +43,8 @@ std::condition_variable g_connection_condition;
 class TestableReverseInterface : public control::ReverseInterface
 {
 public:
+  using control::ReverseInterface::MAX_MESSAGE_LENGTH;
+
   TestableReverseInterface(const control::ReverseInterfaceConfig& config) : control::ReverseInterface(config)
   {
   }
@@ -85,11 +87,13 @@ protected:
 
     void readMessage(int32_t& read_timeout, vector6int32_t& pos, int32_t& control_mode)
     {
+      constexpr size_t MAX_MESSAGE_LENGTH = TestableReverseInterface::MAX_MESSAGE_LENGTH;
+
       // Read message
-      uint8_t buf[sizeof(int32_t) * 8];
+      uint8_t buf[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 8;
+      size_t remainder = sizeof(int32_t) * MAX_MESSAGE_LENGTH;
       while (remainder > 0)
       {
         if (!TCPSocket::read(b_pos, remainder, read))
