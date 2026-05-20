@@ -217,15 +217,15 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
            << latest_runtime_exception_->column_number_ << "\n";
         // Debug print for the user
         auto script_lines = splitString(script_info.script_code, "\n");
-        int line_count = static_cast<int>(script_lines.size());
+        size_t line_count = script_lines.size();
         int line_number_width = std::to_string(line_count).size();
-        for (int i = 0; i < static_cast<int>(script_lines.size()); i++)
+        for (size_t i = 0; i < line_count; i++)
         {
           if (!script_lines[i].empty())
           {
             ss << std::setw(line_number_width) << (i + 1) << ": " << script_lines[i] << "\n";
           }
-          if (i == latest_runtime_exception_->line_number_ - 1)
+          if (static_cast<int32_t>(i) == latest_runtime_exception_->line_number_ - 1)
           {
             int output_column = latest_runtime_exception_->column_number_ - 1 + (line_number_width + 2);
             for (int j = 0; j < output_column; j++)
