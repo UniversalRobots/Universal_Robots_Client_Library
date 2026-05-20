@@ -209,7 +209,7 @@ bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessag
   // Add feature pose scaled to microns microradians to avoid precision loss in integer conversion
   for (double p : feature_pose)
   {
-    val = htobe32(static_cast<int32_t>(p * MULT_JOINTSTATE));
+    val = htobe32(static_cast<int32_t>(round(p * MULT_JOINTSTATE)));
     b_pos += append(b_pos, val);
   }
 
