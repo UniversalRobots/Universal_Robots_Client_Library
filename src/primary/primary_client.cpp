@@ -218,7 +218,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         // Debug print for the user
         auto script_lines = splitString(script_info.script_code, "\n");
         size_t line_count = script_lines.size();
-        int line_number_width = std::to_string(line_count).size();
+        size_t line_number_width = std::to_string(line_count).size();
         for (size_t i = 0; i < line_count; i++)
         {
           if (!script_lines[i].empty())
