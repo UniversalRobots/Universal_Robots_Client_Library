@@ -224,28 +224,33 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         std::stringstream ss;
         ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
            << latest_runtime_exception_->column_number_ << "\n";
-        // Debug print for the user
-        auto script_lines = splitString(script_info.script_code, "\n");
-        size_t line_count = script_lines.size();
-        size_t line_number_width = std::to_string(line_count).size();
-        for (size_t i = 0; i < line_count; i++)
+        // Line and column numbers should always be 1-based, but we check that they are greater
+        // than 0 just to be sure before using them for indexing in the debug print below
+        if (latest_runtime_exception_->line_number_ > 0 && latest_runtime_exception_->column_number_ > 0)
         {
-          if (!script_lines[i].empty())
+          // Debug print for the user
+          auto script_lines = splitString(script_info.script_code, "\n");
+          size_t line_count = script_lines.size();
+          size_t line_number_width = std::to_string(line_count).size();
+          for (size_t i = 0; i < line_count; i++)
           {
-            ss << std::setw(line_number_width) << (i + 1) << ": " << script_lines[i] << "\n";
-          }
-          if (static_cast<uint32_t>(i) == latest_runtime_exception_->line_number_ - 1)
-          {
-            uint32_t output_column =
-                latest_runtime_exception_->column_number_ - 1 + (static_cast<uint32_t>(line_number_width) + 2);
-            for (uint32_t j = 0; j < output_column; j++)
+            if (!script_lines[i].empty())
             {
-              ss << " ";
+              ss << std::setw(line_number_width) << (i + 1) << ": " << script_lines[i] << "\n";
             }
-            ss << "^<--- here\n";
+            if (static_cast<uint32_t>(i) == latest_runtime_exception_->line_number_ - 1)
+            {
+              uint32_t output_column =
+                  latest_runtime_exception_->column_number_ - 1 + (static_cast<uint32_t>(line_number_width) + 2);
+              for (uint32_t j = 0; j < output_column; j++)
+              {
+                ss << " ";
+              }
+              ss << "^<--- here\n";
+            }
           }
+          URCL_LOG_ERROR(ss.str().c_str());
         }
-        URCL_LOG_ERROR(ss.str().c_str());
         return false;
       }
     }
