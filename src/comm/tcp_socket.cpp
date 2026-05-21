@@ -50,9 +50,6 @@ TCPSocket::TCPSocket()
 TCPSocket::~TCPSocket()
 {
   close();
-#ifdef _WIN32
-  ::WSACleanup();
-#endif
 }
 
 void TCPSocket::setupOptions()
