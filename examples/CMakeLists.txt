@@ -11,6 +11,10 @@ add_executable(primary_pipeline_example
   primary_pipeline.cpp)
 target_link_libraries(primary_pipeline_example ur_client_library::urcl)
 
+add_executable(send_script
+  send_script.cpp)
+target_link_libraries(send_script ur_client_library::urcl)
+
 add_executable(primary_pipeline_calibration_example
   primary_pipeline_calibration.cpp)
 target_link_libraries(primary_pipeline_calibration_example ur_client_library::urcl)

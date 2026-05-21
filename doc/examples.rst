@@ -26,6 +26,7 @@ may be running forever until manually stopped.
    examples/external_fts_through_rtde
    examples/script_command_interface
    examples/script_sender
+   examples/send_script
    examples/spline_example
    examples/tool_contact_example
    examples/direct_torque_control
