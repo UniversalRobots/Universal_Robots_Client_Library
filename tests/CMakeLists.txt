@@ -17,6 +17,9 @@ FetchContent_MakeAvailable(googletest)
 add_executable(fake_rtde_server fake_rtde_server.cpp fake_rtde_server_main.cpp)
 target_link_libraries(fake_rtde_server PRIVATE ur_client_library::urcl)
 
+add_executable(fake_primary_server fake_primary_server.cpp fake_primary_server_main.cpp)
+target_link_libraries(fake_primary_server PRIVATE ur_client_library::urcl)
+
 include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
@@ -118,7 +121,7 @@ if (INTEGRATION_TESTS)
                   TEST_SUFFIX _headless
   )
 
-  add_executable(primary_client_test_headless test_primary_client.cpp)
+  add_executable(primary_client_test_headless test_primary_client.cpp fake_primary_server.cpp)
   target_link_libraries(primary_client_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET primary_client_test_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -142,6 +145,11 @@ gtest_add_tests(TARGET      dashboard_client_mock_tests
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      primary_parser_tests
+)
+
+add_executable(fake_primary_server_tests test_fake_primary_server.cpp fake_primary_server.cpp)
+target_link_libraries(fake_primary_server_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      fake_primary_server_tests
 )
 
 
