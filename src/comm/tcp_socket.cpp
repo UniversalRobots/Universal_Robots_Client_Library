@@ -50,6 +50,9 @@ TCPSocket::TCPSocket()
 TCPSocket::~TCPSocket()
 {
   close();
+#ifdef _WIN32
+  ::WSACleanup();
+#endif
 }
 
 void TCPSocket::setupOptions()
@@ -114,7 +117,7 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
       return false;
     }
 
-    std::error_code socket_error;
+    std::error_code socket_error = std::make_error_code(std::errc::address_not_available);
 
     for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
     {
@@ -125,6 +128,15 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         socket_error = getLastSocketErrorCode();
         continue;
       }
+#ifndef _WIN32
+      if (socket_fd_ >= FD_SETSIZE)
+      {
+        socket_error = std::make_error_code(std::errc::value_too_large);
+        ::ur_close(socket_fd_);
+        socket_fd_ = INVALID_SOCKET;
+        continue;
+      }
+#endif
 
       bool connect_success = false;
 
@@ -166,25 +178,44 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         FD_ZERO(&write_fds);
         FD_SET(socket_fd_, &write_fds);
 
-        int select_res = ::select(static_cast<int>(socket_fd_ + 1), nullptr, &write_fds, nullptr, &tv);
+        fd_set except_fds;
+        FD_ZERO(&except_fds);
+        FD_SET(socket_fd_, &except_fds);
+
+        int select_res = ::select(static_cast<int>(socket_fd_ + 1), nullptr, &write_fds, &except_fds, &tv);
 
         if (select_res > 0)
         {
           int so_error = 0;
 #ifndef _WIN32
           socklen_t len = sizeof(so_error);
-          ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &so_error, &len);
+          int opt_res = ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &so_error, &len);
 #else
           int len = sizeof(so_error);
-          ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len);
+          int opt_res = ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len);
 #endif
-          if (so_error == 0)
+          if (opt_res != 0)
+          {
+            socket_error = getLastSocketErrorCode();
+          }
+          else if (so_error == 0 && FD_ISSET(socket_fd_, &write_fds))
           {
             connect_success = true;
           }
           else
           {
-            socket_error = std::error_code(so_error, std::generic_category());
+            if (so_error != 0)
+            {
+#ifdef _WIN32
+              socket_error = std::error_code(so_error, std::system_category());
+#else
+              socket_error = std::error_code(so_error, std::generic_category());
+#endif
+            }
+            else
+            {
+              socket_error = std::make_error_code(std::errc::connection_refused);
+            }
           }
         }
         else if (select_res == 0)
