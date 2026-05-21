@@ -120,6 +120,8 @@ protected:
         b_pos += sizeof(int32_t);
       }
 
+      b_pos = buf + (sizeof(int32_t) * (MAX_MESSAGE_LENGTH - 1));
+
       // Decode control mode
       std::memcpy(&val, b_pos, sizeof(int32_t));
       control_mode = be32toh(val);
