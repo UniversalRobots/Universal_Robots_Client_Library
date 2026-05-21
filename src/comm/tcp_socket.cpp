@@ -171,31 +171,33 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
         tv.tv_sec = static_cast<long>(timeout_ms / 1000);
         tv.tv_usec = static_cast<long>((timeout_ms % 1000) * 1000);
 
+        socket_t local_fd = socket_fd_.load();
+
         fd_set write_fds;
         FD_ZERO(&write_fds);
-        FD_SET(socket_fd_, &write_fds);
+        FD_SET(local_fd, &write_fds);
 
         fd_set except_fds;
         FD_ZERO(&except_fds);
-        FD_SET(socket_fd_, &except_fds);
+        FD_SET(local_fd, &except_fds);
 
-        int select_res = ::select(static_cast<int>(socket_fd_ + 1), nullptr, &write_fds, &except_fds, &tv);
+        int select_res = ::select(static_cast<int>(local_fd + 1), nullptr, &write_fds, &except_fds, &tv);
 
         if (select_res > 0)
         {
           int so_error = 0;
 #ifndef _WIN32
           socklen_t len = sizeof(so_error);
-          int opt_res = ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &so_error, &len);
+          int opt_res = ::getsockopt(local_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
 #else
           int len = sizeof(so_error);
-          int opt_res = ::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len);
+          int opt_res = ::getsockopt(local_fd, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len);
 #endif
           if (opt_res != 0)
           {
             socket_error = getLastSocketErrorCode();
           }
-          else if (so_error == 0 && FD_ISSET(socket_fd_, &write_fds))
+          else if (so_error == 0 && FD_ISSET(local_fd, &write_fds))
           {
             connect_success = true;
           }
