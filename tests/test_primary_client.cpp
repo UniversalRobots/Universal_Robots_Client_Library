@@ -37,6 +37,7 @@
 #include <queue>
 #include <stdexcept>
 #include <thread>
+#include "fake_primary_server.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 
@@ -92,6 +93,28 @@ protected:
     client_ = std::make_unique<primary_interface::PrimaryClient>(g_ROBOT_IP, notifier_);
   }
 
+  std::unique_ptr<primary_interface::PrimaryClient> client_;
+  comm::INotifier notifier_;
+};
+
+class PrimaryClientFakeTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    server_ = std::make_unique<FakePrimaryServer>(30001);
+    client_ = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier_);
+    EXPECT_NO_THROW(client_->start());
+    EXPECT_TRUE(server_->waitForClient());
+  }
+
+  void TearDown() override
+  {
+    client_.reset();
+    server_.reset();
+  }
+
+  std::unique_ptr<FakePrimaryServer> server_;
   std::unique_ptr<primary_interface::PrimaryClient> client_;
   comm::INotifier notifier_;
 };
@@ -552,6 +575,85 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_replace_long_names)
                                        "  sync()\n"
                                        "end";
   EXPECT_TRUE(client_->sendScriptBlocking(long_name_script));
+}
+
+TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_missing_robot_mode)
+{
+  // We did NOT send a robot mode, yet.
+
+  EXPECT_FALSE(
+      client_->sendScriptBlocking("textmsg(\"Still running\")", "test_fun", std::chrono::milliseconds(1000), false));
+
+  server_->setScriptCallback([this]([[maybe_unused]] const std::string& payload) {
+    server_->sendKeyMessage("PROGRAM_XXX_STARTED", "test_fun");
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    server_->sendKeyMessage("PROGRAM_XXX_STOPPED", "test_fun");
+  });
+  std::thread delayed_robot_mode_thread([this]() {
+    // We will send the robot mode data and program started message after a short delay, which should allow the
+    // sendScriptBlocking call to succeed even though it initially times out waiting for robot mode data.
+    // std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    server_->sendRobotModeData(RobotMode::RUNNING, true, true, true, false, false, false, false);
+  });
+  EXPECT_TRUE(
+      client_->sendScriptBlocking("textmsg(\"Still running\")", "test_fun", std::chrono::milliseconds(1000), false));
+
+  if (delayed_robot_mode_thread.joinable())
+  {
+    delayed_robot_mode_thread.join();
+  }
+}
+
+TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_fault)
+{
+  server_->sendRobotModeData(RobotMode::RUNNING, true, true, true, false, false, false, false);
+
+  const std::string script_code = "textmsg(\"Still running\")";
+
+  // Make the fake server send an error code message with severity fault when it receives a script
+  server_->setScriptCallback([this, script_code](const std::string& payload) {
+    if (payload.find(script_code) != std::string::npos)
+    {
+      server_->sendKeyMessage("PROGRAM_XXX_STARTED", "test_fun");
+      ASSERT_EQ(payload, "def test_fun():\n  " + script_code + "\nend\n\n");
+      ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, primary_interface::ReportLevel::FAULT, "Simulated fault"));
+    }
+    else
+    {
+      // We expect that the primary client calls "stop program" when it receives a fault
+      ASSERT_EQ(payload, "stop program\n");
+    }
+  });
+
+  URCL_LOG_INFO("Sending script that will trigger a fault on the fake server");
+  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
+}
+
+TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
+{
+  server_->sendRobotModeData(RobotMode::RUNNING, true, true, true, false, false, false, false);
+
+  const std::string script_code = "textmsg(\"Still running\")";
+
+  // Make the fake server send an error code message with code 210 (read-only primary interface) when it receives a
+  // script
+  server_->setScriptCallback([this, script_code]([[maybe_unused]] const std::string& payload) {
+    ASSERT_TRUE(server_->sendErrorCodeMessage(210, 0, primary_interface::ReportLevel::VIOLATION,
+                                              "Simulated read-only primary interface error"));
+  });
+
+  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
+}
+
+TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
+{
+  server_->sendRobotModeData(RobotMode::RUNNING, true, true, true, false, false, false, false);
+
+  const std::string script_code = "textmsg(\"Still running\")";
+
+  // We do not set a script callback on the fake server, so it will not respond to the script being sent. This should
+  // cause sendScriptBlocking to time out and return false.
+  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(100), false));
 }
 
 int main(int argc, char* argv[])
