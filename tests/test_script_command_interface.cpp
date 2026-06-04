@@ -225,6 +225,54 @@ TEST_F(ScriptCommandInterfaceTest, test_set_payload)
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_target_payload)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  double mass = 1.0;
+  vector3d_t cog = { 0.2, 0.3, 0.1 };
+  vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
+  double transition_time = 0.002;
+  script_command_interface_->setTargetPayload(mass, &cog, &inertia, transition_time);
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 12 is set target payload
+  int32_t expected_command = 12;
+  EXPECT_EQ(command, expected_command);
+
+  // Test mass
+  double received_mass = (double)message[0] / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_mass, mass);
+
+  // Test cog
+  vector3d_t received_cog;
+  for (unsigned int i = 0; i < cog.size(); ++i)
+  {
+    received_cog[i] = (double)message[i + 1] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_cog[i], cog[i]);
+  }
+
+  // Test inertia
+  vector6d_t received_inertia;
+  for (unsigned int i = 0; i < inertia.size(); ++i)
+  {
+    received_inertia[i] = (double)message[i + 4] / script_command_interface_->MULT_JOINTSTATE;
+    EXPECT_EQ(received_inertia[i], inertia[i]);
+  }
+
+  // Test transition time
+  double received_transition_time = (double)message[10] / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_transition_time, transition_time);
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 11, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
 TEST_F(ScriptCommandInterfaceTest, test_set_tool_voltage)
 {
   // Wait for the client to connect to the server

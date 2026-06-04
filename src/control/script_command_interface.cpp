@@ -91,6 +91,44 @@ bool ScriptCommandInterface::setPayload(const double mass, const vector3d_t* cog
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setTargetPayload(const double mass, const vector3d_t* cog, const vector6d_t* inertia,
+                                              const double transition_time)
+{
+  const int message_length = 12;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TARGET_PAYLOAD));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(round(mass * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  for (auto const& center_of_mass : *cog)
+  {
+    val = htobe32(static_cast<int32_t>(round(center_of_mass * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  for (auto const& inertia_val : *inertia)
+  {
+    val = htobe32(static_cast<int32_t>(round(inertia_val * MULT_JOINTSTATE)));
+    b_pos += append(b_pos, val);
+  }
+
+  val = htobe32(static_cast<int32_t>(round(transition_time * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
 bool ScriptCommandInterface::setGravity(const vector3d_t* gravity)
 {
   const int message_length = 4;
