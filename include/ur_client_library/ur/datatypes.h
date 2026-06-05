@@ -242,7 +242,7 @@ inline std::string robotTypeString(const RobotType& type)
       return "UR3";
     case RobotType::UR5:
       return "UR5";
-    case urcl::RobotType::UR8LONG:
+    case RobotType::UR8LONG:
       return "UR8_LONG";
     case RobotType::UR10:
       return "UR10";
@@ -250,7 +250,7 @@ inline std::string robotTypeString(const RobotType& type)
       return "UR15";
     case RobotType::UR16:
       return "UR16";
-    case urcl::RobotType::UR18:
+    case RobotType::UR18:
       return "UR18";
     case RobotType::UR20:
       return "UR20";
