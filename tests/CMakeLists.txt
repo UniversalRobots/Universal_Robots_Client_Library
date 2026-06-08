@@ -289,6 +289,11 @@ target_link_libraries(types_tests PRIVATE ur_client_library::urcl GTest::gtest_m
 gtest_add_tests(TARGET types_tests
 )
 
+add_executable(datatypes_tests test_datatypes.cpp)
+target_link_libraries(datatypes_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET datatypes_tests
+)
+
 add_executable(motion_primitives_tests test_motion_primitives.cpp)
 target_link_libraries(motion_primitives_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET motion_primitives_tests
