@@ -642,7 +642,8 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool setTargetPayload(const float mass, const vector3d_t& cog, const vector6d_t& inertia,
+  bool setTargetPayload(const float mass, const vector3d_t& cog,
+                        const vector6d_t& inertia = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
                         const double transition_time = 0.0);
 
   /*!
