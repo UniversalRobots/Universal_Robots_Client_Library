@@ -374,6 +374,34 @@ TEST_F(UrDriverTest, set_tcp_offset)
   ASSERT_FALSE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
 }
 
+TEST_F(UrDriverTest, set_target_payload_fallback_script)
+{
+  g_my_robot->getUrDriver()->stopControl();
+  ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  double mass = 1.0;
+  vector3d_t cog = { 0.2, 0.3, 0.1 };
+  vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
+  double transition_time = 0.002;
+
+  bool result = g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time);
+
+  EXPECT_TRUE(result);
+}
+
+TEST_F(UrDriverTest, set_target_payload)
+{
+  double mass = 1.0;
+  vector3d_t cog = { 0.2, 0.3, 0.1 };
+  vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
+  double transition_time = 0.002;
+
+  bool result = g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time);
+
+  EXPECT_TRUE(result);
+}
+
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
 {
   UrDriverConfiguration config;
