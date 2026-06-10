@@ -73,6 +73,9 @@ jobs:
           - ROBOT_MODEL: 'ur5e'
             URSIM_VERSION: '10.12.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur15'
+            URSIM_VERSION: '10.13.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
 
     steps:
       - uses: actions/checkout@v6
