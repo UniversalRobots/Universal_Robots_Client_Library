@@ -943,7 +943,7 @@ thread script_commands():
         mass = raw_command[2] / MULT_jointstate  
         cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]  
         inertia = [raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate, raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate]
-        transition_time = raw_command[12] / MULT_jointstate  
+        transition_time = raw_command[12] / MULT_time  
         {% if ROBOT_SOFTWARE_VERSION >= v5.10.0 %}
           set_target_payload(mass, cog, inertia, transition_time)
         {% else %}

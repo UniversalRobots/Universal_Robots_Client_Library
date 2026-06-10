@@ -264,7 +264,7 @@ TEST_F(ScriptCommandInterfaceTest, test_set_target_payload)
   }
 
   // Test transition time
-  double received_transition_time = (double)message[10] / script_command_interface_->MULT_JOINTSTATE;
+  double received_transition_time = (double)message[10] / script_command_interface_->MULT_TIME;
   EXPECT_EQ(received_transition_time, transition_time);
 
   // The rest of the message should be zero

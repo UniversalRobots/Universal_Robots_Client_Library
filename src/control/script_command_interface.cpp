@@ -115,7 +115,7 @@ bool ScriptCommandInterface::setTargetPayload(const double mass, const vector3d_
     b_pos += append(b_pos, val);
   }
 
-  val = htobe32(static_cast<int32_t>(round(transition_time * MULT_JOINTSTATE)));
+  val = htobe32(static_cast<int32_t>(round(transition_time * MULT_TIME)));
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
