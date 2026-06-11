@@ -162,9 +162,8 @@ public:
   DashboardResponse commandUpdateProgram(const std::string& file_path) override;
   DashboardResponse commandDownloadProgram(const std::string& program_name, const std::string& save_path) override;
 
-  void setReceiveTimeout([[maybe_unused]] const timeval& timeout) override
-  {
-  }
+  // Defined in the .cpp because httplib::Client is only forward-declared in this header.
+  void setReceiveTimeout(const timeval& timeout) override;
 
 protected:
   DashboardResponse performProgramUpload(

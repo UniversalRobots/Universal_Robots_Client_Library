@@ -24,6 +24,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <chrono>
 #include <string>
 #include <fstream>
 #include <ios>
@@ -49,6 +50,22 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
   // Some targets have changed between versions redirecting to the correct endpoint. For this to
   // work, we'll have to follow redirects, which is not the default for httplib.
   cli_->set_follow_location(true);
+
+  // cpp-httplib's default read_timeout is 300 seconds. Applied unchanged, this makes any
+  // dashboard call hang for 5 minutes when the controller becomes unresponsive (e.g. network
+  // partition, paused container in tests). Align with the contract documented on the base
+  // class: getConfiguredReceiveTimeout() returns {tv_sec = 1, tv_usec = 0} on this impl.
+  cli_->set_connection_timeout(std::chrono::seconds(5));
+  cli_->set_read_timeout(std::chrono::seconds(1));
+  cli_->set_write_timeout(std::chrono::seconds(5));
+}
+
+void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
+{
+  if (cli_)
+  {
+    cli_->set_read_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
+  }
 }
 
 std::string DashboardClientImplX::sendAndReceive([[maybe_unused]] const std::string& text)
