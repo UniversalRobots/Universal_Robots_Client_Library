@@ -96,10 +96,19 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
   // temporarily extend the read timeout for setup, then restore the configured value.
   // The restore must run on every exit, including exceptions from json::parse or
   // VersionInformation::fromString — hence the catch(...) rethrow guard.
+  //
+  // The 10 s here is a minimum-headroom for setup, not a cap on the caller's
+  // preferences. If the caller (or an enclosing call like commandPowerOn) has already
+  // configured a larger read timeout, never shrink it — a lazy connect() inside such a
+  // call would otherwise reduce the in-flight deadline during the openapi.json GET.
   timeval configured_tv = getConfiguredReceiveTimeout();
-  timeval setup_tv;
-  setup_tv.tv_sec = 10;
-  setup_tv.tv_usec = 0;
+  constexpr time_t kSetupMinSeconds = 10;
+  timeval setup_tv = configured_tv;
+  if (setup_tv.tv_sec < kSetupMinSeconds)
+  {
+    setup_tv.tv_sec = kSetupMinSeconds;
+    setup_tv.tv_usec = 0;
+  }
   setReceiveTimeout(setup_tv);
 
   bool result = false;
