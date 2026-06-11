@@ -87,11 +87,14 @@ RTDEClient::~RTDEClient()
 {
   prod_->setReconnectionCallback(nullptr);
   stop_reconnection_ = true;
+  // Disconnect before joining the reconnect thread so that any sleep inside
+  // TCPSocket::setup() (which checks for SocketState::Closed) wakes promptly
+  // instead of blocking the destructor for the full reconnection_timeout.
+  disconnect();
   if (reconnecting_thread_.joinable())
   {
     reconnecting_thread_.join();
   }
-  disconnect();
 }
 
 bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::milliseconds reconnection_timeout,
@@ -508,11 +511,13 @@ bool RTDEClient::setupInputs()
 
 void RTDEClient::disconnect()
 {
-  if (client_state_ > ClientState::UNINITIALIZED)
-  {
-    stream_.disconnect();
-    writer_.stop();
-  }
+  // Disconnect unconditionally: TCPSocket::close() (called by stream_.disconnect())
+  // and RTDEWriter::stop() are both idempotent.  Guarding on client_state_ left
+  // the stream in SocketState::Connected after a failed negotiateProtocolVersion()
+  // (which resets client_state_ to UNINITIALIZED), causing the subsequent
+  // TCPSocket::setup() call to return false immediately due to the Connected check.
+  stream_.disconnect();
+  writer_.stop();
   client_state_ = ClientState::UNINITIALIZED;
   prod_->stopProducer();
   stopBackgroundRead();
