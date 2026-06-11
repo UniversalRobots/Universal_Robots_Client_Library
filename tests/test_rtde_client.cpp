@@ -812,6 +812,80 @@ TEST_F(RTDEClientTest, test_initialization)
   EXPECT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), 20);
 }
 
+// Regression test for the bug where ~RTDEClient() could block indefinitely when
+// the reconnect thread was sleeping inside TCPSocket::setup()'s between-attempt
+// sleep. Fixed by: (1) calling disconnect() before joining reconnecting_thread_
+// in ~RTDEClient(), and (2) making TCPSocket::setup()'s sleep interruptible by
+// checking for SocketState::Closed every 100 ms.
+//
+// See also TCPSocketTest.setup_interruptible_by_close in test_tcp_socket.cpp
+// for a lower-level unit test of the same fix that runs without INTEGRATION_TESTS.
+TEST_F(RTDEClientTest, destructor_not_blocked_by_stuck_reconnect_thread)
+{
+  // Use a large reconnection timeout so that the blocking window is clearly
+  // observable if the fix is absent (5 s sleep > 2 s assertion threshold).
+  const std::chrono::milliseconds large_reconnect_timeout(5000);
+
+  auto fake_rtde_server = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  // Skip the bootup-timestamp check inside isRobotBooted().
+  fake_rtde_server->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(52));
+
+  client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                               resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+  // Attempt init up to 10 times with a short between-attempt sleep to ensure
+  // the RTDE handshake succeeds even in environments where the fake server's
+  // response arrives slightly after the 1-second socket read timeout.
+  bool initialized = false;
+  for (int attempt = 0; attempt < 10 && !initialized; ++attempt)
+  {
+    try
+    {
+      // max_connection_attempts=0 (unlimited): TCPSocket::setup() sleeps
+      // large_reconnect_timeout between every failed connect attempt once the
+      // server is gone. Use a short initialization_timeout for fast retries.
+      client_->init(0, large_reconnect_timeout, 1, std::chrono::milliseconds(50));
+      initialized = true;
+    }
+    catch (const UrException&)
+    {
+      // Recreate the client on each retry to start from a clean state.
+      client_.reset(new rtde_interface::RTDEClient("localhost", notifier_, resources_output_recipe_,
+                                                   resources_input_recipe_, 100, false, g_FAKE_RTDE_PORT));
+    }
+  }
+  if (!initialized)
+  {
+    GTEST_SKIP() << "Could not initialize RTDEClient with the fake server after 10 attempts; "
+                    "this test requires a reliably responding RTDE server. "
+                    "The TCPSocket-level regression test (TCPSocketTest.setup_interruptible_by_close) "
+                    "verifies the underlying fix without a robot.";
+  }
+
+  // start(true) arms the reconnect callback via the background read thread.
+  client_->start(true);
+
+  // Drop the server — the background read thread detects the connection loss,
+  // calls reconnectCallback(), which launches reconnecting_thread_. That thread
+  // enters setupCommunication() -> TCPSocket::setup() and begins sleeping
+  // large_reconnect_timeout between retry attempts.
+  fake_rtde_server.reset();
+
+  // Give the reconnect thread time to reach the sleep inside TCPSocket::setup().
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  // The destructor must return quickly: disconnect() sets SocketState::Closed,
+  // waking the sliced sleep, so the join completes in well under 2 s.
+  // Without the fix this would block for >= large_reconnect_timeout (5 s).
+  const auto t0 = std::chrono::steady_clock::now();
+  client_.reset();
+  const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+  EXPECT_LT(elapsed, std::chrono::seconds(2))
+      << "RTDEClient destructor blocked for "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+      << " ms — reconnect thread was not woken by disconnect()";
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

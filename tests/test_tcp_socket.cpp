@@ -293,6 +293,46 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
   EXPECT_LT(elapsed, std::chrono::milliseconds(7500));
 }
 
+// Regression test for the bug where TCPSocket::setup() could block the caller
+// indefinitely when the sleep between retry attempts was not interruptible.
+//
+// Fixed by replacing the monolithic sleep_for(reconnection_time) in setup() with
+// a 100ms-sliced loop that exits early when state_ transitions to Closed (set by
+// a concurrent close() call, e.g. from ~RTDEClient calling disconnect() before
+// joining the reconnect thread).
+TEST_F(TCPSocketTest, setup_interruptible_by_close)
+{
+  // Use a port with no listener so every connect attempt fails immediately,
+  // sending setup() into the between-attempt sleep.
+  const int unused_port = 12322;
+  const std::chrono::milliseconds large_reconnect_timeout(5000);
+
+  Client client(unused_port, "127.0.0.1");
+
+  // Run setup() with unlimited retries in a background thread.
+  std::thread setup_thread([&client, &large_reconnect_timeout]() {
+    // max_num_tries=0 (unlimited) → setup() sleeps large_reconnect_timeout after
+    // every failed connect attempt and never exits on its own.
+    client.setup(0, large_reconnect_timeout);
+  });
+
+  // Give the thread time to reach the between-attempt sleep inside setup().
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  // close() sets state_ = Closed; the sliced sleep in setup() detects this
+  // within 100 ms and setup() returns, allowing the thread to finish.
+  const auto t0 = std::chrono::steady_clock::now();
+  client.close();
+
+  setup_thread.join();
+  const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+  // Without the fix, elapsed would be >= large_reconnect_timeout (5 s).
+  EXPECT_LT(elapsed, std::chrono::seconds(2))
+      << "TCPSocket::setup() was not interrupted by close() within 2 s; "
+         "the between-attempt sleep is not interruptible";
+}
+
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
 {
   URCL_SILENCE_DEPRECATED_BEGIN
