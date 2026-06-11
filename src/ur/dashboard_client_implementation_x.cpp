@@ -245,9 +245,12 @@ DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::durati
   // The restore must run on every exit, including exceptions from inside put(), hence the
   // catch(...) rethrow guard.
   timeval configured_tv = getConfiguredReceiveTimeout();
+  // Preserve sub-second precision: duration_cast<seconds> truncates fractional values,
+  // so go via microseconds (the smallest unit timeval can represent) and split.
+  const auto pwron_us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
   timeval pwron_tv;
-  pwron_tv.tv_sec = static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
-  pwron_tv.tv_usec = 0;
+  pwron_tv.tv_sec = static_cast<time_t>(pwron_us.count() / 1'000'000);
+  pwron_tv.tv_usec = static_cast<suseconds_t>(pwron_us.count() % 1'000'000);
   setReceiveTimeout(pwron_tv);
 
   DashboardResponse response;
