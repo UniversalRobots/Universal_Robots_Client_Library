@@ -79,6 +79,8 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
   // The initial openapi.json fetch can take significantly more time than steady-state
   // dashboard calls (larger payload, first-contact handshake). Mirror the G5 pattern:
   // temporarily extend the read timeout for setup, then restore the configured value.
+  // The restore must run on every exit, including exceptions from json::parse or
+  // VersionInformation::fromString — hence the catch(...) rethrow guard.
   timeval configured_tv = getConfiguredReceiveTimeout();
   timeval setup_tv;
   setup_tv.tv_sec = 10;
@@ -86,28 +88,36 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
   setReceiveTimeout(setup_tv);
 
   bool result = false;
-  std::string endpoint = base_url_ + "/openapi.json";
-  // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
-  // check call will assure that the endpoint for making Robot API calls exist. This could fail if
-  // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
-  if (auto res = cli_->Get(endpoint))
+  try
   {
-    if (res->status != 200)
+    std::string endpoint = base_url_ + "/openapi.json";
+    // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
+    // check call will assure that the endpoint for making Robot API calls exist. This could fail if
+    // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
+    if (auto res = cli_->Get(endpoint))
     {
-      URCL_LOG_ERROR("Received non-200 response code when connecting to Robot API: %d", res->status);
-    }
-    else
-    {
-      auto db_res = handleHttpResult(res, false);
-      auto json_data = json::parse(db_res.message);
-      if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
-          json_data["info"]["version"].is_string())
+      if (res->status != 200)
       {
-        robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
-        URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
-        result = true;
+        URCL_LOG_ERROR("Received non-200 response code when connecting to Robot API: %d", res->status);
+      }
+      else
+      {
+        auto db_res = handleHttpResult(res, false);
+        auto json_data = json::parse(db_res.message);
+        if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
+            json_data["info"]["version"].is_string())
+        {
+          robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+          URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
+          result = true;
+        }
       }
     }
+  }
+  catch (...)
+  {
+    setReceiveTimeout(configured_tv);
+    throw;
   }
 
   setReceiveTimeout(configured_tv);
