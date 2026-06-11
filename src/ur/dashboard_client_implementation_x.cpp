@@ -62,6 +62,7 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
 
 void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
 {
+  recv_timeout_ = std::make_unique<timeval>(timeout);
   if (cli_)
   {
     cli_->set_read_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
@@ -132,9 +133,18 @@ void DashboardClientImplX::disconnect()
 
 timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
 {
+  // If the caller has explicitly configured a receive timeout via setReceiveTimeout,
+  // return that. Otherwise fall back to the documented 1 s default. Mirrors G5.
   timeval tv;
-  tv.tv_sec = 1;
-  tv.tv_usec = 0;
+  if (recv_timeout_ != nullptr)
+  {
+    tv = *recv_timeout_;
+  }
+  else
+  {
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+  }
   return tv;
 }
 

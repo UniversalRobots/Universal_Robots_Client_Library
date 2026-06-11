@@ -184,6 +184,10 @@ protected:
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
+  // Caller-configured read timeout. Null until setReceiveTimeout() is called explicitly;
+  // getConfiguredReceiveTimeout() returns the documented 1 s default in that case. Mirrors
+  // the recv_timeout_ pattern used by DashboardClientImplG5.
+  std::unique_ptr<timeval> recv_timeout_;
 };
 
 }  // namespace urcl
