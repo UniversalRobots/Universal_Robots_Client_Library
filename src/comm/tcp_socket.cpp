@@ -88,6 +88,12 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
   if (state_ == SocketState::Connected)
     return false;
 
+  // Clear any pre-existing Closed/Disconnected/Invalid state so that the
+  // between-attempt sleep below (which exits early when state becomes Closed)
+  // can only be short-circuited by a concurrent external close() call, not by
+  // a Closed state left over from a previous disconnect().
+  state_ = SocketState::Invalid;
+
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
 
   // gethostbyname() is deprecated so use getadderinfo() as described in:
@@ -141,7 +147,19 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
            << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count()
            << " seconds.";
         URCL_LOG_ERROR("%s", ss.str().c_str());
-        std::this_thread::sleep_for(reconnection_time_resolved);
+        // Sleep in short slices so that an external close() (e.g. from ~RTDEClient calling
+        // disconnect() before joining the reconnect thread) can interrupt the wait promptly.
+        const auto sleep_slice = std::chrono::milliseconds(100);
+        for (auto slept = std::chrono::milliseconds(0);
+             slept < reconnection_time_resolved && state_ != SocketState::Closed;
+             slept += sleep_slice)
+        {
+          std::this_thread::sleep_for(sleep_slice);
+        }
+        if (state_ == SocketState::Closed)
+        {
+          return false;
+        }
       }
     }
   }
