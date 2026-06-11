@@ -53,11 +53,16 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
 
   // cpp-httplib's default read_timeout is 300 seconds. Applied unchanged, this makes any
   // dashboard call hang for 5 minutes when the controller becomes unresponsive (e.g. network
-  // partition, paused container in tests). Align with the contract documented on the base
-  // class: getConfiguredReceiveTimeout() returns {tv_sec = 1, tv_usec = 0} on this impl.
+  // partition, paused container in tests).
+  //
+  // The 10 s default for read/write is chosen to cover blocking calls that legitimately take
+  // time on real hardware — brake_release, commandLoadProgram (read), commandUploadProgram
+  // (write), commandUpdateProgram (write), commandDownloadProgram (read) — without forcing
+  // each one to plumb its own timeout. commandPowerOn already accepts its own (longer)
+  // timeout parameter. Callers needing different limits can override via setReceiveTimeout.
   cli_->set_connection_timeout(std::chrono::seconds(5));
-  cli_->set_read_timeout(std::chrono::seconds(1));
-  cli_->set_write_timeout(std::chrono::seconds(5));
+  cli_->set_read_timeout(std::chrono::seconds(10));
+  cli_->set_write_timeout(std::chrono::seconds(10));
 }
 
 void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
@@ -66,6 +71,15 @@ void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
   if (cli_)
   {
     cli_->set_read_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
+  }
+}
+
+void DashboardClientImplX::setSendTimeout(const timeval& timeout)
+{
+  send_timeout_ = std::make_unique<timeval>(timeout);
+  if (cli_)
+  {
+    cli_->set_write_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
   }
 }
 
@@ -134,7 +148,9 @@ void DashboardClientImplX::disconnect()
 timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
 {
   // If the caller has explicitly configured a receive timeout via setReceiveTimeout,
-  // return that. Otherwise fall back to the documented 1 s default. Mirrors G5.
+  // return that. Otherwise fall back to the constructor default. See the constructor
+  // comment for the rationale on the 10 s default (covers brake_release / program
+  // load/upload/download without per-method timeouts).
   timeval tv;
   if (recv_timeout_ != nullptr)
   {
@@ -142,7 +158,23 @@ timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
   }
   else
   {
-    tv.tv_sec = 1;
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+  }
+  return tv;
+}
+
+timeval DashboardClientImplX::getConfiguredSendTimeout() const
+{
+  // Mirrors getConfiguredReceiveTimeout. Default of 10 s matches the constructor.
+  timeval tv;
+  if (send_timeout_ != nullptr)
+  {
+    tv = *send_timeout_;
+  }
+  else
+  {
+    tv.tv_sec = 10;
     tv.tv_usec = 0;
   }
   return tv;
@@ -196,9 +228,32 @@ DashboardResponse DashboardClientImplX::commandPowerOff()
   return put("/robotstate/v1/state", R"({"action": "POWER_OFF"})");
 }
 
-DashboardResponse DashboardClientImplX::commandPowerOn([[maybe_unused]] const std::chrono::duration<double> timeout)
+DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
 {
-  return put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
+  // commandPowerOn can take significantly longer than steady-state dashboard calls (the robot
+  // boots, runs self-checks, etc.). Bump the read timeout to the caller-supplied value for the
+  // duration of the PUT, then restore — using the same save-bump-restore pattern as connect().
+  // The restore must run on every exit, including exceptions from inside put(), hence the
+  // catch(...) rethrow guard.
+  timeval configured_tv = getConfiguredReceiveTimeout();
+  timeval pwron_tv;
+  pwron_tv.tv_sec = static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
+  pwron_tv.tv_usec = 0;
+  setReceiveTimeout(pwron_tv);
+
+  DashboardResponse response;
+  try
+  {
+    response = put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
+  }
+  catch (...)
+  {
+    setReceiveTimeout(configured_tv);
+    throw;
+  }
+
+  setReceiveTimeout(configured_tv);
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandBrakeRelease()

@@ -164,6 +164,8 @@ public:
 
   // Defined in the .cpp because httplib::Client is only forward-declared in this header.
   void setReceiveTimeout(const timeval& timeout) override;
+  void setSendTimeout(const timeval& timeout) override;
+  timeval getConfiguredSendTimeout() const override;
 
 protected:
   DashboardResponse performProgramUpload(
@@ -184,10 +186,11 @@ protected:
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
-  // Caller-configured read timeout. Null until setReceiveTimeout() is called explicitly;
-  // getConfiguredReceiveTimeout() returns the documented 1 s default in that case. Mirrors
-  // the recv_timeout_ pattern used by DashboardClientImplG5.
+  // Caller-configured timeouts. Null until the corresponding setter is called explicitly;
+  // the getters fall back to the constructor default (10 s) in that case. Mirrors the
+  // recv_timeout_ pattern used by DashboardClientImplG5.
   std::unique_ptr<timeval> recv_timeout_;
+  std::unique_ptr<timeval> send_timeout_;
 };
 
 }  // namespace urcl

@@ -136,6 +136,27 @@ public:
   virtual void setReceiveTimeout([[maybe_unused]] const timeval& timeout) {};
 
   /*!
+   * \brief Gets the configured send timeout. If send timeout is unconfigured "normal" socket
+   * timeout of 1 second will be returned.
+   *
+   * \returns configured send timeout
+   */
+  virtual timeval getConfiguredSendTimeout() const
+  {
+    timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    return tv;
+  }
+
+  /*!
+   * \brief Sets the send timeout for the socket.
+   *
+   * \param timeout The timeout to be set
+   */
+  virtual void setSendTimeout([[maybe_unused]] const timeval& timeout) {};
+
+  /*!
    * \brief Sends command and verifies that a valid answer is received.
    *
    * \param command Command that will be sent to the server.
