@@ -33,10 +33,11 @@ Method signature:
    );
 
 | The ``sendScriptBlocking`` method will also accept valid URScript code, but blocks until the execution result of the given program is available.
-| Prior to transferring the program it will first check that the robot is in a state where it can execute programs, if not it returns false.
+| Prior to transferring the program it will first check that the robot is in a state where it can execute programs, otherwise an exception is thrown.
 | If the robot is ready, the program is then transferred, and the method will wait for the robot to report that the program has either started, finished or encountered an error.
-| If the program has not started within the given ``timeout``, the method returns false.
-| If the robot encounters an error or runtime exception during program execution the method also returns false.
-| If ``fail_on_warnings`` is true, it will also return false, if the robot reports a warning during program execution. Note: protective stops are reported as warnings by the robot.
+| If the program has not started within the given ``timeout``, the method throws an exception.
+| If the robot encounters an error or runtime exception during program execution the method also throws an exception.
+| If ``fail_on_warnings`` is true, it will also throw an exception, if the robot reports a warning during program execution. Note: protective stops are reported as warnings by the robot.
 | The method only returns true if the program is successfully executed on the robot.
 | This method also accepts secondary programs, but no feedback is available for those, so it will behave similarly to the ``sendScript`` method in those cases, except for the pre-transfer checks.
+| The exact exceptions that are thrown in various cases can be seen in the `primary client header file <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/include/ur_client_library/primary/primary_client.h>`_.
