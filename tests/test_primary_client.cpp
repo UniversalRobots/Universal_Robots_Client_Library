@@ -501,9 +501,9 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_nonrunning_robot)
 {
   EXPECT_NO_THROW(client_->start());
   EXPECT_NO_THROW(client_->commandPowerOff());
-  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"), RobotModeException);
   EXPECT_NO_THROW(client_->commandPowerOn());
-  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"), RobotModeException);
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
