@@ -126,6 +126,15 @@ public:
    * \throw urcl::ScriptCodeSyntaxException if the given script code has syntax errors, which are checked here.
    * \throw urcl::UrException if the stop command cannot be sent to the robot.
    * \throw urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
+   * \throw urcl::TimeoutException if the robot mode is not received within 1 second.
+   * \throw urcl::TimeoutException if the program does not start within the given timeout.
+   * \throw urcl::RobotModeException if the robot is in an incorrect mode for script execution.
+   * \throw urcl::SafetyModeException if the robot is in an incorrect safety mode for script execution
+   * \throw urcl::StreamNotConnectedException if the script cannot be transferred to the robot.
+   * \throw urcl::RobotRuntimeException if the given script causes a runtime exception on the robot.
+   * \throw urcl::ReadOnlyInterfaceException if the primary interface is in read-only mode when the script is
+   * transferred. This can happen if the robot was recently switched from manual to remote control mode.
+   * \throw urcl::RobotErrorCodeException if the robot encounters an error during script execution.
    *
    * \returns true on successful execution of the script, false otherwise
    */
