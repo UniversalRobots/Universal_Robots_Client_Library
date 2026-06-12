@@ -134,6 +134,34 @@ enum class ReportLevel : int32_t
   DEVL_FAULT = 132
 };
 
+inline std::string reportLevelString(const ReportLevel& code)
+{
+  switch (code)
+  {
+    case ReportLevel::DEBUG:
+      return "DEBUG";
+    case ReportLevel::INFO:
+      return "INFO";
+    case ReportLevel::WARNING:
+      return "WARNING";
+    case ReportLevel::VIOLATION:
+      return "VIOLATION";
+    case ReportLevel::FAULT:
+      return "FAULT";
+    case ReportLevel::DEVL_DEBUG:
+      return "DEVL_DEBUG";
+    case ReportLevel::DEVL_INFO:
+      return "DEVL_INFO";
+    case ReportLevel::DEVL_WARNING:
+      return "DEVL_WARNING";
+    case ReportLevel::DEVL_VIOLATION:
+      return "DEVL_VIOLATION";
+    case ReportLevel::DEVL_FAULT:
+      return "DEVL_FAULT";
+  }
+  throw std::invalid_argument("Unknown report level: " + std::to_string(static_cast<int>(code)));
+}
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)
