@@ -61,8 +61,8 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
   // each one to plumb its own timeout. commandPowerOn already accepts its own (longer)
   // timeout parameter. Callers needing different limits can override via setReceiveTimeout.
   cli_->set_connection_timeout(std::chrono::seconds(5));
-  cli_->set_read_timeout(std::chrono::seconds(10));
-  cli_->set_write_timeout(std::chrono::seconds(10));
+  cli_->set_read_timeout(std::chrono::seconds(recv_timeout_.tv_sec) + std::chrono::microseconds(recv_timeout_.tv_usec));
+  cli_->set_write_timeout(std::chrono::seconds(send_timeout_.tv_sec) + std::chrono::microseconds(send_timeout_.tv_usec));
 }
 
 void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
@@ -93,7 +93,7 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
 {
   std::string endpoint = base_url_ + "/openapi.json";
   // The PolyScope X Robot API doesn't require any connection prior to making calls. However, this
-  // check call will assurea that the endpoint for making Robot API calls exist. This could fail if
+  // check call will assure that the endpoint for making Robot API calls exist. This could fail if
   // the IP address is wrong or the robot at the IP doesn't have the necessary software version.
   if (auto res = cli_->Get(endpoint))
   {
