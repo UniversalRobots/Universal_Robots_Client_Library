@@ -515,8 +515,8 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_bad_safety_mode)
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   ASSERT_TRUE(client_->safetyModeAllowsExecution());
 
-  EXPECT_FALSE(client_->sendScriptBlocking("protective_stop()"));
-  EXPECT_FALSE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_THROW(client_->sendScriptBlocking("protective_stop()"), RobotErrorCodeException);
+  EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"), SafetyModeException);
   EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
   EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
@@ -546,7 +546,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_runtime_exception)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Non-invertible goal, should throw runtime exception
-  EXPECT_FALSE(client_->sendScriptBlocking("movej(p[10,0,0,0,0,0])"));
+  EXPECT_THROW(client_->sendScriptBlocking("movej(p[10,0,0,0,0,0])"), RobotRuntimeException);
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
@@ -555,7 +555,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Impossible movement, will trigger a warning and protective stop
-  EXPECT_FALSE(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])"));
+  EXPECT_THROW(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])"), RobotErrorCodeException);
   // reset the robot
   ASSERT_NO_THROW(client_->commandUnlockProtectiveStop());
   EXPECT_TRUE(client_->sendScriptBlocking("movej([0.5,-0.5,0.5,0,0,0])"));
@@ -567,13 +567,13 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
 
-  EXPECT_FALSE(client_->sendScriptBlocking("non_existing_func()"));
+  EXPECT_THROW(client_->sendScriptBlocking("non_existing_func()"), RobotRuntimeException);
 
   const std::string script_code = "def illegal_fun():\n"
                                   "  calldoesntexist()\n"
                                   "end";
 
-  EXPECT_FALSE(client_->sendScriptBlocking(script_code));
+  EXPECT_THROW(client_->sendScriptBlocking(script_code), RobotRuntimeException);
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
@@ -607,8 +607,9 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_missing_robot_mo
 {
   // We did NOT send a robot mode, yet.
 
-  EXPECT_FALSE(
-      client_->sendScriptBlocking("textmsg(\"Still running\")", "test_fun", std::chrono::milliseconds(1000), false));
+  EXPECT_THROW(
+      client_->sendScriptBlocking("textmsg(\"Still running\")", "test_fun", std::chrono::milliseconds(1000), false),
+      TimeoutException);
 
   server_->setScriptCallback([this]([[maybe_unused]] const std::string& payload) {
     server_->sendKeyMessage("PROGRAM_XXX_STARTED", "test_fun");
@@ -642,7 +643,7 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_fault)
     {
       server_->sendKeyMessage("PROGRAM_XXX_STARTED", "test_fun");
       ASSERT_EQ(payload, "def test_fun():\n  " + script_code + "\nend\n\n");
-      ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, primary_interface::ReportLevel::FAULT, "Simulated fault"));
+      ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::FAULT, "Simulated fault"));
     }
     else
     {
@@ -652,7 +653,8 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_fault)
   });
 
   URCL_LOG_INFO("Sending script that will trigger a fault on the fake server");
-  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
+  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false),
+               RobotErrorCodeException);
 }
 
 TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
@@ -664,11 +666,12 @@ TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
   // Make the fake server send an error code message with code 210 (read-only primary interface) when it receives a
   // script
   server_->setScriptCallback([this, script_code]([[maybe_unused]] const std::string& payload) {
-    ASSERT_TRUE(server_->sendErrorCodeMessage(210, 0, primary_interface::ReportLevel::VIOLATION,
-                                              "Simulated read-only primary interface error"));
+    ASSERT_TRUE(
+        server_->sendErrorCodeMessage(210, 0, ReportLevel::VIOLATION, "Simulated read-only primary interface error"));
   });
 
-  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
+  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false),
+               ReadOnlyInterfaceException);
 }
 
 TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
@@ -679,7 +682,8 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
 
   // We do not set a script callback on the fake server, so it will not respond to the script being sent. This should
   // cause sendScriptBlocking to time out and return false.
-  EXPECT_FALSE(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(100), false));
+  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(100), false),
+               TimeoutException);
 }
 
 int main(int argc, char* argv[])
