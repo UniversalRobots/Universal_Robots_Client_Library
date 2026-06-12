@@ -120,6 +120,20 @@ enum class RobotSeries
   UR_SERIES = 3
 };
 
+enum class ReportLevel : int32_t
+{
+  DEBUG = 0,
+  INFO = 1,
+  WARNING = 2,
+  VIOLATION = 3,
+  FAULT = 4,
+  DEVL_DEBUG = 128,
+  DEVL_INFO = 129,
+  DEVL_WARNING = 130,
+  DEVL_VIOLATION = 131,
+  DEVL_FAULT = 132
+};
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)

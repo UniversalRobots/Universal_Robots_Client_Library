@@ -136,18 +136,18 @@ public:
 
     switch (code.report_level)
     {
-      case urcl::primary_interface::ReportLevel::DEBUG:
-      case urcl::primary_interface::ReportLevel::DEVL_DEBUG:
-      case urcl::primary_interface::ReportLevel::DEVL_INFO:
-      case urcl::primary_interface::ReportLevel::DEVL_WARNING:
-      case urcl::primary_interface::ReportLevel::DEVL_VIOLATION:
-      case urcl::primary_interface::ReportLevel::DEVL_FAULT:
+      case ReportLevel::DEBUG:
+      case ReportLevel::DEVL_DEBUG:
+      case ReportLevel::DEVL_INFO:
+      case ReportLevel::DEVL_WARNING:
+      case ReportLevel::DEVL_VIOLATION:
+      case ReportLevel::DEVL_FAULT:
         URCL_LOG_DEBUG(log_contents.c_str());
         break;
-      case urcl::primary_interface::ReportLevel::INFO:
+      case ReportLevel::INFO:
         URCL_LOG_INFO(log_contents.c_str());
         break;
-      case urcl::primary_interface::ReportLevel::WARNING:
+      case ReportLevel::WARNING:
         URCL_LOG_WARN(log_contents.c_str());
         break;
       default:
