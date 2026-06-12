@@ -186,11 +186,8 @@ protected:
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
-  // Caller-configured timeouts. Null until the corresponding setter is called explicitly;
-  // the getters fall back to the constructor default (10 s) in that case. Mirrors the
-  // recv_timeout_ pattern used by DashboardClientImplG5.
-  std::unique_ptr<timeval> recv_timeout_;
-  std::unique_ptr<timeval> send_timeout_;
+  timeval recv_timeout_ = {10, 0};
+  timeval send_timeout_ = {10, 0};
 };
 
 }  // namespace urcl

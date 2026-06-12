@@ -67,7 +67,7 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
 
 void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
 {
-  recv_timeout_ = std::make_unique<timeval>(timeout);
+  recv_timeout_ = timeout;
   if (cli_)
   {
     cli_->set_read_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
@@ -76,7 +76,7 @@ void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
 
 void DashboardClientImplX::setSendTimeout(const timeval& timeout)
 {
-  send_timeout_ = std::make_unique<timeval>(timeout);
+  send_timeout_ = timeout;
   if (cli_)
   {
     cli_->set_write_timeout(std::chrono::seconds(timeout.tv_sec) + std::chrono::microseconds(timeout.tv_usec));
@@ -160,33 +160,13 @@ timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
   // return that. Otherwise fall back to the constructor default. See the constructor
   // comment for the rationale on the 10 s default (covers brake_release / program
   // load/upload/download without per-method timeouts).
-  timeval tv;
-  if (recv_timeout_ != nullptr)
-  {
-    tv = *recv_timeout_;
-  }
-  else
-  {
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-  }
-  return tv;
+  return recv_timeout_;
 }
 
 timeval DashboardClientImplX::getConfiguredSendTimeout() const
 {
   // Mirrors getConfiguredReceiveTimeout. Default of 10 s matches the constructor.
-  timeval tv;
-  if (send_timeout_ != nullptr)
-  {
-    tv = *send_timeout_;
-  }
-  else
-  {
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-  }
-  return tv;
+  return send_timeout_;
 }
 
 VersionInformation DashboardClientImplX::queryPolyScopeVersion()
