@@ -152,6 +152,14 @@ target_link_libraries(fake_primary_server_tests PRIVATE ur_client_library::urcl 
 gtest_add_tests(TARGET      fake_primary_server_tests
 )
 
+# Robot-free regression test for ~PrimaryClient() not blocking on a stuck
+# reconnect thread. Uses the in-process FakePrimaryServer so it runs without a
+# robot (unlike the INTEGRATION_TESTS-gated primary_client_test_headless).
+add_executable(primary_client_reconnect_tests test_primary_client_reconnect.cpp fake_primary_server.cpp)
+target_link_libraries(primary_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      primary_client_reconnect_tests
+)
+
 
 
 add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
