@@ -199,8 +199,12 @@ TEST_F(DashboardClientTestX, program_interaction)
   ASSERT_TRUE(response.ok);
   if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
-    response = dashboard_client_->commandGetLoadedProgram();
-    ASSERT_EQ(std::get<std::string>(response.data["program_name"]), "wait_program");
+    waitFor(
+        [&]() {
+          auto resp = dashboard_client_->commandGetLoadedProgram();
+          return std::get<std::string>(resp.data["program_name"]) == "wait_program";
+        },
+        std::chrono::milliseconds(1000));
   }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
