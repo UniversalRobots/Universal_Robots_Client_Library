@@ -223,10 +223,6 @@ private:
   std::atomic<socket_t> listen_fd_;
   int port_;
 
-  socket_t maxfd_;
-  fd_set masterfds_;
-  fd_set tempfds_;
-
   uint32_t max_clients_allowed_;
   std::vector<socket_t> client_fds_;
   std::mutex clients_mutex_;
