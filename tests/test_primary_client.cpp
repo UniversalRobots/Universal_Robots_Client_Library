@@ -686,6 +686,46 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
                TimeoutException);
 }
 
+TEST_F(PrimaryClientFakeTest, test_error_code_report_levels_get_handled_correctly)
+{
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEBUG, "Simulated Debug"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::INFO, "Simulated Info"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::WARNING, "Simulated Warning"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::VIOLATION, "Simulated Violation"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::FAULT, "Simulated Fault"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::CRITICAL_FAULT, "Simulated Critical Fault"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_DEBUG, "Simulated DEVL Debug"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_INFO, "Simulated DEVL Info"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_WARNING, "Simulated DEVL Warning"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_VIOLATION, "Simulated DEVL Violation"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_FAULT, "Simulated DEVL Fault"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(999, 0, ReportLevel::DEVL_CRITICAL_FAULT, "Simulated DEVL Critical Fault"));
+
+  auto errors = client_->getErrorCodes();
+
+  // Wait until we asynchronously receive all the error codes we sent.
+  waitFor(
+      [&errors, this]() {
+        auto new_errors = client_->getErrorCodes();
+        errors.insert(errors.end(), new_errors.begin(), new_errors.end());
+        return errors.size() >= 12;
+      },
+      std::chrono::seconds(1));
+
+  EXPECT_EQ(errors[0].report_level, ReportLevel::DEBUG);
+  EXPECT_EQ(errors[1].report_level, ReportLevel::INFO);
+  EXPECT_EQ(errors[2].report_level, ReportLevel::WARNING);
+  EXPECT_EQ(errors[3].report_level, ReportLevel::VIOLATION);
+  EXPECT_EQ(errors[4].report_level, ReportLevel::FAULT);
+  EXPECT_EQ(errors[5].report_level, ReportLevel::CRITICAL_FAULT);
+  EXPECT_EQ(errors[6].report_level, ReportLevel::DEVL_DEBUG);
+  EXPECT_EQ(errors[7].report_level, ReportLevel::DEVL_INFO);
+  EXPECT_EQ(errors[8].report_level, ReportLevel::DEVL_WARNING);
+  EXPECT_EQ(errors[9].report_level, ReportLevel::DEVL_VIOLATION);
+  EXPECT_EQ(errors[10].report_level, ReportLevel::DEVL_FAULT);
+  EXPECT_EQ(errors[11].report_level, ReportLevel::DEVL_CRITICAL_FAULT);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

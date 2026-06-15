@@ -142,6 +142,7 @@ public:
       case ReportLevel::DEVL_WARNING:
       case ReportLevel::DEVL_VIOLATION:
       case ReportLevel::DEVL_FAULT:
+      case ReportLevel::DEVL_CRITICAL_FAULT:
         URCL_LOG_DEBUG(log_contents.c_str());
         break;
       case ReportLevel::INFO:
@@ -150,9 +151,9 @@ public:
       case ReportLevel::WARNING:
         URCL_LOG_WARN(log_contents.c_str());
         break;
-      default:
-        // urcl::primary_interface::ReportLevel::VIOLATION:
-        // urcl::primary_interface::ReportLevel::FAULT:
+      case ReportLevel::VIOLATION:
+      case ReportLevel::FAULT:
+      case ReportLevel::CRITICAL_FAULT:
         URCL_LOG_ERROR(log_contents.c_str());
         break;
     }
