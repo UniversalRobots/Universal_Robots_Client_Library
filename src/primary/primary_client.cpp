@@ -138,17 +138,18 @@ bool PrimaryClient::safetyModeAllowsExecution()
 }
 
 void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
-                                       std::chrono::milliseconds timeout, bool fail_on_warnings)
+                                       std::chrono::milliseconds timeout, bool fail_on_warnings,
+                                       bool retry_on_readonly_interface)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
 
   RobotMode robot_mode = getRobotMode();
   std::chrono::milliseconds robot_mode_timeout(1000);
-  auto start = std::chrono::system_clock::now();
+  auto start_time = std::chrono::system_clock::now();
   while (robot_mode == RobotMode::UNKNOWN)
   {
     auto now = std::chrono::system_clock::now();
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() > robot_mode_timeout.count())
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > robot_mode_timeout.count())
     {
       throw TimeoutException("Robot mode not received within timeout. ", robot_mode_timeout);
     }
@@ -172,6 +173,31 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
     throw SafetyModeException("Script execution via primary interface", allowed_modes, getSafetyMode());
   }
+
+  try
+  {
+    send_script_monitor_execution(script_info, timeout, fail_on_warnings);
+  }
+  catch (const ReadOnlyInterfaceException& exc)
+  {
+    if (retry_on_readonly_interface)
+    {
+      URCL_LOG_INFO("Script execution failed due to the primary interface being read-only. Reconnecting primary "
+                    "interface and retrying once.");
+      stop();
+      start();
+      send_script_monitor_execution(script_info, timeout, fail_on_warnings);
+    }
+    else
+    {
+      throw;
+    }
+  }
+}
+
+void PrimaryClient::send_script_monitor_execution(ScriptInfo script_info, std::chrono::milliseconds timeout,
+                                                  bool fail_on_warnings)
+{
   // Clear runtime exception
   {
     std::scoped_lock lock(runtime_exception_mutex_);
@@ -191,6 +217,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     throw StreamNotConnectedException("Script could not be sent to the robot. Ensure that the primary interface is "
                                       "connected.");
   }
+
   // No feedback from secondary programs, so we assume success
   if (script_info.script_type == ScriptTypes::SEC)
   {
