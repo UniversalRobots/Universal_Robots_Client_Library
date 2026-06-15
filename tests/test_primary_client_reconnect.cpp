@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <future>
 #include <memory>
 #include <thread>
 
@@ -56,14 +57,16 @@ using namespace urcl;
 // reconnect duration — effectively forever for an unreachable robot.
 //
 // Fix (two parts):
-//   1. ~PrimaryClient()/PrimaryClient::stop() close the stream BEFORE joining the
-//      pipeline. stream_.close() sets SocketState::Closed.
-//   2. URProducer's reconnect backoff sleeps in 100 ms slices and bails out as
-//      soon as the stream is closed (or the producer is stopped), and
-//      TCPSocket::setup()'s between-attempt sleep is likewise interruptible by
-//      SocketState::Closed.
-// Together these wake the producer within ~100 ms of the destructor closing the
-// stream, so the join — and therefore the destructor — returns promptly.
+//   1. ~PrimaryClient()/PrimaryClient::stop() call stream_.requestStop() BEFORE
+//      joining the pipeline. requestStop() sets a sticky cancellation flag and
+//      closes the socket.
+//   2. TCPSocket::setup() honors that flag both during its (non-blocking) connect
+//      attempt and during the between-attempt wait, so it aborts within ~100 ms
+//      regardless of platform (unlike a signal carried only by the socket state,
+//      which setup()'s internal state resets could race away — the bug that hung
+//      Windows CI).
+// Together these abort the producer within ~100 ms of the destructor, so the join —
+// and therefore the destructor — returns promptly.
 //
 // Unlike test_primary_client.cpp's robot-dependent fixtures, this test uses the
 // in-process FakePrimaryServer, so it runs in the normal (non-INTEGRATION_TESTS)
@@ -89,17 +92,29 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
   // (initial backoff is 1 s, after which it sleeps inside TCPSocket::setup()).
   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
-  // The destructor must return quickly: it closes the stream
-  // (SocketState::Closed), waking the producer, so the pipeline join completes in
-  // well under 2 s. Without the fix this blocks for at least the reconnect
-  // timeout (and indefinitely with unlimited retries against a dead port).
+  // The destructor must return quickly: requestStop() aborts the producer's connect
+  // attempt/back-off, so the pipeline join completes well under 2 s. Without the fix
+  // this blocks for at least the reconnect timeout (and indefinitely with unlimited
+  // retries against a dead port). Run the destructor on a worker with a watchdog so a
+  // regression fails fast with a clear message instead of hanging the test binary (the
+  // CTest TIMEOUT then reaps it).
+  std::packaged_task<void()> teardown([&client]() { client.reset(); });
+  auto teardown_future = teardown.get_future();
+  std::thread teardown_thread(std::move(teardown));
+
   const auto t0 = std::chrono::steady_clock::now();
-  client.reset();
+  if (teardown_future.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+  {
+    teardown_thread.detach();
+    FAIL() << "~PrimaryClient() did not return within 5 s — the producer reconnect thread was not aborted by "
+              "requestStop()";
+  }
+  teardown_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   EXPECT_LT(elapsed, std::chrono::seconds(2))
       << "~PrimaryClient() blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-      << " ms — the producer reconnect thread was not woken by the stream close";
+      << " ms — the producer reconnect thread was not aborted by requestStop()";
 }
 
 int main(int argc, char* argv[])

@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <future>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -813,13 +814,14 @@ TEST_F(RTDEClientTest, test_initialization)
 }
 
 // Regression test for the bug where ~RTDEClient() could block indefinitely when
-// the reconnect thread was sleeping inside TCPSocket::setup()'s between-attempt
-// sleep. Fixed by: (1) calling disconnect() before joining reconnecting_thread_
-// in ~RTDEClient(), and (2) making TCPSocket::setup()'s sleep interruptible by
-// checking for SocketState::Closed every 100 ms.
+// the reconnect thread was stuck inside TCPSocket::setup(). Fixed by: (1) calling
+// stream_.requestStop() (followed by disconnect()) before joining reconnecting_thread_
+// in ~RTDEClient(), and (2) making TCPSocket::setup() abort on the sticky stop flag,
+// both during the (non-blocking) connect attempt and during the between-attempt wait.
 //
-// See also TCPSocketTest.setup_interruptible_by_close in test_tcp_socket.cpp
-// for a lower-level unit test of the same fix that runs without INTEGRATION_TESTS.
+// See also TCPSocketTest.setup_interruptible_by_close and
+// TCPSocketTest.setup_interruptible_during_blocking_connect in test_tcp_socket.cpp
+// for lower-level unit tests of the same fix that run without INTEGRATION_TESTS.
 TEST_F(RTDEClientTest, destructor_not_blocked_by_stuck_reconnect_thread)
 {
   // Use a large reconnection timeout so that the blocking window is clearly
@@ -870,20 +872,30 @@ TEST_F(RTDEClientTest, destructor_not_blocked_by_stuck_reconnect_thread)
   // large_reconnect_timeout between retry attempts.
   fake_rtde_server.reset();
 
-  // Give the reconnect thread time to reach the sleep inside TCPSocket::setup().
+  // Give the reconnect thread time to reach the wait inside TCPSocket::setup().
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-  // The destructor must return quickly: disconnect() sets SocketState::Closed,
-  // waking the sliced sleep, so the join completes in well under 2 s.
-  // Without the fix this would block for >= large_reconnect_timeout (5 s).
+  // The destructor must return quickly: requestStop() aborts setup()'s connect/wait,
+  // so the join completes in well under 2 s. Without the fix this would block for
+  // >= large_reconnect_timeout (5 s), or forever with unlimited attempts.
+  // Run the destructor on a worker with a watchdog so a regression fails fast with a
+  // clear message instead of hanging the test binary (the CTest TIMEOUT then reaps it).
+  std::packaged_task<void()> teardown([this]() { client_.reset(); });
+  auto teardown_future = teardown.get_future();
+  std::thread teardown_thread(std::move(teardown));
+
   const auto t0 = std::chrono::steady_clock::now();
-  client_.reset();
+  if (teardown_future.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+  {
+    teardown_thread.detach();
+    FAIL() << "~RTDEClient() did not return within 5 s — reconnect thread was not aborted by requestStop()";
+  }
+  teardown_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   EXPECT_LT(elapsed, std::chrono::seconds(2))
-      << "RTDEClient destructor blocked for "
-      << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-      << " ms — reconnect thread was not woken by disconnect()";
+      << "RTDEClient destructor blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+      << " ms — reconnect thread was not aborted by requestStop()";
 }
 
 int main(int argc, char* argv[])

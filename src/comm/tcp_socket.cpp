@@ -27,7 +27,9 @@
 
 #ifndef _WIN32
 #  include <arpa/inet.h>
+#  include <fcntl.h>
 #  include <netinet/tcp.h>
+#  include <poll.h>
 #endif
 
 #include "ur_client_library/log.h"
@@ -37,6 +39,67 @@ namespace urcl
 {
 namespace comm
 {
+namespace
+{
+// Time slice used while waiting for a non-blocking connect to resolve. Kept short so a
+// concurrent requestStop() aborts the wait promptly even if closing the socket does not
+// itself wake the wait (as is the case on Windows).
+constexpr int CONNECT_POLL_SLICE_MS = 100;
+
+// Toggle the blocking mode of a socket. Returns true on success.
+bool setSocketBlocking(socket_t socket_fd, bool blocking)
+{
+#ifdef _WIN32
+  u_long mode = blocking ? 0 : 1;
+  return ::ioctlsocket(socket_fd, FIONBIO, &mode) == 0;
+#else
+  int flags = ::fcntl(socket_fd, F_GETFL, 0);
+  if (flags < 0)
+  {
+    return false;
+  }
+  flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+  return ::fcntl(socket_fd, F_SETFL, flags) == 0;
+#endif
+}
+
+// True if the last connect() call indicated that the connection is being established
+// asynchronously (the expected result for a non-blocking socket).
+bool connectInProgress()
+{
+#ifdef _WIN32
+  return ::WSAGetLastError() == WSAEWOULDBLOCK;
+#else
+  return errno == EINPROGRESS;
+#endif
+}
+
+// Waits up to timeout_ms for the socket to become writable (connect resolved).
+// Returns >0 if the socket is ready/has an event, 0 on timeout, <0 on error.
+//
+// poll() is used on both platforms (WSAPoll() on Windows). It avoids select()'s FD_SETSIZE
+// limitation entirely and keeps a single mental model. On Windows this relies on the WSAPoll
+// connect-failure fix introduced in Windows 10 version 2004 / Windows Server 2019: a failed
+// non-blocking connect is reported as (POLLHUP | POLLERR | POLLWRNORM). The caller treats any
+// returned event as "connect resolved" and consults SO_ERROR for the actual outcome, so it does
+// not depend on which particular revents flag is set.
+int waitForSocketWritable(socket_t socket_fd, int timeout_ms)
+{
+#ifdef _WIN32
+  WSAPOLLFD pfd;
+  pfd.fd = socket_fd;
+  pfd.events = POLLWRNORM;  // == POLLOUT
+  pfd.revents = 0;
+  return ::WSAPoll(&pfd, 1, timeout_ms);
+#else
+  struct pollfd pfd;
+  pfd.fd = socket_fd;
+  pfd.events = POLLOUT;
+  pfd.revents = 0;
+  return ::poll(&pfd, 1, timeout_ms);
+#endif
+}
+}  // namespace
 TCPSocket::TCPSocket()
   : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
 {
@@ -72,6 +135,66 @@ void TCPSocket::setupOptions()
   }
 }
 
+bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len)
+{
+  if (!setSocketBlocking(socket_fd, false))
+  {
+    return false;
+  }
+
+  int connect_res = ::connect(socket_fd, address, static_cast<socklen_t>(address_len));
+  bool connected = false;
+  if (connect_res == 0)
+  {
+    // Connected immediately (common for loopback).
+    connected = true;
+  }
+  else if (connectInProgress())
+  {
+    // Poll in short slices until the connect resolves, the OS connect timeout expires,
+    // or a concurrent requestStop() asks us to abort.
+    while (true)
+    {
+      if (stop_requested_)
+      {
+        return false;
+      }
+      int ready = waitForSocketWritable(socket_fd, CONNECT_POLL_SLICE_MS);
+      if (ready < 0)
+      {
+        // poll() error (e.g. the fd was closed by requestStop()).
+        return false;
+      }
+      if (ready == 0)
+      {
+        // Timeout slice elapsed without the connect resolving: re-check stop and keep waiting.
+        continue;
+      }
+      // The socket reported an event: query SO_ERROR to find out whether the connect succeeded.
+      int so_error = 0;
+      socklen_t len = sizeof(so_error);
+      if (::getsockopt(socket_fd, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_error), &len) < 0)
+      {
+        return false;
+      }
+      connected = (so_error == 0);
+      break;
+    }
+  }
+  else
+  {
+    // Immediate, permanent failure (e.g. connection refused).
+    connected = false;
+  }
+
+  if (connected && !setSocketBlocking(socket_fd, true))
+  {
+    // Could not restore blocking mode; treat the connection as failed.
+    return false;
+  }
+  return connected;
+}
+
 bool TCPSocket::setup(const std::string& host, const int port, const size_t max_num_tries,
                       const std::chrono::milliseconds reconnection_time)
 {
@@ -85,13 +208,17 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
     reconnection_time_resolved = reconnection_time_;
   }
 
+  // Honor a pending stop before doing anything else (e.g. a connect attempt issued just after
+  // requestStop()). Checked before touching state_ so the cancellation cannot be lost.
+  if (stop_requested_)
+    return false;
+
   if (state_ == SocketState::Connected)
     return false;
 
-  // Clear any pre-existing Closed/Disconnected/Invalid state so that the
-  // between-attempt sleep below (which exits early when state becomes Closed)
-  // can only be short-circuited by a concurrent external close() call, not by
-  // a Closed state left over from a previous disconnect().
+  // Clear any leftover Closed/Disconnected state from a previous (deliberate) disconnect() so
+  // it does not interfere with this fresh attempt. Cancellation is tracked via stop_requested_,
+  // not via state_, so this reset can no longer erase a teardown signal.
   state_ = SocketState::Invalid;
 
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
@@ -112,6 +239,9 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
   bool connected = false;
   while (!connected)
   {
+    if (stop_requested_)
+      return false;
+
     if (getaddrinfo(host_name, service.c_str(), &hints, &result) != 0)
     {
       URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
@@ -122,10 +252,16 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
     {
       socket_fd_ = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 
-      if (socket_fd_ != -1 && open(socket_fd_, p->ai_addr, p->ai_addrlen))
+      if (socket_fd_ != -1 && openInterruptible(socket_fd_, p->ai_addr, p->ai_addrlen))
       {
         connected = true;
         break;
+      }
+
+      if (stop_requested_)
+      {
+        freeaddrinfo(result);
+        return false;
       }
     }
 
@@ -134,6 +270,10 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
     if (!connected)
     {
       state_ = SocketState::Invalid;
+      if (stop_requested_)
+      {
+        return false;
+      }
       if (++connect_counter >= max_num_tries && max_num_tries > 0)
       {
         URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
@@ -147,16 +287,15 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
            << std::chrono::duration_cast<std::chrono::duration<float>>(reconnection_time_resolved).count()
            << " seconds.";
         URCL_LOG_ERROR("%s", ss.str().c_str());
-        // Sleep in short slices so that an external close() (e.g. from ~RTDEClient calling
-        // disconnect() before joining the reconnect thread) can interrupt the wait promptly.
+        // Sleep in short slices so that a concurrent requestStop() (e.g. from ~RTDEClient or
+        // ~PrimaryClient before joining the reconnect thread) can interrupt the back-off promptly.
         const auto sleep_slice = std::chrono::milliseconds(100);
-        for (auto slept = std::chrono::milliseconds(0);
-             slept < reconnection_time_resolved && state_ != SocketState::Closed;
+        for (auto slept = std::chrono::milliseconds(0); slept < reconnection_time_resolved && !stop_requested_;
              slept += sleep_slice)
         {
           std::this_thread::sleep_for(sleep_slice);
         }
-        if (state_ == SocketState::Closed)
+        if (stop_requested_)
         {
           return false;
         }
@@ -177,6 +316,19 @@ void TCPSocket::close()
     ::ur_close(socket_fd_);
     socket_fd_ = INVALID_SOCKET;
   }
+}
+
+void TCPSocket::requestStop()
+{
+  // Set the flag before closing so that a reconnect thread observing the closed socket is
+  // guaranteed to also see the cancellation request (and therefore stop instead of retrying).
+  stop_requested_ = true;
+  close();
+}
+
+void TCPSocket::clearStop()
+{
+  stop_requested_ = false;
 }
 
 std::string TCPSocket::getIP() const

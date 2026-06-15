@@ -39,6 +39,9 @@ if (INTEGRATION_TESTS)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
+  # Bound this teardown regression test so a hang fails CI fast instead of timing out the job.
+  set_tests_properties(RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread
+                       PROPERTIES TIMEOUT 60)
   if (CHECK_RTDE_DOCS_RECIPE)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
@@ -159,6 +162,9 @@ add_executable(primary_client_reconnect_tests test_primary_client_reconnect.cpp 
 target_link_libraries(primary_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      primary_client_reconnect_tests
 )
+# Bound this teardown regression test so a hang fails CI in ~1 min instead of timing out the job.
+set_tests_properties(PrimaryClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     PROPERTIES TIMEOUT 60)
 
 
 
@@ -256,6 +262,10 @@ add_executable(tcp_socket_tests test_tcp_socket.cpp)
 target_link_libraries(tcp_socket_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET tcp_socket_tests
 )
+# Bound the interruptible-setup regression tests so a hang fails CI fast instead of timing out the job.
+set_tests_properties(TCPSocketTest.setup_interruptible_by_close
+                     TCPSocketTest.setup_interruptible_during_blocking_connect
+                     PROPERTIES TIMEOUT 60)
 
 add_executable(stream_tests test_stream.cpp)
 target_link_libraries(stream_tests PRIVATE ur_client_library::urcl GTest::gtest_main)

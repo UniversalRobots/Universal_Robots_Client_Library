@@ -87,9 +87,11 @@ RTDEClient::~RTDEClient()
 {
   prod_->setReconnectionCallback(nullptr);
   stop_reconnection_ = true;
-  // Disconnect before joining the reconnect thread so that any sleep inside
-  // TCPSocket::setup() (which checks for SocketState::Closed) wakes promptly
-  // instead of blocking the destructor for the full reconnection_timeout.
+  // Request a stop on the stream before joining the reconnect thread. requestStop() sets the
+  // cancellation flag and closes the socket so that any connect attempt or back-off sleep inside
+  // TCPSocket::setup() aborts within one poll slice, instead of blocking the destructor for the
+  // full reconnection_timeout (or indefinitely with max_connection_attempts == 0).
+  stream_.requestStop();
   disconnect();
   if (reconnecting_thread_.joinable())
   {
@@ -114,6 +116,10 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   reconnection_timeout_ = reconnection_timeout;
   max_initialization_attempts_ = max_initialization_attempts;
   initialization_timeout_ = initialization_timeout;
+
+  // Clear any cancellation request from a previous teardown so this (re)initialization can
+  // connect. Runs on the controlling thread before the reconnect thread can be started.
+  stream_.clearStop();
 
   prod_->setReconnectionCallback(nullptr);
 

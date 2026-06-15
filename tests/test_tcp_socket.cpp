@@ -294,16 +294,18 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
 }
 
 // Regression test for the bug where TCPSocket::setup() could block the caller
-// indefinitely when the sleep between retry attempts was not interruptible.
+// indefinitely when the wait between retry attempts was not interruptible.
 //
-// Fixed by replacing the monolithic sleep_for(reconnection_time) in setup() with
-// a 100ms-sliced loop that exits early when state_ transitions to Closed (set by
-// a concurrent close() call, e.g. from ~RTDEClient calling disconnect() before
-// joining the reconnect thread).
+// setup() is interrupted by requestStop(), which sets a sticky cancellation flag
+// and closes the socket. The flag (rather than the transient SocketState::Closed)
+// is what makes this race-free: setup() resets state_ internally on every attempt,
+// so a teardown signal carried only by the socket state could be lost, whereas the
+// dedicated stop flag cannot. This is the path used by ~RTDEClient()/~PrimaryClient()
+// before joining their reconnect threads.
 TEST_F(TCPSocketTest, setup_interruptible_by_close)
 {
   // Use a port with no listener so every connect attempt fails immediately,
-  // sending setup() into the between-attempt sleep.
+  // sending setup() into the between-attempt wait.
   const int unused_port = 12322;
   const std::chrono::milliseconds large_reconnect_timeout(5000);
 
@@ -311,26 +313,55 @@ TEST_F(TCPSocketTest, setup_interruptible_by_close)
 
   // Run setup() with unlimited retries in a background thread.
   std::thread setup_thread([&client, &large_reconnect_timeout]() {
-    // max_num_tries=0 (unlimited) → setup() sleeps large_reconnect_timeout after
+    // max_num_tries=0 (unlimited) → setup() waits large_reconnect_timeout after
     // every failed connect attempt and never exits on its own.
     client.setup(0, large_reconnect_timeout);
   });
 
-  // Give the thread time to reach the between-attempt sleep inside setup().
+  // Give the thread time to reach the between-attempt wait inside setup().
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-  // close() sets state_ = Closed; the sliced sleep in setup() detects this
+  // requestStop() sets the cancellation flag; the sliced wait in setup() detects it
   // within 100 ms and setup() returns, allowing the thread to finish.
   const auto t0 = std::chrono::steady_clock::now();
-  client.close();
+  client.requestStop();
 
   setup_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   // Without the fix, elapsed would be >= large_reconnect_timeout (5 s).
-  EXPECT_LT(elapsed, std::chrono::seconds(2))
-      << "TCPSocket::setup() was not interrupted by close() within 2 s; "
-         "the between-attempt sleep is not interruptible";
+  EXPECT_LT(elapsed, std::chrono::seconds(2)) << "TCPSocket::setup() was not interrupted by requestStop() within 2 s; "
+                                                 "the between-attempt wait is not interruptible";
+}
+
+// Regression test for issue #368: a reconnect thread blocked inside connect() to a
+// genuinely unreachable host (no SYN-ACK, no RST) must still be abortable. The
+// previous fix only made the between-attempt *sleep* interruptible, not the connect
+// itself, so this case could block for the full OS connect timeout. setup() now uses
+// a non-blocking connect polled in short slices, so requestStop() aborts it promptly.
+TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
+{
+  // 10.255.255.1 is in a private range and is (almost) never routable, so connect()
+  // hangs in SYN retransmit rather than failing fast like a refused localhost port.
+  const int unused_port = 12323;
+  const std::chrono::milliseconds large_reconnect_timeout(5000);
+
+  Client client(unused_port, "10.255.255.1");
+
+  std::thread setup_thread([&client, &large_reconnect_timeout]() { client.setup(0, large_reconnect_timeout); });
+
+  // Give the thread time to enter the (blocking) connect attempt.
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  const auto t0 = std::chrono::steady_clock::now();
+  client.requestStop();
+
+  setup_thread.join();
+  const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+  EXPECT_LT(elapsed, std::chrono::seconds(2)) << "TCPSocket::setup() was not interrupted while blocked in connect() "
+                                                 "within 2 s; "
+                                                 "the connect attempt is not interruptible";
 }
 
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)

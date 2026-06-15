@@ -133,6 +133,9 @@ public:
   void setupProducer(const size_t max_num_tries = 0,
                      const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
+    // Clear any cancellation request left over from a previous teardown so the stream can be
+    // (re)used. Safe here because this runs on the controlling thread before the producer loop.
+    stream_.clearStop();
     timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;

@@ -53,7 +53,21 @@ private:
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
 
+  // Cancellation token used to abort a connection attempt that is currently in
+  // progress (either waiting inside connect() or sleeping between attempts).
+  // This is intentionally orthogonal to state_: a SocketState::Closed left over
+  // from a deliberate close()+connect() reconnect must NOT abort a fresh
+  // attempt, whereas requestStop() (used at teardown) must abort reliably and
+  // cannot be clobbered by setup()'s internal state_ resets.
+  std::atomic<bool> stop_requested_{ false };
+
   void setupOptions();
+
+  // Performs an interruptible, non-blocking connect on an already-created socket.
+  // Polls in short slices so that a concurrent requestStop() aborts the attempt
+  // promptly on all platforms (POSIX close() of a blocked connect() is reliable,
+  // Winsock's is not). Restores blocking mode on success.
+  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
 
 protected:
   static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
@@ -136,6 +150,26 @@ public:
    * \brief Closes the connection to the socket.
    */
   void close();
+
+  /*!
+   * \brief Requests that any in-progress (or future) connection attempt be aborted.
+   *
+   * Sets a sticky cancellation flag and closes the socket. A reconnect thread that is
+   * waiting inside setup() (either in connect() or in the between-attempt back-off) returns
+   * promptly instead of blocking until the reconnection timeout expires. Use this at teardown
+   * (e.g. from a destructor) before joining a reconnect thread. The flag stays set until
+   * clearStop() is called, so it cannot be lost by a racing internal state reset.
+   */
+  void requestStop();
+
+  /*!
+   * \brief Clears the cancellation flag set by requestStop().
+   *
+   * Must be called on a controlled (re)start before attempting to connect again, so a socket
+   * that was previously stopped can be reused. Never call this concurrently with a reconnect
+   * thread.
+   */
+  void clearStop();
 
   /*!
    * \brief Setup Receive timeout used for this socket.
