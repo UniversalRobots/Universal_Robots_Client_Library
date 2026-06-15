@@ -265,20 +265,32 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
       for (auto error : errors)
       {
-        if (error.report_level == ReportLevel::VIOLATION || error.report_level == ReportLevel::FAULT)
+        switch (error.report_level)
         {
-          error_stream << "Code: " << error.to_string << ", severity: " << reportLevelString(error.report_level)
-                       << "\n";
-          is_error = true;
-        }
-        if (error.report_level == ReportLevel::WARNING)
-        {
-          if (fail_on_warnings)
-          {
+          case ReportLevel::VIOLATION:
+          case ReportLevel::FAULT:
+          case ReportLevel::CRITICAL_FAULT:
             error_stream << "Code: " << error.to_string << ", severity: " << reportLevelString(error.report_level)
                          << "\n";
-          }
-          is_warning = true;
+            is_error = true;
+            break;
+          case ReportLevel::WARNING:
+            if (fail_on_warnings)
+            {
+              error_stream << "Code: " << error.to_string << ", severity: " << reportLevelString(error.report_level)
+                           << "\n";
+            }
+            is_warning = true;
+            break;
+          case ReportLevel::DEBUG:
+          case ReportLevel::INFO:
+          case ReportLevel::DEVL_DEBUG:
+          case ReportLevel::DEVL_INFO:
+          case ReportLevel::DEVL_WARNING:
+          case ReportLevel::DEVL_VIOLATION:
+          case ReportLevel::DEVL_FAULT:
+          case ReportLevel::DEVL_CRITICAL_FAULT:
+            break;
         }
         if (error.message_code == 210)
         {
