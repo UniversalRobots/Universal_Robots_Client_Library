@@ -38,6 +38,6 @@ Method signature:
 | If the program has not started within the given ``timeout``, the method throws an exception.
 | If the robot encounters an error or runtime exception during program execution the method also throws an exception.
 | If ``fail_on_warnings`` is true, it will also throw an exception, if the robot reports a warning during program execution. Note: protective stops are reported as warnings by the robot.
-| The method only returns true if the program is successfully executed on the robot.
+| If no exceptions are thrown, the script has been executed successfully.
 | This method also accepts secondary programs, but no feedback is available for those, so it will behave similarly to the ``sendScript`` method in those cases, except for the pre-transfer checks.
 | The exact exceptions that are thrown in various cases can be seen in the `primary client header file <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/include/ur_client_library/primary/primary_client.h>`_.

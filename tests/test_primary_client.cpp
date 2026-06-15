@@ -486,15 +486,15 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_happy_path)
                                            "  sleep(0.1)\n"
                                            "  sync()\n"
                                            "end";
-  EXPECT_TRUE(client_->sendScriptBlocking(fully_defined_script));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(fully_defined_script));
 
   const std::string part_defined_script = "textmsg(\"still running\")\n"
                                           "sleep(0.1)\n"
                                           "sync()\n";
-  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script));
-  EXPECT_TRUE(client_->sendScriptBlocking(part_defined_script, "test_def"));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(part_defined_script));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(part_defined_script, "test_def"));
   std::string sec_script = "sec test_sec():\n  textmsg(\"Still running\")\nend";
-  EXPECT_TRUE(client_->sendScriptBlocking(sec_script, "test_sec"));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(sec_script, "test_sec"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_nonrunning_robot)
@@ -505,7 +505,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_nonrunning_robot)
   EXPECT_NO_THROW(client_->commandPowerOn());
   EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"), RobotModeException);
   EXPECT_NO_THROW(client_->commandBrakeRelease());
-  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_NO_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_bad_safety_mode)
@@ -518,7 +518,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fails_on_bad_safety_mode)
   EXPECT_THROW(client_->sendScriptBlocking("protective_stop()"), RobotErrorCodeException);
   EXPECT_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"), SafetyModeException);
   EXPECT_NO_THROW(client_->commandUnlockProtectiveStop());
-  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")"));
+  EXPECT_NO_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_throw_on_malformed_scripts)
@@ -558,7 +558,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_robot_errors)
   EXPECT_THROW(client_->sendScriptBlocking("movel(p[10,0,0,0,0,0])"), RobotErrorCodeException);
   // reset the robot
   ASSERT_NO_THROW(client_->commandUnlockProtectiveStop());
-  EXPECT_TRUE(client_->sendScriptBlocking("movej([0.5,-0.5,0.5,0,0,0])"));
+  EXPECT_NO_THROW(client_->sendScriptBlocking("movej([0.5,-0.5,0.5,0,0,0])"));
 }
 
 TEST_F(PrimaryClientTest, test_send_script_blocking_fail_on_bad_script)
@@ -582,7 +582,7 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_ignore_warnings)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   // Trigger protective stop (warning level error code)
-  EXPECT_TRUE(client_->sendScriptBlocking("protective_stop()", "", std::chrono::milliseconds(1000), false));
+  EXPECT_NO_THROW(client_->sendScriptBlocking("protective_stop()", "", std::chrono::milliseconds(1000), false));
   // reset the robot
   ASSERT_NO_THROW(client_->commandUnlockProtectiveStop());
 }
@@ -593,14 +593,14 @@ TEST_F(PrimaryClientTest, test_send_script_blocking_replace_long_names)
   EXPECT_NO_THROW(client_->commandPowerOff());
   EXPECT_NO_THROW(client_->commandBrakeRelease());
   const std::string name = "this_is_a_very_long_script_name_that_should_be_truncated";
-  EXPECT_TRUE(client_->sendScriptBlocking("textmsg(\"Still running\")", name));
+  EXPECT_NO_THROW(client_->sendScriptBlocking("textmsg(\"Still running\")", name));
   const std::string long_name_script = "def " + name +
                                        "():\n"
                                        "  textmsg(\"still running\")\n"
                                        "  sleep(0.1)\n"
                                        "  sync()\n"
                                        "end";
-  EXPECT_TRUE(client_->sendScriptBlocking(long_name_script));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(long_name_script));
 }
 
 TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_missing_robot_mode)
@@ -622,7 +622,7 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_fail_on_missing_robot_mo
     // std::this_thread::sleep_for(std::chrono::milliseconds(200));
     server_->sendRobotModeData(RobotMode::RUNNING, true, true, true, false, false, false, false);
   });
-  EXPECT_TRUE(
+  EXPECT_NO_THROW(
       client_->sendScriptBlocking("textmsg(\"Still running\")", "test_fun", std::chrono::milliseconds(1000), false));
 
   if (delayed_robot_mode_thread.joinable())

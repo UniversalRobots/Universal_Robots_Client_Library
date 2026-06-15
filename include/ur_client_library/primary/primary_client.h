@@ -109,7 +109,7 @@ public:
    * The given code must be valid according the UR Scripting Manual. The given script code will be automatically wrapped
    * in a function definition, if it is not already. Secondary programs can also be passed to this function, but must be
    * fully defined as a secondary program when calling. Secondary programs create no feedback, so this function will
-   * return true as soon as the program is uploaded successfully to the robot (same as the sendScript function).
+   * return as soon as the program is uploaded successfully to the robot (same as the sendScript function).
    *
    * \param program URScript code that shall be executed by the robot.
    *
@@ -135,10 +135,8 @@ public:
    * \throw urcl::ReadOnlyInterfaceException if the primary interface is in read-only mode when the script is
    * transferred. This can happen if the robot was recently switched from manual to remote control mode.
    * \throw urcl::RobotErrorCodeException if the robot encounters an error during script execution.
-   *
-   * \returns true on successful execution of the script, false otherwise
    */
-  bool sendScriptBlocking(const std::string& program, std::string script_name = "",
+  void sendScriptBlocking(const std::string& program, std::string script_name = "",
                           std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
                           bool fail_on_warnings = true);
 

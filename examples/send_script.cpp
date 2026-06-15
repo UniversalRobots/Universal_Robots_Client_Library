@@ -45,13 +45,10 @@ def example_fun():
   relative_move = p[0,-0.1,0,0,0,0]
   movel(pose_trans(current_pose, relative_move), t=1)
 end)""";
-
-  if (client.sendScriptBlocking(fully_defined_script))
-  {
-    // The function definition can also be omitted
-    // A function name will then be auto generated
-    client.sendScriptBlocking(R"(textmsg("Successful program execution"))");
-  }
+  client.sendScriptBlocking(fully_defined_script);
+  // The function definition can also be omitted
+  // A function name will then be auto generated
+  client.sendScriptBlocking(R"(textmsg("Successful program execution"))");
   // A script-function name can also be passed to the method
   // A timeout can also be given to limit the wait for the passed function to start. If timeout = 0, it will
   // wait indefinitely.
@@ -66,18 +63,26 @@ end
 )";
   client.sendScriptBlocking(secondary_script);
 
-  // Sending wrong script code will result in a clear error
+  // Sending wrong script code will result in an exception with a clear explanation
   const std::string bad_script_code = R"""(
 def bad_code():
   current_pose = get_target_tcp_pose()
   movel(current_pos) # note pose vs pos
 end)""";
   URCL_LOG_INFO("Sending bad script code...");
-  bool success = client.sendScriptBlocking(bad_script_code);
+  try
   {
-    std::stringstream ss;
-    ss << "Execution of bad code successful? " << std::boolalpha << success;
-    URCL_LOG_INFO("%s", ss.str().c_str());
+    client.sendScriptBlocking(bad_script_code);
+  }
+  catch (const RobotRuntimeException& exc)
+  {
+    URCL_LOG_INFO("Caught expected runtime exception from sendScriptBlocking");
+    URCL_LOG_INFO(exc.what());
+  }
+  catch (const UrException& exc)
+  {
+    URCL_LOG_INFO("Caught unexpected exception from sendScriptBlocking");
+    URCL_LOG_INFO(exc.what());
   }
 
   // We can also send script code without any checks
@@ -87,7 +92,7 @@ end)""";
   // E.g. sending the bad script here will not give us any information
   // The return value will only tell us that the script code has been sent to the robot.
   URCL_LOG_INFO("Sending bad script code without feedback...");
-  success = client.sendScript(bad_script_code);
+  bool success = client.sendScript(bad_script_code);
   {
     std::stringstream ss;
     ss << "Bad code sent to robot successfully? " << std::boolalpha << success;

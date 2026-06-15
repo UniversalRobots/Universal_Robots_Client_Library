@@ -137,7 +137,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
   }
 }
 
-bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
+void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
                                        std::chrono::milliseconds timeout, bool fail_on_warnings)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
@@ -197,7 +197,6 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     URCL_LOG_INFO("Script %s was determined to be a secondary program. Script was transferred successfully, but no "
                   "further feedback will be provided.",
                   script_info.script_name.c_str());
-    return true;
   }
 
   const auto script_start_time = std::chrono::system_clock::now();
@@ -358,7 +357,6 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       if (now - program_stopped_time >= post_stop_drain_period)
       {
         URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
-        return true;
       }
     }
     else
