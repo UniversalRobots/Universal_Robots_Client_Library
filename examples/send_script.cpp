@@ -81,8 +81,8 @@ end)""";
   }
   catch (const UrException& exc)
   {
-    URCL_LOG_INFO("Caught unexpected exception from sendScriptBlocking");
-    URCL_LOG_INFO(exc.what());
+    URCL_LOG_ERROR("Caught unexpected exception from sendScriptBlocking");
+    URCL_LOG_ERROR(exc.what());
   }
 
   // We can also send script code without any checks
