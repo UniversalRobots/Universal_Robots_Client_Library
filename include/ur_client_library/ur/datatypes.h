@@ -127,11 +127,13 @@ enum class ReportLevel : int32_t
   WARNING = 2,
   VIOLATION = 3,
   FAULT = 4,
+  CRITICAL_FAULT = 5,
   DEVL_DEBUG = 128,
   DEVL_INFO = 129,
   DEVL_WARNING = 130,
   DEVL_VIOLATION = 131,
-  DEVL_FAULT = 132
+  DEVL_FAULT = 132,
+  DEVL_CRITICAL_FAULT = 133
 };
 
 inline std::string reportLevelString(const ReportLevel& code)
@@ -148,6 +150,8 @@ inline std::string reportLevelString(const ReportLevel& code)
       return "VIOLATION";
     case ReportLevel::FAULT:
       return "FAULT";
+    case ReportLevel::CRITICAL_FAULT:
+      return "CRITICAL_FAULT";
     case ReportLevel::DEVL_DEBUG:
       return "DEVL_DEBUG";
     case ReportLevel::DEVL_INFO:
@@ -158,6 +162,8 @@ inline std::string reportLevelString(const ReportLevel& code)
       return "DEVL_VIOLATION";
     case ReportLevel::DEVL_FAULT:
       return "DEVL_FAULT";
+    case ReportLevel::DEVL_CRITICAL_FAULT:
+      return "DEVL_CRITICAL_FAULT";
   }
   throw std::invalid_argument("Unknown report level: " + std::to_string(static_cast<int>(code)));
 }
