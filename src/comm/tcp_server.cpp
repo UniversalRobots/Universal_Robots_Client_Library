@@ -34,15 +34,19 @@
 
 #include <sstream>
 #include <cstring>
+#include <vector>
 #include "ur_client_library/comm/socket_t.h"
 #include <fcntl.h>
+#ifndef _WIN32
+#  include <poll.h>
+#endif
 
 namespace urcl
 {
 namespace comm
 {
 TCPServer::TCPServer(const int port, const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
-  : port_(port), maxfd_(0), max_clients_allowed_(0)
+  : port_(port), max_clients_allowed_(0)
 {
 #ifdef _WIN32
   WSAData data;
@@ -74,9 +78,6 @@ void TCPServer::init()
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
 
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
-
-  FD_ZERO(&masterfds_);
-  FD_ZERO(&tempfds_);
 }
 
 void TCPServer::shutdown()
@@ -179,9 +180,6 @@ void TCPServer::bind(const size_t max_num_tries, const std::chrono::milliseconds
   } while (err == -1 && (connection_counter <= max_num_tries || max_num_tries == 0));
 
   URCL_LOG_DEBUG("Bound %d:%d to FD %d", server_addr.sin_addr.s_addr, port_, (int)listen_fd_);
-
-  FD_SET(listen_fd_, &masterfds_);
-  maxfd_ = listen_fd_;
 }
 
 void TCPServer::startListen()
@@ -220,21 +218,6 @@ void TCPServer::handleConnect()
     return;
   }
 
-#ifdef _WIN32
-  bool set_size_exceeded = client_fds_.size() >= FD_SETSIZE - 1;  // -1 because listen_fd_ also occupies one
-                                                                  // slot in masterfds_
-#else
-  bool set_size_exceeded = client_fd >= FD_SETSIZE;  // On Unix-like systems, the client FD itself must be less than
-                                                     // FD_SETSIZE, otherwise it cannot be added to the fd_set.
-#endif
-
-  if (set_size_exceeded)
-  {
-    URCL_LOG_ERROR("Accepted client FD %d exceeds FD_SETSIZE (%d). Closing connection.", (int)client_fd, FD_SETSIZE);
-    ur_close(client_fd);
-    return;
-  }
-
   bool accepted = false;
 
   {
@@ -242,11 +225,6 @@ void TCPServer::handleConnect()
     if (client_fds_.size() < max_clients_allowed_ || max_clients_allowed_ == 0)
     {
       client_fds_.push_back(client_fd);
-      FD_SET(client_fd, &masterfds_);
-      if (client_fd > maxfd_)
-      {
-        maxfd_ = client_fd;
-      }
       accepted = true;
     }
     else
@@ -268,27 +246,40 @@ void TCPServer::handleConnect()
 
 void TCPServer::spin()
 {
-  tempfds_ = masterfds_;
-
-  timeval timeout;
-  timeout.tv_sec = 1;
-  timeout.tv_usec = 0;
-
-  // blocks until activity on any socket from tempfds
-  int sel = select(static_cast<int>(maxfd_ + 1), &tempfds_, NULL, NULL, &timeout);
-  if (sel < 0)
+  // Build the poll set fresh each iteration from the listen socket plus all currently connected
+  // clients. poll() is used on both platforms (WSAPoll() on Windows) because it has no
+  // FD_SETSIZE limit on file descriptor numbers, unlike select(). This matters when the hosting
+  // process holds many file descriptors (e.g. a JVM), pushing socket FDs past FD_SETSIZE (1024).
+  std::vector<struct pollfd> pollfds;
+  pollfds.push_back({ static_cast<socket_t>(listen_fd_), POLLIN, 0 });
   {
-    URCL_LOG_ERROR("select() failed. Shutting down socket event handler.");
+    std::lock_guard<std::mutex> lk(clients_mutex_);
+    for (const auto& client_fd : client_fds_)
+    {
+      pollfds.push_back({ client_fd, POLLIN, 0 });
+    }
+  }
+
+  // Block for up to 1 s waiting for activity on any socket. A shutdown wakes this immediately by
+  // connecting to the listen socket (see shutdown()).
+#ifdef _WIN32
+  int ready = ::WSAPoll(pollfds.data(), static_cast<ULONG>(pollfds.size()), 1000);
+#else
+  int ready = ::poll(pollfds.data(), pollfds.size(), 1000);
+#endif
+  if (ready < 0)
+  {
+    URCL_LOG_ERROR("poll() failed. Shutting down socket event handler.");
     keep_running_ = false;
     return;
   }
 
-  if (!keep_running_ || sel == 0)
+  if (!keep_running_ || ready == 0)
   {
     return;
   }
 
-  if (FD_ISSET(listen_fd_, &tempfds_))
+  if (pollfds[0].revents & POLLIN)
   {
     URCL_LOG_DEBUG("Activity on listen FD %d", (int)listen_fd_);
     handleConnect();
@@ -297,15 +288,13 @@ void TCPServer::spin()
   std::vector<socket_t> disconnected_clients;
   std::vector<socket_t> client_fds_with_activity;
 
+  // pollfds[0] is the listen socket; client entries start at index 1.
+  for (size_t i = 1; i < pollfds.size(); ++i)
   {
-    std::lock_guard<std::mutex> lk(clients_mutex_);
-    for (const auto& client_fd : client_fds_)
+    if (pollfds[i].revents & (POLLIN | POLLHUP | POLLERR))
     {
-      if (FD_ISSET(client_fd, &tempfds_))
-      {
-        URCL_LOG_DEBUG("Activity on client FD %d", (int)client_fd);
-        client_fds_with_activity.push_back(client_fd);
-      }
+      URCL_LOG_DEBUG("Activity on client FD %d", (int)pollfds[i].fd);
+      client_fds_with_activity.push_back(static_cast<socket_t>(pollfds[i].fd));
     }
   }
   // We handle client activity outside the clients_mutex_ lock to avoid holding it during potentially slow I/O and
@@ -331,7 +320,6 @@ void TCPServer::handleDisconnect(const socket_t fd)
   {
     std::lock_guard<std::mutex> lk(clients_mutex_);
     ur_close(fd);
-    FD_CLR(fd, &masterfds_);
 
     for (size_t i = 0; i < client_fds_.size(); ++i)
     {
@@ -339,15 +327,6 @@ void TCPServer::handleDisconnect(const socket_t fd)
       {
         client_fds_.erase(client_fds_.begin() + i);
         break;
-      }
-    }
-
-    maxfd_ = listen_fd_;
-    for (const auto& client_fd : client_fds_)
-    {
-      if (client_fd > maxfd_)
-      {
-        maxfd_ = client_fd;
       }
     }
   }
