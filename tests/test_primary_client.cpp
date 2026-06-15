@@ -666,12 +666,42 @@ TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
   // Make the fake server send an error code message with code 210 (read-only primary interface) when it receives a
   // script
   server_->setScriptCallback([this, script_code]([[maybe_unused]] const std::string& payload) {
-    ASSERT_TRUE(
-        server_->sendErrorCodeMessage(210, 0, ReportLevel::VIOLATION, "Simulated read-only primary interface error"));
+    if (payload.find(script_code) != std::string::npos)
+    {
+      ASSERT_TRUE(
+          server_->sendErrorCodeMessage(210, 0, ReportLevel::VIOLATION, "Simulated read-only primary interface error"));
+    }
   });
 
+  // Fails even with retry
   EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false),
                ReadOnlyInterfaceException);
+
+  // Fails with no retry
+  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false, false),
+               ReadOnlyInterfaceException);
+
+  bool retry = false;
+  // Send C210 on first try, then succeed
+  server_->setScriptCallback([this, script_code, &retry]([[maybe_unused]] const std::string& payload) {
+    if (!retry)
+    {
+      ASSERT_TRUE(
+          server_->sendErrorCodeMessage(210, 0, ReportLevel::VIOLATION, "Simulated read-only primary interface error"));
+      retry = true;
+    }
+    else
+    {
+      if (payload.find(script_code) != std::string::npos)
+      {
+        server_->sendKeyMessage("PROGRAM_XXX_STARTED", "test_fun");
+        ASSERT_EQ(payload, "def test_fun():\n  " + script_code + "\nend\n\n");
+        server_->sendKeyMessage("PROGRAM_XXX_STOPPED", "test_fun");
+      }
+    }
+  });
+  // Succeeds on retry
+  EXPECT_NO_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
 }
 
 TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
