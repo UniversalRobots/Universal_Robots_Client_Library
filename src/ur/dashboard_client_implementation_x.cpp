@@ -132,7 +132,6 @@ timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
 
 timeval DashboardClientImplX::getConfiguredSendTimeout() const
 {
-  // Mirrors getConfiguredReceiveTimeout. Default of 10 s matches the constructor.
   return send_timeout_;
 }
 
