@@ -123,10 +123,6 @@ void DashboardClientImplX::disconnect()
 
 timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
 {
-  // If the caller has explicitly configured a receive timeout via setReceiveTimeout,
-  // return that. Otherwise fall back to the constructor default. See the constructor
-  // comment for the rationale on the 10 s default (covers brake_release / program
-  // load/upload/download without per-method timeouts).
   return recv_timeout_;
 }
 
