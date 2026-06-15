@@ -551,6 +551,10 @@ bool PrimaryClient::reconnectStream()
 {
   URCL_LOG_DEBUG("Closing primary stream...");
   stream_.close();
+  // A deliberate reconnect must clear any sticky cancellation left by a prior stop()/teardown
+  // (stream_.requestStop()), otherwise TCPSocket::setup() aborts immediately and the reconnect
+  // fails. Mirrors URProducer::setupProducer() which clears the flag before (re)connecting.
+  stream_.clearStop();
   if (stream_.connect())
   {
     URCL_LOG_DEBUG("Primary stream connected");
