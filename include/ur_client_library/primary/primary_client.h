@@ -138,7 +138,7 @@ public:
    */
   void sendScriptBlocking(const std::string& program, std::string script_name = "",
                           std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
-                          bool fail_on_warnings = true, bool retry_on_readonly_interface = true);
+                          bool fail_on_warnings = true, const bool retry_on_readonly_interface = true);
 
   bool checkCalibration(const std::string& checksum);
 
@@ -362,7 +362,8 @@ private:
   ScriptInfo prepare_script(std::string script, std::string script_name);
   std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
   std::string truncate_script_name(std::string candidate_name);
-  void send_script_monitor_execution(ScriptInfo script_info, std::chrono::milliseconds timeout, bool fail_on_warnings);
+  void send_script_monitor_execution(const ScriptInfo& script_info, const std::chrono::milliseconds& timeout,
+                                     const bool fail_on_warnings);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;

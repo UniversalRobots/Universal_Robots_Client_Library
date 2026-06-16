@@ -139,7 +139,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
 
 void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
                                        std::chrono::milliseconds start_timeout, bool fail_on_warnings,
-                                       bool retry_on_readonly_interface)
+                                       const bool retry_on_readonly_interface)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
 
@@ -195,8 +195,8 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   }
 }
 
-void PrimaryClient::send_script_monitor_execution(ScriptInfo script_info, std::chrono::milliseconds timeout,
-                                                  bool fail_on_warnings)
+void PrimaryClient::send_script_monitor_execution(const ScriptInfo& script_info,
+                                                  const std::chrono::milliseconds& timeout, const bool fail_on_warnings)
 {
   // Clear runtime exception
   {
