@@ -710,7 +710,7 @@ TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
   const std::string script_code = "textmsg(\"Still running\")";
 
   // We do not set a script callback on the fake server, so it will not respond to the script being sent. This should
-  // cause sendScriptBlocking to time out and return false.
+  // cause sendScriptBlocking to time out and throw a TimeoutException.
   EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(100), false),
                TimeoutException);
 }
