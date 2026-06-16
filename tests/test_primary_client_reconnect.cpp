@@ -117,6 +117,71 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
       << " ms — the producer reconnect thread was not aborted by requestStop()";
 }
 
+// Regression test for the SECOND symptom reported in issue #368: calling
+// PrimaryClient::stop() (the implementation of UrDriver::stopPrimaryClientCommunication())
+// hangs when the producer thread is stuck in its reconnect loop against an unreachable
+// robot.
+//
+// This is distinct from the destructor test above: stop() is a restartable operation, so
+// besides asserting that it returns promptly it must also leave the client in a state where
+// a subsequent start() can reconnect. That exercises the clearStop() reuse path in
+// URProducer::setupProducer()/PrimaryClient::reconnectStream() — a sticky-flag regression
+// there would not hang teardown but would silently prevent the client from ever reconnecting
+// after a stop().
+TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
+{
+  comm::INotifier notifier;
+
+  auto server = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+
+  // Unlimited reconnect attempts with a large reconnection time: if the fix is
+  // absent, the producer's reconnect path keeps stop()'s pipeline join blocked.
+  const std::chrono::milliseconds large_reconnect_timeout(5000);
+  ASSERT_NO_THROW(client->start(/*max_num_tries=*/0, large_reconnect_timeout));
+  ASSERT_TRUE(server->waitForClient()) << "PrimaryClient never connected to the fake server";
+
+  // Drop the server. The producer's read() fails, the socket transitions to
+  // SocketState::Disconnected, and the producer enters its reconnect loop.
+  server.reset();
+
+  // Give the producer time to detect the drop and reach its reconnect sleep
+  // (initial backoff is 1 s, after which it sleeps inside TCPSocket::setup()).
+  std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+  // stop() must return quickly: requestStop() aborts the producer's connect attempt/back-off,
+  // so the pipeline join completes well under 2 s. Without the fix this blocks for at least the
+  // reconnect timeout (and indefinitely with unlimited retries against a dead port). Run it on a
+  // worker with a watchdog so a regression fails fast with a clear message instead of hanging the
+  // test binary (the CTest TIMEOUT then reaps it).
+  std::packaged_task<void()> stop_task([&client]() { client->stop(); });
+  auto stop_future = stop_task.get_future();
+  std::thread stop_thread(std::move(stop_task));
+
+  const auto t0 = std::chrono::steady_clock::now();
+  if (stop_future.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+  {
+    stop_thread.detach();
+    FAIL() << "PrimaryClient::stop() did not return within 5 s — the producer reconnect thread was not aborted by "
+              "requestStop()";
+  }
+  stop_thread.join();
+  const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+  EXPECT_LT(elapsed, std::chrono::seconds(2))
+      << "PrimaryClient::stop() blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+      << " ms — the producer reconnect thread was not aborted by requestStop()";
+
+  // Restart-reuse check: bring up a fresh server and start() again. This must reconnect,
+  // proving that stop()'s sticky cancellation flag was cleared via clearStop() on restart.
+  auto server2 = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+  ASSERT_NO_THROW(client->start(/*max_num_tries=*/0, large_reconnect_timeout));
+  EXPECT_TRUE(server2->waitForClient(std::chrono::seconds(3))) << "PrimaryClient did not reconnect after "
+                                                                  "stop()/start() — the cancellation flag set by "
+                                                                  "stop() was not cleared "
+                                                                  "via clearStop() on restart";
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
