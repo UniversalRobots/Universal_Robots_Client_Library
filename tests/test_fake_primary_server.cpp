@@ -233,11 +233,11 @@ TEST_F(FakePrimaryServerTest, send_safety_mode_message_roundtrip)
 
 TEST_F(FakePrimaryServerTest, send_error_code_message_roundtrip)
 {
-  ASSERT_TRUE(server_->sendErrorCodeMessage(210, 0, primary_interface::ReportLevel::VIOLATION, "read-only PI"));
+  ASSERT_TRUE(server_->sendErrorCodeMessage(210, 0, ReportLevel::VIOLATION, "read-only PI"));
   auto msg = client_->consumer().waitFor<primary_interface::ErrorCodeMessage>();
   ASSERT_NE(msg, nullptr);
   EXPECT_EQ(msg->message_code_, 210);
-  EXPECT_EQ(msg->report_level_, primary_interface::ReportLevel::VIOLATION);
+  EXPECT_EQ(msg->report_level_, ReportLevel::VIOLATION);
   EXPECT_EQ(msg->text_, "read-only PI");
 }
 

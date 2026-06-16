@@ -137,7 +137,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
   }
 }
 
-bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
+void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
                                        std::chrono::milliseconds timeout, bool fail_on_warnings)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
@@ -150,8 +150,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     auto now = std::chrono::system_clock::now();
     if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() > robot_mode_timeout.count())
     {
-      URCL_LOG_ERROR("Robot mode not received within %lld ms, exiting.", robot_mode_timeout.count());
-      return false;
+      throw TimeoutException("Robot mode not received within timeout. ", robot_mode_timeout);
     }
     URCL_LOG_INFO("Robot mode not received yet, waiting for it to be received.");
     std::chrono::milliseconds update_period(100);
@@ -161,20 +160,17 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
   if (robot_mode != RobotMode::RUNNING)
   {
-    URCL_LOG_ERROR("Robot is not running, cannot execute script.");
-    std::stringstream ss;
-    ss << "Robot is in mode: " << urcl::robotModeString(robot_mode) << " (" << int(robot_mode) << ")";
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
+    throw RobotModeException("Script execution via primary interface", urcl::RobotMode::RUNNING, robot_mode);
   }
 
   if (!safetyModeAllowsExecution())
   {
-    URCL_LOG_ERROR("Robot safety mode does not allow for script execution, cannot execute script.");
-    std::stringstream ss;
-    ss << "Robot safety mode is: " << safetyModeString(getSafetyMode()) << " (" << unsigned(getSafetyMode()) << ")";
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
+    std::vector<urcl::SafetyMode> allowed_modes = { urcl::SafetyMode::NORMAL, urcl::SafetyMode::REDUCED,
+                                                    urcl::SafetyMode::RECOVERY };
+    allowed_modes.push_back(urcl::SafetyMode::UNDEFINED_SAFETY_MODE);  // Remove when safety mode gets updated
+                                                                       // continuously
+
+    throw SafetyModeException("Script execution via primary interface", allowed_modes, getSafetyMode());
   }
   // Clear runtime exception
   {
@@ -192,13 +188,16 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   bool script_sent = sendScript(script_info.script_code);
   if (!script_sent)
   {
-    URCL_LOG_ERROR("Script could not be sent.");
-    return false;
+    throw StreamNotConnectedException("Script could not be sent to the robot. Ensure that the primary interface is "
+                                      "connected.");
   }
   // No feedback from secondary programs, so we assume success
   if (script_info.script_type == ScriptTypes::SEC)
   {
-    return true;
+    URCL_LOG_INFO("Script %s was determined to be a secondary program. Script was transferred successfully, but no "
+                  "further feedback will be provided.",
+                  script_info.script_name.c_str());
+    return;
   }
 
   const auto script_start_time = std::chrono::system_clock::now();
@@ -219,10 +218,10 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       std::scoped_lock lock(runtime_exception_mutex_);
       if (latest_runtime_exception_ != nullptr)
       {
-        URCL_LOG_ERROR("Runtime exception occured during script execution. Runtime exception type: %s",
-                       latest_runtime_exception_->text_.c_str());
         std::stringstream ss;
-        ss << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
+        ss << "Runtime exception occured during script execution."
+           << "Runtime exception type: " << latest_runtime_exception_->text_ << "\n"
+           << "Exception occured at line " << latest_runtime_exception_->line_number_ << ", column "
            << latest_runtime_exception_->column_number_ << "\n";
         // Line and column numbers should always be 1-based, but we check that they are greater
         // than 0 just to be sure before using them for indexing in the debug print below
@@ -249,9 +248,8 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
               ss << "^<--- here\n";
             }
           }
-          URCL_LOG_ERROR(ss.str().c_str());
         }
-        return false;
+        throw RobotRuntimeException(ss.str());
       }
     }
 
@@ -261,21 +259,38 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       bool is_error = false;
       bool is_warning = false;
       bool is_read_only = false;
+
+      std::stringstream error_stream;
+      error_stream << "Robot error codes received during script execution: \n";
+
       for (auto error : errors)
       {
-        if (error.report_level == ReportLevel::VIOLATION || error.report_level == ReportLevel::FAULT)
+        switch (error.report_level)
         {
-          URCL_LOG_ERROR("Robot error code with severity VIOLATION or FAULT received during script execution. Robot "
-                         "error code: %s",
-                         error.to_string.c_str());
-          is_error = true;
-        }
-        if (error.report_level == ReportLevel::WARNING)
-        {
-          URCL_LOG_WARN("Robot error code with severity WARNING received during script execution. Robot "
-                        "error code: %s",
-                        error.to_string.c_str());
-          is_warning = true;
+          case ReportLevel::VIOLATION:
+          case ReportLevel::FAULT:
+          case ReportLevel::CRITICAL_FAULT:
+            error_stream << "Code: " << error.to_string << ", severity: " << reportLevelString(error.report_level)
+                         << "\n";
+            is_error = true;
+            break;
+          case ReportLevel::WARNING:
+            if (fail_on_warnings)
+            {
+              error_stream << "Code: " << error.to_string << ", severity: " << reportLevelString(error.report_level)
+                           << "\n";
+            }
+            is_warning = true;
+            break;
+          case ReportLevel::DEBUG:
+          case ReportLevel::INFO:
+          case ReportLevel::DEVL_DEBUG:
+          case ReportLevel::DEVL_INFO:
+          case ReportLevel::DEVL_WARNING:
+          case ReportLevel::DEVL_VIOLATION:
+          case ReportLevel::DEVL_FAULT:
+          case ReportLevel::DEVL_CRITICAL_FAULT:
+            break;
         }
         if (error.message_code == 210)
         {
@@ -294,16 +309,17 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
         }
         else
         {
-          URCL_LOG_ERROR("Script cannot be executed since primary client is connected to a read-only primary "
-                         "interface. If you have switched from local to remote mode recently, try reconnecting the "
-                         "primary client and send the script code again.");
+          throw ReadOnlyInterfaceException("Script cannot be executed since primary client is connected to a read-only "
+                                           "primary "
+                                           "interface. If you have switched from local to remote mode recently, try "
+                                           "reconnecting the "
+                                           "primary client and send the script code again.");
         }
-        URCL_LOG_ERROR("Script execution failed due to error code(s) received from robot.");
-        return false;
+        throw RobotErrorCodeException(error_stream.str());
       }
       if (is_warning && fail_on_warnings)
       {
-        return false;
+        throw RobotErrorCodeException(error_stream.str());
       }
     }
 
@@ -354,7 +370,7 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
       if (now - program_stopped_time >= post_stop_drain_period)
       {
         URCL_LOG_INFO("Script with name %s executed successfully", script_info.script_name.c_str());
-        return true;
+        return;
       }
     }
     else
@@ -364,8 +380,8 @@ bool PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
       if (!script_started && elapsed_time > timeout)
       {
-        URCL_LOG_ERROR("Script %s not started within timeout", script_info.script_name.c_str());
-        return false;
+        throw urcl::TimeoutException("Script with name " + script_info.script_name + " not started within timeout. ",
+                                     timeout);
       }
     }
     std::chrono::milliseconds wait_period(10);
@@ -420,7 +436,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
 
   if (stripped_script.size() == 0)
   {
-    throw urcl::ScriptCodeSyntaxException("Script is empty after stripping comments and whitespace.");
+    throw ScriptCodeSyntaxException("Script is empty after stripping comments and whitespace.");
   }
 
   // Use given script name or create one
@@ -478,16 +494,16 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
   static const std::regex valid_name(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
   if (!std::regex_match(actual_script_name, valid_name))
   {
-    throw urcl::ScriptCodeSyntaxException("Invalid script name: '" + actual_script_name +
-                                          "'. Can only contain letters, numbers and underscores. First character "
-                                          "must be a letter or underscore.");
+    throw ScriptCodeSyntaxException("Invalid script name: '" + actual_script_name +
+                                    "'. Can only contain letters, numbers and underscores. First character "
+                                    "must be a letter or underscore.");
   }
 
   if (stripped_script.back().substr(0, 3).find("end") == script.npos)
   {
-    throw urcl::ScriptCodeSyntaxException("Script contains either function definition or secondary process "
-                                          "definition, "
-                                          "but no 'end' term. Script is invalid.");
+    throw ScriptCodeSyntaxException("Script contains either function definition or secondary process "
+                                    "definition, "
+                                    "but no 'end' term. Script is invalid.");
   }
 
   // Concatenate all the script lines in to the final script
