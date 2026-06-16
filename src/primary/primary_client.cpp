@@ -182,7 +182,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   {
     if (retry_on_readonly_interface)
     {
-      URCL_LOG_INFO("Script execution failed due to the primary interface being read-only. Reconnecting primary "
+      URCL_LOG_INFO("Script execution failed due to the primary interface being read-only. Restarting primary "
                     "interface and retrying once.");
       stop();
       start();
