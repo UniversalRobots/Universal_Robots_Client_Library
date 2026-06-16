@@ -123,6 +123,10 @@ public:
    * \param fail_on_warnings Whether or not the function should report a failure, if the robot reports a warning-level
    * error during execution. Default true
    *
+   * \param retry_on_readonly_interface Whether to retry, if the primary interface is read-only. This will restart the
+   * primary interface, and then try sending the script again. If the interface is still read-only a
+   * ReadOnlyInterfaceException will be thrown. Default true
+   *
    * \throw urcl::ScriptCodeSyntaxException if the given script code has syntax errors, which are checked here.
    * \throw urcl::UrException if the stop command cannot be sent to the robot.
    * \throw urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
