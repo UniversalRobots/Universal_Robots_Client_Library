@@ -178,7 +178,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   {
     send_script_monitor_execution(script_info, start_timeout, fail_on_warnings);
   }
-  catch (const ReadOnlyInterfaceException& exc)
+  catch ([[maybe_unused]] const ReadOnlyInterfaceException& exc)
   {
     if (retry_on_readonly_interface)
     {
