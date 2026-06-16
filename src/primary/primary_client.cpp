@@ -138,7 +138,7 @@ bool PrimaryClient::safetyModeAllowsExecution()
 }
 
 void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
-                                       std::chrono::milliseconds timeout, bool fail_on_warnings,
+                                       std::chrono::milliseconds start_timeout, bool fail_on_warnings,
                                        bool retry_on_readonly_interface)
 {
   ScriptInfo script_info = prepare_script(program, script_name);
@@ -176,7 +176,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
   try
   {
-    send_script_monitor_execution(script_info, timeout, fail_on_warnings);
+    send_script_monitor_execution(script_info, start_timeout, fail_on_warnings);
   }
   catch (const ReadOnlyInterfaceException& exc)
   {
@@ -186,7 +186,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
                     "interface and retrying once.");
       stop();
       start();
-      send_script_monitor_execution(script_info, timeout, fail_on_warnings);
+      send_script_monitor_execution(script_info, start_timeout, fail_on_warnings);
     }
     else
     {
