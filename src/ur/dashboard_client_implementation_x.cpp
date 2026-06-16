@@ -62,7 +62,8 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
   // timeout parameter. Callers needing different limits can override via setReceiveTimeout.
   cli_->set_connection_timeout(std::chrono::seconds(5));
   cli_->set_read_timeout(std::chrono::seconds(recv_timeout_.tv_sec) + std::chrono::microseconds(recv_timeout_.tv_usec));
-  cli_->set_write_timeout(std::chrono::seconds(send_timeout_.tv_sec) + std::chrono::microseconds(send_timeout_.tv_usec));
+  cli_->set_write_timeout(std::chrono::seconds(send_timeout_.tv_sec) +
+                          std::chrono::microseconds(send_timeout_.tv_usec));
 }
 
 void DashboardClientImplX::setReceiveTimeout(const timeval& timeout)
