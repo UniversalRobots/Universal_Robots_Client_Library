@@ -192,8 +192,8 @@ DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::durati
   // so go via microseconds (the smallest unit timeval can represent) and split.
   const auto pwron_us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
   timeval pwron_tv;
-  pwron_tv.tv_sec = static_cast<time_t>(pwron_us.count() / 1'000'000);
-  pwron_tv.tv_usec = static_cast<suseconds_t>(pwron_us.count() % 1'000'000);
+  pwron_tv.tv_sec = static_cast<long>(pwron_us.count() / 1'000'000);
+  pwron_tv.tv_usec = static_cast<long>(pwron_us.count() % 1'000'000);
   setReceiveTimeout(pwron_tv);
 
   DashboardResponse response;
