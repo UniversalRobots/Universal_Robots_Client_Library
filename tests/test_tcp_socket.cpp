@@ -149,8 +149,8 @@ TEST_F(TCPSocketTest, setup_client_before_server)
   // Make sure that the client has tried to connect to the server, before creating the server
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  // Client state should be invalid as long as the server is not available
-  comm::SocketState expected_state = comm::SocketState::Invalid;
+  // Client state should be Connecting while it keeps retrying and the server is not available
+  comm::SocketState expected_state = comm::SocketState::Connecting;
   comm::SocketState actual_state = client_->getState();
 
   EXPECT_EQ(toUnderlying(expected_state), toUnderlying(actual_state));
@@ -296,12 +296,11 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
 // Regression test for the bug where TCPSocket::setup() could block the caller
 // indefinitely when the wait between retry attempts was not interruptible.
 //
-// setup() is interrupted by requestStop(), which sets a sticky cancellation flag
-// and closes the socket. The flag (rather than the transient SocketState::Closed)
-// is what makes this race-free: setup() resets state_ internally on every attempt,
-// so a teardown signal carried only by the socket state could be lost, whereas the
-// dedicated stop flag cannot. This is the path used by ~RTDEClient()/~PrimaryClient()
-// before joining their reconnect threads.
+// setup() is interrupted by disconnect(), which moves the socket into the deliberate-stop
+// state (Disconnecting/Disconnected) and closes it. setup() never overwrites that state and
+// aborts as soon as it observes it, so a teardown signal cannot be lost by setup()'s internal
+// state updates. This is the path used by ~RTDEClient()/~PrimaryClient() before joining their
+// reconnect threads.
 TEST_F(TCPSocketTest, setup_interruptible_by_close)
 {
   // Use a port with no listener so every connect attempt fails immediately,
@@ -321,16 +320,16 @@ TEST_F(TCPSocketTest, setup_interruptible_by_close)
   // Give the thread time to reach the between-attempt wait inside setup().
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-  // requestStop() sets the cancellation flag; the sliced wait in setup() detects it
-  // within 100 ms and setup() returns, allowing the thread to finish.
+  // disconnect() moves the socket to the deliberate-stop state; the sliced wait in setup()
+  // detects it within 100 ms and setup() returns, allowing the thread to finish.
   const auto t0 = std::chrono::steady_clock::now();
-  client.requestStop();
+  client.disconnect();
 
   setup_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   // Without the fix, elapsed would be >= large_reconnect_timeout (5 s).
-  EXPECT_LT(elapsed, std::chrono::seconds(2)) << "TCPSocket::setup() was not interrupted by requestStop() within 2 s; "
+  EXPECT_LT(elapsed, std::chrono::seconds(2)) << "TCPSocket::setup() was not interrupted by disconnect() within 2 s; "
                                                  "the between-attempt wait is not interruptible";
 }
 
@@ -338,7 +337,7 @@ TEST_F(TCPSocketTest, setup_interruptible_by_close)
 // genuinely unreachable host (no SYN-ACK, no RST) must still be abortable. The
 // previous fix only made the between-attempt *sleep* interruptible, not the connect
 // itself, so this case could block for the full OS connect timeout. setup() now uses
-// a non-blocking connect polled in short slices, so requestStop() aborts it promptly.
+// a non-blocking connect polled in short slices, so disconnect() aborts it promptly.
 TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
 {
   // 10.255.255.1 is in a private range and is (almost) never routable, so connect()
@@ -354,7 +353,7 @@ TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
   const auto t0 = std::chrono::steady_clock::now();
-  client.requestStop();
+  client.disconnect();
 
   setup_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
@@ -391,7 +390,7 @@ TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
   char characters;
   size_t read_chars = 0;
   EXPECT_FALSE(client_->read((uint8_t*)&characters, 1, read_chars));
-  EXPECT_EQ(client_->getState(), comm::SocketState::Disconnected);
+  EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
 }
 
 int main(int argc, char* argv[])

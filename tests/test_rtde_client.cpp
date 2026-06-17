@@ -815,8 +815,8 @@ TEST_F(RTDEClientTest, test_initialization)
 
 // Regression test for the bug where ~RTDEClient() could block indefinitely when
 // the reconnect thread was stuck inside TCPSocket::setup(). Fixed by: (1) calling
-// stream_.requestStop() (followed by disconnect()) before joining reconnecting_thread_
-// in ~RTDEClient(), and (2) making TCPSocket::setup() abort on the sticky stop flag,
+// stream_.disconnect() (followed by RTDEClient::disconnect()) before joining reconnecting_thread_
+// in ~RTDEClient(), and (2) making TCPSocket::setup() abort on the deliberate-stop state,
 // both during the (non-blocking) connect attempt and during the between-attempt wait.
 //
 // See also TCPSocketTest.setup_interruptible_by_close and
@@ -875,7 +875,7 @@ TEST_F(RTDEClientTest, destructor_not_blocked_by_stuck_reconnect_thread)
   // Give the reconnect thread time to reach the wait inside TCPSocket::setup().
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-  // The destructor must return quickly: requestStop() aborts setup()'s connect/wait,
+  // The destructor must return quickly: disconnect() aborts setup()'s connect/wait,
   // so the join completes in well under 2 s. Without the fix this would block for
   // >= large_reconnect_timeout (5 s), or forever with unlimited attempts.
   // Run the destructor on a worker with a watchdog so a regression fails fast with a
@@ -888,14 +888,14 @@ TEST_F(RTDEClientTest, destructor_not_blocked_by_stuck_reconnect_thread)
   if (teardown_future.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
   {
     teardown_thread.detach();
-    FAIL() << "~RTDEClient() did not return within 5 s — reconnect thread was not aborted by requestStop()";
+    FAIL() << "~RTDEClient() did not return within 5 s — reconnect thread was not aborted by disconnect()";
   }
   teardown_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   EXPECT_LT(elapsed, std::chrono::seconds(2))
       << "RTDEClient destructor blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-      << " ms — reconnect thread was not aborted by requestStop()";
+      << " ms — reconnect thread was not aborted by disconnect()";
 }
 
 int main(int argc, char* argv[])

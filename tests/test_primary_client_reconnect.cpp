@@ -48,23 +48,22 @@ using namespace urcl;
 // RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread (test_rtde_client.cpp).
 //
 // Root cause: when the robot drops the primary connection, TCPSocket::read()
-// returns false and leaves the socket in SocketState::Disconnected. URProducer's
+// returns false and leaves the socket in SocketState::LostConnection. URProducer's
 // tryGetImpl() then enters its reconnect path: it sleeps an (exponentially
-// growing) backoff and calls stream_.connect(), which retries with no upper
+// growing) backoff and calls stream_.reconnect(), which retries with no upper
 // bound (max_num_tries == 0), sleeping reconnection_time between attempts. If
 // ~PrimaryClient() simply called pipeline_->stop() (which joins the producer
 // thread) without first closing the stream, the join would block for the full
 // reconnect duration — effectively forever for an unreachable robot.
 //
 // Fix (two parts):
-//   1. ~PrimaryClient()/PrimaryClient::stop() call stream_.requestStop() BEFORE
-//      joining the pipeline. requestStop() sets a sticky cancellation flag and
-//      closes the socket.
-//   2. TCPSocket::setup() honors that flag both during its (non-blocking) connect
+//   1. ~PrimaryClient()/PrimaryClient::stop() call stream_.disconnect() BEFORE
+//      joining the pipeline. disconnect() moves the socket into the deliberate-stop
+//      state (Disconnecting/Disconnected) and closes it.
+//   2. TCPSocket::setup() honors that state both during its (non-blocking) connect
 //      attempt and during the between-attempt wait, so it aborts within ~100 ms
-//      regardless of platform (unlike a signal carried only by the socket state,
-//      which setup()'s internal state resets could race away — the bug that hung
-//      Windows CI).
+//      regardless of platform. setup() never overwrites the deliberate-stop state,
+//      so it cannot be raced away (the bug that hung Windows CI).
 // Together these abort the producer within ~100 ms of the destructor, so the join —
 // and therefore the destructor — returns promptly.
 //
@@ -85,14 +84,14 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
   ASSERT_TRUE(server->waitForClient()) << "PrimaryClient never connected to the fake server";
 
   // Drop the server. The producer's read() fails, the socket transitions to
-  // SocketState::Disconnected, and the producer enters its reconnect loop.
+  // SocketState::LostConnection, and the producer enters its reconnect loop.
   server.reset();
 
   // Give the producer time to detect the drop and reach its reconnect sleep
   // (initial backoff is 1 s, after which it sleeps inside TCPSocket::setup()).
   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
-  // The destructor must return quickly: requestStop() aborts the producer's connect
+  // The destructor must return quickly: disconnect() aborts the producer's connect
   // attempt/back-off, so the pipeline join completes well under 2 s. Without the fix
   // this blocks for at least the reconnect timeout (and indefinitely with unlimited
   // retries against a dead port). Run the destructor on a worker with a watchdog so a
@@ -107,14 +106,14 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
   {
     teardown_thread.detach();
     FAIL() << "~PrimaryClient() did not return within 5 s — the producer reconnect thread was not aborted by "
-              "requestStop()";
+              "disconnect()";
   }
   teardown_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   EXPECT_LT(elapsed, std::chrono::seconds(2))
       << "~PrimaryClient() blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-      << " ms — the producer reconnect thread was not aborted by requestStop()";
+      << " ms — the producer reconnect thread was not aborted by disconnect()";
 }
 
 // Regression test for the SECOND symptom reported in issue #368: calling
@@ -124,10 +123,10 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
 //
 // This is distinct from the destructor test above: stop() is a restartable operation, so
 // besides asserting that it returns promptly it must also leave the client in a state where
-// a subsequent start() can reconnect. That exercises the clearStop() reuse path in
-// URProducer::setupProducer()/PrimaryClient::reconnectStream() — a sticky-flag regression
-// there would not hang teardown but would silently prevent the client from ever reconnecting
-// after a stop().
+// a subsequent start() can reconnect. That exercises the implicit clear of the deliberate-stop
+// state by connect() in URProducer::setupProducer()/PrimaryClient::reconnectStream() — a
+// regression there would not hang teardown but would silently prevent the client from ever
+// reconnecting after a stop().
 TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
 {
   comm::INotifier notifier;
@@ -142,14 +141,14 @@ TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
   ASSERT_TRUE(server->waitForClient()) << "PrimaryClient never connected to the fake server";
 
   // Drop the server. The producer's read() fails, the socket transitions to
-  // SocketState::Disconnected, and the producer enters its reconnect loop.
+  // SocketState::LostConnection, and the producer enters its reconnect loop.
   server.reset();
 
   // Give the producer time to detect the drop and reach its reconnect sleep
   // (initial backoff is 1 s, after which it sleeps inside TCPSocket::setup()).
   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
-  // stop() must return quickly: requestStop() aborts the producer's connect attempt/back-off,
+  // stop() must return quickly: disconnect() aborts the producer's connect attempt/back-off,
   // so the pipeline join completes well under 2 s. Without the fix this blocks for at least the
   // reconnect timeout (and indefinitely with unlimited retries against a dead port). Run it on a
   // worker with a watchdog so a regression fails fast with a clear message instead of hanging the
@@ -163,23 +162,23 @@ TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
   {
     stop_thread.detach();
     FAIL() << "PrimaryClient::stop() did not return within 5 s — the producer reconnect thread was not aborted by "
-              "requestStop()";
+              "disconnect()";
   }
   stop_thread.join();
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
   EXPECT_LT(elapsed, std::chrono::seconds(2))
       << "PrimaryClient::stop() blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-      << " ms — the producer reconnect thread was not aborted by requestStop()";
+      << " ms — the producer reconnect thread was not aborted by disconnect()";
 
   // Restart-reuse check: bring up a fresh server and start() again. This must reconnect,
-  // proving that stop()'s sticky cancellation flag was cleared via clearStop() on restart.
+  // proving that the deliberate-stop state set by stop() was cleared by connect() on restart.
   auto server2 = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
   ASSERT_NO_THROW(client->start(/*max_num_tries=*/0, large_reconnect_timeout));
   EXPECT_TRUE(server2->waitForClient(std::chrono::seconds(3))) << "PrimaryClient did not reconnect after "
-                                                                  "stop()/start() — the cancellation flag set by "
+                                                                  "stop()/start() — the deliberate-stop state set by "
                                                                   "stop() was not cleared "
-                                                                  "via clearStop() on restart";
+                                                                  "by connect() on restart";
 }
 
 int main(int argc, char* argv[])

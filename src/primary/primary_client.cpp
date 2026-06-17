@@ -67,12 +67,12 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 PrimaryClient::~PrimaryClient()
 {
   URCL_LOG_INFO("Stopping primary client pipeline");
-  // Request a stop on the stream BEFORE stopping (joining) the pipeline. The pipeline's
-  // producer thread may be sleeping inside its reconnect backoff or blocked in
-  // TCPSocket::setup(); requestStop() sets the cancellation flag and closes the socket so
-  // both paths abort within one poll slice and pipeline_->stop()'s join returns promptly
-  // instead of blocking until the (potentially unbounded) reconnect timeout expires.
-  stream_.requestStop();
+  // Disconnect the stream BEFORE stopping (joining) the pipeline. The pipeline's producer thread
+  // may be sleeping inside its reconnect backoff or blocked in TCPSocket::setup(); disconnect()
+  // moves the socket into the deliberate-stop state and closes it so both paths abort within one
+  // poll slice and pipeline_->stop()'s join returns promptly instead of blocking until the
+  // (potentially unbounded) reconnect timeout expires.
+  stream_.disconnect();
   pipeline_->stop();
 }
 
@@ -85,10 +85,10 @@ void PrimaryClient::start(const size_t max_num_tries, const std::chrono::millise
 
 void PrimaryClient::stop()
 {
-  // Request a stop on the stream before joining the pipeline so a producer thread stuck in
-  // its reconnect path is aborted and the join returns promptly (see ~PrimaryClient). A
-  // subsequent start() clears the flag again via URProducer::setupProducer().
-  stream_.requestStop();
+  // Disconnect the stream before joining the pipeline so a producer thread stuck in its reconnect
+  // path is aborted and the join returns promptly (see ~PrimaryClient). A subsequent start()
+  // reconnects via URProducer::setupProducer(), whose connect() clears the deliberate-stop state.
+  stream_.disconnect();
   pipeline_->stop();
 }
 
@@ -551,10 +551,8 @@ bool PrimaryClient::reconnectStream()
 {
   URCL_LOG_DEBUG("Closing primary stream...");
   stream_.close();
-  // A deliberate reconnect must clear any sticky cancellation left by a prior stop()/teardown
-  // (stream_.requestStop()), otherwise TCPSocket::setup() aborts immediately and the reconnect
-  // fails. Mirrors URProducer::setupProducer() which clears the flag before (re)connecting.
-  stream_.clearStop();
+  // connect() is the explicit reconnect entry: it clears any deliberate disconnect() left by a
+  // prior stop()/teardown before re-establishing, so no separate clear step is needed.
   if (stream_.connect())
   {
     URCL_LOG_DEBUG("Primary stream connected");
