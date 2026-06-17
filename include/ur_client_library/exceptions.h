@@ -33,7 +33,9 @@
 #include <optional>
 #include <stdexcept>
 #include <sstream>
+#include <vector>
 #include "ur/version_information.h"
+#include "ur_client_library/ur/datatypes.h"
 
 #ifdef _WIN32
 #  define NOMINMAX
@@ -336,5 +338,133 @@ public:
     return std::runtime_error::what();
   }
 };
+
+class RobotModeException : public UrException
+{
+public:
+  explicit RobotModeException() = delete;
+
+  explicit RobotModeException(const std::string& operation, const RobotMode& required, const RobotMode& actual)
+    : std::runtime_error("Incorrect robot mode: " + robotModeString(actual))
+  {
+    std::stringstream ss;
+    ss << "Robot is in incorrect mode for the requested operation: " << operation << "\n"
+       << "Required robot mode: " << urcl::robotModeString(required) << " (" << int(required) << ") \n"
+       << "Actual robot mode: " << urcl::robotModeString(actual) << " (" << int(actual) << ")";
+    text_ = ss.str();
+  }
+
+  virtual ~RobotModeException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+
+private:
+  std::string text_;
+};
+
+class SafetyModeException : public UrException
+{
+public:
+  explicit SafetyModeException() = delete;
+
+  explicit SafetyModeException(const std::string& operation, const std::vector<urcl::SafetyMode>& options,
+                               const urcl::SafetyMode& actual)
+    : std::runtime_error("Incorrect safety mode: " + safetyModeString(actual))
+  {
+    std::stringstream ss;
+    ss << "Robot is in incorrect safety mode for the requested operation: " << operation << "\n"
+       << "Safety mode should be one of: \n";
+
+    for (auto mode : options)
+    {
+      ss << urcl::safetyModeString(mode) << " (" << int(mode) << ")\n";
+    }
+    ss << "\n"
+       << "Actual safety mode: " << urcl::safetyModeString(actual) << " (" << int(actual) << ")";
+    text_ = ss.str();
+  }
+
+  virtual ~SafetyModeException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return text_.c_str();
+  }
+
+private:
+  std::string text_;
+};
+
+class StreamNotConnectedException : public UrException
+{
+public:
+  explicit StreamNotConnectedException() = delete;
+
+  explicit StreamNotConnectedException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~StreamNotConnectedException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
+class RobotRuntimeException : public UrException
+{
+public:
+  explicit RobotRuntimeException() = delete;
+
+  explicit RobotRuntimeException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~RobotRuntimeException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
+class ReadOnlyInterfaceException : public UrException
+{
+public:
+  explicit ReadOnlyInterfaceException() = delete;
+
+  explicit ReadOnlyInterfaceException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~ReadOnlyInterfaceException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
+class RobotErrorCodeException : public UrException
+{
+public:
+  explicit RobotErrorCodeException() = delete;
+
+  explicit RobotErrorCodeException(const std::string& text) : std::runtime_error(text)
+  {
+  }
+
+  virtual ~RobotErrorCodeException() = default;
+
+  virtual const char* what() const noexcept override
+  {
+    return std::runtime_error::what();
+  }
+};
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_EXCEPTIONS_H_INCLUDED

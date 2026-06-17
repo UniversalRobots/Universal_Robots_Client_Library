@@ -120,6 +120,54 @@ enum class RobotSeries
   UR_SERIES = 3
 };
 
+enum class ReportLevel : int32_t
+{
+  DEBUG = 0,
+  INFO = 1,
+  WARNING = 2,
+  VIOLATION = 3,
+  FAULT = 4,
+  CRITICAL_FAULT = 5,
+  DEVL_DEBUG = 128,
+  DEVL_INFO = 129,
+  DEVL_WARNING = 130,
+  DEVL_VIOLATION = 131,
+  DEVL_FAULT = 132,
+  DEVL_CRITICAL_FAULT = 133
+};
+
+inline std::string reportLevelString(const ReportLevel& code)
+{
+  switch (code)
+  {
+    case ReportLevel::DEBUG:
+      return "DEBUG";
+    case ReportLevel::INFO:
+      return "INFO";
+    case ReportLevel::WARNING:
+      return "WARNING";
+    case ReportLevel::VIOLATION:
+      return "VIOLATION";
+    case ReportLevel::FAULT:
+      return "FAULT";
+    case ReportLevel::CRITICAL_FAULT:
+      return "CRITICAL_FAULT";
+    case ReportLevel::DEVL_DEBUG:
+      return "DEVL_DEBUG";
+    case ReportLevel::DEVL_INFO:
+      return "DEVL_INFO";
+    case ReportLevel::DEVL_WARNING:
+      return "DEVL_WARNING";
+    case ReportLevel::DEVL_VIOLATION:
+      return "DEVL_VIOLATION";
+    case ReportLevel::DEVL_FAULT:
+      return "DEVL_FAULT";
+    case ReportLevel::DEVL_CRITICAL_FAULT:
+      return "DEVL_CRITICAL_FAULT";
+  }
+  throw std::invalid_argument("Unknown report level: " + std::to_string(static_cast<int>(code)));
+}
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)
@@ -144,11 +192,10 @@ inline std::string robotModeString(const RobotMode& mode)
       return "RUNNING";
     case RobotMode::UPDATING_FIRMWARE:
       return "UPDATING_FIRMWARE";
-    default:
-      std::stringstream ss;
-      ss << "Unknown robot mode: " << static_cast<int>(mode);
-      throw std::invalid_argument(ss.str());
+    case RobotMode::UNKNOWN:
+      return "UNKNOWN";
   }
+  throw std::invalid_argument("Unknown robot mode: " + std::to_string(static_cast<int>(mode)));
 }
 
 inline std::string safetyModeString(const SafetyMode& mode)
@@ -197,11 +244,8 @@ inline std::string safetyModeString(const SafetyMode& mode)
       return "PROFISAFE_EMERGENCY_STOP";
     case SafetyMode::SAFETY_API_SAFEGUARD_STOP:
       return "SAFETY_API_SAFEGUARD_STOP";
-    default:
-      std::stringstream ss;
-      ss << "Unknown safety mode: " << static_cast<int>(mode);
-      throw std::invalid_argument(ss.str());
   }
+  throw std::invalid_argument("Unknown safety mode: " + std::to_string(static_cast<int>(mode)));
 }
 
 inline std::string safetyStatusString(const SafetyStatus& status)
@@ -234,11 +278,8 @@ inline std::string safetyStatusString(const SafetyStatus& status)
       return "AUTOMATIC_MODE_SAFEGUARD_STOP";
     case SafetyStatus::SYSTEM_THREE_POSITION_ENABLING_STOP:
       return "SYSTEM_THREE_POSITION_ENABLING_STOP";
-    default:
-      std::stringstream ss;
-      ss << "Unknown safety status: " << static_cast<int>(status);
-      throw std::invalid_argument(ss.str());
   }
+  throw std::invalid_argument("Unknown safety status: " + std::to_string(static_cast<int>(status)));
 }
 
 inline std::string robotTypeString(const RobotType& type)
@@ -249,22 +290,24 @@ inline std::string robotTypeString(const RobotType& type)
       return "UR3";
     case RobotType::UR5:
       return "UR5";
+    case RobotType::UR8LONG:
+      return "UR8_LONG";
     case RobotType::UR10:
       return "UR10";
     case RobotType::UR15:
       return "UR15";
     case RobotType::UR16:
       return "UR16";
+    case RobotType::UR18:
+      return "UR18";
     case RobotType::UR20:
       return "UR20";
     case RobotType::UR30:
       return "UR30";
-    default:
-      std::stringstream ss;
-      ss << "Unknown Robot Type: " << static_cast<int>(type);
-      URCL_LOG_WARN(ss.str().c_str());
+    case RobotType::UNDEFINED:
       return "UNDEFINED";
   }
+  throw std::invalid_argument("Unknown robot type: " + std::to_string(static_cast<int>(type)));
 }
 
 /**
@@ -286,12 +329,10 @@ inline std::string robotSeriesString(const RobotSeries& series)
       return "E_SERIES";
     case RobotSeries::UR_SERIES:
       return "UR_SERIES";
-    default:
-      std::stringstream ss;
-      ss << "Unknown Robot Series: " << static_cast<int>(series);
-      URCL_LOG_WARN(ss.str().c_str());
+    case RobotSeries::UNDEFINED:
       return "UNDEFINED";
   }
+  throw std::invalid_argument("Unknown robot series: " + std::to_string(static_cast<int>(series)));
 }
 
 }  // namespace urcl

@@ -29,24 +29,12 @@
 #define UR_CLIENT_LIBRARY_PRIMARY_ERROR_CODE_MESSAGE_H_INCLUDED
 
 #include "ur_client_library/primary/robot_message.h"
+#include "ur_client_library/ur/datatypes.h"
 
 namespace urcl
 {
 namespace primary_interface
 {
-enum class ReportLevel : int32_t
-{
-  DEBUG = 0,
-  INFO = 1,
-  WARNING = 2,
-  VIOLATION = 3,
-  FAULT = 4,
-  DEVL_DEBUG = 128,
-  DEVL_INFO = 129,
-  DEVL_WARNING = 130,
-  DEVL_VIOLATION = 131,
-  DEVL_FAULT = 132
-};
 
 struct ErrorCode
 {
