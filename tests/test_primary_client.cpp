@@ -674,7 +674,7 @@ TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
   });
 
   // Fails even with retry
-  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false),
+  EXPECT_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false, true),
                ReadOnlyInterfaceException);
 
   bool retry = false;
@@ -700,7 +700,7 @@ TEST_F(PrimaryClientFakeTest, test_send_script_to_read_only_server)
 
   retry = false;
   // Succeeds on retry
-  EXPECT_NO_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false));
+  EXPECT_NO_THROW(client_->sendScriptBlocking(script_code, "test_fun", std::chrono::milliseconds(1000), false, true));
 }
 
 TEST_F(PrimaryClientFakeTest, test_send_script_blocking_timeout_on_no_response)
