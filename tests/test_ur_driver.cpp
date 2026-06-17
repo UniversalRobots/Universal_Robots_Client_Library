@@ -360,6 +360,9 @@ TEST_F(UrDriverTest, set_tcp_offset)
     EXPECT_DOUBLE_EQ(tcp_offset_received[i], tcp_offset[i]);
   }
 
+  // reset the tcp offset to avoid affecting other tests
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset({ 0, 0, 0, 0, 0, 0 }));
+
   // Stop program on robot
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
