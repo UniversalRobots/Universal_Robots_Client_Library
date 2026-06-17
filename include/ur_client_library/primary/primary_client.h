@@ -371,11 +371,11 @@ private:
   void keyMessageCallback(KeyMessage& msg);
   void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
 
-  ScriptInfo prepare_script(std::string script, std::string script_name);
-  std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
-  std::string truncate_script_name(std::string candidate_name);
-  void send_script_monitor_execution(const ScriptInfo& script_info, const std::chrono::milliseconds& timeout,
-                                     const bool fail_on_warnings);
+  ScriptInfo prepareScript(std::string script, std::string script_name);
+  std::vector<std::string> stripCommentsAndWhitespace(std::vector<std::string> script_lines);
+  std::string truncateScriptName(std::string candidate_name);
+  void sendScriptMonitorExecution(const ScriptInfo& script_info, const std::chrono::milliseconds& timeout,
+                                  const bool fail_on_warnings);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;
