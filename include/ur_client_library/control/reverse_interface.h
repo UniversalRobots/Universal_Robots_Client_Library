@@ -82,6 +82,7 @@ class ReverseInterface
 {
 public:
   static const int32_t MULT_JOINTSTATE = 1000000;
+  static const int32_t MULT_TIME = 1000000;
 
   ReverseInterface() = delete;
   /*!

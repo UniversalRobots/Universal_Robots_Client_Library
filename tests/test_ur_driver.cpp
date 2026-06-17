@@ -360,6 +360,9 @@ TEST_F(UrDriverTest, set_tcp_offset)
     EXPECT_DOUBLE_EQ(tcp_offset_received[i], tcp_offset[i]);
   }
 
+  // reset the tcp offset to avoid affecting other tests
+  ASSERT_TRUE(g_my_robot->getUrDriver()->setTcpOffset({ 0, 0, 0, 0, 0, 0 }));
+
   // Stop program on robot
   g_my_robot->getUrDriver()->stopControl();
   g_my_robot->waitForProgramNotRunning(1000);
@@ -372,6 +375,36 @@ TEST_F(UrDriverTest, set_tcp_offset)
 
   // Check that we can't set TCP offset when the program isn't running
   ASSERT_FALSE(g_my_robot->getUrDriver()->setTcpOffset(tcp_offset));
+}
+
+TEST_F(UrDriverTest, set_target_payload_fallback_script)
+{
+  g_my_robot->getUrDriver()->stopControl();
+  ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  double mass = 1.0;
+  vector3d_t cog = { 0.2, 0.3, 0.1 };
+  vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
+  double transition_time = 0.002;
+
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time));
+
+  // restore empty payload
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
+}
+
+TEST_F(UrDriverTest, set_target_payload)
+{
+  double mass = 1.0;
+  vector3d_t cog = { 0.2, 0.3, 0.1 };
+  vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
+  double transition_time = 0.002;
+
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time));
+
+  // restore empty payload
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)

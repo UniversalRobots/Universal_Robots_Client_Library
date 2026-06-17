@@ -25,6 +25,7 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 - ``setGravity()``: Set the gravity vector for the robot.
 - ``setTcpOffset()``: Set the TCP offset of the robot.
 - ``setFrictionScales()``: Set viscous and Coulomb friction scale factors for direct torque control.
+- ``setTargetPayload()``: Set the active payload mass, center of gravity, inertia matrix and transition time.
 
 Communication protocol
 ----------------------
@@ -58,6 +59,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 9: setGravity
            - 10: setTcpOffset
            - 11: setFrictionScales
+           - 12: setTargetPayload
    1-27   data fields specific to the command
    =====  =====
 
@@ -77,7 +79,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    index  meaning
    =====  =====
    1      Payload mass in kg (floating point)
-   2-4    Payload center of gravity in m, displacement from the toolmpount (floating point)
+   2-4    Payload center of gravity in m, displacement from the tool mount (floating point)
    =====  =====
 
 .. table:: With setToolVoltage command
@@ -180,6 +182,18 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    7-12   Coulomb friction scale factors. One number per joint, range [0-1]. 0 means no compensation for that joint. 1 means full compensation. Default is [0.8, 0.8, 0.7, 0.8, 0.8, 0.8]. (floating point)
    =====  =====
 
+.. table:: With setTargetPayload command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1      Payload mass in kg (floating point)
+   2-4    Payload center of gravity in m, displacement from the tool mount (floating point)
+   5-10   Payload inertia matrix [Ixx, Iyy, Izz, Ixy, Ixz, Iyz] in kg·m² (floating point)
+   11     Payload transition time in seconds (floating point)
+   =====  =====
+
 .. note::
    In URScript the ``socket_read_binary_integer()`` function is used to read the data from the
    script command socket. The first index in that function's return value is the number of integers read,
@@ -188,9 +202,9 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    function. E.g. reading the boolean value for friction compensation in the
    ``setFrictionCompensation`` command would be done by accessing index 2 of the result array.
 
-   All floating point data is encoded into an integer representation and has to be divided by the
-   ``MULT_JOINTSTATE`` constant to get the actual floating point value. This constant is defined in
-   ``ReverseInterface`` class.
+   All floating point data is encoded into an integer representation and has to be divided by either the
+   ``MULT_JOINTSTATE`` or ``MULT_TIME`` constant to get the actual floating point value. These constants
+   are defined in the ``ReverseInterface`` class.
 
 Data sent from the robot
 ^^^^^^^^^^^^^^^^^^^^^^^^
