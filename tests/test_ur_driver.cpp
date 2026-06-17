@@ -385,9 +385,10 @@ TEST_F(UrDriverTest, set_target_payload_fallback_script)
   vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
   double transition_time = 0.002;
 
-  bool result = g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time);
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time));
 
-  EXPECT_TRUE(result);
+  // restore empty payload
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
 }
 
 TEST_F(UrDriverTest, set_target_payload)
@@ -397,9 +398,10 @@ TEST_F(UrDriverTest, set_target_payload)
   vector6d_t inertia = { 0.4, 0.7, 0.8, 0.2, 0.5, 0.6 };
   double transition_time = 0.002;
 
-  bool result = g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time);
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(mass, cog, inertia, transition_time));
 
-  EXPECT_TRUE(result);
+  // restore empty payload
+  EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
