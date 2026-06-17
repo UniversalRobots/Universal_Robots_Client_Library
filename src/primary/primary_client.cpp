@@ -137,8 +137,8 @@ bool PrimaryClient::safetyModeAllowsExecution()
   }
 }
 
-void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
-                                       std::chrono::milliseconds start_timeout, bool fail_on_warnings,
+void PrimaryClient::sendScriptBlocking(const std::string& program, const std::string& script_name,
+                                       const std::chrono::milliseconds start_timeout, const bool fail_on_warnings,
                                        const bool retry_on_readonly_interface)
 {
   ScriptInfo script_info = prepare_script(program, script_name);

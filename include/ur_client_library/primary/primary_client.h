@@ -140,9 +140,9 @@ public:
    * transferred. This can happen if the robot was recently switched from manual to remote control mode.
    * \throw urcl::RobotErrorCodeException if the robot encounters an error during script execution.
    */
-  void sendScriptBlocking(const std::string& program, std::string script_name = "",
-                          std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
-                          bool fail_on_warnings = true, const bool retry_on_readonly_interface = true);
+  void sendScriptBlocking(const std::string& program, const std::string& script_name = "",
+                          const std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
+                          const bool fail_on_warnings = true, const bool retry_on_readonly_interface = true);
 
   bool checkCalibration(const std::string& checksum);
 

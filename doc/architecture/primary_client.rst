@@ -27,9 +27,9 @@ Method signature:
 
    bool sendScriptBlocking(
      const std::string& program,
-     std::string script_name = "",
-     std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
-     bool fail_on_warnings = true,
+     const std::string& script_name = "",
+     const std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
+     const bool fail_on_warnings = true,
      const bool retry_on_readonly_interface = true
    );
 
