@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.13.0 (2026-06-17)
+-------------------
 * [ScriptCommandInterface] Add set_target_payload support to ScriptCommandInterface (`#515 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/515>`_)
 * [Primary] sendScriptBlocking: Restart interface and resend script on readOnlyInterfaceException (`#522 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/522>`_)
 * [DashboardClientX] Apply httplib timeouts; wire setReceiveTimeout() (`#518 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/518>`_)
