@@ -137,18 +137,19 @@ bool PrimaryClient::safetyModeAllowsExecution()
   }
 }
 
-void PrimaryClient::sendScriptBlocking(const std::string& program, std::string script_name,
-                                       std::chrono::milliseconds timeout, bool fail_on_warnings)
+void PrimaryClient::sendScriptBlocking(const std::string& program, const std::string& script_name,
+                                       const std::chrono::milliseconds start_timeout, const bool fail_on_warnings,
+                                       const bool retry_on_readonly_interface)
 {
-  ScriptInfo script_info = prepare_script(program, script_name);
+  ScriptInfo script_info = prepareScript(program, script_name);
 
   RobotMode robot_mode = getRobotMode();
   std::chrono::milliseconds robot_mode_timeout(1000);
-  auto start = std::chrono::system_clock::now();
+  auto start_time = std::chrono::system_clock::now();
   while (robot_mode == RobotMode::UNKNOWN)
   {
     auto now = std::chrono::system_clock::now();
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() > robot_mode_timeout.count())
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > robot_mode_timeout.count())
     {
       throw TimeoutException("Robot mode not received within timeout. ", robot_mode_timeout);
     }
@@ -172,6 +173,31 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
 
     throw SafetyModeException("Script execution via primary interface", allowed_modes, getSafetyMode());
   }
+
+  try
+  {
+    sendScriptMonitorExecution(script_info, start_timeout, fail_on_warnings);
+  }
+  catch ([[maybe_unused]] const ReadOnlyInterfaceException& exc)
+  {
+    if (retry_on_readonly_interface)
+    {
+      URCL_LOG_INFO("Script execution failed due to the primary interface being read-only. Restarting primary "
+                    "interface and retrying once.");
+      stop();
+      start();
+      sendScriptMonitorExecution(script_info, start_timeout, fail_on_warnings);
+    }
+    else
+    {
+      throw;
+    }
+  }
+}
+
+void PrimaryClient::sendScriptMonitorExecution(const ScriptInfo& script_info, const std::chrono::milliseconds& timeout,
+                                               const bool fail_on_warnings)
+{
   // Clear runtime exception
   {
     std::scoped_lock lock(runtime_exception_mutex_);
@@ -191,6 +217,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
     throw StreamNotConnectedException("Script could not be sent to the robot. Ensure that the primary interface is "
                                       "connected.");
   }
+
   // No feedback from secondary programs, so we assume success
   if (script_info.script_type == ScriptTypes::SEC)
   {
@@ -389,7 +416,7 @@ void PrimaryClient::sendScriptBlocking(const std::string& program, std::string s
   }
 }
 
-std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vector<std::string> split_script)
+std::vector<std::string> PrimaryClient::stripCommentsAndWhitespace(std::vector<std::string> split_script)
 {
   std::vector<std::string> stripped_script;
   for (auto line : split_script)
@@ -413,7 +440,7 @@ std::vector<std::string> PrimaryClient::strip_comments_and_whitespace(std::vecto
   return stripped_script;
 }
 
-std::string PrimaryClient::truncate_script_name(const std::string candidate_name)
+std::string PrimaryClient::truncateScriptName(const std::string candidate_name)
 {
   std::string final_name = candidate_name;
   // Limit script name length to 31, to ensure backwards compatibility
@@ -426,13 +453,13 @@ std::string PrimaryClient::truncate_script_name(const std::string candidate_name
   return final_name;
 }
 
-ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_name)
+ScriptInfo PrimaryClient::prepareScript(std::string script, std::string script_name)
 {
   // Split the given script in to separate lines
   std::vector<std::string> split_script = splitString(script, "\n");
 
   // Remove all comments and white-space-only lines
-  std::vector<std::string> stripped_script = strip_comments_and_whitespace(split_script);
+  std::vector<std::string> stripped_script = stripCommentsAndWhitespace(split_script);
 
   if (stripped_script.size() == 0)
   {
@@ -452,7 +479,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
       stripped_script[0].substr(0, 4).find("sec ") == script.npos)
   {
     // Check that the final name is not too long
-    actual_script_name = truncate_script_name(actual_script_name);
+    actual_script_name = truncateScriptName(actual_script_name);
     std::string definition = "def " + actual_script_name + "():";
     std::string end = "end";
     // Add indentation to the existing script code
@@ -483,7 +510,7 @@ ScriptInfo PrimaryClient::prepare_script(std::string script, std::string script_
       actual_script_type = ScriptTypes::SEC;
     }
     // Check that the script name is not too long, replace it, if it is
-    actual_script_name = truncate_script_name(name_in_script);
+    actual_script_name = truncateScriptName(name_in_script);
     if (actual_script_name.size() != name_in_script.size())
     {
       stripped_script[0].replace(stripped_script[0].find(name_in_script), name_in_script.size(), actual_script_name);

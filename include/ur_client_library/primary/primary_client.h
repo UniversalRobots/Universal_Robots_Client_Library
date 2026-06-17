@@ -95,7 +95,10 @@ public:
   /*!
    * \brief Sends a custom script program to the robot.
    *
-   * The given code must be valid according the UR Scripting Manual.
+   * The given code must be valid according the UR Scripting Manual. This function doesn't give any
+   * feedback whether the script was executed successfully or not, it only reports whether the
+   * script was uploaded to the robot or not. For feedback on the execution of the script, use
+   * sendScriptBlocking().
    *
    * \param program URScript code that shall be executed by the robot.
    *
@@ -123,6 +126,14 @@ public:
    * \param fail_on_warnings Whether or not the function should report a failure, if the robot reports a warning-level
    * error during execution. Default true
    *
+   * \param retry_on_readonly_interface Whether to retry, if the primary interface is read-only. This will restart the
+   * primary interface connection, and then try sending the script again. If the interface is still read-only a
+   * ReadOnlyInterfaceException will be thrown. Default true
+   * \note The primary interface connection is read-only when the robot is not in remote control
+   * mode. If the robot switches from local control mode to remote control mode, the connection
+   * remains read-only. In this case, reconnecting will result in a read-write primary interface connection, and the
+   * script can be executed successfully.
+   *
    * \throw urcl::ScriptCodeSyntaxException if the given script code has syntax errors, which are checked here.
    * \throw urcl::UrException if the stop command cannot be sent to the robot.
    * \throw urcl::TimeoutException if the robot doesn't stop the program within the given timeout.
@@ -136,9 +147,9 @@ public:
    * transferred. This can happen if the robot was recently switched from manual to remote control mode.
    * \throw urcl::RobotErrorCodeException if the robot encounters an error during script execution.
    */
-  void sendScriptBlocking(const std::string& program, std::string script_name = "",
-                          std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
-                          bool fail_on_warnings = true);
+  void sendScriptBlocking(const std::string& program, const std::string& script_name = "",
+                          const std::chrono::milliseconds start_timeout = std::chrono::seconds(1),
+                          const bool fail_on_warnings = true, const bool retry_on_readonly_interface = true);
 
   bool checkCalibration(const std::string& checksum);
 
@@ -338,7 +349,8 @@ public:
    */
   RobotSeries getRobotSeries();
 
-  /* \brief Check if the current safety mode allows for script execution
+  /*!
+   * \brief Check if the current safety mode allows for script execution
    *
    * Safety modes allowing for execution are: NORMAL, REDUCED, RECOVERY, UNDEFINED_SAFETY_MODE
    */
@@ -359,9 +371,11 @@ private:
   void keyMessageCallback(KeyMessage& msg);
   void runtimeExceptionCallback(RuntimeExceptionMessage& msg);
 
-  ScriptInfo prepare_script(std::string script, std::string script_name);
-  std::vector<std::string> strip_comments_and_whitespace(std::vector<std::string> script_lines);
-  std::string truncate_script_name(std::string candidate_name);
+  ScriptInfo prepareScript(std::string script, std::string script_name);
+  std::vector<std::string> stripCommentsAndWhitespace(std::vector<std::string> script_lines);
+  std::string truncateScriptName(std::string candidate_name);
+  void sendScriptMonitorExecution(const ScriptInfo& script_info, const std::chrono::milliseconds& timeout,
+                                  const bool fail_on_warnings);
 
   PrimaryParser parser_;
   std::shared_ptr<PrimaryConsumer> consumer_;
