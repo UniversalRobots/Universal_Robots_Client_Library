@@ -74,7 +74,7 @@ private:
         continue;
       }
 
-      if (stream_.closed())
+      if (stream_.closed() || stream_.stopRequested())
         return false;
 
       if (on_reconnect_cb_)
@@ -92,16 +92,16 @@ private:
       // to 120 s while this thread sleeps here.
       const auto sleep_slice = std::chrono::milliseconds(100);
       const auto sleep_total = std::chrono::duration_cast<std::chrono::milliseconds>(timeout_);
-      for (auto slept = std::chrono::milliseconds(0); slept < sleep_total && running_ && !stream_.closed();
-           slept += sleep_slice)
+      for (auto slept = std::chrono::milliseconds(0);
+           slept < sleep_total && running_ && !stream_.closed() && !stream_.stopRequested(); slept += sleep_slice)
       {
         std::this_thread::sleep_for(sleep_slice);
       }
 
-      if (!running_ || stream_.closed())
+      if (!running_ || stream_.closed() || stream_.stopRequested())
         return false;
 
-      if (stream_.connect())
+      if (stream_.reconnect())
         continue;
 
       auto next = timeout_ * 2;
@@ -133,9 +133,6 @@ public:
   void setupProducer(const size_t max_num_tries = 0,
                      const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
-    // Clear any cancellation request left over from a previous teardown so the stream can be
-    // (re)used. Safe here because this runs on the controlling thread before the producer loop.
-    stream_.clearStop();
     timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;

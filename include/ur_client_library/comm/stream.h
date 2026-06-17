@@ -63,16 +63,32 @@ public:
   bool connect(const size_t max_num_tries = 0,
                const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
   {
-    return TCPSocket::setup(host_, port_, max_num_tries, reconnection_time);
+    return TCPSocket::connect(host_, port_, max_num_tries, reconnection_time);
   }
 
   /*!
-   * \brief Disconnects from the configured socket.
+   * \brief Re-establishes the connection after an unexpected drop, without clearing a deliberate
+   * disconnect(). Used by the automatic reconnect path.
+   *
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time time in between connection attempts to the server
+   *
+   * \returns True on success, false if it could not reconnect or a deliberate disconnect() is in
+   * effect
+   */
+  bool reconnect(const size_t max_num_tries = 0,
+                 const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+  {
+    return TCPSocket::reconnect(host_, port_, max_num_tries, reconnection_time);
+  }
+
+  /*!
+   * \brief Deliberately disconnects from the configured socket, leaving it ready to connect again.
    */
   void disconnect()
   {
     URCL_LOG_DEBUG("Disconnecting from %s:%d", host_.c_str(), port_);
-    TCPSocket::close();
+    TCPSocket::disconnect();
   }
 
   /*!
@@ -81,6 +97,16 @@ public:
   bool closed()
   {
     return getState() == SocketState::Closed;
+  }
+
+  /*!
+   * \brief Returns whether a deliberate disconnect() is in progress or in effect (the socket will
+   * not auto-reconnect until connect() is called again).
+   */
+  bool stopRequested()
+  {
+    const SocketState s = getState();
+    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
   }
 
   /*!

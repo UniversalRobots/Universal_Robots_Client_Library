@@ -36,10 +36,14 @@ namespace comm
  */
 enum class SocketState
 {
-  Invalid,       ///< Socket is initialized or setup failed
-  Connected,     ///< Socket is connected and ready to use
-  Disconnected,  ///< Socket is disconnected and cannot be used
-  Closed         ///< Connection to socket got closed
+  Invalid,         ///< Socket is initialized but was never connected
+  Connecting,      ///< A first-time connect() attempt is in progress
+  Connected,       ///< Socket is connected and ready to use
+  LostConnection,  ///< Connection dropped unexpectedly; auto-reconnect is expected to pick it up
+  Reconnecting,    ///< An automatic reconnect attempt (after a drop) is in progress
+  Disconnecting,   ///< A deliberate disconnect() is in progress
+  Disconnected,    ///< Deliberately disconnected; will NOT auto-reconnect until connect() is called
+  Closed           ///< Neutral low-level close (clearable by a subsequent (re)connect)
 };
 
 /*!
@@ -53,18 +57,25 @@ private:
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
 
-  // Cancellation token used to abort a connection attempt that is currently in
-  // progress (either waiting inside connect() or sleeping between attempts).
-  // This is intentionally orthogonal to state_: a SocketState::Closed left over
-  // from a deliberate close()+connect() reconnect must NOT abort a fresh
-  // attempt, whereas requestStop() (used at teardown) must abort reliably and
-  // cannot be clobbered by setup()'s internal state_ resets.
-  std::atomic<bool> stop_requested_{ false };
-
   void setupOptions();
 
+  // True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
+  // set"). The connect/retry machinery checks this to abort, and never overwrites these states,
+  // so a teardown disconnect() that races a reconnect attempt is observed reliably.
+  bool isStopRequested() const
+  {
+    const SocketState s = state_.load();
+    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
+  }
+
+  // Atomically moves state_ to `desired`, unless a deliberate disconnect() (Disconnecting or
+  // Disconnected) is in effect. Returns true if the state was set, false if a deliberate stop is
+  // active (in which case state_ is left untouched). This is how the connect/retry machinery
+  // updates its in-progress state without ever clobbering a teardown signal.
+  bool setStateUnlessStopRequested(SocketState desired);
+
   // Performs an interruptible, non-blocking connect on an already-created socket.
-  // Polls in short slices so that a concurrent requestStop() aborts the attempt
+  // Polls in short slices so that a concurrent disconnect() aborts the attempt
   // promptly on all platforms (POSIX close() of a blocked connect() is reliable,
   // Winsock's is not). Restores blocking mode on success.
   bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
@@ -77,6 +88,18 @@ protected:
 
   bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
              const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Re-establishes a connection after an unexpected drop, without clearing a deliberate
+   * disconnect().
+   *
+   * Used by the automatic reconnect path (e.g. the producer loop). If a deliberate disconnect()
+   * is in progress or has completed, this returns false immediately instead of reconnecting, so a
+   * concurrent teardown is never undone. Otherwise behaves like setup() but marks the socket as
+   * Reconnecting while the attempt is in progress.
+   */
+  bool reconnect(const std::string& host, const int port, const size_t max_num_tries = 0,
+                 const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
 
   std::unique_ptr<timeval> recv_timeout_;
 
@@ -147,29 +170,42 @@ public:
   bool write(const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
+   * \brief Establishes a connection to the configured host/port.
+   *
+   * This is the explicit (re)connect entry point. It clears any prior deliberate disconnect()
+   * (moving the socket to Connecting) and then attempts to connect, retrying up to max_num_tries
+   * times (unlimited when 0). Call this on the controlling thread; the automatic reconnect path
+   * uses the internal reconnect() instead.
+   *
+   * \param host Host to connect to
+   * \param port Port to connect to
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time Time between connection attempts
+   *
+   * \returns True on success, false if the connection could not be established or was aborted by
+   * a concurrent disconnect()
+   */
+  bool connect(const std::string& host, const int port, const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Deliberately disconnects the socket and leaves it ready to connect() again.
+   *
+   * Moves the socket into the deliberate-stop set (Disconnecting then Disconnected) and closes the
+   * underlying file descriptor. Any connect/reconnect attempt currently in progress (blocked in a
+   * connect or sleeping between attempts) aborts promptly, and the automatic reconnect path will
+   * not reconnect until connect() is called again. Use this at teardown (e.g. from a destructor)
+   * before joining a reconnect thread.
+   */
+  void disconnect();
+
+  /*!
    * \brief Closes the connection to the socket.
+   *
+   * Neutral low-level close. Unlike disconnect(), it does not prevent a subsequent automatic
+   * reconnect, and it never downgrades a deliberate disconnect() that is already in effect.
    */
   void close();
-
-  /*!
-   * \brief Requests that any in-progress (or future) connection attempt be aborted.
-   *
-   * Sets a sticky cancellation flag and closes the socket. A reconnect thread that is
-   * waiting inside setup() (either in connect() or in the between-attempt back-off) returns
-   * promptly instead of blocking until the reconnection timeout expires. Use this at teardown
-   * (e.g. from a destructor) before joining a reconnect thread. The flag stays set until
-   * clearStop() is called, so it cannot be lost by a racing internal state reset.
-   */
-  void requestStop();
-
-  /*!
-   * \brief Clears the cancellation flag set by requestStop().
-   *
-   * Must be called on a controlled (re)start before attempting to connect again, so a socket
-   * that was previously stopped can be reused. Never call this concurrently with a reconnect
-   * thread.
-   */
-  void clearStop();
 
   /*!
    * \brief Setup Receive timeout used for this socket.
