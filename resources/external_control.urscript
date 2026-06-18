@@ -33,6 +33,16 @@ REVERSE_INTERFACE_DATA_DIMENSION = 8
 
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
+TRAJECTORY_MODE_STREAM_START = 2
+TRAJECTORY_MODE_STREAM_END = 3
+
+# Sentinel value used for trajectory_points_left while an open-ended
+# streaming trajectory is in progress. The trajectoryThread predicate
+# "trajectory_points_left > 0" stays as written; this large starting
+# value keeps the loop running until either STREAM_END converts the
+# remaining unread points to a finite count, or the producer underruns.
+# 2^31 - 1 is exactly representable in URScript (double precision).
+STREAMING_SENTINEL = 2147483647
 
 MOTION_TYPE_MOVEJ = 0
 MOTION_TYPE_MOVEL = 1
@@ -102,6 +112,7 @@ global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
+global trajectory_streaming = False
 global spline_qdd = [0, 0, 0, 0, 0, 0]
 global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
@@ -538,6 +549,10 @@ thread trajectoryThread():
   textmsg("Executing trajectory. Number of points: ", trajectory_points_left)
   local is_first_point = True
   local is_robot_moving = False
+  # Snapshot streaming-ness at thread spawn so the underrun else-branch
+  # can distinguish a clean post-STREAM_END drain (flag has since been
+  # cleared) from a mid-stream underrun (flag still set).
+  local was_streaming_at_start = trajectory_streaming
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
@@ -754,8 +769,15 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
       end
     else:
-      textmsg("Receiving trajectory point failed!")
-      trajectory_result = TRAJECTORY_RESULT_FAILURE
+      if was_streaming_at_start and not trajectory_streaming:
+        # Producer signalled STREAM_END between the predicate check and
+        # the socket read. Drop any pending unread points and exit cleanly
+        # rather than spin one timeout per missing point.
+        trajectory_points_left = 0
+      else:
+        textmsg("Receiving trajectory point failed!")
+        trajectory_result = TRAJECTORY_RESULT_FAILURE
+      end
     end
     is_first_point = False
   end
@@ -939,11 +961,11 @@ thread script_commands():
         friction_compensation_mode = FRICTION_COMP_MODE_FRICTION_SCALES
         viscous_scale = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
         coulomb_scale = [raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate, raw_command[12] / MULT_jointstate, raw_command[13] / MULT_jointstate]
-      elif command == SET_TARGET_PAYLOAD:  
-        mass = raw_command[2] / MULT_jointstate  
-        cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]  
+      elif command == SET_TARGET_PAYLOAD:
+        mass = raw_command[2] / MULT_jointstate
+        cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
         inertia = [raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate, raw_command[8] / MULT_jointstate, raw_command[9] / MULT_jointstate, raw_command[10] / MULT_jointstate, raw_command[11] / MULT_jointstate]
-        transition_time = raw_command[12] / MULT_time  
+        transition_time = raw_command[12] / MULT_time
         {% if ROBOT_SOFTWARE_VERSION >= v5.10.0 %}
           set_target_payload(mass, cog, inertia, transition_time)
         {% else %}
@@ -1137,6 +1159,22 @@ while control_mode > MODE_STOPPED:
         wait_for_trajectory_cleanup()
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
+      elif params_mult[2] == TRAJECTORY_MODE_STREAM_START:
+        kill thread_trajectory
+        request_trajectory_cleanup()
+        wait_for_trajectory_cleanup()
+        trajectory_streaming = True
+        trajectory_points_left = STREAMING_SENTINEL
+        thread_trajectory = run trajectoryThread()
+      elif params_mult[2] == TRAJECTORY_MODE_STREAM_END:
+        # params_mult[3] is the total count of spline points the producer
+        # wrote to the trajectory socket since STREAM_START. Convert the
+        # in-flight sentinel into the remaining unread count:
+        #   M_consumed = STREAMING_SENTINEL - trajectory_points_left
+        #   remaining  = params_mult[3] - M_consumed
+        #              = trajectory_points_left + params_mult[3] - STREAMING_SENTINEL
+        trajectory_points_left = trajectory_points_left + params_mult[3] - STREAMING_SENTINEL
+        trajectory_streaming = False
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
         textmsg("cancel received")
         kill thread_trajectory

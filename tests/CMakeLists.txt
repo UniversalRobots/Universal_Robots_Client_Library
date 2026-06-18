@@ -114,6 +114,16 @@ if (INTEGRATION_TESTS)
                   TEST_SUFFIX _headless
   )
 
+  # Streaming trajectory tests. Headless-only; the URCap path does not
+  # exercise anything different at the URScript level for streaming.
+  add_executable(trajectory_streaming_tests_headless test_trajectory_streaming.cpp)
+  target_link_libraries(trajectory_streaming_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET      trajectory_streaming_tests_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
+                  TEST_SUFFIX _headless
+  )
+
   # InstructionExecutor tests
   add_executable(instruction_executor_test_urcap test_instruction_executor.cpp)
   target_link_libraries(instruction_executor_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
