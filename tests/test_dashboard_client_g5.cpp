@@ -667,7 +667,7 @@ int main(int argc, char* argv[])
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
       g_ROBOT_IP = argv[i + 1];
-      break;
+      ++i;
     }
   }
 
