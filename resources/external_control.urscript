@@ -1168,12 +1168,13 @@ while control_mode > MODE_STOPPED:
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_STREAM_END:
         # params_mult[3] is the total count of spline points the producer
-        # wrote to the trajectory socket since STREAM_START. Convert the
-        # in-flight sentinel into the remaining unread count:
-        #   M_consumed = STREAMING_SENTINEL - trajectory_points_left
-        #   remaining  = params_mult[3] - M_consumed
-        #              = trajectory_points_left + params_mult[3] - STREAMING_SENTINEL
-        trajectory_points_left = trajectory_points_left + params_mult[3] - STREAMING_SENTINEL
+        # wrote to the trajectory socket since STREAM_START. The
+        # trajectoryThread has decremented trajectory_points_left once per
+        # consumed point starting from STREAMING_SENTINEL, so the consumed
+        # count is (STREAMING_SENTINEL - trajectory_points_left). The
+        # unread remainder still in the OS socket buffer is therefore
+        # the producer's total minus the consumer's consumed count.
+        trajectory_points_left = params_mult[3] - (STREAMING_SENTINEL - trajectory_points_left)
         trajectory_streaming = False
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
         textmsg("cancel received")
