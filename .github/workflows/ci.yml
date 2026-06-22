@@ -13,7 +13,7 @@ jobs:
     name: ubuntu_build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install build-tools
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-pandas python3-lxml
       - name: configure
@@ -75,7 +75,7 @@ jobs:
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: start ursim
         run: |
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
@@ -260,7 +260,7 @@ jobs:
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: start ursim
         run: |
           scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
@@ -298,7 +298,7 @@ jobs:
   test_start_ursim:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'  # Not needed with a .ruby-version, .tool-versions or mise.toml
