@@ -53,18 +53,32 @@
 //
 // Caller contract:
 //
-//   1. Do not starve the controller. Once trajectory execution begins, the
-//      URScript-side reader times out reads after one step time (~8 ms once
-//      moving). A timeout while streaming is treated as a producer fault and
-//      yields TRAJECTORY_RESULT_FAILURE via the trajectory-done callback.
-//      The producer must keep at least one point in flight on the trajectory
-//      socket at all times until STREAM_END has been sent.
+//   1. The next point must be in the OS socket buffer before the
+//      currently-executing point's spline finishes. The URScript reader
+//      only attempts a socket read after finishing each spline segment;
+//      the read uses a short timeout (~8 ms on PolyScope 5, ~2 ms on
+//      PolyScope X), and if no point is available within that window
+//      the trajectory ends with TRAJECTORY_RESULT_FAILURE.
+//
+//      The implication: the time you have between consecutive writes is
+//      essentially the in-progress point's tmptime. Dense trajectories
+//      (8 ms per point) demand 8 ms-paced production. Sparse trajectories
+//      (1 s per point) give you 1 s. A single point with tmptime = 60 s
+//      gives you a full minute to produce the next one.
+//
+//      The simplest correct producer pattern is "write as fast as you
+//      can": call writeTrajectorySplinePoint in a tight loop. The OS
+//      send/receive buffer absorbs ~760 spline points; TCP backpressure
+//      naturally throttles the producer when the buffer fills, blocking
+//      writeTrajectorySplinePoint until the consumer has drained enough
+//      to make room. No manual pacing is required. Starvation only
+//      arises if the producer's average production rate falls below the
+//      consumer's average consumption rate over a window longer than
+//      what the OS buffer can absorb.
 //
 //   2. Send STREAM_END while at least one streamed point is still
-//      unconsumed. This is implied by rule 1 but worth stating: if the
-//      producer pauses long enough after the last spline point that the
-//      consumer drains the buffer before STREAM_END arrives, rule 1 will
-//      have already failed.
+//      unconsumed. This is implied by rule 1: if the consumer drained the
+//      buffer before STREAM_END arrived, rule 1 already failed.
 //
 //   3. Make the last streamed point a controlled-stop terminal:
 //      qd = (0, ..., 0), qdd = (0, ..., 0). URScript's spline runner applies
