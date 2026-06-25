@@ -769,10 +769,16 @@ thread trajectoryThread():
         spline_qd = [0, 0, 0, 0, 0, 0]
       end
     else:
-      if was_streaming_at_start and not trajectory_streaming:
-        # Producer signalled STREAM_END between the predicate check and
-        # the socket read. Drop any pending unread points and exit cleanly
-        # rather than spin one timeout per missing point.
+      if was_streaming_at_start and not trajectory_streaming and trajectory_points_left < 0:
+        # Race: STREAM_END was processed after the consumer had already
+        # drained every streamed point. The dispatcher's math zeroed
+        # trajectory_points_left, then this iteration's decrement pushed
+        # it below zero. No further points are expected; exit cleanly.
+        # Note: trajectory_points_left >= 0 here means the consumer still
+        # expected unread points - that is a genuine underrun (either
+        # producer/STREAM_END count mismatch or a delayed STREAM_END
+        # arrived during a real underrun) and must be reported as
+        # FAILURE rather than silently truncated.
         trajectory_points_left = 0
       else:
         textmsg("Receiving trajectory point failed!")
@@ -1157,6 +1163,9 @@ while control_mode > MODE_STOPPED:
         kill thread_trajectory
         request_trajectory_cleanup()
         wait_for_trajectory_cleanup()
+        # This is a legacy finite trajectory; ensure trajectory_streaming
+        # does not leak in from any prior streaming session.
+        trajectory_streaming = False
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_STREAM_START:
@@ -1167,21 +1176,32 @@ while control_mode > MODE_STOPPED:
         trajectory_points_left = STREAMING_SENTINEL
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_STREAM_END:
-        # params_mult[3] is the total count of spline points the producer
-        # wrote to the trajectory socket since STREAM_START. The
-        # trajectoryThread has decremented trajectory_points_left once per
-        # consumed point starting from STREAMING_SENTINEL, so the consumed
-        # count is (STREAMING_SENTINEL - trajectory_points_left). The
-        # unread remainder still in the OS socket buffer is therefore
-        # the producer's total minus the consumer's consumed count.
-        trajectory_points_left = params_mult[3] - (STREAMING_SENTINEL - trajectory_points_left)
-        trajectory_streaming = False
+        # Guard against a stray STREAM_END applied outside an active
+        # streaming session (during a finite trajectory, after a cancel,
+        # or as a second STREAM_END after the first). The sentinel-based
+        # math below is only meaningful while trajectory_points_left is
+        # known to be derived from STREAMING_SENTINEL; outside of that,
+        # applying it would corrupt trajectory_points_left.
+        if trajectory_streaming:
+          # params_mult[3] is the total count of spline points the producer
+          # wrote to the trajectory socket since STREAM_START. The
+          # trajectoryThread has decremented trajectory_points_left once per
+          # consumed point starting from STREAMING_SENTINEL, so the consumed
+          # count is (STREAMING_SENTINEL - trajectory_points_left). The
+          # unread remainder still in the OS socket buffer is therefore
+          # the producer's total minus the consumer's consumed count.
+          trajectory_points_left = params_mult[3] - (STREAMING_SENTINEL - trajectory_points_left)
+          trajectory_streaming = False
+        end
       elif params_mult[2] == TRAJECTORY_MODE_CANCEL:
         textmsg("cancel received")
         kill thread_trajectory
         request_trajectory_cleanup()
         stopj(STOPJ_ACCELERATION)
         wait_for_trajectory_cleanup()
+        # The streaming session, if any, has been forcibly ended; clear
+        # the flag so a subsequent stray STREAM_END is a no-op.
+        trajectory_streaming = False
         socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
       end
     elif control_mode == MODE_SPEEDL:
