@@ -120,6 +120,54 @@ enum class RobotSeries
   UR_SERIES = 3
 };
 
+enum class ReportLevel : int32_t
+{
+  DEBUG = 0,
+  INFO = 1,
+  WARNING = 2,
+  VIOLATION = 3,
+  FAULT = 4,
+  CRITICAL_FAULT = 5,
+  DEVL_DEBUG = 128,
+  DEVL_INFO = 129,
+  DEVL_WARNING = 130,
+  DEVL_VIOLATION = 131,
+  DEVL_FAULT = 132,
+  DEVL_CRITICAL_FAULT = 133
+};
+
+inline std::string reportLevelString(const ReportLevel& code)
+{
+  switch (code)
+  {
+    case ReportLevel::DEBUG:
+      return "DEBUG";
+    case ReportLevel::INFO:
+      return "INFO";
+    case ReportLevel::WARNING:
+      return "WARNING";
+    case ReportLevel::VIOLATION:
+      return "VIOLATION";
+    case ReportLevel::FAULT:
+      return "FAULT";
+    case ReportLevel::CRITICAL_FAULT:
+      return "CRITICAL_FAULT";
+    case ReportLevel::DEVL_DEBUG:
+      return "DEVL_DEBUG";
+    case ReportLevel::DEVL_INFO:
+      return "DEVL_INFO";
+    case ReportLevel::DEVL_WARNING:
+      return "DEVL_WARNING";
+    case ReportLevel::DEVL_VIOLATION:
+      return "DEVL_VIOLATION";
+    case ReportLevel::DEVL_FAULT:
+      return "DEVL_FAULT";
+    case ReportLevel::DEVL_CRITICAL_FAULT:
+      return "DEVL_CRITICAL_FAULT";
+  }
+  throw std::invalid_argument("Unknown report level: " + std::to_string(static_cast<int>(code)));
+}
+
 inline std::string robotModeString(const RobotMode& mode)
 {
   switch (mode)

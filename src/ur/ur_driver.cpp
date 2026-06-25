@@ -313,6 +313,41 @@ bool UrDriver::setPayload(const float mass, const vector3d_t& cog)
   }
 }
 
+bool UrDriver::setTargetPayload(const float mass, const vector3d_t& cog, const vector6d_t& inertia,
+                                const double transition_time)
+{
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setTargetPayload(mass, &cog, &inertia, transition_time);
+  }
+  else
+  {
+    URCL_LOG_WARN("Script command interface is not running. Falling back to sending plain script code. On e-Series "
+                  "robots this will only work, if the robot is in remote_control mode.");
+
+    std::stringstream cmd;
+    cmd.imbue(std::locale::classic());  // Make sure, decimal divider is actually '.'
+
+    if ((getVersion().major > 5) || (getVersion().major == 5 && getVersion().minor >= 10))
+    {
+      cmd << "sec setup():" << std::endl
+          << " set_target_payload(" << mass << ", [" << cog[0] << ", " << cog[1] << ", " << cog[2] << "] , ["
+          << inertia[0] << ", " << inertia[1] << ", " << inertia[2] << ", " << inertia[3] << ", " << inertia[4] << ", "
+          << inertia[5] << "] , " << transition_time << ")" << std::endl
+          << "end";
+    }
+    else
+    {
+      cmd << "sec setup():" << std::endl
+          << " set_payload(" << mass << ", [" << cog[0] << ", " << cog[1] << ", " << cog[2] << "])" << std::endl
+          << " textmsg(\"PolyScope < 5.10.0. Inertia and transition_time ignored.\")" << std::endl
+          << "end";
+    }
+
+    return sendScript(cmd.str());
+  }
+}
+
 bool UrDriver::setGravity(const vector3d_t& gravity)
 {
   if (script_command_interface_->clientConnected())

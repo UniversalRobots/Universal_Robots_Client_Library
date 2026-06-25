@@ -341,6 +341,33 @@ const unsigned char SAFETY_MODE_MESSAGE_STRING[] = {
   0x80, 0x07, 0x06, 0x05
 };
 
+const unsigned char REPORT_LEVELS_TEMPLATE[] = {
+  // message size
+  0x00, 0x00, 0x00, 0x20,
+  // message type robot message
+  0x14,
+  // timestamp
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  // source
+  0xfd,
+  // robot_message_type ERROR_CODE
+  0x06,
+  // Robot message code
+  0x00, 0x00, 0x00, 0x00,
+  // Robot message argument
+  0x00, 0x00, 0x00, 0x00,
+  // Robot message report level
+  0x00, 0x00, 0x00, 0x00,
+  // data type
+  0x00, 0x00, 0x00, 0x00,
+  // data
+  0x80, 0x07, 0x06, 0x05,
+  // text length
+  0x00, 0x01,
+  // message
+  0x00
+};
+
 class PrimaryParserTest : public ::testing::Test
 {
 protected:
@@ -824,6 +851,32 @@ TEST_F(PrimaryParserTest, parse_masterboard_data_with_immi)
   EXPECT_NE(msg_str.find("IMMI output bits: 0b00110011001100110100010001000100"), std::string::npos);
   EXPECT_NE(msg_str.find("IMMI voltage 24V: 24"), std::string::npos);
   EXPECT_NE(msg_str.find("IMMI current: 0.75"), std::string::npos);
+}
+
+TEST_F(PrimaryParserTest, parse_error_code_report_levels)
+{
+  std::vector<uint32_t> levels = { 0, 1, 2, 3, 4, 5, 128, 129, 130, 131, 132, 133 };
+  std::vector<std::string> level_strings = { "DEBUG",        "INFO",           "WARNING",    "VIOLATION",
+                                             "FAULT",        "CRITICAL_FAULT", "DEVL_DEBUG", "DEVL_INFO",
+                                             "DEVL_WARNING", "DEVL_VIOLATION", "DEVL_FAULT", "DEVL_CRITICAL_FAULT" };
+
+  unsigned char raw_data[sizeof(REPORT_LEVELS_TEMPLATE)];
+  for (size_t i = 0; i < levels.size(); i++)
+  {
+    memcpy(raw_data, REPORT_LEVELS_TEMPLATE, sizeof(REPORT_LEVELS_TEMPLATE));
+    raw_data[26] = levels[i] & 0xFF;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    ASSERT_TRUE(parser_.parse(bp, products));
+    ASSERT_EQ(products.size(), 1);
+
+    if (primary_interface::ErrorCodeMessage* data =
+            dynamic_cast<primary_interface::ErrorCodeMessage*>(products[0].get()))
+    {
+      EXPECT_EQ(data->report_level_, ReportLevel(levels[i]));
+      EXPECT_EQ(reportLevelString(data->report_level_), level_strings[i]);
+    }
+  }
 }
 
 int main(int argc, char* argv[])
