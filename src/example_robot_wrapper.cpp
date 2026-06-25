@@ -243,7 +243,7 @@ void ExampleRobotWrapper::handleRobotProgramState(bool program_running)
   else
   {
     // Print the text in yellow to indicate the robot is connected but the control program is not (yet) running
-    std::cout << "\033[1;33mRobot connected - Control program not running yet\033[0m\n" << std::endl;
+    std::cout << "\033[1;33mRobot should be connected - Control program not running yet\033[0m\n" << std::endl;
     std::lock_guard<std::mutex> lk(program_not_running_mutex_);
     program_running_ = program_running;
     program_not_running_cv_.notify_one();
