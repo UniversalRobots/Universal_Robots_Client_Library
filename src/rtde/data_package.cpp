@@ -454,7 +454,7 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "time_scale_source", int32_t() },
   { "target_gravity", vector3d_t() },
   { "target_base_acceleration", vector6d_t() },
-  { "controller_step", uint64_t() },
+  { "control_step", uint64_t() },
 
   // NOT IN OFFICIAL DOCS
   { "tool_digital_output_mask", uint8_t() },
