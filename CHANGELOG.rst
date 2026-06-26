@@ -2,6 +2,19 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.13.0 (2026-06-17)
+-------------------
+* [ScriptCommandInterface] Add set_target_payload support to ScriptCommandInterface (`#515 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/515>`_)
+* [Primary] sendScriptBlocking: Restart interface and resend script on readOnlyInterfaceException (`#522 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/522>`_)
+* [DashboardClientX] Apply httplib timeouts; wire setReceiveTimeout() (`#518 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/518>`_)
+* [Docs] Remove section about URCapX in development (`#521 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/521>`_)
+* [Primary] Send script blocking return refactor (`#520 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/520>`_)
+* Add missing robot types to helper functions (`#513 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/513>`_)
+* [RTDE] Add new controller_step RTDE field (`#514 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/514>`_)
+* [Primary] Primary client script execution feedback (`#484 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/484>`_)
+* Add robotSeriesString function (`#510 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/510>`_)
+* Contributors: Felix Exner, Sergi Romero, URJala, Vinicius de Oliveira, dependabot[bot]
+
 2.12.0 (2026-05-19)
 -------------------
 * [CI] Make circular motion in example more compatible (`#508 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/508>`_)

@@ -199,8 +199,12 @@ TEST_F(DashboardClientTestX, program_interaction)
   ASSERT_TRUE(response.ok);
   if (dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4"))
   {
-    response = dashboard_client_->commandGetLoadedProgram();
-    ASSERT_EQ(std::get<std::string>(response.data["program_name"]), "wait_program");
+    waitFor(
+        [&]() {
+          auto resp = dashboard_client_->commandGetLoadedProgram();
+          return std::get<std::string>(resp.data["program_name"]) == "wait_program";
+        },
+        std::chrono::milliseconds(1000));
   }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
@@ -449,6 +453,58 @@ TEST_F(DashboardClientTestX, download_program)
     response = dashboard_client_->commandDownloadProgram("test upload", "");
     ASSERT_FALSE(response.ok);
   }
+}
+
+TEST_F(DashboardClientTestX, set_receive_timeout)
+{
+  timeval expected_tv;
+  expected_tv.tv_sec = 30;
+  expected_tv.tv_usec = 0;
+  dashboard_client_->setReceiveTimeout(expected_tv);
+  EXPECT_TRUE(dashboard_client_->connect());
+
+  timeval actual_tv = dashboard_client_->getConfiguredReceiveTimeout();
+  EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
+  EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+}
+
+TEST_F(DashboardClientTestX, set_send_timeout)
+{
+  timeval expected_tv;
+  expected_tv.tv_sec = 30;
+  expected_tv.tv_usec = 0;
+  dashboard_client_->setSendTimeout(expected_tv);
+  EXPECT_TRUE(dashboard_client_->connect());
+
+  timeval actual_tv = dashboard_client_->getConfiguredSendTimeout();
+  EXPECT_EQ(expected_tv.tv_sec, actual_tv.tv_sec);
+  EXPECT_EQ(expected_tv.tv_usec, actual_tv.tv_usec);
+}
+
+TEST_F(DashboardClientTestX, timeouts_round_trip_subsecond)
+{
+  timeval expected_tv;
+  expected_tv.tv_sec = 7;
+  expected_tv.tv_usec = 250000;
+  dashboard_client_->setReceiveTimeout(expected_tv);
+  dashboard_client_->setSendTimeout(expected_tv);
+
+  timeval recv_tv = dashboard_client_->getConfiguredReceiveTimeout();
+  EXPECT_EQ(expected_tv.tv_sec, recv_tv.tv_sec);
+  EXPECT_EQ(expected_tv.tv_usec, recv_tv.tv_usec);
+
+  timeval send_tv = dashboard_client_->getConfiguredSendTimeout();
+  EXPECT_EQ(expected_tv.tv_sec, send_tv.tv_sec);
+  EXPECT_EQ(expected_tv.tv_usec, send_tv.tv_usec);
+}
+
+TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
+{
+  timeval tiny_tv;
+  tiny_tv.tv_sec = 0;
+  tiny_tv.tv_usec = 1;
+  dashboard_client_->setReceiveTimeout(tiny_tv);
+  EXPECT_FALSE(dashboard_client_->connect());
 }
 
 int main(int argc, char* argv[])

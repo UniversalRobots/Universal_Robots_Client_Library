@@ -187,7 +187,7 @@ public:
   /*!
    * \brief Send an ErrorCodeMessage.
    */
-  bool sendErrorCodeMessage(int32_t message_code, int32_t message_argument, primary_interface::ReportLevel report_level,
+  bool sendErrorCodeMessage(int32_t message_code, int32_t message_argument, ReportLevel report_level,
                             const std::string& text, uint32_t data_type = 0, uint32_t data = 0);
 
   // ===================== Concrete RobotState helpers =====================

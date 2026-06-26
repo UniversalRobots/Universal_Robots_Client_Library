@@ -162,9 +162,10 @@ public:
   DashboardResponse commandUpdateProgram(const std::string& file_path) override;
   DashboardResponse commandDownloadProgram(const std::string& program_name, const std::string& save_path) override;
 
-  void setReceiveTimeout([[maybe_unused]] const timeval& timeout) override
-  {
-  }
+  // Defined in the .cpp because httplib::Client is only forward-declared in this header.
+  void setReceiveTimeout(const timeval& timeout) override;
+  void setSendTimeout(const timeval& timeout) override;
+  timeval getConfiguredSendTimeout() const override;
 
 protected:
   DashboardResponse performProgramUpload(
@@ -185,6 +186,8 @@ protected:
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
+  timeval recv_timeout_ = { 10, 0 };
+  timeval send_timeout_ = { 10, 0 };
 };
 
 }  // namespace urcl

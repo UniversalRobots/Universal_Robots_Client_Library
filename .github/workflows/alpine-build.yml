@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: install dependencies
         run: apk add --no-cache build-base cmake linux-headers git
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: configure
         run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
       - name: build

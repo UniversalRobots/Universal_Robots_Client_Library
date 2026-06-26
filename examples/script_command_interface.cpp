@@ -80,6 +80,9 @@ void sendScriptCommands()
     run_cmd("Disabling tool contact mode", []() { g_my_robot->getUrDriver()->endToolContact(); });
     run_cmd("Setting TCP offset to [0.0, 0.0, 0.10, 0.0, 0.0, 0.0]",
             []() { g_my_robot->getUrDriver()->setTcpOffset({ 0.0, 0.0, 0.10, 0.0, 0.0, 0.0 }); });
+    run_cmd("Setting payload to 2.0kg with custom inertia and 0.5s transition time", []() {
+      g_my_robot->getUrDriver()->setTargetPayload(2.0, { 0.0, 0.0, 0.1 }, { 0.003, 0.003, 0.003, 0.0, 0.0, 0.0 }, 0.5);
+    });
 
     if (g_support_set_friction_scales)
     {

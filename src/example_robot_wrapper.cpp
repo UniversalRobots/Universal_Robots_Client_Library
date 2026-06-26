@@ -232,16 +232,18 @@ bool ExampleRobotWrapper::initializeRobotWithPrimaryClient()
 
 void ExampleRobotWrapper::handleRobotProgramState(bool program_running)
 {
-  // Print the text in green so we see it better
-  std::cout << "\033[1;32mProgram running: " << std::boolalpha << program_running << "\033[0m\n" << std::endl;
   if (program_running)
   {
+    // Print the text in green so we see it better
+    std::cout << "\033[1;32mRobot control program is running and connected to the driver\033[0m\n" << std::endl;
     std::lock_guard<std::mutex> lk(program_running_mutex_);
     program_running_ = program_running;
     program_running_cv_.notify_one();
   }
   else
   {
+    // Print the text in yellow to indicate the robot is connected but the control program is not (yet) running
+    std::cout << "\033[1;33mRobot should be connected - Control program not running yet\033[0m\n" << std::endl;
     std::lock_guard<std::mutex> lk(program_not_running_mutex_);
     program_running_ = program_running;
     program_not_running_cv_.notify_one();

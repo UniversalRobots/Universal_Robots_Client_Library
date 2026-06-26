@@ -92,6 +92,20 @@ public:
   bool setPayload(const double mass, const vector3d_t* cog);
 
   /*!
+   * \brief Set the target payload mass, center of gravity and inertia matrix
+   *
+   * \param mass mass in kilograms
+   * \param cog  Center of Gravity, a vector [CoGx, CoGy, CoGz] specifying the displacement (in meters) from the
+   * toolmount
+   * \param inertia Inertia matrix elements [Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+   * \param transition_time Duration of the payload property changes in seconds
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setTargetPayload(const double mass, const vector3d_t* cog, const vector6d_t* inertia,
+                        const double transition_time = 0.0);
+
+  /*!
    * \brief Set the gravity vector
    *
    * \param gravity Gravity, a vector [x, y, z] specifying the anti-gravity vector (pointing away from
@@ -264,6 +278,7 @@ private:
     SET_GRAVITY = 9,                ///< Set gravity vector
     SET_TCP_OFFSET = 10,            ///< Set TCP offset
     SET_FRICTION_SCALES = 11,       ///< Set viscous and Coulomb friction scales for direct_torque
+    SET_TARGET_PAYLOAD = 12,        ///< Set target payload
   };
 
   /*!

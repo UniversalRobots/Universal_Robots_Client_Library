@@ -244,9 +244,8 @@ bool FakePrimaryServer::sendSafetyModeMessage(SafetyMode safety_mode, int32_t me
   return sendRobotMessage(primary_interface::RobotMessagePackageType::ROBOT_MESSAGE_SAFETY_MODE, payload);
 }
 
-bool FakePrimaryServer::sendErrorCodeMessage(int32_t message_code, int32_t message_argument,
-                                             primary_interface::ReportLevel report_level, const std::string& text,
-                                             uint32_t data_type, uint32_t data)
+bool FakePrimaryServer::sendErrorCodeMessage(int32_t message_code, int32_t message_argument, ReportLevel report_level,
+                                             const std::string& text, uint32_t data_type, uint32_t data)
 {
   std::vector<uint8_t> payload(sizeof(int32_t) + sizeof(int32_t) + sizeof(int32_t) + sizeof(uint32_t) +
                                sizeof(uint32_t) + text.size());
