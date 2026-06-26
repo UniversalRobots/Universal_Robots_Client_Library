@@ -105,8 +105,7 @@ public:
    */
   bool stopRequested()
   {
-    const SocketState s = getState();
-    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
+    return TCPSocket::isStopRequested();
   }
 
   /*!
