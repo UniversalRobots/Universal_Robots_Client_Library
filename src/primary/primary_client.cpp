@@ -67,13 +67,7 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 PrimaryClient::~PrimaryClient()
 {
   URCL_LOG_INFO("Stopping primary client pipeline");
-  // Disconnect the stream BEFORE stopping (joining) the pipeline. The pipeline's producer thread
-  // may be sleeping inside its reconnect backoff or blocked in TCPSocket::setup(); disconnect()
-  // moves the socket into the deliberate-stop state and closes it so both paths abort within one
-  // poll slice and pipeline_->stop()'s join returns promptly instead of blocking until the
-  // (potentially unbounded) reconnect timeout expires.
-  stream_.disconnect();
-  pipeline_->stop();
+  stop();
 }
 
 void PrimaryClient::start(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
@@ -86,7 +80,7 @@ void PrimaryClient::start(const size_t max_num_tries, const std::chrono::millise
 void PrimaryClient::stop()
 {
   // Disconnect the stream before joining the pipeline so a producer thread stuck in its reconnect
-  // path is aborted and the join returns promptly (see ~PrimaryClient). A subsequent start()
+  // path is aborted and the join returns promptly. A subsequent start()
   // reconnects via URProducer::setupProducer(), whose connect() clears the deliberate-stop state.
   stream_.disconnect();
   pipeline_->stop();
