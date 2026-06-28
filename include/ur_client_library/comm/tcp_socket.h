@@ -59,15 +59,6 @@ private:
 
   void setupOptions();
 
-  // True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
-  // set"). The connect/retry machinery checks this to abort, and never overwrites these states,
-  // so a teardown disconnect() that races a reconnect attempt is observed reliably.
-  bool isStopRequested() const
-  {
-    const SocketState s = state_.load();
-    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
-  }
-
   // Atomically moves state_ to `desired`, unless a deliberate disconnect() (Disconnecting or
   // Disconnected) is in effect. Returns true if the state was set, false if a deliberate stop is
   // active (in which case state_ is left untouched). This is how the connect/retry machinery
@@ -81,6 +72,15 @@ private:
   bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
 
 protected:
+  // True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
+  // set"). The connect/retry machinery checks this to abort, and never overwrites these states,
+  // so a teardown disconnect() that races a reconnect attempt is observed reliably.
+  bool isStopRequested() const
+  {
+    const SocketState s = state_.load();
+    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
+  }
+
   static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
   {
     return ::connect(socket_fd, address, static_cast<socklen_t>(address_len)) == 0;
