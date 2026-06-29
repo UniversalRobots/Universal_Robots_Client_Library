@@ -59,6 +59,10 @@ add_executable(trajectory_point_interface_example
 trajectory_point_interface.cpp)
 target_link_libraries(trajectory_point_interface_example ur_client_library::urcl)
 
+add_executable(trajectory_streaming_example
+trajectory_streaming.cpp)
+target_link_libraries(trajectory_streaming_example ur_client_library::urcl)
+
 add_executable(instruction_executor
 instruction_executor.cpp)
 target_link_libraries(instruction_executor ur_client_library::urcl)
