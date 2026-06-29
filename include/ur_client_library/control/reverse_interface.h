@@ -139,9 +139,9 @@ public:
    *   calls the producer will issue on the trajectory socket. URScript reads exactly that many points
    *   and then completes.
    * - TRAJECTORY_STREAM_START (2): Begins an open-ended (streaming) trajectory. The producer streams
-   *   spline points and signals end-of-stream with TRAJECTORY_STREAM_END. \p point_number is unused.
+   *   motion primitives and signals end-of-stream with TRAJECTORY_STREAM_END. \p point_number is unused.
    * - TRAJECTORY_STREAM_END (3): Ends an open-ended streaming trajectory started by
-   *   TRAJECTORY_STREAM_START. \p point_number must equal the total number of spline points the
+   *   TRAJECTORY_STREAM_START. \p point_number must equal the total number of motion primitives the
    *   producer wrote on the trajectory socket since TRAJECTORY_STREAM_START.
    *
    * \param point_number Mode-dependent point-count argument. See the description of \p
