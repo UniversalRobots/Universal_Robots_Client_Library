@@ -343,10 +343,22 @@ bool TCPSocket::setStateUnlessStopRequested(SocketState desired)
 bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
                         const std::chrono::milliseconds reconnection_time)
 {
-  // Explicit (re)connect: clear any prior deliberate disconnect() by moving to Connecting. This is
-  // the only place the deliberate-stop set is cleared. Safe because connect() runs on the
-  // controlling thread when no reconnect thread is concurrently active.
-  state_ = SocketState::Connecting;
+  // Refuse to clobber a live connection (mirrors setup()'s own guard, which connect() would
+  // otherwise bypass by pre-setting Connecting).
+  if (state_ == SocketState::Connected)
+  {
+    return false;
+  }
+  // Explicit (re)connect: move to Connecting only if no deliberate disconnect() is in effect.
+  // connect() must NEVER clear the deliberate-stop set itself: doing so unconditionally races a
+  // concurrent teardown (e.g. ~RTDEClient() calling disconnect() while the reconnect thread runs
+  // connect() via setupProducer()), silently undoing the stop and re-introducing the teardown hang.
+  // A deliberate reconnect after a stop() must first clear the stop explicitly via allowReconnect()
+  // on the controlling thread; an automatic reconnect path that observes a stop simply aborts here.
+  if (!setStateUnlessStopRequested(SocketState::Connecting))
+  {
+    return false;
+  }
   return setup(host, port, max_num_tries, reconnection_time);
 }
 

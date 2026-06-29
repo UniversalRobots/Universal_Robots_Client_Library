@@ -109,6 +109,18 @@ public:
   }
 
   /*!
+   * \brief Clears a deliberate disconnect() so a subsequent connect() can revive the stream.
+   *
+   * Call this on the controlling thread before a deliberate reconnect following a disconnect()
+   * (e.g. after a stop()). connect() never clears the deliberate-stop on its own, so an automatic
+   * reconnect cannot undo a teardown.
+   */
+  void allowReconnect()
+  {
+    TCPSocket::allowReconnect();
+  }
+
+  /*!
    * \brief Reads a full UR package out of a socket. For this, it looks into the package and reads
    * the byte length from the socket directly. It returns as soon as all bytes for the package are
    * read from the socket.
