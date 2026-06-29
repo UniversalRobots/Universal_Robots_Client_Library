@@ -580,13 +580,13 @@ int main(int argc, char* argv[])
     if (std::string(argv[i]) == "--robot_ip" && i + 1 < argc)
     {
       g_ROBOT_IP = argv[i + 1];
-      break;
+      ++i;
     }
     if (std::string(argv[i]) == "--headless" && i + 1 < argc)
     {
       std::string headless = argv[i + 1];
       g_HEADLESS = headless == "true" || headless == "1" || headless == "True" || headless == "TRUE";
-      break;
+      ++i;
     }
   }
 
