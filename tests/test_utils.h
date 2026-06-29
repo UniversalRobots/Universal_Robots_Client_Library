@@ -165,6 +165,11 @@ public:
     return client_fds_;
   }
 
+  size_t getPollSetSize()
+  {
+    return TCPServer::getPollSetSize();
+  }
+
 private:
   std::vector<socket_t> client_fds_;
   std::condition_variable connect_cv_;

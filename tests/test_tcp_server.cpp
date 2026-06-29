@@ -631,6 +631,58 @@ TEST_F(TCPServerTest, services_client_with_high_fd_number)
 }
 #endif
 
+// White-box regression test: the cached poll set must stay in sync with the connected client set
+// as clients connect and disconnect. rebuildPollfds() runs before the connect/disconnect callbacks
+// fire, so once waitForConnectionCallback()/waitForDisconnectionCallback() returns the poll set is
+// already rebuilt and the invariant can be checked deterministically.
+TEST_F(TCPServerTest, poll_set_tracks_client_set)
+{
+  TestableTcpServer server(port_);
+  server.start();
+  EXPECT_EQ(server.getPollSetSize(), 1u);  // listen socket only
+
+  std::vector<std::unique_ptr<Client>> clients;
+  for (int i = 0; i < 5; ++i)
+  {
+    clients.push_back(std::make_unique<Client>(port_));
+    ASSERT_TRUE(server.waitForConnectionCallback());
+    EXPECT_EQ(server.getPollSetSize(), server.getClientFDs().size() + 1);
+  }
+
+  while (!clients.empty())
+  {
+    clients.back()->close();
+    clients.pop_back();
+    ASSERT_TRUE(server.waitForDisconnectionCallback());
+    EXPECT_EQ(server.getPollSetSize(), server.getClientFDs().size() + 1);
+  }
+  EXPECT_EQ(server.getPollSetSize(), 1u);  // back to listen socket only
+}
+
+// Regression test for the snapshot-before-mutate ordering in spin(): a new client connecting must
+// not cause an already-connected client's message that arrives in the same poll cycle to be
+// dropped. If the revents were read after handleConnect() rebuilt the poll set, the existing
+// client's activity would be lost and waitForMessageCallback() would time out.
+TEST_F(TCPServerTest, message_not_lost_when_client_connects_concurrently)
+{
+  TestableTcpServer server(0);
+  server.start();
+  Client existing(server.getPort());
+  ASSERT_TRUE(server.waitForConnectionCallback());
+
+  for (int i = 0; i < 50; ++i)
+  {
+    std::unique_ptr<Client> fresh;
+    std::thread connector([&]() { fresh = std::make_unique<Client>(server.getPort()); });
+    existing.send("ping\n");
+    ASSERT_TRUE(server.waitForMessageCallback(2000));
+    connector.join();
+    ASSERT_TRUE(server.waitForConnectionCallback(2000));
+    fresh->close();
+    ASSERT_TRUE(server.waitForDisconnectionCallback(2000));
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
