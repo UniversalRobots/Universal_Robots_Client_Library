@@ -40,6 +40,10 @@
 
 #include "ur_client_library/comm/socket_t.h"
 
+#ifndef _WIN32
+#  include <poll.h>
+#endif
+
 namespace urcl
 {
 namespace comm
@@ -198,6 +202,14 @@ public:
     return port_;
   }
 
+protected:
+  // Test hook: number of file descriptors currently in the cached poll set
+  // (listen socket + one per connected client).
+  size_t getPollSetSize() const
+  {
+    return pollfds_.size();
+  }
+
 private:
   void init();
   void bind(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time);
@@ -217,6 +229,15 @@ private:
   //! Runs spin() as long as keep_running_ is set to true.
   void worker();
 
+  //! Rebuilds the cached poll set (pollfds_) from the listen socket and client_fds_.
+  void rebuildPollfds();
+
+  // Number of client slots the poll set reserves up front when the client count is unbounded
+  // (max_clients_allowed_ == 0). Bounded servers reserve their exact limit instead. This is just
+  // headroom so the first few connects (incl. transient overlap during a robot reconnect) don't
+  // reallocate; the vector still grows geometrically beyond it.
+  static constexpr uint32_t DEFAULT_RESERVED_CLIENTS = 8;
+
   std::atomic<bool> keep_running_{ false };
   std::thread worker_thread_;
 
@@ -225,6 +246,18 @@ private:
 
   uint32_t max_clients_allowed_;
   std::vector<socket_t> client_fds_;
+
+#ifdef _WIN32
+  using PollFd = WSAPOLLFD;
+#else
+  using PollFd = struct pollfd;
+#endif
+  // Cached poll set: index 0 is the listen socket, the rest mirror client_fds_. Only touched by
+  // the worker thread (seeded in start() before the thread launches, rebuilt in
+  // handleConnect()/handleDisconnect(), cleared in shutdown() after the worker is joined), so
+  // spin() can poll() on it directly without per-iteration allocation or extra locking.
+  std::vector<PollFd> pollfds_;
+
   std::mutex clients_mutex_;
   std::mutex message_mutex_;
   std::mutex listen_fd_mutex_;
