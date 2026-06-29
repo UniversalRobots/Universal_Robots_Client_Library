@@ -227,7 +227,7 @@ TEST_F(TrajectoryStreamingTest, stream_cancel_yields_canceled)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
+      control::TrajectoryControlMessage::TRAJECTORY_CANCEL, 100));
 
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));

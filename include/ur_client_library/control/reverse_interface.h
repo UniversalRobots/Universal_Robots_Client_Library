@@ -129,7 +129,10 @@ public:
    * \param trajectory_action One of the values of TrajectoryControlMessage. The value selects which
    * trajectory-control action the URScript dispatcher takes, and dictates how \p point_number is
    * interpreted:
-   * - TRAJECTORY_CANCEL (-1): Cancels the currently executing trajectory. \p point_number is unused.
+   * - TRAJECTORY_CANCEL (-1): Cancels the currently executing trajectory. If the trajectory was started
+   *   with TRAJECTORY_START then \p point_number is unused. For streaming trajectories, \p point_number
+   *   must equal the total number of motion primitives the producer wrote on the trajectory socket
+   *   since TRAJECTORY_STREAM_START.
    * - TRAJECTORY_NOOP (0): No-op; serves as a keepalive on the reverse socket while a trajectory
    *   executes. The producer must send these (or another trajectory-control message) periodically
    *   while waiting for trajectory completion so that the URScript dispatcher's read does not
