@@ -25,11 +25,17 @@ include(GoogleTest)
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
 option(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL "Run Polyscope X tests that require remote control" OFF)
 option(CHECK_RTDE_DOCS_RECIPE "Fetch the RTDE documentation to auto-generate a recipe containing all output fields and check that with the RTDE client. Requires python3 and pandas and an internet connection." OFF)
+set(INTEGRATION_TESTS_ROBOT_IP "" CACHE STRING "If set, override the default robot IP (192.168.56.101) compiled into each integration test main() by passing --robot_ip <ip> to every ctest-registered integration test.")
 # Build Tests
 if (INTEGRATION_TESTS)
-  # Integration tests require a robot reachable at 192.168.56.101. Therefore, they have to be
-  # activated separately.
-  
+  # Integration tests require a reachable robot / URSim. The compiled-in default
+  # address is 192.168.56.101; configure with -DINTEGRATION_TESTS_ROBOT_IP=<ip>
+  # to override (e.g. 127.0.0.1 for a host-networked URSim).
+  set(INTEGRATION_TESTS_ROBOT_IP_ARG "")
+  if(INTEGRATION_TESTS_ROBOT_IP)
+    set(INTEGRATION_TESTS_ROBOT_IP_ARG --robot_ip ${INTEGRATION_TESTS_ROBOT_IP})
+  endif()
+
   if(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL)
     add_compile_definitions(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL=1 )
   endif()
@@ -38,6 +44,7 @@ if (INTEGRATION_TESTS)
   target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
   if (CHECK_RTDE_DOCS_RECIPE)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -49,12 +56,14 @@ if (INTEGRATION_TESTS)
   add_executable(dashboard_client_g5_tests test_dashboard_client_g5.cpp)
   target_link_libraries(dashboard_client_g5_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      dashboard_client_g5_tests
+                  EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
 
   add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
   target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      dashboard_client_x_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
 
   # Spline tests
@@ -62,14 +71,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(spline_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      spline_tests_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless false
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _urcap
   )
   add_executable(spline_tests_headless test_spline_interpolation.cpp)
   target_link_libraries(spline_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      spline_tests_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless true
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _headless
   )
 
@@ -78,14 +87,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(ur_driver_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      ur_driver_tests_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless false
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _urcap
   )
   add_executable(ur_driver_tests_headless test_ur_driver.cpp)
   target_link_libraries(ur_driver_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      ur_driver_tests_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless true
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _headless
   )
 
@@ -94,14 +103,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(external_control_program_tests_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      external_control_program_tests_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless false
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _urcap
   )
   add_executable(external_control_program_tests_headless test_external_control_program.cpp)
   target_link_libraries(external_control_program_tests_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      external_control_program_tests_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless true
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _headless
   )
 
@@ -110,14 +119,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(instruction_executor_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET instruction_executor_test_urcap
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless false
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _urcap
   )
   add_executable(instruction_executor_test_headless test_instruction_executor.cpp)
   target_link_libraries(instruction_executor_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET instruction_executor_test_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  EXTRA_ARGS --headless true
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _headless
   )
 
@@ -125,12 +134,14 @@ if (INTEGRATION_TESTS)
   target_link_libraries(primary_client_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET primary_client_test_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
 
   add_executable(ur_driver_deprecated_constructor_test test_deprecated_ur_driver_construction.cpp)
   target_link_libraries(ur_driver_deprecated_constructor_test PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET ur_driver_deprecated_constructor_test
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
 else()
   message(STATUS "Skipping integration tests.")
