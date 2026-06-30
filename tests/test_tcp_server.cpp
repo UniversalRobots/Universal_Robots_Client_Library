@@ -58,7 +58,7 @@ protected:
     Client(const int& port)
     {
       std::string host = "127.0.0.1";
-      TCPSocket::setup(host, port);
+      TCPSocket::connect(host, port);
     }
 
     void send(const std::string& text)
