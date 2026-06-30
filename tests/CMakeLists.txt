@@ -46,6 +46,9 @@ if (INTEGRATION_TESTS)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
+  # Bound this teardown regression test so a hang fails CI fast instead of timing out the job.
+  set_tests_properties(RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread
+                       PROPERTIES TIMEOUT 60)
   if (CHECK_RTDE_DOCS_RECIPE)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
@@ -163,6 +166,17 @@ target_link_libraries(fake_primary_server_tests PRIVATE ur_client_library::urcl 
 gtest_add_tests(TARGET      fake_primary_server_tests
 )
 
+# Robot-free regression test for ~PrimaryClient() not blocking on a stuck
+# reconnect thread. Uses the in-process FakePrimaryServer so it runs without a
+# robot (unlike the INTEGRATION_TESTS-gated primary_client_test_headless).
+add_executable(primary_client_reconnect_tests test_primary_client_reconnect.cpp fake_primary_server.cpp)
+target_link_libraries(primary_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      primary_client_reconnect_tests
+)
+# Bound this teardown regression test so a hang fails CI in ~1 min instead of timing out the job.
+set_tests_properties(PrimaryClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     PROPERTIES TIMEOUT 60)
+
 
 
 add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
@@ -259,6 +273,10 @@ add_executable(tcp_socket_tests test_tcp_socket.cpp)
 target_link_libraries(tcp_socket_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET tcp_socket_tests
 )
+# Bound the interruptible-setup regression tests so a hang fails CI fast instead of timing out the job.
+set_tests_properties(TCPSocketTest.setup_interruptible_by_close
+                     TCPSocketTest.setup_interruptible_during_blocking_connect
+                     PROPERTIES TIMEOUT 60)
 
 add_executable(stream_tests test_stream.cpp)
 target_link_libraries(stream_tests PRIVATE ur_client_library::urcl GTest::gtest_main)

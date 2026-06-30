@@ -67,20 +67,28 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 PrimaryClient::~PrimaryClient()
 {
   URCL_LOG_INFO("Stopping primary client pipeline");
-  pipeline_->stop();
+  stop();
 }
 
 void PrimaryClient::start(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   URCL_LOG_INFO("Starting primary client pipeline");
+  // A previous stop() leaves the stream in the deliberate-stop set. Clear it here, on the
+  // controlling thread, so the pipeline's setupProducer() -> connect() can revive the stream.
+  // connect() itself never clears the stop, which is what keeps a concurrent teardown from being
+  // undone by an automatic reconnect.
+  stream_.allowReconnect();
   pipeline_->init(max_num_tries, reconnection_time);
   pipeline_->run();
 }
 
 void PrimaryClient::stop()
 {
+  // Disconnect the stream before joining the pipeline so a producer thread stuck in its reconnect
+  // path is aborted and the join returns promptly. A subsequent start() clears the deliberate-stop
+  // state (via stream_.allowReconnect()) before reconnecting through URProducer::setupProducer().
+  stream_.disconnect();
   pipeline_->stop();
-  stream_.close();
 }
 
 void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
@@ -584,6 +592,10 @@ bool PrimaryClient::sendScript(const std::string& program)
 bool PrimaryClient::reconnectStream()
 {
   URCL_LOG_DEBUG("Closing primary stream...");
+  // Clear a deliberate disconnect() left by a prior stop()/teardown before re-establishing.
+  // connect() no longer clears it implicitly (that would race a concurrent teardown), so this
+  // explicit, controlling-thread clear is required for a deliberate reconnect.
+  stream_.allowReconnect();
   stream_.close();
   if (stream_.connect())
   {

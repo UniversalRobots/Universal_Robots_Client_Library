@@ -220,7 +220,7 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
     TCPSocket::setReceiveTimeout(tv);
     try
     {
-      if (TCPSocket::setup(host_, port_, max_num_tries, reconnection_time))
+      if (TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
       {
         URCL_LOG_INFO("%s", read().c_str());
         ret_val = true;
