@@ -76,7 +76,7 @@ protected:
     Client(const int& port)
     {
       std::string host = "127.0.0.1";
-      TCPSocket::setup(host, port);
+      TCPSocket::connect(host, port);
       timeval tv;
       tv.tv_sec = 1;
       tv.tv_usec = 0;

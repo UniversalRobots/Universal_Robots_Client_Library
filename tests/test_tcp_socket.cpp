@@ -69,7 +69,12 @@ protected:
     bool setup(const size_t max_num_tries = 0,
                const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
-      return TCPSocket::setup(ip_, port_, max_num_tries, reconnection_time);
+      return TCPSocket::connect(ip_, port_, max_num_tries, reconnection_time);
+    }
+
+    void disconnect()
+    {
+      TCPSocket::disconnect();
     }
 
     void setupClientBeforeServer(const size_t max_num_tries = 0,
@@ -107,7 +112,7 @@ protected:
                      std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       std::string ip = "127.0.0.1";
-      TCPSocket::setup(ip, port, max_num_tries, reconnection_time);
+      TCPSocket::connect(ip, port, max_num_tries, reconnection_time);
       done_setting_up_client_ = true;
     }
   };
