@@ -151,6 +151,12 @@ std::string getLastWindowsErrorMsg(DWORD error_id)
 
 bool setProcessPriority(pprocess_t& process, DWORD priority)
 {
+  if (!isProcessElevated() && priority == REALTIME_PRIORITY_CLASS)
+  {
+    URCL_LOG_WARN("Process is not running with elevated privileges (UAC). "
+                  "REALTIME_PRIORITY_CLASS may fail. Try 'Run as Administrator'.");
+  }
+
   if (!::SetPriorityClass(process, priority))
   {
     DWORD err = GetLastError();
@@ -332,13 +338,7 @@ bool setThreadAffinity(pthread_t& thread, const cpu_set_t& cpuset)
 bool setFiFoScheduling(pthread_t& thread, int priority)
 {
 #ifdef _WIN32
-
-  if (!isProcessElevated())
-  {
-    URCL_LOG_WARN("Process is not running with elevated privileges (UAC). "
-                  "REALTIME_PRIORITY_CLASS may fail. Try 'Run as Administrator'.");
-  }
-  pprocess_t process = ::GetCurrentProcess();
+  pprocess_t process = pprocess_self();
 
   if (!setProcessPriority(process, REALTIME_PRIORITY_CLASS))
   {
