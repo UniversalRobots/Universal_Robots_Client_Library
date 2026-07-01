@@ -179,15 +179,15 @@ TEST(TestHelpers, setThreadAffinity_mult)
 
 TEST(TestHelpers, setThreadAffinity_invalid)
 {
-#ifdef _WIN32
   pthread_t thread = pthread_self();
-  uint64_t invalid_mask = 1ULL << 63; 
+#ifdef _WIN32
+  uint64_t invalid_mask = 1ULL << 63;
   EXPECT_FALSE(setThreadAffinity(thread, invalid_mask));
 #else
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(63, &cpuset);
-  EXPECT_TRUE(setThreadAffinity(thread, cpuset));
+  EXPECT_FALSE(setThreadAffinity(thread, cpuset));
 #endif
 }
 
@@ -201,29 +201,27 @@ TEST(TestHelpers, setThreadAffinity_invalidHandle)
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(0, &cpuset);
-  EXPECT_FALSE(setThreadAffinity(thread, cpuset));
+  EXPECT_DEATH(setThreadAffinity(thread, cpuset), "");
 #endif
 }
 
 TEST(TestHelpers, setThreadAffinity_empty)
 {
-#ifdef _WIN32
   pthread_t thread = pthread_self();
+#ifdef _WIN32
   EXPECT_FALSE(setThreadAffinity(thread, 0));
 #else
-  pthread_t thread = pthread_self();
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   EXPECT_FALSE(setThreadAffinity(thread, cpuset));
 #endif
-
 }
 
 // Thread Priority Tests
 
+#ifdef _WIN32
 TEST(TestHelpers, setThreadPriority_allValidPriorities)
 {
-#ifdef _WIN32
   pthread_t thread = pthread_self();
 
   EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_LOWEST));
@@ -232,30 +230,24 @@ TEST(TestHelpers, setThreadPriority_allValidPriorities)
   EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_ABOVE_NORMAL));
   EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_HIGHEST));
   EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL));
-#endif
 }
 
 TEST(TestHelpers, setThreadPriority_invalid)
 {
-#ifdef _WIN32
   pthread_t thread = pthread_self();
   EXPECT_FALSE(setThreadPriority(thread, 999999));
-#endif
 }
 
 TEST(TestHelpers, setThreadPriority_invalidHandle)
 {
-#ifdef _WIN32
   pthread_t thread = nullptr;
   EXPECT_FALSE(setThreadPriority(thread, THREAD_PRIORITY_HIGHEST));
-#endif
 }
 
 // Process Priority tests
 
 TEST(TestHelpers, setProcessPriority_allValidPriorities)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
 
   EXPECT_TRUE(setProcessPriority(process, IDLE_PRIORITY_CLASS));
@@ -263,69 +255,55 @@ TEST(TestHelpers, setProcessPriority_allValidPriorities)
   EXPECT_TRUE(setProcessPriority(process, NORMAL_PRIORITY_CLASS));
   EXPECT_TRUE(setProcessPriority(process, ABOVE_NORMAL_PRIORITY_CLASS));
   EXPECT_TRUE(setProcessPriority(process, HIGH_PRIORITY_CLASS));
-#endif
 }
 
 TEST(TestHelpers, setProcessPriority_invalid)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
   EXPECT_FALSE(setProcessPriority(process, 999999));
-#endif
 }
 
 TEST(TestHelpers, setProcessPriority_invalidHandle)
 {
-#ifdef _WIN32
   pprocess_t process = nullptr;
   EXPECT_FALSE(setProcessPriority(process, NORMAL_PRIORITY_CLASS));
-#endif
 }
 
 // Process Affinity Tests
 
 TEST(TestHelpers, setProcessAffinity_basic)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
   DWORD_PTR mask = (1ULL << 0);
   EXPECT_TRUE(setProcessAffinity(process, mask));
-#endif
 }
 
 TEST(TestHelpers, setProcessAffinity_multi)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
   DWORD_PTR mask = (1ULL << 0) | (1ULL << 1);
   EXPECT_TRUE(setProcessAffinity(process, mask));
-#endif
 }
 
 TEST(TestHelpers, setProcessAffinity_invalidHandle)
 {
-#ifdef _WIN32
   pprocess_t process = nullptr;
   EXPECT_FALSE(setProcessAffinity(process, (1ULL << 0)));
-#endif
 }
 
 TEST(TestHelpers, setProcessAffinity_zeroMask)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
-  EXPECT_FALSE(setProcessAffinity(process,0));
-#endif
+  EXPECT_FALSE(setProcessAffinity(process, 0));
 }
 
 TEST(TestHelpers, setProcessAffinity_invalidMask)
 {
-#ifdef _WIN32
   pprocess_t process = pprocess_self();
   DWORD_PTR mask = 0xFFFFFFFFFFFFFFFFULL;
   EXPECT_FALSE(setProcessAffinity(process, mask));
-#endif
 }
+#endif
 
 // FIFO Scheduling Tests
 
