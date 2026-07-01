@@ -25,6 +25,7 @@
  *
  */
 //----------------------------------------------------------------------
+#define _GNU_SOURCE
 
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/helpers.h>
@@ -38,6 +39,8 @@
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
+#include <cerrno>
+
 
 // clang-format off
 // We want to keep the URL in one line to avoid formatting issues. This will make it easier to
@@ -47,10 +50,315 @@ const std::string RT_DOC_URL = "https://docs.universal-robots.com/Universal_Robo
 
 namespace urcl
 {
-bool setFiFoScheduling(pthread_t& thread, const int priority)
-{
+
 #ifdef _WIN32
-  return ::SetThreadPriority(thread, priority);
+
+const char* processPriorityToString(DWORD priority)
+{
+  switch (priority)
+  {
+    case IDLE_PRIORITY_CLASS: return "IDLE";
+    case BELOW_NORMAL_PRIORITY_CLASS: return "BELOW_NORMAL";
+    case NORMAL_PRIORITY_CLASS: return "NORMAL";
+    case ABOVE_NORMAL_PRIORITY_CLASS: return "ABOVE_NORMAL";
+    case HIGH_PRIORITY_CLASS: return "HIGH";
+    case REALTIME_PRIORITY_CLASS: return "REALTIME";
+    default: return "UNKNOWN";
+  }
+}
+
+const char* threadPriorityToString(int priority)
+{
+  switch (priority)
+  {
+    case THREAD_PRIORITY_LOWEST: return "LOWEST";
+    case THREAD_PRIORITY_BELOW_NORMAL: return "BELOW_NORMAL";
+    case THREAD_PRIORITY_NORMAL: return "NORMAL";
+    case THREAD_PRIORITY_ABOVE_NORMAL: return "ABOVE_NORMAL";
+    case THREAD_PRIORITY_HIGHEST: return "HIGHEST";
+    case THREAD_PRIORITY_TIME_CRITICAL: return "TIME_CRITICAL";
+    default: return "UNKNOWN";
+  }
+}
+
+bool isProcessElevated() {
+    bool isElevated = false;
+    HANDLE hToken = nullptr;
+    if(OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&hToken)){
+        TOKEN_ELEVATION elevation;
+        DWORD dwSize = sizeof(elevation);
+        if(GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &dwSize)){
+            isElevated = elevation.TokenIsElevated;
+        }
+    }
+    if(hToken) {
+        CloseHandle(hToken);
+    }
+    return isElevated;
+}
+
+std::string maskToCpuList(uint64_t mask)
+{
+  std::string out = "[";
+  for (int i = 0; i < 64; ++i)
+  {
+    if (mask & (1ULL << i))
+    {
+      if (out.size() > 1) out += ",";
+      out += std::to_string(i);
+    }
+  }
+  out += "]";
+  return out;
+  
+}
+
+std::string getLastWindowsErrorMsg(DWORD error_id) 
+{
+    LPSTR buffer = nullptr;
+
+    DWORD size = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        error_id,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&buffer,
+        0,
+        nullptr);
+
+    if (size == 0 || buffer == nullptr)
+    {
+        return "Unknown Windows error";
+    }
+
+    std::string message(buffer, size);
+    LocalFree(buffer);
+
+    return message;
+};
+
+bool setProcessPriority(pprocess_t& process, DWORD priority)
+{
+  if (!::SetPriorityClass(process, priority))
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in setting the process priority to %s (%llX). Error: %lu (%s)", processPriorityToString(priority), priority, err, getLastWindowsErrorMsg(err).c_str());
+    return false;
+  }
+  
+  DWORD priority_applied = ::GetPriorityClass(process);
+  if (priority_applied == 0){
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in retrieving the process priority for verification. Error: %lu (%s)", err, getLastWindowsErrorMsg(err).c_str());
+    return false;
+  }
+
+  URCL_LOG_INFO("Process priority successfully set to %s (0x%X)", processPriorityToString(priority_applied), priority_applied);
+
+  if (priority_applied != priority)
+  {
+    URCL_LOG_WARN("Process priority mismatch. Expected %s (0x%X), got %s (0x%X)",
+                  processPriorityToString(priority), priority,
+                  processPriorityToString(priority_applied), priority_applied);
+    return false;
+  }
+
+  return true;
+}
+
+bool setProcessAffinity(pprocess_t& process, DWORD_PTR cpu_mask)
+{
+  if (!::SetProcessAffinityMask(process, cpu_mask))
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in setting process affinity to CPUs %s (mask=0x%llX). Error: %lu (%s)",
+                maskToCpuList(cpu_mask).c_str(),
+                static_cast<uint64_t>(cpu_mask),
+                err,
+                getLastWindowsErrorMsg(err).c_str());
+
+      return false;
+  }
+  DWORD_PTR process_mask = 0;
+  DWORD_PTR system_mask  = 0;
+  if (!::GetProcessAffinityMask(process, &process_mask, &system_mask))
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in setting process affinity to %s. Error: %lu (%s)",
+                  maskToCpuList(cpu_mask).c_str(),
+                  err, getLastWindowsErrorMsg(err).c_str());
+    return false;  
+  }
+  URCL_LOG_INFO("Process affinity set to CPUs %s (mask=0x%llX)",
+                maskToCpuList(process_mask).c_str(),
+                static_cast<uint64_t>(process_mask));
+  if (process_mask != cpu_mask)
+  {
+    URCL_LOG_WARN("Process affinity mismatch. Expected %s, got %s",
+                  maskToCpuList(cpu_mask).c_str(),
+                  maskToCpuList(process_mask).c_str());
+    return false;
+  }
+  return true;
+}
+
+bool setThreadAffinity(pthread_t& thread, DWORD_PTR cpu_mask)
+{
+  DWORD_PTR result = ::SetThreadAffinityMask(thread, cpu_mask);
+
+  if (result == 0)
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in setting thread affinity to %s. Error: %lu (%s)",
+                  maskToCpuList(cpu_mask).c_str(),
+                  err, getLastWindowsErrorMsg(err).c_str());
+    return false;
+  }
+
+  URCL_LOG_INFO("Thread affinity successfully set to CPUs %s (mask=0x%llX)",
+              maskToCpuList(cpu_mask).c_str(),
+              static_cast<uint64_t>(cpu_mask));
+  return true;
+}
+
+bool setThreadPriority(pthread_t& thread, const int priority){
+  if (!::SetThreadPriority(thread, priority))
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in setting thread priority to %s (%d). Error: %lu (%s)",
+                 threadPriorityToString(priority), priority,
+                 err, getLastWindowsErrorMsg(err).c_str());
+
+    return false;
+  }
+
+  int applied = ::GetThreadPriority(thread);
+  if (applied == THREAD_PRIORITY_ERROR_RETURN){
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in retrieving the thread priority for verification. Error: %lu (%s)", err, getLastWindowsErrorMsg(err).c_str());
+    return false;
+  }
+
+  URCL_LOG_INFO("Thread priority successfully set to %s (%d)",
+              threadPriorityToString(applied), applied);
+
+  if (applied != priority)
+  {
+    URCL_LOG_WARN("Thread priority mismatch. Expected %s (%d), got %s (%d)",
+                  threadPriorityToString(priority), priority,
+                  threadPriorityToString(applied), applied);
+    return false;
+  }
+
+  return true;
+}
+
+#else
+
+std::string cpuSetToString(const cpu_set_t& cpuset)
+{
+  std::string out = "[";
+
+  for (int i = 0; i < CPU_SETSIZE; ++i)
+  {
+    if (CPU_ISSET(i, &cpuset))
+    {
+      if (out.size() > 1)
+      {
+        out += ",";
+      }
+      out += std::to_string(i);
+    }
+  }
+
+  out += "]";
+  return out;
+}
+
+bool setThreadAffinity(pthread_t thread, const cpu_set_t& cpuset)
+{
+  int ret = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+
+  if (ret != 0)
+  {
+    URCL_LOG_ERROR(
+        "Unsuccessful in setting thread affinity. Error: %s",
+        strerror(ret));
+    return false;
+  }
+
+  cpu_set_t applied_set;
+  CPU_ZERO(&applied_set);
+
+  if (pthread_getaffinity_np(
+          thread,
+          sizeof(cpu_set_t),
+          &applied_set) == 0)
+  {
+    bool match = true;
+
+    for (int i = 0; i < CPU_SETSIZE; ++i)
+    {
+      if (CPU_ISSET(i, &cpuset) != CPU_ISSET(i, &applied_set))
+      {
+        match = false;
+        break;
+      }
+    }
+
+    if (!match)
+    {
+      URCL_LOG_WARN(
+          "Thread affinity mismatch. Requested %s, got %s",
+          cpuSetToString(cpuset).c_str(),
+          cpuSetToString(applied_set).c_str());
+
+      return false;
+    }
+  }
+  else
+  {
+    URCL_LOG_WARN("Could not retrieve thread affinity");
+  }
+
+  URCL_LOG_INFO(
+    "Thread affinity successfully set to CPUs %s",
+    cpuSetToString(applied_set).c_str());
+
+  return true;
+}
+
+#endif
+
+bool setFiFoScheduling(pthread_t& thread, int priority)
+{
+
+#ifdef _WIN32
+
+ if (!isProcessElevated())
+  {
+    URCL_LOG_WARN(
+      "Process is not running with elevated privileges (UAC). "
+      "REALTIME_PRIORITY_CLASS may fail. Try 'Run as Administrator'.");
+  }
+  pprocess_t process = ::GetCurrentProcess();
+
+  if (!setProcessPriority(process, REALTIME_PRIORITY_CLASS))
+  {
+    URCL_LOG_ERROR("Unsuccessful in setting process to REALTIME_PRIORITY_CLASS");
+    return false;
+  }
+
+  if (!setThreadPriority(thread, priority))
+  {
+    URCL_LOG_ERROR("Unsuccessful in setting thread priority to %s (%d)",
+                  threadPriorityToString(priority),
+                  priority);
+    return false;
+  }
+
+  return true;
+
 #else  // _WIN32
   struct sched_param params;
   params.sched_priority = priority;
