@@ -154,7 +154,7 @@ bool setThreadAffinity(pthread_t& thread, DWORD_PTR cpu_mask);
  */
 bool setThreadPriority(pthread_t& thread, const int priority);
 
-#else
+#elif __linux__
 
 /*!
  * \brief Restrict a thread to a set of CPUs.
