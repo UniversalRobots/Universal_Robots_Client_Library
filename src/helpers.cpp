@@ -266,7 +266,7 @@ bool setThreadPriority(pthread_t& thread, const int priority)
   return true;
 }
 
-#else
+#elif __linux__
 
 std::string cpuSetToString(const cpu_set_t& cpuset)
 {
