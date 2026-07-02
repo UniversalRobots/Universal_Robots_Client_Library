@@ -32,74 +32,18 @@
 // Trajectory streaming example
 //
 // Demonstrates the open-ended (streaming) trajectory feature: a producer
-// streams individual spline points to the controller without committing to a
-// total point count up front, then signals end-of-stream when finished.
+// streams points to the controller without declaring a total point count up
+// front, then signals end-of-stream when finished. Contrast with
+// examples/trajectory_point_interface.cpp, which uses the finite-trajectory
+// path where the total point count is fixed in the initial TRAJECTORY_START
+// message.
 //
-// Compare with examples/trajectory_point_interface.cpp, which uses the legacy
-// finite-trajectory path where the total point count is declared in the
-// initial TRAJECTORY_START message.
-//
-// API shape:
-//
-//   writeTrajectoryControlMessage(TRAJECTORY_STREAM_START)
-//   writeTrajectorySplinePoint(...)   // repeat N times
-//   writeTrajectoryControlMessage(TRAJECTORY_STREAM_END, N)
-//
-// The N passed to STREAM_END must equal the total number of spline points
-// the producer wrote on the trajectory socket since STREAM_START. The
-// controller-side dispatcher uses this count to compute how many points
-// remain unread in the OS socket buffer and finishes draining them before
-// the trajectory-done callback fires.
-//
-// Caller contract:
-//
-//   1. The next point must be in the OS socket buffer before the
-//      currently-executing point's spline finishes. The URScript reader
-//      only attempts a socket read after finishing each spline segment;
-//      the read uses a short timeout (~8 ms on PolyScope 5, ~2 ms on
-//      PolyScope X), and if no point is available within that window
-//      the trajectory ends with TRAJECTORY_RESULT_FAILURE.
-//
-//      The implication: the time you have between consecutive writes is
-//      essentially the in-progress point's tmptime. Dense trajectories
-//      (8 ms per point) demand 8 ms-paced production. Sparse trajectories
-//      (1 s per point) give you 1 s. A single point with tmptime = 60 s
-//      gives you a full minute to produce the next one.
-//
-//      The simplest correct producer pattern is "write as fast as you
-//      can": call writeTrajectorySplinePoint in a tight loop. The OS
-//      send/receive buffer absorbs ~760 spline points; TCP backpressure
-//      naturally throttles the producer when the buffer fills, blocking
-//      writeTrajectorySplinePoint until the consumer has drained enough
-//      to make room. No manual pacing is required. Starvation only
-//      arises if the producer's average production rate falls below the
-//      consumer's average consumption rate over a window longer than
-//      what the OS buffer can absorb.
-//
-//   2. Send STREAM_END while at least one streamed point is still
-//      unconsumed. This is implied by rule 1: if the consumer drained the
-//      buffer before STREAM_END arrived, rule 1 already failed.
-//
-//   3. Make the last streamed point a controlled-stop terminal:
-//      qd = (0, ..., 0), qdd = (0, ..., 0). URScript's spline runner applies
-//      the same is_last_point time-axis scaling that the legacy finite path
-//      uses, which preserves the positional trajectory while bringing
-//      velocity to zero. A compliant terminal point (zeros) lets the spline
-//      naturally end at rest. A non-compliant terminal point still results
-//      in a controlled stop because the trajectory thread unconditionally
-//      issues stopj(STOPJ_ACCELERATION) on exit, but the spline-to-stopj
-//      transition may be less smooth.
-//
-// Failure modes via TrajectoryEndCallback:
-//
-//   TRAJECTORY_RESULT_SUCCESS    - clean stream end (STREAM_END processed,
-//                                  all streamed points consumed).
-//   TRAJECTORY_RESULT_FAILURE    - producer underrun (timeout while
-//                                  trajectory_streaming was still True).
-//   TRAJECTORY_RESULT_CANCELED   - the legacy TRAJECTORY_CANCEL message
-//                                  was sent mid-stream. The existing
-//                                  cleanup-then-respond path applies.
-//
+// The streaming communication contract -- the STREAM_START / STREAM_END
+// handshake, the end-of-stream point count, the producer's obligation not to
+// starve the controller, the controlled-stop terminal point, and the
+// trajectory result codes -- is documented in
+// doc/architecture/reverse_interface.rst. A narrative walkthrough of this
+// example lives in doc/examples/trajectory_streaming.rst.
 // ----------------------------------------------------------------------------
 
 #include <atomic>
@@ -120,7 +64,9 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
 std::unique_ptr<urcl::ExampleRobotWrapper> g_my_robot;
 std::atomic<bool> g_trajectory_done{ false };
-std::atomic<urcl::control::TrajectoryResult> g_trajectory_result{ urcl::control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN };
+std::atomic<urcl::control::TrajectoryResult> g_trajectory_result{
+  urcl::control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN
+};
 
 void trajDoneCallback(const urcl::control::TrajectoryResult& result)
 {
@@ -138,22 +84,17 @@ void waitForTrajectoryDoneWithKeepalives()
   while (!g_trajectory_done)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-        urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+    g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
   }
 }
 
-// Sample a quintic-Hermite interpolation between q_start and q_end with
-// zero boundary velocity and acceleration. Returns position, velocity, and
-// acceleration at fractional time s in [0, 1] given total duration t_total.
+// Sample a quintic-Hermite interpolation between q_start and q_end with zero
+// boundary velocity and acceleration, evaluated at fractional time s in [0, 1]
+// for a segment of total duration t_total:
 //
 //   q(s)   = q_start + (q_end - q_start) * (10s^3 - 15s^4 + 6s^5)
 //   qd(t)  = (q_end - q_start) * (30s^2 - 60s^3 + 30s^4) / t_total
 //   qdd(t) = (q_end - q_start) * (60s  - 180s^2 + 120s^3) / t_total^2
-//
-// The boundary conditions q(0)=q_start, q(1)=q_end, qd(0)=qd(1)=0,
-// qdd(0)=qdd(1)=0 are exactly what URScript's quintic spline runner needs
-// for a clean start-to-rest motion.
 struct SampledPoint
 {
   urcl::vector6d_t q;
@@ -204,9 +145,9 @@ int main(int argc, char* argv[])
 
   g_my_robot->getUrDriver()->registerTrajectoryDoneCallback(&trajDoneCallback);
 
-  // --------------- PRE-POSITION VIA LEGACY FINITE TRAJECTORY ----------------
+  // --------------- PRE-POSITION VIA FINITE TRAJECTORY ----------------
   // Park the robot at a known starting pose before the streaming demo. This
-  // also exercises the legacy TRAJECTORY_START path for comparison.
+  // also exercises the finite TRAJECTORY_START path for comparison.
 
   const urcl::vector6d_t pose_a = { -1.57, -1.57, 0.0, -1.57, 0.0, 0.0 };
   const urcl::vector6d_t pose_b = { -1.57, -1.20, 0.5, -1.57, 0.0, 0.0 };
@@ -214,8 +155,8 @@ int main(int argc, char* argv[])
 
   URCL_LOG_INFO("Pre-positioning to pose A via finite trajectory");
   g_trajectory_done = false;
-  g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      urcl::control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  g_my_robot->getUrDriver()->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                           1);
   g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_a, zero, zero, 3.0f);
   waitForTrajectoryDoneWithKeepalives();
   if (g_trajectory_result != urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS)
@@ -225,12 +166,9 @@ int main(int argc, char* argv[])
   }
 
   // ----------------- STREAMING TRAJECTORY DEMO -----------------------------
-  // Stream a quintic-Hermite motion from pose A to pose B. We pre-compute
-  // all points up front and send them back-to-back; the OS socket buffer
-  // absorbs them and the URScript-side reader consumes them at its own pace
-  // (~one per controller step time, ~8 ms on Polyscope 5). For dense
-  // streaming workloads where points are produced on the fly, the producer
-  // is responsible for pacing fast enough to keep the buffer non-empty.
+  // Stream a quintic-Hermite motion from pose A to pose B. All points are
+  // precomputed and written back-to-back; the robot works through them at its
+  // own pace. See doc/examples/trajectory_streaming.rst for details.
 
   const int k_num_points = 200;
   const double k_motion_duration_s = 2.0;
@@ -243,9 +181,8 @@ int main(int argc, char* argv[])
     const double s = static_cast<double>(i) / k_num_points;
     points.push_back(sampleQuinticHermite(pose_a, pose_b, s, k_motion_duration_s));
   }
-  // The boundary conditions on the quintic Hermite guarantee qd=0, qdd=0 at
-  // the final point. That is exactly the "controlled-stop terminal" the
-  // caller contract recommends.
+  // The final quintic-Hermite point has qd=0, qdd=0: the controlled-stop
+  // terminal the streaming contract requires.
 
   URCL_LOG_INFO("Streaming %d points over %.2f s nominal motion duration", k_num_points, k_motion_duration_s);
   g_trajectory_done = false;
@@ -269,19 +206,19 @@ int main(int argc, char* argv[])
   waitForTrajectoryDoneWithKeepalives();
   const auto callback_wall = std::chrono::steady_clock::now();
 
-  const auto send_duration = std::chrono::duration_cast<std::chrono::milliseconds>(stream_end_send_wall - stream_start_wall);
-  const auto end_to_callback = std::chrono::duration_cast<std::chrono::milliseconds>(callback_wall - stream_end_send_wall);
-  URCL_LOG_INFO("All %d points written in %lld ms wall-clock", k_num_points, static_cast<long long>(send_duration.count()));
-  // Time from sending STREAM_END to the trajectory-done callback. Since the
-  // producer batched all points into the OS socket buffer faster than the
-  // consumer could process them, this duration is dominated by the consumer
-  // working through the queued points, not by STREAM_END processing itself.
-  // For a true steady-state producer pacing one point per controller step,
-  // this duration would be approximately one step time plus the unconditional
-  // stopj at trajectory thread exit.
-  URCL_LOG_INFO("Time from sending STREAM_END to trajectory-done callback: %lld ms", static_cast<long long>(end_to_callback.count()));
-  URCL_LOG_INFO("Final result: %s",
-                urcl::control::trajectoryResultToString(g_trajectory_result).c_str());
+  const auto send_duration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(stream_end_send_wall - stream_start_wall);
+  const auto end_to_callback =
+      std::chrono::duration_cast<std::chrono::milliseconds>(callback_wall - stream_end_send_wall);
+  URCL_LOG_INFO("All %d points written in %lld ms wall-clock", k_num_points,
+                static_cast<long long>(send_duration.count()));
+  // Time from STREAM_END to the done callback. Here it is dominated by the
+  // consumer draining the batched backlog, not by STREAM_END processing; a
+  // steady-state producer would see roughly one controller step plus the
+  // stopj at trajectory thread exit. See doc/examples/trajectory_streaming.rst.
+  URCL_LOG_INFO("Time from sending STREAM_END to trajectory-done callback: %lld ms",
+                static_cast<long long>(end_to_callback.count()));
+  URCL_LOG_INFO("Final result: %s", urcl::control::trajectoryResultToString(g_trajectory_result).c_str());
 
   if (g_trajectory_result != urcl::control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS)
   {

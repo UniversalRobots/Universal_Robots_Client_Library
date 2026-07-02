@@ -31,4 +31,5 @@ may be running forever until manually stopped.
    examples/tool_contact_example
    examples/direct_torque_control
    examples/trajectory_point_interface
+   examples/trajectory_streaming
    examples/ur_driver

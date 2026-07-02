@@ -116,8 +116,7 @@ protected:
         return g_trajectory_result;
       }
       lk.unlock();
-      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-          control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
     }
     return control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN;
   }
@@ -126,9 +125,9 @@ protected:
   // `inject_at` has elapsed since the call started. The action takes the
   // place of one NOOP-pump iteration. Used to inject a stray trajectory
   // control message mid-flight without spinning up a second thread.
-  control::TrajectoryResult waitForTrajectoryResultPumpingNoopsWithInjection(
-      std::chrono::milliseconds total_timeout, std::chrono::milliseconds inject_at,
-      std::function<void()> inject_action)
+  control::TrajectoryResult waitForTrajectoryResultPumpingNoopsWithInjection(std::chrono::milliseconds total_timeout,
+                                                                             std::chrono::milliseconds inject_at,
+                                                                             std::function<void()> inject_action)
   {
     const auto start = std::chrono::steady_clock::now();
     const auto deadline = start + total_timeout;
@@ -150,8 +149,7 @@ protected:
       }
       else
       {
-        g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-            control::TrajectoryControlMessage::TRAJECTORY_NOOP);
+        g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP);
       }
     }
     return control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN;
@@ -168,8 +166,8 @@ TEST_F(TrajectoryStreamingTest, stream_end_yields_success)
   const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
   // Position the robot at held_pose with a one-shot finite trajectory.
-  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(held_pose, zero, zero, 2.0f));
   ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
@@ -250,8 +248,8 @@ TEST_F(TrajectoryStreamingTest, stray_stream_end_during_finite_trajectory_does_n
   const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
   // Pre-position
-  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_a, zero, zero, 2.0f));
   ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
@@ -259,15 +257,15 @@ TEST_F(TrajectoryStreamingTest, stray_stream_end_during_finite_trajectory_does_n
 
   // Send a 3-point finite trajectory, each segment ~1 second.
   const float k_segment_time = 1.0f;
-  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 3));
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 3));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_b, zero, zero, k_segment_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_c, zero, zero, k_segment_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_a, zero, zero, k_segment_time));
 
   const auto motion_start = std::chrono::steady_clock::now();
-  const auto result = waitForTrajectoryResultPumpingNoopsWithInjection(
-      std::chrono::seconds(6), std::chrono::milliseconds(500), [] {
+  const auto result =
+      waitForTrajectoryResultPumpingNoopsWithInjection(std::chrono::seconds(6), std::chrono::milliseconds(500), [] {
         g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
             control::TrajectoryControlMessage::TRAJECTORY_STREAM_END, 0);
       });
@@ -277,8 +275,8 @@ TEST_F(TrajectoryStreamingTest, stray_stream_end_during_finite_trajectory_does_n
   // Three 1-second segments expect ~3 s of motion. Without the fix, the
   // stray STREAM_END truncates the loop after segment 1, callback fires
   // in ~1 s.
-  EXPECT_GE(elapsed, std::chrono::milliseconds(2500))
-      << "Expected ~3 s of motion; stray STREAM_END appears to have truncated the trajectory.";
+  EXPECT_GE(elapsed, std::chrono::milliseconds(2500)) << "Expected ~3 s of motion; stray STREAM_END appears to have "
+                                                         "truncated the trajectory.";
 }
 
 // Regression test for PR #528 cursor-bot review comment 1c.
@@ -294,8 +292,8 @@ TEST_F(TrajectoryStreamingTest, double_stream_end_does_not_truncate)
   const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
   // Pre-position
-  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(held_pose, zero, zero, 2.0f));
   ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
@@ -326,8 +324,8 @@ TEST_F(TrajectoryStreamingTest, double_stream_end_does_not_truncate)
   const auto elapsed = std::chrono::steady_clock::now() - motion_start;
 
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS, result);
-  EXPECT_GE(elapsed, std::chrono::milliseconds(1500))
-      << "Expected ~2 s of consumer-side execution; double STREAM_END appears to have truncated the drain.";
+  EXPECT_GE(elapsed, std::chrono::milliseconds(1500)) << "Expected ~2 s of consumer-side execution; double STREAM_END "
+                                                         "appears to have truncated the drain.";
 }
 
 // Regression test for PR #528 cursor-bot review comment 2.
@@ -345,8 +343,8 @@ TEST_F(TrajectoryStreamingTest, stream_end_with_overcount_yields_failure)
   const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
   // Pre-position
-  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-      control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(held_pose, zero, zero, 2.0f));
   ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
@@ -375,8 +373,8 @@ TEST_F(TrajectoryStreamingTest, stream_end_with_overcount_yields_failure)
   for (int i = 0; i < 5; ++i)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-        control::TrajectoryControlMessage::TRAJECTORY_NOOP));
+    ASSERT_TRUE(
+        g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_NOOP));
   }
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
       control::TrajectoryControlMessage::TRAJECTORY_STREAM_END, k_announced));

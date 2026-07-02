@@ -53,7 +53,7 @@ enum class TrajectoryControlMessage : int32_t
   TRAJECTORY_START = 1,         ///< Represents command to start a new finite trajectory of declared length.
   TRAJECTORY_STREAM_START = 2,  ///< Represents command to start an open-ended streaming trajectory.
   TRAJECTORY_STREAM_END = 3,    ///< Represents command to terminate an open-ended streaming trajectory.
-                                ///< The point_number argument must equal the total number of segments
+                                ///< The point_number argument must equal the total number of motion primitives
                                 ///< the caller wrote on the trajectory socket since TRAJECTORY_STREAM_START.
 };
 
