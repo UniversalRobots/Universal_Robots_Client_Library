@@ -362,8 +362,7 @@ bool setFiFoScheduling(pthread_t& thread, int priority)
     if (!setProcessPriority(process, old_process_priority))
     {
       URCL_LOG_ERROR("Failed to restore previous process priority %s (0x%X)",
-                    processPriorityToString(old_process_priority),
-                    old_process_priority);
+                    processPriorityToString(old_process_priority), old_process_priority);
     }
 
     return false;
