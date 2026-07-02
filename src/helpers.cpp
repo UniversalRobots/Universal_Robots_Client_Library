@@ -340,6 +340,15 @@ bool setFiFoScheduling(pthread_t& thread, int priority)
 #ifdef _WIN32
   pprocess_t process = pprocess_self();
 
+  DWORD old_process_priority = ::GetPriorityClass(process);
+  if (old_process_priority == 0)
+  {
+    DWORD err = GetLastError();
+    URCL_LOG_ERROR("Unsuccessful in retrieving the current process priority. Error: %lu (%s)", err,
+                   getLastWindowsErrorMsg(err).c_str());
+    return false;
+  }
+
   if (!setProcessPriority(process, REALTIME_PRIORITY_CLASS))
   {
     URCL_LOG_ERROR("Unsuccessful in setting process to REALTIME_PRIORITY_CLASS");
@@ -349,6 +358,14 @@ bool setFiFoScheduling(pthread_t& thread, int priority)
   if (!setThreadPriority(thread, priority))
   {
     URCL_LOG_ERROR("Unsuccessful in setting thread priority to %s (%d)", threadPriorityToString(priority), priority);
+
+    if (!setProcessPriority(process, old_process_priority))
+    {
+      URCL_LOG_ERROR("Failed to restore previous process priority %s (0x%X)",
+                    processPriorityToString(old_process_priority),
+                    old_process_priority);
+    }
+
     return false;
   }
 
