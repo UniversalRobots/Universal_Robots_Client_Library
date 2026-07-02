@@ -166,7 +166,7 @@ TEST(TestHelpers, setThreadAffinity_mult)
 {
   pthread_t thread = pthread_self();
 #ifdef _WIN32
-  DWORD_PTR mask = (1ULL << 6) | (1ULL << 7);
+  DWORD_PTR mask = (1ULL << 0) | (1ULL << 1);
   EXPECT_TRUE(setThreadAffinity(thread, mask));
 #else
   cpu_set_t cpuset;
