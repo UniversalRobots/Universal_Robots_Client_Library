@@ -1198,11 +1198,11 @@ while control_mode > MODE_STOPPED:
         kill thread_trajectory
         # The streaming session, if any, has been forcibly ended; clear
         # the flag so a subsequent stray STREAM_END is a no-op.
-	if trajectory_streaming:
-	  # In streaming mode, a cancel should come with the total count, just like a STREAM_END.
-	  trajectory_points_left = params_mult[3] - (STREAMING_SENTINEL - trajectory_points_left)
+        if trajectory_streaming:
+          # In streaming mode, a cancel should come with the total count, just like a STREAM_END.
+          trajectory_points_left = params_mult[3] - (STREAMING_SENTINEL - trajectory_points_left)
           trajectory_streaming = False
-	end
+        end
         request_trajectory_cleanup()
         stopj(STOPJ_ACCELERATION)
         wait_for_trajectory_cleanup()
