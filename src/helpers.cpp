@@ -25,7 +25,6 @@
  *
  */
 //----------------------------------------------------------------------
-#define _GNU_SOURCE
 
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/helpers.h>
