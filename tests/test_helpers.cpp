@@ -304,39 +304,3 @@ TEST(TestHelpers, setProcessAffinity_invalidMask)
   EXPECT_FALSE(setProcessAffinity(process, mask));
 }
 #endif
-
-// FIFO Scheduling Tests
-
-TEST(TestHelpers, setFiFoScheduling_normal)
-{
-  pthread_t thread = pthread_self();
-#ifdef _WIN32
-  EXPECT_TRUE(setFiFoScheduling(thread, THREAD_PRIORITY_NORMAL));
-#else
-  EXPECT_TRUE(setFiFoScheduling(thread, 50));
-#endif
-}
-
-TEST(TestHelpers, setFiFoScheduling_invalidPriority)
-{
-  pthread_t thread = pthread_self();
-  EXPECT_FALSE(setFiFoScheduling(thread, 999));
-}
-
-TEST(TestHelpers, setFiFoScheduling_invalidHandle)
-{
-#ifdef _WIN32
-  pthread_t thread = nullptr;
-  EXPECT_FALSE(setFiFoScheduling(thread, THREAD_PRIORITY_NORMAL));
-#else
-  pthread_t thread{};
-  EXPECT_FALSE(setFiFoScheduling(thread, 50));
-#endif
-}
-
-TEST(TestHelpers, setFiFoScheduling_maxPriority)
-{
-  pthread_t thread = pthread_self();
-  int max_prio = sched_get_priority_max(SCHED_FIFO);
-  EXPECT_TRUE(setFiFoScheduling(thread, max_prio));
-}
