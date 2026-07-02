@@ -59,6 +59,44 @@ void printFraction(const double fraction, const std::string& label, const size_t
 
 int main(int argc, char* argv[])
 {
+  pthread_t thread = pthread_self();
+
+#ifdef _WIN32
+  pprocess_t process = pprocess_self();
+
+  // Assign logical CPUs 6 and 7 to this process
+  DWORD_PTR process_mask = (1ULL << 6) | (1ULL << 7);
+  if (!setProcessAffinity(process, process_mask))
+  {
+    URCL_LOG_ERROR("Failed to set process affinity");
+  }
+
+  // Assign logical CPU 7 to this thread
+  DWORD_PTR thread_mask = (1ULL << 7);
+  if (!setThreadAffinity(thread, thread_mask))
+  {
+    URCL_LOG_ERROR("Failed to set thread affinity");
+  }
+#else
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+
+  // Assign logical CPU 7 to this thread
+  CPU_SET(7, &cpuset);
+
+  if (!setThreadAffinity(thread, cpuset))
+  {
+    URCL_LOG_ERROR("Failed to set thread affinity");
+  }
+#endif
+
+  // Set thread and process to maximum priority
+  const int max_prio = sched_get_priority_max(SCHED_FIFO);
+  if (!setFiFoScheduling(thread, max_prio))
+  {
+    URCL_LOG_ERROR("Failed to set FIFO scheduling");
+  }
+
   // Parse the ip arguments if given
   std::string robot_ip = DEFAULT_ROBOT_IP;
   if (argc > 1)

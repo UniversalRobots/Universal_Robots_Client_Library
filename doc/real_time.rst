@@ -334,3 +334,168 @@ the ``cpufrequtils`` service. Check with ``cpufreq-info``.
 
 For further information about governors, please see the `kernel
 documentation <https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt>`_.
+
+Windows soft real-time configuration
+------------------------------------
+
+Unlike Linux systems running a PREEMPT_RT kernel with ``SCHED_FIFO`` scheduling, Windows does not
+provide the same level of scheduling behaviour. However, it can be configured for
+soft real-time, where scheduling jitter is reduced and timing predictability is improved.
+
+According to Microsoft, hard real-time systems require deterministic execution at precise points in
+time, whereas soft real-time systems tolerate a small amount of scheduling jitter and execution
+latency. The real-time capabilities available on Windows fall into the latter category.
+
+For additional details, refer to Microsoft's documentation:
+`Soft Real-Time <https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/soft-real-time/soft-real-time>`_.
+
+Preparing the system
+^^^^^^^^^^^^^^^^^^^^
+
+Microsoft provides guidance for configuring Windows 10 and Windows 11 systems for
+soft real-time performance. The recommended device configuration includes techniques such as:
+
+* CPU isolation
+* Routing interrupts away from real-time cores
+* Disabling selected background services
+* Disabling CPU idle states
+* Configuring dedicated real-time CPU cores
+
+For detailed device configuration instructions, see `Device Configuration <https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/soft-real-time/soft-real-time-device>`_.
+
+Process and thread configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After the system has been configured, applications can improve scheduling behaviour by assigning
+high priorities and CPU affinities to the processes and threads involved during execution.
+
+Microsoft recommends using:
+
+* ``SetPriorityClass()`` with ``REALTIME_PRIORITY_CLASS``
+* ``SetProcessAffinityMask()``
+* ``SetThreadPriority()`` with ``THREAD_PRIORITY_TIME_CRITICAL``
+* ``SetThreadAffinityMask()``
+
+For detailed information about configuring real-time processes and threads on Windows, 
+see `Application Development <https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/soft-real-time/soft-real-time-application>`_.
+
+Scheduling priorities
+^^^^^^^^^^^^^^^^^^^^^
+
+Windows schedules threads using a combination of process priority class and thread priority level.
+
+The highest priority range is obtained by combining ``REALTIME_PRIORITY_CLASS`` and ``THREAD_PRIORITY_TIME_CRITICAL``
+which results in a base thread priority of 31, the highest priority available.
+
+For more information about Windows scheduling priorities, see `Scheduling Priorities <https://learn.microsoft.com/en-us/windows/win32/procthread/scheduling-priorities>`_.
+
+.. warning::
+
+   Microsoft recommends using ``REALTIME_PRIORITY_CLASS`` with care. Threads running at high
+   priorities for extended periods can negatively affect other system services and user interaction.
+
+Using the helper functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Universal Robots Client Library provides helper functions for configuring CPU affinity and
+scheduling priorities.
+
+Current process and thread handles can be obtained using:
+
+.. code-block:: cpp
+
+   pprocess_t process = pprocess_self();
+   pthread_t thread = pthread_self();
+
+Linux
+~~~~~
+
+On Linux, the helper functions can be used to assign CPU affinity and configure
+``SCHED_FIFO`` scheduling for a thread.
+
+.. code-block:: cpp
+
+   pthread_t thread = pthread_self();
+
+   cpu_set_t cpuset;
+   CPU_ZERO(&cpuset);
+   CPU_SET(7, &cpuset);
+
+   setThreadAffinity(thread, cpuset);
+
+   int max_prio = sched_get_priority_max(SCHED_FIFO);
+   setFiFoScheduling(thread, max_prio);
+
+The configured CPU affinity applies to the selected thread. The scheduling
+priority is configured using ``SCHED_FIFO``.
+
+Windows
+~~~~~~~
+
+On Windows, additional helper functions are available for configuring process
+priority, process affinity, thread priority and thread affinity.
+
+.. code-block:: cpp
+
+   pprocess_t process = pprocess_self();
+   pthread_t thread = pthread_self();
+
+   DWORD_PTR process_mask = (1ULL << 6) | (1ULL << 7);
+   setProcessAffinity(process, process_mask);
+
+   DWORD_PTR thread_mask = (1ULL << 7);
+   setThreadAffinity(thread, thread_mask);
+
+   int max_prio = sched_get_priority_max(SCHED_FIFO);
+   setFiFoScheduling(thread, max_prio);
+
+   // Equivalent explicit calls
+   setProcessPriority(process, REALTIME_PRIORITY_CLASS);
+   setThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL);
+
+On Windows, ``setFiFoScheduling()`` configures the process to use
+``REALTIME_PRIORITY_CLASS`` and applies the requested thread priority.
+
+Available helper functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Windows:
+
+.. code-block:: cpp
+
+   bool setProcessPriority(pprocess_t& process, DWORD priority);
+   bool setProcessAffinity(pprocess_t& process, DWORD_PTR cpu_mask);
+   bool setThreadPriority(pthread_t& thread, int priority);
+   bool setThreadAffinity(pthread_t& thread, DWORD_PTR cpu_mask);
+   bool setFiFoScheduling(pthread_t& thread, int priority);
+
+Linux:
+
+.. code-block:: cpp
+
+   bool setThreadAffinity(pthread_t& thread, const cpu_set_t& cpuset);
+   bool setFiFoScheduling(pthread_t& thread, int priority);
+
+Administrative privileges
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Using ``REALTIME_PRIORITY_CLASS`` may require elevated privileges depending on the system
+configuration.
+
+When using the real-time helper functions, it is therefore recommended to run the application with
+administrative privileges.
+
+The helper functions verify whether the process is running with elevated privileges and will issue a
+warning if this is not the case.
+
+If sufficient privileges are not available, Windows may reject requests to enter the real-time
+priority class.
+
+Example usage
+^^^^^^^^^^^^^
+
+A complete example demonstrating how to configure process priority, thread priority and CPU affinity
+using the helper functions is provided in the RTDE Client example (:ref:`rtde_client_example`).
+
+Refer to this example for recommended usage patterns and platform-specific recommendations.
+
