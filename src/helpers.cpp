@@ -325,6 +325,7 @@ bool setThreadAffinity(pthread_t& thread, const cpu_set_t& cpuset)
   else
   {
     URCL_LOG_WARN("Could not retrieve thread affinity");
+    return false;
   }
 
   URCL_LOG_INFO("Thread affinity successfully set to CPUs %s", cpuSetToString(applied_set).c_str());
