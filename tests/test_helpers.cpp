@@ -154,7 +154,7 @@ TEST(TestHelpers, setThreadAffinity_basic)
 #ifdef _WIN32
   DWORD_PTR mask = (1ULL << 0);
   EXPECT_TRUE(setThreadAffinity(thread, mask));
-#else
+#elif __linux__
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(0, &cpuset);
@@ -168,11 +168,11 @@ TEST(TestHelpers, setThreadAffinity_mult)
 #ifdef _WIN32
   DWORD_PTR mask = (1ULL << 0) | (1ULL << 1);
   EXPECT_TRUE(setThreadAffinity(thread, mask));
-#else
+#elif __linux__
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
-  CPU_SET(6, &cpuset);
-  CPU_SET(7, &cpuset);
+  CPU_SET(0, &cpuset);
+  CPU_SET(1, &cpuset);
   EXPECT_TRUE(setThreadAffinity(thread, cpuset));
 #endif
 }
@@ -183,7 +183,7 @@ TEST(TestHelpers, setThreadAffinity_invalid)
 #ifdef _WIN32
   uint64_t invalid_mask = 1ULL << 63;
   EXPECT_FALSE(setThreadAffinity(thread, invalid_mask));
-#else
+#elif __linux__
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(63, &cpuset);
@@ -196,7 +196,7 @@ TEST(TestHelpers, setThreadAffinity_invalidHandle)
 #ifdef _WIN32
   pthread_t thread = nullptr;
   EXPECT_FALSE(setThreadAffinity(thread, (1ULL << 0)));
-#else
+#elif __linux__
   pthread_t thread{};
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
@@ -210,7 +210,7 @@ TEST(TestHelpers, setThreadAffinity_empty)
   pthread_t thread = pthread_self();
 #ifdef _WIN32
   EXPECT_FALSE(setThreadAffinity(thread, 0));
-#else
+#elif __linux__
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   EXPECT_FALSE(setThreadAffinity(thread, cpuset));
