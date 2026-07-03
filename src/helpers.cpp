@@ -165,14 +165,13 @@ bool setProcessPriority(pprocess_t& process, DWORD priority)
     return false;
   }
 
-  auto restore_priority = [&]()
-  {
+  auto restore_priority = [&]() {
     if (!::SetPriorityClass(process, old_process_priority))
     {
       DWORD err = GetLastError();
       URCL_LOG_ERROR("Failed to restore previous process priority %s (0x%X). Error: %lu (%s)",
-                    processPriorityToString(old_process_priority), old_process_priority,
-                    err, getLastWindowsErrorMsg(err).c_str());
+                     processPriorityToString(old_process_priority), old_process_priority, err,
+                     getLastWindowsErrorMsg(err).c_str());
     }
     else
     {
@@ -267,24 +266,22 @@ bool setThreadPriority(pthread_t& thread, const int priority)
   if (old_priority == THREAD_PRIORITY_ERROR_RETURN)
   {
     DWORD err = GetLastError();
-    URCL_LOG_ERROR("Unsuccessful in retrieving the current thread priority. Error: %lu (%s)",
-                  err, getLastWindowsErrorMsg(err).c_str());
+    URCL_LOG_ERROR("Unsuccessful in retrieving the current thread priority. Error: %lu (%s)", err,
+                   getLastWindowsErrorMsg(err).c_str());
     return false;
   }
-  
-  auto restore_priority = [&]()
-  {
+
+  auto restore_priority = [&]() {
     if (!::SetThreadPriority(thread, old_priority))
     {
       DWORD err = GetLastError();
       URCL_LOG_ERROR("Failed to restore previous thread priority %s (%d). Error: %lu (%s)",
-                     threadPriorityToString(old_priority), old_priority,
-                     err, getLastWindowsErrorMsg(err).c_str());
+                     threadPriorityToString(old_priority), old_priority, err, getLastWindowsErrorMsg(err).c_str());
     }
     else
     {
-      URCL_LOG_INFO("Previous thread priority successfully restored to %s (%d)",
-                    threadPriorityToString(old_priority), old_priority);
+      URCL_LOG_INFO("Previous thread priority successfully restored to %s (%d)", threadPriorityToString(old_priority),
+                    old_priority);
     }
   };
 
@@ -412,15 +409,15 @@ bool setFiFoScheduling(pthread_t& thread, int priority)
   if (!setThreadPriority(thread, priority))
   {
     URCL_LOG_ERROR("Unsuccessful in setting thread priority to %s (%d)", threadPriorityToString(priority), priority);
-    URCL_LOG_INFO("Restoring previous process priority %s (0x%X)", 
-                   processPriorityToString(old_process_priority), old_process_priority);
+    URCL_LOG_INFO("Restoring previous process priority %s (0x%X)", processPriorityToString(old_process_priority),
+                  old_process_priority);
 
     if (!::SetPriorityClass(process, old_process_priority))
     {
       DWORD err = GetLastError();
       URCL_LOG_ERROR("Failed to restore previous process priority %s (0x%X). Error: %lu (%s)",
-                     processPriorityToString(old_process_priority), old_process_priority,
-                     err, getLastWindowsErrorMsg(err).c_str());
+                     processPriorityToString(old_process_priority), old_process_priority, err,
+                     getLastWindowsErrorMsg(err).c_str());
     }
 
     return false;
