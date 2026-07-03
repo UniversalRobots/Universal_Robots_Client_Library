@@ -376,7 +376,7 @@ Microsoft recommends using:
 * ``SetThreadPriority()`` with ``THREAD_PRIORITY_TIME_CRITICAL``
 * ``SetThreadAffinityMask()``
 
-For detailed information about configuring real-time processes and threads on Windows, 
+For detailed information about configuring real-time processes and threads on Windows,
 see `Application Development <https://learn.microsoft.com/en-us/windows/iot/iot-enterprise/soft-real-time/soft-real-time-application>`_.
 
 Scheduling priorities
