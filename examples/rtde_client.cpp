@@ -59,9 +59,9 @@ void printFraction(const double fraction, const std::string& label, const size_t
 
 int main(int argc, char* argv[])
 {
-  pthread_t thread = pthread_self();
 
 #ifdef _WIN32
+  pthread_t thread = pthread_self();
   pprocess_t process = pprocess_self();
 
   // Assign logical CPUs 6 and 7 to this process
@@ -77,7 +77,8 @@ int main(int argc, char* argv[])
   {
     URCL_LOG_ERROR("Failed to set thread affinity");
   }
-#else
+#elif __linux__
+  pthread_t thread = pthread_self();
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
 
