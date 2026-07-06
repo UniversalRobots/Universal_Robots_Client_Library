@@ -30,6 +30,7 @@
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
 #include "ur_client_library/rtde/data_package.h"
+#include "ur_client_library/helpers.h"
 #include <algorithm>
 #include <chrono>
 #include <string>
@@ -964,6 +965,10 @@ void RTDEClient::stopBackgroundRead()
 
 void RTDEClient::backgroundReadThreadFunc()
 {
+  pthread_t this_thread = pthread_self();
+  const int max_thread_priority = sched_get_priority_max(SCHED_FIFO);
+  setFiFoScheduling(this_thread, max_thread_priority);
+
   while (background_read_running_)
   {
     std::unique_lock<std::mutex> lock(reconnect_mutex_, std::defer_lock);
