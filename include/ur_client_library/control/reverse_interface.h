@@ -48,9 +48,13 @@ namespace control
  */
 enum class TrajectoryControlMessage : int32_t
 {
-  TRAJECTORY_CANCEL = -1,  ///< Represents command to cancel currently active trajectory.
-  TRAJECTORY_NOOP = 0,     ///< Represents no new control command.
-  TRAJECTORY_START = 1,    ///< Represents command to start a new trajectory.
+  TRAJECTORY_CANCEL = -1,       ///< Represents command to cancel currently active trajectory.
+  TRAJECTORY_NOOP = 0,          ///< Represents no new control command.
+  TRAJECTORY_START = 1,         ///< Represents command to start a new finite trajectory of declared length.
+  TRAJECTORY_STREAM_START = 2,  ///< Represents command to start an open-ended streaming trajectory.
+  TRAJECTORY_STREAM_END = 3,    ///< Represents command to terminate an open-ended streaming trajectory.
+                                ///< The point_number argument must equal the total number of motion primitives
+                                ///< the caller wrote on the trajectory socket since TRAJECTORY_STREAM_START.
 };
 
 /*!
@@ -120,15 +124,40 @@ public:
                      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
-   * \brief Writes needed information to the robot to be read by the URScript program.
+   * \brief Sends a trajectory-control message to the URScript program over the reverse socket.
    *
-   * \param trajectory_action 1 if a trajectory is to be started, -1 if it should be stopped
-   * \param point_number The number of points of the trajectory to be executed
-   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
-   * function to create the RobotReceiveTimeout object
+   * \param trajectory_action One of the values of TrajectoryControlMessage. The value selects which
+   * trajectory-control action the URScript dispatcher takes, and dictates how \p point_number is
+   * interpreted:
+   * - TRAJECTORY_CANCEL (-1): Cancels the currently executing trajectory. If the trajectory was started
+   *   with TRAJECTORY_START then \p point_number is unused. For streaming trajectories, \p point_number
+   *   must equal the total number of motion primitives the producer wrote on the trajectory socket
+   *   since TRAJECTORY_STREAM_START.
+   * - TRAJECTORY_NOOP (0): No-op; serves as a keepalive on the reverse socket while a trajectory
+   *   executes. The producer must send these (or another trajectory-control message) periodically
+   *   while waiting for trajectory completion so that the URScript dispatcher's read does not
+   *   time out and exit the external_control program. \p point_number is unused.
+   * - TRAJECTORY_START (1): Begins a finite trajectory of declared length. \p point_number is the
+   *   total number of subsequent writeTrajectoryPoint / writeTrajectorySplinePoint / writeMotionPrimitive
+   *   calls the producer will issue on the trajectory socket. URScript reads exactly that many points
+   *   and then completes.
+   * - TRAJECTORY_STREAM_START (2): Begins an open-ended (streaming) trajectory. The producer streams
+   *   motion primitives and signals end-of-stream with TRAJECTORY_STREAM_END. \p point_number is unused.
+   * - TRAJECTORY_STREAM_END (3): Ends an open-ended streaming trajectory started by
+   *   TRAJECTORY_STREAM_START. \p point_number must equal the total number of motion primitives the
+   *   producer wrote on the trajectory socket since TRAJECTORY_STREAM_START.
    *
-   * \returns True, if the write was performed successfully, false otherwise.
+   * \param point_number Mode-dependent point-count argument. See the description of \p
+   * trajectory_action for the per-mode semantics.
+   *
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the
+   * external control script on the robot. If you want to make the read function blocking then use
+   * RobotReceiveTimeout::off() function to create the RobotReceiveTimeout object.
+   *
+   * \returns True if the write was performed successfully, false otherwise.
+   *
+   * \see examples/trajectory_point_interface.cpp for a finite-trajectory usage example, or
+   * examples/trajectory_streaming.cpp for an open-ended streaming trajectory example.
    */
   bool
   writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,

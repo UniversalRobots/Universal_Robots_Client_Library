@@ -49,8 +49,8 @@ meaning:
            - joint velocities (SPEEDJ)
            - trajectory instructions (FORWARD)
 
-             - field 1: Trajectory control mode(1: TRAJECTORY_MODE_RECEIVE, -1: TRAJECTORY_MODE_CANCEL)
-             - field 2: Number of trajectory points left to transfer
+             - field 1: Trajectory control mode (1: TRAJECTORY_MODE_RECEIVE, 2: TRAJECTORY_MODE_STREAM_START, 3: TRAJECTORY_MODE_STREAM_END, -1: TRAJECTORY_MODE_CANCEL). See :ref:`streaming_trajectories` for the streaming modes.
+             - field 2: Trajectory point count. Its interpretation depends on the control mode in field 1.
 
            - Cartesian velocities (SPEEDL)
            - Cartesian pose (POSE)
@@ -87,6 +87,65 @@ meaning:
    ``ReverseInterface`` class.
 
 Depending on the control mode one can use the ``write()`` (SERVOJ, SPEEDJ, SPEEDL, POSE, TORQUE), ``writeTrajectoryControlMessage()`` (FORWARD) or ``writeFreedriveControlMessage()`` (FREEDRIVE) function to write a message to the "reverse_socket".
+
+.. _streaming_trajectories:
+
+Streaming trajectories
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+A ``FORWARD``-mode trajectory can be executed in one of two ways.
+
+A *finite* trajectory declares its total length up front:
+``writeTrajectoryControlMessage(TRAJECTORY_START, n)`` promises exactly ``n`` points, and execution
+completes once they have been consumed. This is the mode used by
+:ref:`trajecotry_joint_interface_example`.
+
+A *streaming* trajectory is open-ended. The producer does not commit to a point count in advance; it
+opens the stream, writes points for as long as it likes, and signals end-of-stream explicitly. This
+suits points produced on the fly -- from a planner or a teleoperation source -- where the total length
+is unknown when motion begins. The message sequence is:
+
+.. code-block:: c++
+
+   writeTrajectoryControlMessage(TRAJECTORY_STREAM_START)   // open the stream
+   // write a motion primitive, any number of times:
+   // writeTrajectoryPoint(...) / writeTrajectorySplinePoint(...) / writeMotionPrimitive(...)
+   writeTrajectoryControlMessage(TRAJECTORY_STREAM_END, n)  // close the stream
+
+``TRAJECTORY_STREAM_START`` opens the trajectory; its point-count argument is unused. The producer then
+writes motion primitives -- via ``writeTrajectoryPoint()``, ``writeTrajectorySplinePoint()`` or
+``writeMotionPrimitive()`` -- for as long as it likes. ``TRAJECTORY_STREAM_END`` closes it.
+
+.. important::
+   The ``n`` passed to ``TRAJECTORY_STREAM_END`` must equal the total number of motion primitives the
+   producer wrote since ``TRAJECTORY_STREAM_START``. The controller consumes primitives asynchronously
+   as it executes them and cannot otherwise tell how many are still outstanding; it uses ``n`` to
+   account for those still in flight before completing. Aborting a stream with ``TRAJECTORY_CANCEL``
+   requires the same count, for the same reason. (For a finite ``TRAJECTORY_START`` trajectory the
+   cancel argument is unused.)
+
+Two obligations fall on the producer:
+
+- **Do not starve the controller.** The robot consumes the stream as it executes it, so the producer
+  must keep work available: the next primitive must arrive before the robot finishes the ones it
+  already holds. The budget for delivering it is simply the duration of the work in hand -- a primitive
+  that runs for five minutes gives five minutes to produce its successor, while a stream of
+  eight-millisecond primitives demands one every eight milliseconds. If the robot runs out of submitted
+  work before the next primitive arrives and before ``TRAJECTORY_STREAM_END`` is sent, the trajectory
+  ends with ``TRAJECTORY_RESULT_FAILURE``. Delivering primitives as they are produced, without holding
+  them back, is the natural way to satisfy this.
+
+- **End at rest.** Streaming adds no wind-down deceleration of its own. Make the final point a
+  controlled stop, with zero velocity and acceleration, so the spline interpolates smoothly to rest at
+  the goal. The trajectory thread issues ``stopj`` on exit regardless, so a non-zero terminal point
+  still stops the robot, but the transition will be less smooth.
+
+On completion the callback registered with ``setTrajectoryEndCallback()`` reports
+``TRAJECTORY_RESULT_SUCCESS`` for a clean end (``TRAJECTORY_STREAM_END`` processed, all points
+consumed), ``TRAJECTORY_RESULT_FAILURE`` for a producer underrun, or ``TRAJECTORY_RESULT_CANCELED`` if
+the stream was aborted with ``TRAJECTORY_CANCEL``.
+
+See :ref:`trajectory_streaming_example` for a complete, working example.
 
 .. _direct_torque_control_mode:
 

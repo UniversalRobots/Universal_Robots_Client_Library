@@ -585,13 +585,23 @@ public:
   /*!
    * \brief Writes a control message in trajectory forward mode.
    *
-   * \param trajectory_action The action to be taken, such as starting a new trajectory
-   * \param point_number The number of points of a new trajectory to be sent
-   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
-   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
-   * function to create the RobotReceiveTimeout object
+   * Selects which trajectory-control action the URScript dispatcher takes (start a finite
+   * trajectory, begin or end an open-ended streaming trajectory, cancel, or no-op keepalive)
+   * and, where applicable, communicates a point count. See
+   * control::ReverseInterface::writeTrajectoryControlMessage for the per-mode semantics of
+   * \p trajectory_action and \p point_number.
+   *
+   * \param trajectory_action The trajectory-control action to take.
+   * \param point_number Mode-dependent point-count argument; see the underlying interface.
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in
+   * the external control script on the robot. If you want to make the read function blocking
+   * then use RobotReceiveTimeout::off() function to create the RobotReceiveTimeout object.
    *
    * \returns True on successful write.
+   *
+   * \see control::ReverseInterface::writeTrajectoryControlMessage
+   * \see examples/trajectory_point_interface.cpp (finite trajectory)
+   * \see examples/trajectory_streaming.cpp (open-ended streaming trajectory)
    */
   bool
   writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action, const int point_number = 0,
