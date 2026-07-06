@@ -103,11 +103,13 @@ completes once they have been consumed. This is the mode used by
 A *streaming* trajectory is open-ended. The producer does not commit to a point count in advance; it
 opens the stream, writes points for as long as it likes, and signals end-of-stream explicitly. This
 suits points produced on the fly -- from a planner or a teleoperation source -- where the total length
-is unknown when motion begins. The message sequence is::
+is unknown when motion begins. The message sequence is:
+
+.. code-block:: c++
 
    writeTrajectoryControlMessage(TRAJECTORY_STREAM_START)   // open the stream
    // write a motion primitive, any number of times:
-   //   writeTrajectoryPoint(...) / writeTrajectorySplinePoint(...) / writeMotionPrimitive(...)
+   // writeTrajectoryPoint(...) / writeTrajectorySplinePoint(...) / writeMotionPrimitive(...)
    writeTrajectoryControlMessage(TRAJECTORY_STREAM_END, n)  // close the stream
 
 ``TRAJECTORY_STREAM_START`` opens the trajectory; its point-count argument is unused. The producer then

@@ -41,7 +41,7 @@ distinguishes a successful run from a cancellation or a failure:
    :end-at: }
 
 While a trajectory runs, the control PC must keep telling the robot program that the connection is
-still alive. We do this by pumping ``TRAJECTORY_NOOP`` messages while we wait; without them the robot
+still alive. We do this by sending ``TRAJECTORY_NOOP`` messages while we wait; without them the robot
 program stops waiting for input and the ``external_control`` program exits:
 
 .. literalinclude:: ../../examples/trajectory_streaming.cpp
