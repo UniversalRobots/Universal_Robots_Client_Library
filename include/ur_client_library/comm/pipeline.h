@@ -303,7 +303,7 @@ public:
    * \param producer_fifo_scheduling Should the producer thread use FIFO scheduling?
    */
   Pipeline(IProducer<T>& producer, IConsumer<T>* consumer, std::string name, INotifier& notifier,
-           const bool producer_fifo_scheduling = true)
+           const bool producer_fifo_scheduling = false)
     : producer_(producer)
     , consumer_(consumer)
     , name_(name)
@@ -322,7 +322,7 @@ public:
    * \param notifier The notifier to use
    * \param producer_fifo_scheduling Should the producer thread use FIFO scheduling?
    */
-  Pipeline(IProducer<T>& producer, std::string name, INotifier& notifier, const bool producer_fifo_scheduling = true)
+  Pipeline(IProducer<T>& producer, std::string name, INotifier& notifier, const bool producer_fifo_scheduling = false)
     : producer_(producer)
     , consumer_(nullptr)
     , name_(name)
