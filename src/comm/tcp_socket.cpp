@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cstring>
 #include <sstream>
+#include <stdexcept>
 #include <thread>
 
 #ifndef _WIN32
@@ -39,6 +40,33 @@ namespace urcl
 {
 namespace comm
 {
+
+const std::string& socketStateToString(SocketState state)
+{
+  switch (state)
+  {
+    case SocketState::Invalid:
+      static const std::string invalid_state = "Invalid";
+      return invalid_state;
+    case SocketState::Connecting:
+      static const std::string connecting_state = "Connecting";
+      return connecting_state;
+    case SocketState::Connected:
+      static const std::string connected_state = "Connected";
+      return connected_state;
+    case SocketState::LostConnection:
+      static const std::string lost_connection_state = "LostConnection";
+      return lost_connection_state;
+    case SocketState::Disconnecting:
+      static const std::string disconnecting_state = "Disconnecting";
+      return disconnecting_state;
+    case SocketState::Closed:
+      static const std::string closed_state = "Closed";
+      return closed_state;
+  }
+  throw std::invalid_argument("Unknown socket state");
+}
+
 namespace
 {
 // Time slice used while waiting for a non-blocking connect to resolve. Kept short so a
@@ -101,7 +129,10 @@ int waitForSocketWritable(socket_t socket_fd, int timeout_ms)
 }
 }  // namespace
 TCPSocket::TCPSocket()
-  : socket_fd_(INVALID_SOCKET), state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
+  : socket_fd_(INVALID_SOCKET)
+  , state_(SocketState::Invalid)
+  , target_state_(SocketState::Invalid)
+  , reconnection_time_(std::chrono::seconds(10))
 {
 #ifdef _WIN32
   WSAData data;
@@ -195,40 +226,25 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
   return connected;
 }
 
-bool TCPSocket::setup(const std::string& host, const int port, const size_t max_num_tries,
-                      const std::chrono::milliseconds reconnection_time)
+bool TCPSocket::setupInternal(const std::string& host, const int port, const size_t max_num_tries,
+                              const std::chrono::milliseconds reconnection_time)
 {
   // This can be removed once we remove the setReconnectionTime() method
   auto reconnection_time_resolved = reconnection_time;
   if (reconnection_time_modified_deprecated_)
   {
-    URCL_LOG_WARN("TCPSocket::setup(): Reconnection time was modified using `setReconnectionTime()` which is "
-                  "deprecated. Please change your code to set reconnection_time through the `setup()` method "
+    URCL_LOG_WARN("TCPSocket::setupInternal(): Reconnection time was modified using `setReconnectionTime()` which is "
+                  "deprecated. Please change your code to set reconnection_time through the `(re)connect()` method "
                   "directly. The value passed to this function will be ignored.");
     reconnection_time_resolved = reconnection_time_;
   }
 
-  // Honor a deliberate disconnect() before doing anything else. Checked first so the
-  // cancellation cannot be lost.
-  if (isStopRequested())
-    return false;
-
   if (state_ == SocketState::Connected)
     return false;
 
-  // The in-progress state we hold while (re)trying. connect() pre-sets Reconnecting via
-  // reconnect(); everything else (including direct setup() callers) is treated as a first connect.
-  const SocketState progress =
-      (state_ == SocketState::Reconnecting) ? SocketState::Reconnecting : SocketState::Connecting;
-
-  // Move to the in-progress state, but never clobber a deliberate disconnect() that races us.
-  if (!setStateUnlessStopRequested(progress))
-    return false;
+  state_ = SocketState::Connecting;
 
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
-
-  // gethostbyname() is deprecated so use getadderinfo() as described in:
-  // https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch
 
   const char* host_name = host.empty() ? nullptr : host.c_str();
   std::string service = std::to_string(port);
@@ -251,7 +267,7 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
       URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
       return false;
     }
-    // loop through the list of addresses untill we find one that's connectable
+    // loop through the list of addresses until we find one that's connectable
     for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
     {
       socket_fd_ = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
@@ -273,12 +289,6 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
 
     if (!connected)
     {
-      // Re-assert the in-progress state for the next attempt, but never clobber a deliberate
-      // disconnect() that raced us.
-      if (!setStateUnlessStopRequested(progress))
-      {
-        return false;
-      }
       if (++connect_counter >= max_num_tries && max_num_tries > 0)
       {
         URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
@@ -310,7 +320,7 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
   setupOptions();
   // Mark Connected only if no deliberate disconnect() slipped in while we were finishing up; a late
   // disconnect() must win so we do not advertise a usable socket that was just torn down.
-  SocketState expected = progress;
+  SocketState expected = SocketState::Connecting;
   if (!state_.compare_exchange_strong(expected, SocketState::Connected))
   {
     close();
@@ -320,84 +330,63 @@ bool TCPSocket::setup(const std::string& host, const int port, const size_t max_
   return connected;
 }
 
-bool TCPSocket::setStateUnlessStopRequested(SocketState desired)
+bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
+                        const std::chrono::milliseconds reconnection_time)
 {
+  target_state_ = SocketState::Connected;
+  return setupInternal(host, port, max_num_tries, reconnection_time);
+}
+
+bool TCPSocket::reconnect(const std::string& host, const int port, const size_t max_num_tries,
+                          const std::chrono::milliseconds reconnection_time)
+{
+  if (state_ != SocketState::LostConnection)
+  {
+    URCL_LOG_ERROR("Reconnect called on a socket that is not in LostConnection state");
+    return false;
+  }
+  setTargetStateUnlessStopRequested(SocketState::Connected);
+  return setupInternal(host, port, max_num_tries, reconnection_time);
+}
+
+bool TCPSocket::setTargetStateUnlessStopRequested(SocketState desired)
+{
+  SocketState current_target = target_state_.load();
+  if (current_target == desired)
+  {
+    return true;  // already tracking target
+  }
+
   // Lock-free compare-and-swap: move state_ to `desired` unless a deliberate disconnect()
   // (Disconnecting/Disconnected) is in effect. This is not an unbounded spin: each iteration
   // either succeeds, or observes that another thread changed state_ and re-evaluates. We use
   // compare_exchange_strong so there are no spurious retries; the loop can only re-iterate when a
   // concurrent writer genuinely changed state_, and the only such writers (a racing disconnect(),
   // or a paired close()) make a bounded number of writes, so it terminates promptly.
-  SocketState cur = state_.load();
-  while (cur != SocketState::Disconnecting && cur != SocketState::Disconnected)
+  while (target_state_ != SocketState::Closed)
   {
-    if (state_.compare_exchange_strong(cur, desired))
+    if (target_state_.compare_exchange_strong(current_target, desired))
     {
       return true;  // successfully moved to `desired`
     }
-    // CAS failed: `cur` now holds the value another thread wrote; loop to re-check the stop set.
   }
   return false;  // a deliberate disconnect() is in effect; state_ left untouched
 }
 
-bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
-                        const std::chrono::milliseconds reconnection_time)
-{
-  // Refuse to clobber a live connection (mirrors setup()'s own guard, which connect() would
-  // otherwise bypass by pre-setting Connecting).
-  if (state_ == SocketState::Connected)
-  {
-    return false;
-  }
-  // Explicit (re)connect: move to Connecting only if no deliberate disconnect() is in effect.
-  // connect() must NEVER clear the deliberate-stop set itself: doing so unconditionally races a
-  // concurrent teardown (e.g. ~RTDEClient() calling disconnect() while the reconnect thread runs
-  // connect() via setupProducer()), silently undoing the stop and re-introducing the teardown hang.
-  // A deliberate reconnect after a stop() must first clear the stop explicitly via allowReconnect()
-  // on the controlling thread; an automatic reconnect path that observes a stop simply aborts here.
-  if (!setStateUnlessStopRequested(SocketState::Connecting))
-  {
-    return false;
-  }
-  return setup(host, port, max_num_tries, reconnection_time);
-}
-
-bool TCPSocket::reconnect(const std::string& host, const int port, const size_t max_num_tries,
-                          const std::chrono::milliseconds reconnection_time)
-{
-  // Automatic reconnect: mark Reconnecting, but never clear a deliberate disconnect(). If a stop is
-  // in effect, refuse instead of reconnecting so a concurrent teardown is not undone.
-  if (!setStateUnlessStopRequested(SocketState::Reconnecting))
-  {
-    return false;
-  }
-  return setup(host, port, max_num_tries, reconnection_time);
-}
-
 void TCPSocket::close()
 {
-  if (socket_fd_ >= 0)
+  if (state_ != SocketState::Closed)
   {
-    // Neutral close: do not downgrade a deliberate disconnect() (Disconnecting/Disconnected) back
-    // to a reconnectable state.
-    setStateUnlessStopRequested(SocketState::Closed);
-    ::ur_close(socket_fd_);
-    socket_fd_ = INVALID_SOCKET;
+    // closing overwrites everything, so we do not need to check for stopRequested() here
+    target_state_ = SocketState::Closed;
+    state_ = SocketState::Disconnecting;
   }
-}
-
-void TCPSocket::disconnect()
-{
-  // Enter the deliberate-stop set before closing so a reconnect thread observing the closed socket
-  // is guaranteed to also see the stop (and therefore abort instead of retrying). Closing the fd
-  // unblocks any in-progress connect/poll; the resting state is Disconnected.
-  state_ = SocketState::Disconnecting;
   if (socket_fd_ >= 0)
   {
     ::ur_close(socket_fd_);
     socket_fd_ = INVALID_SOCKET;
   }
-  state_ = SocketState::Disconnected;
+  state_ = SocketState::Closed;
 }
 
 std::string TCPSocket::getIP() const

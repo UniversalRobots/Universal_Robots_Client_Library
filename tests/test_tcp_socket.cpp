@@ -30,7 +30,6 @@
 
 #include <gtest/gtest.h>
 #include <chrono>
-#include <condition_variable>
 #include <cstddef>
 #include "test_utils.h"
 
@@ -66,15 +65,40 @@ protected:
       ip_ = ip;
     }
 
-    bool setup(const size_t max_num_tries = 0,
-               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+    bool connect(const size_t max_num_tries = 0,
+                 const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       return TCPSocket::connect(ip_, port_, max_num_tries, reconnection_time);
     }
 
+    bool reconnect(const size_t max_num_tries = 0,
+                   const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+    {
+      return TCPSocket::reconnect(ip_, port_, max_num_tries, reconnection_time);
+    }
+
+    bool setTargetStateUnlessStopRequested(comm::SocketState desired)
+    {
+      URCL_LOG_INFO("Setting target state to %s", socketStateToString(desired).c_str());
+      return TCPSocket::setTargetStateUnlessStopRequested(desired);
+    }
+
+    bool isStopRequested() const
+    {
+      return TCPSocket::isStopRequested();
+    }
+
+    void printState()
+    {
+      comm::SocketState state = getState();
+      std::string state_str = socketStateToString(state);
+      std::cout << "Client state: " << state_str << ", stop_requested: " << std::boolalpha << isStopRequested()
+                << std::endl;
+    }
+
     void disconnect()
     {
-      TCPSocket::disconnect();
+      TCPSocket::close();
     }
 
     void setupClientBeforeServer(const size_t max_num_tries = 0,
@@ -130,7 +154,7 @@ TEST_F(TCPSocketTest, socket_state)
   EXPECT_EQ(toUnderlying(expected_state), toUnderlying(actual_state));
 
   // Client state should be connected after setup
-  client_->setup();
+  client_->connect();
   expected_state = comm::SocketState::Connected;
   actual_state = client_->getState();
 
@@ -179,7 +203,7 @@ TEST_F(TCPSocketTest, get_ip)
 
   EXPECT_EQ(expected_ip, actual_ip);
 
-  client_->setup();
+  client_->connect();
   expected_ip = "127.0.0.1";
   actual_ip = client_->getIP();
 
@@ -206,7 +230,7 @@ TEST_F(TCPSocketTest, read_on_non_connected_socket)
 
 TEST_F(TCPSocketTest, write_on_connected_socket)
 {
-  client_->setup();
+  client_->connect();
 
   std::string message = "test message";
   const uint8_t* data = reinterpret_cast<const uint8_t*>(message.c_str());
@@ -220,7 +244,7 @@ TEST_F(TCPSocketTest, write_on_connected_socket)
 
 TEST_F(TCPSocketTest, read_on_connected_socket)
 {
-  client_->setup();
+  client_->connect();
 
   // Make sure the client has connected to the server, before writing to the client
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -253,7 +277,7 @@ TEST_F(TCPSocketTest, get_socket_fd)
 
   EXPECT_EQ(expected_fd, actual_fd);
 
-  client_->setup();
+  client_->connect();
   actual_fd = client_->getSocketFD();
 
   EXPECT_NE(expected_fd, actual_fd);
@@ -266,7 +290,7 @@ TEST_F(TCPSocketTest, get_socket_fd)
 
 TEST_F(TCPSocketTest, receive_timeout)
 {
-  client_->setup();
+  client_->connect();
 
   timeval tv;
   tv.tv_sec = 1;
@@ -282,16 +306,16 @@ TEST_F(TCPSocketTest, receive_timeout)
 
 TEST_F(TCPSocketTest, setup_while_client_is_connected)
 {
-  client_->setup();
+  client_->connect();
 
-  EXPECT_FALSE(client_->setup());
+  EXPECT_FALSE(client_->connect());
 }
 
 TEST_F(TCPSocketTest, connect_non_running_robot)
 {
   Client client(12321, "127.0.0.1");
   auto start = std::chrono::system_clock::now();
-  EXPECT_FALSE(client.setup(2, std::chrono::milliseconds(500)));
+  EXPECT_FALSE(client.connect(2, std::chrono::milliseconds(500)));
   auto end = std::chrono::system_clock::now();
   auto elapsed = end - start;
   // This is only a rough estimate, obviously
@@ -319,7 +343,7 @@ TEST_F(TCPSocketTest, setup_interruptible_by_close)
   std::thread setup_thread([&client, &large_reconnect_timeout]() {
     // max_num_tries=0 (unlimited) → setup() waits large_reconnect_timeout after
     // every failed connect attempt and never exits on its own.
-    client.setup(0, large_reconnect_timeout);
+    client.connect(0, large_reconnect_timeout);
   });
 
   // Give the thread time to reach the between-attempt wait inside setup().
@@ -352,7 +376,7 @@ TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
 
   Client client(unused_port, "10.255.255.1");
 
-  std::thread setup_thread([&client, &large_reconnect_timeout]() { client.setup(0, large_reconnect_timeout); });
+  std::thread setup_thread([&client, &large_reconnect_timeout]() { client.connect(0, large_reconnect_timeout); });
 
   // Give the thread time to enter the (blocking) connect attempt.
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -373,12 +397,12 @@ TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)
   URCL_SILENCE_DEPRECATED_BEGIN
   client_->setReconnectionTime(std::chrono::milliseconds(100));
   URCL_SILENCE_DEPRECATED_END
-  EXPECT_TRUE(client_->setup(2));
+  EXPECT_TRUE(client_->connect(2));
 }
 
 TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
 {
-  client_->setup();
+  client_->connect();
 
   // Make sure the client has connected to the server, before writing to the client
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -396,6 +420,225 @@ TEST_F(TCPSocketTest, test_read_on_socket_abruptly_closed)
   size_t read_chars = 0;
   EXPECT_FALSE(client_->read((uint8_t*)&characters, 1, read_chars));
   EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
+}
+
+TEST_F(TCPSocketTest, test_socket_client_lifecycle)
+{
+  // After startup a client should be in state Invalid
+  EXPECT_EQ(client_->getState(), comm::SocketState::Invalid);
+  client_->printState();
+
+  client_->connect();
+  EXPECT_EQ(client_->getState(), comm::SocketState::Connected);
+  client_->printState();
+
+  // Make sure the client has connected to the server, before writing to the client
+  EXPECT_TRUE(server_->waitForConnectionCallback());
+
+  std::atomic<int> read_count(0);
+  auto read_fun = [this, &read_count]() {
+    bool read_success = true;
+    uint8_t buffer[64];
+    size_t read_chars = 0;
+    while (read_success)
+    {
+      std::cout << "Reading from socket..." << std::endl;
+      read_success = client_->read(buffer, 64, read_chars);
+      if (read_success)
+      {
+        std::cout << "Read " << read_chars << " characters." << std::endl;
+        read_count.store(read_count.load() + 1);
+      }
+    }
+  };
+
+  // Scenario 1: Client is connected, server is shutdown, client should go into LostConnection
+  // state. Afterwards we should be able to restart the server and reconnect the client.
+  {
+    std::thread read_thread(read_fun);
+
+    std::string send_message = "test message";
+    size_t len = send_message.size();
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(send_message.c_str());
+    size_t written;
+    server_->write(data, len, written);
+
+    ASSERT_NO_THROW(waitFor([&read_count]() { return read_count.load() > 0; }, std::chrono::seconds(1)));
+    std::cout << "Read count: " << read_count.load() << std::endl;
+
+    EXPECT_EQ(client_->getState(), comm::SocketState::Connected);
+    client_->printState();
+
+    std::cout << "Shutting down server..." << std::endl;
+    server_->shutdown();
+
+    read_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
+    client_->printState();
+
+    std::cout << "Restarting server..." << std::endl;
+    server_.reset(new TestableTcpServer(60001));
+    server_->start();
+
+    std::cout << "Reconnecting client..." << std::endl;
+    ASSERT_TRUE(client_->connect());
+    client_->printState();
+  }
+
+  // Scenario 2: Deliberate disconnect() while a read is in progress should abort the read and put
+  // the client into Disconnected state. We should be able to reconnect the client afterwards.
+  {
+    std::thread read_thread(read_fun);
+    client_->disconnect();
+    read_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Closed);
+    client_->printState();
+
+    client_->connect();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Connected)
+        << "Expected state" << comm::socketStateToString(comm::SocketState::Connected)
+        << ". Got state : " << socketStateToString(client_->getState());
+    client_->printState();
+  }
+
+  // Scenario 3: Server shuts down, client disconnects. Connecting the client will go into a
+  // connection attempt loop. At some point we start the server again and the client should reconnect successfully.
+  // This simulates a client application with a auto-reconnect on read-failure.
+  {
+    std::thread read_thread(read_fun);
+
+    std::cout << "Shutting down server..." << std::endl;
+    server_->shutdown();
+
+    read_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
+    client_->printState();
+
+    std::cout << "Starting connection attempt loop..." << std::endl;
+    std::thread connect_thread([this]() {
+      bool result = client_->reconnect(0, std::chrono::milliseconds(100));
+      EXPECT_TRUE(result) << "Client failed to reconnect after server restart";
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    server_.reset(new TestableTcpServer(60001));
+    server_->start();
+
+    connect_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Connected)
+        << "Expected state" << comm::socketStateToString(comm::SocketState::Connected)
+        << ". Got state: " << socketStateToString(client_->getState());
+    client_->printState();
+  }
+
+  // Scenario 4: Same as scenario 3, but while reconnecting we do not start the server but
+  // disconnect the client. The client should abort the connection attempt loop and go into Disconnected state.
+  {
+    std::thread read_thread(read_fun);
+
+    std::cout << "Shutting down server..." << std::endl;
+    server_->shutdown();
+
+    read_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection)
+        << "Client state after reconnect: " << socketStateToString(client_->getState());
+    client_->printState();
+
+    std::cout << "Starting connection attempt loop..." << std::endl;
+    std::thread connect_thread([this]() {
+      bool result = client_->reconnect(0, std::chrono::milliseconds(100));
+      EXPECT_FALSE(result) << "Client should have aborted the connection attempt loop";
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    client_->disconnect();
+
+    connect_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Closed)
+        << "Client state after reconnect: " << socketStateToString(client_->getState());
+    client_->printState();
+  }
+
+  // Scenario 5: We attempt to connect to a non-reachable server. Disconnecting the client should abort the connection
+  // attempt loop and put the client into Disconnected state.
+  {
+    server_->shutdown();
+    std::thread connect_thread([this]() {
+      bool result = client_->connect(0, std::chrono::milliseconds(100));
+      EXPECT_FALSE(result) << "Client should have aborted the connection attempt loop";
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    client_->disconnect();
+
+    connect_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Closed)
+        << "Client state after reconnect: " << socketStateToString(client_->getState());
+    client_->printState();
+  }
+
+  // Scenario 6: Server shuts down, connection lost. Then, client gets disconnected. Server starts
+  // again, reconnect should fail, since it was deliberately disconnected. Connect should work.
+  {
+    server_.reset(new TestableTcpServer(60001));
+    server_->start();
+    client_->connect();
+    std::thread read_thread(read_fun);
+
+    std::cout << "Shutting down server..." << std::endl;
+    server_->shutdown();
+
+    read_thread.join();
+    EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
+    client_->printState();
+
+    std::cout << "Disconnecting client..." << std::endl;
+    client_->disconnect();
+    EXPECT_EQ(client_->getState(), comm::SocketState::Closed);
+    client_->printState();
+
+    std::cout << "Starting server..." << std::endl;
+    server_.reset(new TestableTcpServer(60001));
+    server_->start();
+
+    std::cout << "Attempting to reconnect client..." << std::endl;
+    bool result = client_->reconnect(0, std::chrono::milliseconds(100));
+    EXPECT_FALSE(result) << "Client should not have reconnected after deliberate disconnect()";
+    EXPECT_EQ(client_->getState(), comm::SocketState::Closed);
+    client_->printState();
+
+    std::cout << "Attempting to connect client..." << std::endl;
+    result = client_->connect(0, std::chrono::milliseconds(100));
+    EXPECT_TRUE(result) << "Client should have connected after deliberate disconnect()";
+    EXPECT_EQ(client_->getState(), comm::SocketState::Connected);
+    client_->printState();
+  }
+}
+
+TEST_F(TCPSocketTest, test_set_target_state_unless_stop_requested)
+{
+  ASSERT_EQ(client_->getState(), comm::SocketState::Invalid);
+  // Requesting to go to current state should return true
+  ASSERT_TRUE(client_->setTargetStateUnlessStopRequested(comm::SocketState::Invalid));
+  // We should be able to set the target state to Connected, since we are not in a deliberate
+  // disconnect() state
+  ASSERT_TRUE(client_->setTargetStateUnlessStopRequested(comm::SocketState::Connected));
+  // This should not have modified the state of the client, since we are not connected yet
+  ASSERT_EQ(client_->getState(), comm::SocketState::Invalid);
+  client_->connect();
+
+  // Make sure the client has connected to the server, before writing to the client
+  EXPECT_TRUE(server_->waitForConnectionCallback());
+
+  ASSERT_EQ(client_->getState(), comm::SocketState::Connected);
+  // Requesting to go to current state should return true
+  ASSERT_TRUE(client_->setTargetStateUnlessStopRequested(comm::SocketState::Connected));
+
+  client_->disconnect();
+  ASSERT_EQ(client_->getState(), comm::SocketState::Closed);
+  ASSERT_TRUE(client_->isStopRequested());
+  ASSERT_FALSE(client_->setTargetStateUnlessStopRequested(comm::SocketState::Connected));
+  client_->printState();
 }
 
 int main(int argc, char* argv[])

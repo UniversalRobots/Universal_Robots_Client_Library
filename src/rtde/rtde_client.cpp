@@ -87,11 +87,6 @@ RTDEClient::~RTDEClient()
 {
   prod_->setReconnectionCallback(nullptr);
   stop_reconnection_ = true;
-  // Disconnect the stream before joining the reconnect thread. disconnect() moves the socket into
-  // the deliberate-stop state and closes it so that any connect attempt or back-off sleep inside
-  // TCPSocket::setup() aborts within one poll slice, instead of blocking the destructor for the
-  // full reconnection_timeout (or indefinitely with max_connection_attempts == 0).
-  stream_.disconnect();
   disconnect();
   if (reconnecting_thread_.joinable())
   {
@@ -513,14 +508,7 @@ bool RTDEClient::setupInputs()
 
 void RTDEClient::disconnect()
 {
-  // Close unconditionally: TCPSocket::close() and RTDEWriter::stop() are both idempotent. Guarding
-  // on client_state_ left the stream in SocketState::Connected after a failed
-  // negotiateProtocolVersion() (which resets client_state_ to UNINITIALIZED), causing the
-  // subsequent TCPSocket::setup() call to return false immediately due to the Connected check.
-  // Use close() (neutral) rather than disconnect() here: this runs during normal reconnect cycling,
-  // so the stream must stay reconnectable. A real teardown sets the deliberate-stop state first (in
-  // ~RTDEClient), which close() will not downgrade.
-  stream_.close();
+  stream_.disconnect();
   writer_.stop();
   client_state_ = ClientState::UNINITIALIZED;
   prod_->stopProducer();
