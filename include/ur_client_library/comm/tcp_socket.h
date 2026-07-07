@@ -37,14 +37,14 @@ namespace comm
 enum class SocketState
 {
   Invalid,         ///< Socket is initialized but was never connected
-  Connecting,      ///< A first-time connect() attempt is in progress
+  Connecting,      ///< A connection is in progress
   Connected,       ///< Socket is connected and ready to use
   LostConnection,  ///< Connection dropped unexpectedly; auto-reconnect is expected to pick it up
-  Reconnecting,    ///< An automatic reconnect attempt (after a drop) is in progress
   Disconnecting,   ///< A deliberate disconnect() is in progress
-  Disconnected,    ///< Deliberately disconnected; will NOT auto-reconnect until connect() is called
-  Closed           ///< Neutral low-level close (clearable by a subsequent (re)connect)
+  Closed,          ///< Connection to socket got closed
 };
+
+const std::string& socketStateToString(SocketState state);
 
 /*!
  * \brief Class for TCP socket abstraction
@@ -54,16 +54,11 @@ class TCPSocket
 private:
   std::atomic<socket_t> socket_fd_;
   std::atomic<SocketState> state_;
+  std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
 
   void setupOptions();
-
-  // Atomically moves state_ to `desired`, unless a deliberate disconnect() (Disconnecting or
-  // Disconnected) is in effect. Returns true if the state was set, false if a deliberate stop is
-  // active (in which case state_ is left untouched). This is how the connect/retry machinery
-  // updates its in-progress state without ever clobbering a teardown signal.
-  bool setStateUnlessStopRequested(SocketState desired);
 
   // Performs an interruptible, non-blocking connect on an already-created socket.
   // Polls in short slices so that a concurrent disconnect() aborts the attempt
@@ -71,90 +66,50 @@ private:
   // Winsock's is not). Restores blocking mode on success.
   bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
 
-  // Internal connect/retry machinery. Establishes a connection to host/port, retrying up to
-  // max_num_tries times (unlimited when 0). Used by the protected connect()/reconnect() entry
-  // points; not called directly by subclasses.
-  bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
-             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+  bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
+                     const std::chrono::milliseconds reconnection_time);
 
 protected:
-  // True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
-  // set"). The connect/retry machinery checks this to abort, and never overwrites these states,
-  // so a teardown disconnect() that races a reconnect attempt is observed reliably.
+  /*!
+   * \brief Atomically moves state_ to `desired`, unless a deliberate disconnect() is in effect.
+   *
+   * Returns true if the state was set, false if a deliberate stop is
+   * active (in which case state_ is left untouched). This is how the connect/retry machinery
+   * updates its in-progress state without ever clobbering a teardown signal.
+   */
+  bool setTargetStateUnlessStopRequested(SocketState desired);
+
+  /*!
+   * \brief Query whether there has been a deliberate disconnect() request.
+   *
+   * True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
+   * set").
+   */
   bool isStopRequested() const
   {
-    const SocketState s = state_.load();
-    return s == SocketState::Disconnecting || s == SocketState::Disconnected;
+    return target_state_ == SocketState::Closed;
   }
 
   /*!
-   * \brief Explicitly clears a deliberate disconnect() so a subsequent connect() can revive the
-   * socket.
+   * \brief Performs a blocking connect on an already-created socket.
    *
-   * This is the ONLY way to leave the deliberate-stop set, and it must be called on the controlling
-   * thread when no automatic reconnect path is concurrently active (e.g. before a deliberate
-   * reconnect following a stop()). connect() never clears the stop on its own, so an automatic
-   * reconnect cannot accidentally undo a teardown. No-op unless a deliberate disconnect() is in
-   * effect.
+   * This is the platform-native, uninterruptible connect. It is used when the caller has
+   * already established that no deliberate disconnect() is in effect, and is willing to block
+   * until the connect succeeds or fails. The caller must ensure that the socket is in blocking
+   * mode before calling this.
    */
-  void allowReconnect()
-  {
-    // Move out of the deliberate-stop set to a neutral, connectable state. Only act on the
-    // deliberate-stop states so this is a no-op for a socket that is connecting/connected.
-    SocketState expected = SocketState::Disconnected;
-    if (!state_.compare_exchange_strong(expected, SocketState::Closed))
-    {
-      expected = SocketState::Disconnecting;
-      state_.compare_exchange_strong(expected, SocketState::Closed);
-    }
-  }
-
+  [[deprecated("Use connect() instead, which is interruptible by a concurrent disconnect()")]]
   static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
   {
     return ::connect(socket_fd, address, static_cast<socklen_t>(address_len)) == 0;
   }
 
-  /*!
-   * \brief Establishes a connection to the configured host/port.
-   *
-   * This is the explicit (re)connect entry point for subclasses. It clears any prior deliberate
-   * disconnect() (moving the socket to Connecting) and then attempts to connect, retrying up to
-   * max_num_tries times (unlimited when 0). Call this on the controlling thread; the automatic
-   * reconnect path uses reconnect() instead.
-   *
-   * \param host Host to connect to
-   * \param port Port to connect to
-   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
-   * \param reconnection_time Time between connection attempts
-   *
-   * \returns True on success, false if the connection could not be established or was aborted by
-   * a concurrent disconnect()
-   */
-  bool connect(const std::string& host, const int port, const size_t max_num_tries = 0,
-               const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
-
-  /*!
-   * \brief Re-establishes a connection after an unexpected drop, without clearing a deliberate
-   * disconnect().
-   *
-   * Used by the automatic reconnect path (e.g. the producer loop). If a deliberate disconnect()
-   * is in progress or has completed, this returns false immediately instead of reconnecting, so a
-   * concurrent teardown is never undone. Otherwise behaves like setup() but marks the socket as
-   * Reconnecting while the attempt is in progress.
-   */
-  bool reconnect(const std::string& host, const int port, const size_t max_num_tries = 0,
-                 const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
-
-  /*!
-   * \brief Deliberately disconnects the socket and leaves it ready to connect() again.
-   *
-   * Moves the socket into the deliberate-stop set (Disconnecting then Disconnected) and closes the
-   * underlying file descriptor. Any connect/reconnect attempt currently in progress (blocked in a
-   * connect or sleeping between attempts) aborts promptly, and the automatic reconnect path will
-   * not reconnect until connect() is called again. Use this at teardown (e.g. from a destructor)
-   * before joining a reconnect thread.
-   */
-  void disconnect();
+  [[deprecated("Use the public method connect() instead")]]
+  bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
+             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME)
+  {
+    return connect(host, port, max_num_tries, reconnection_time);
+  }
 
   std::unique_ptr<timeval> recv_timeout_;
 
@@ -225,12 +180,59 @@ public:
   bool write(const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
-   * \brief Closes the connection to the socket.
+   * \brief Establishes a connection to the configured host/port.
    *
-   * Neutral low-level close. Unlike disconnect(), it does not prevent a subsequent automatic
-   * reconnect, and it never downgrades a deliberate disconnect() that is already in effect.
+   * This is the explicit connection setup method. It clears any prior deliberate
+   * disconnect() (moving the socket to Connecting) and then attempts to connect, retrying up to
+   * max_num_tries times (unlimited when 0).
+   *
+   * \param host Host to connect to
+   * \param port Port to connect to
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time Time between connection attempts
+   *
+   * \returns True on success, false if the connection could not be established or was aborted by
+   * a concurrent disconnect()
+   */
+  bool connect(const std::string& host, const int port, const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Reconnects to the configured host/port.
+   *
+   * This is the explicit reconnection method. It can only be called when the socket is in
+   * LostConnection state, and will attempt to reconnect, retrying up to max_num_tries times
+   * (unlimited when 0). Thus, when an explicit disconnect() is in effect, this will fail
+   * immediately. When a concurrent disconnect() is called while this is in progress, it will abort
+   * and return false.
+   *
+   * \param host Host to connect to
+   * \param port Port to connect to
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time Time between connection attempts
+   *
+   * \returns True on success, false if the connection could not be established or was aborted by
+   * a concurrent disconnect()
+   */
+  bool reconnect(const std::string& host, const int port, const size_t max_num_tries = 0,
+                 const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Disconnects the client
+   *
+   * This overwrites connection attempts. When a deliberate disconnect() has been called, the
+   * socket will not execute any connection attempts until it has reached the CLOSED state and
+   * connect() is called again.
    */
   void close();
+
+  /*!
+   * \brief Alias function for close() to disconnect the client
+   */
+  void disconnect()
+  {
+    close();
+  }
 
   /*!
    * \brief Setup Receive timeout used for this socket.

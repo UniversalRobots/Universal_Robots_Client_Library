@@ -69,9 +69,30 @@ private:
       if (!running_)
         return false;
 
-      if (stream_.getState() == SocketState::Connected)
+      const SocketState state = stream_.getState();
+
+      switch (state)
       {
-        continue;
+        case SocketState::Invalid:
+          URCL_LOG_WARN("Stream is invalid. Connect it before trying to read!");
+          break;
+        case SocketState::Connecting:
+          URCL_LOG_WARN("Stream is connecting but not ready, yet. Re-attempting to read!");
+          continue;
+          break;
+        case SocketState::Connected:
+          URCL_LOG_WARN("Stream is connected but failed to read from it. Re-attempting to read!");
+          continue;
+          break;
+        case SocketState::LostConnection:
+          URCL_LOG_WARN("Lost connection to stream, attempting to reconnect...");
+          break;
+        case SocketState::Disconnecting:
+          URCL_LOG_WARN("Stream is disconnecting. Connect it before trying to read!");
+          break;
+        case SocketState::Closed:
+          URCL_LOG_WARN("Stream is disconnected. Connect it before trying to read!");
+          break;
       }
 
       if (stream_.closed() || stream_.stopRequested())
