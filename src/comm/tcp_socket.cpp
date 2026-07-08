@@ -46,23 +46,35 @@ const std::string& socketStateToString(SocketState state)
   switch (state)
   {
     case SocketState::Invalid:
+    {
       static const std::string invalid_state = "Invalid";
       return invalid_state;
+    }
     case SocketState::Connecting:
+    {
       static const std::string connecting_state = "Connecting";
       return connecting_state;
+    }
     case SocketState::Connected:
+    {
       static const std::string connected_state = "Connected";
       return connected_state;
+    }
     case SocketState::LostConnection:
+    {
       static const std::string lost_connection_state = "LostConnection";
       return lost_connection_state;
+    }
     case SocketState::Disconnecting:
+    {
       static const std::string disconnecting_state = "Disconnecting";
       return disconnecting_state;
+    }
     case SocketState::Closed:
+    {
       static const std::string closed_state = "Closed";
       return closed_state;
+    }
   }
   throw std::invalid_argument("Unknown socket state");
 }
