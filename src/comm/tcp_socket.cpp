@@ -334,7 +334,12 @@ bool TCPSocket::connect(const std::string& host, const int port, const size_t ma
                         const std::chrono::milliseconds reconnection_time)
 {
   target_state_ = SocketState::Connected;
-  return setupInternal(host, port, max_num_tries, reconnection_time);
+  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  {
+    disconnect();
+    return false;
+  }
+  return true;
 }
 
 bool TCPSocket::reconnect(const std::string& host, const int port, const size_t max_num_tries,
@@ -346,7 +351,14 @@ bool TCPSocket::reconnect(const std::string& host, const int port, const size_t 
     return false;
   }
   setTargetStateUnlessStopRequested(SocketState::Connected);
-  return setupInternal(host, port, max_num_tries, reconnection_time);
+  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  {
+    // If we failed to reconnect, we need to set the target state back to LostConnection so that
+    auto expected_state = SocketState::Connecting;
+    state_.compare_exchange_strong(expected_state, SocketState::LostConnection);
+    return false;
+  }
+  return true;
 }
 
 bool TCPSocket::setTargetStateUnlessStopRequested(SocketState desired)
