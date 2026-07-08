@@ -333,6 +333,11 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
 bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
                         const std::chrono::milliseconds reconnection_time)
 {
+  if (state_ == SocketState::Connected)
+  {
+    URCL_LOG_ERROR("Connect called on a socket that is already connected");
+    return false;
+  }
   target_state_ = SocketState::Connected;
   if (!setupInternal(host, port, max_num_tries, reconnection_time))
   {
