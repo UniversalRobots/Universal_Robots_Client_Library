@@ -31,13 +31,47 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <cstddef>
+#include <thread>
 #include "test_utils.h"
 
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include "ur_client_library/types.h"
 
+#ifdef __linux__
+#  include <dirent.h>
+#endif
+
 using namespace urcl;
+
+#ifdef __linux__
+namespace
+{
+// Counts the process' currently open file descriptors by listing /proc/self/fd. The transient
+// descriptor opened for the directory itself is present in every measurement, so it cancels out
+// when comparing a before/after count.
+size_t countOpenFds()
+{
+  DIR* dir = ::opendir("/proc/self/fd");
+  EXPECT_NE(dir, nullptr) << "Could not open /proc/self/fd";
+  if (dir == nullptr)
+  {
+    return 0;
+  }
+  size_t count = 0;
+  while (struct dirent* entry = ::readdir(dir))
+  {
+    if (std::string(entry->d_name) == "." || std::string(entry->d_name) == "..")
+    {
+      continue;
+    }
+    ++count;
+  }
+  ::closedir(dir);
+  return count;
+}
+}  // namespace
+#endif  // __linux__
 
 class TCPSocketTest : public ::testing::Test
 {
@@ -639,6 +673,69 @@ TEST_F(TCPSocketTest, test_set_target_state_unless_stop_requested)
   ASSERT_TRUE(client_->isStopRequested());
   ASSERT_FALSE(client_->setTargetStateUnlessStopRequested(comm::SocketState::Connected));
   client_->printState();
+}
+
+// Regression test for a file-descriptor leak: each connection attempt creates a new socket
+// descriptor, and a failed attempt must free it. Repeatedly failing to connect must therefore not
+// grow the number of open descriptors.
+TEST_F(TCPSocketTest, no_fd_leak_on_repeated_failed_connects)
+{
+#ifndef __linux__
+  GTEST_SKIP() << "Counting open file descriptors via /proc/self/fd is Linux-only";
+#else
+  // Port with no listener so every attempt fails quickly.
+  const int dead_port = 12321;
+  // A little slack absorbs unrelated descriptors (e.g. logging, DNS caches) that may be opened
+  // lazily on the first attempts; a real leak grows linearly with the iteration count and blows
+  // well past this.
+  const size_t slack = 4;
+
+  // Warm up once so any one-off descriptor allocation happens before we take the baseline.
+  {
+    Client warmup(dead_port, "127.0.0.1");
+    EXPECT_FALSE(warmup.connect(2, std::chrono::milliseconds(20)));
+  }
+
+  const size_t baseline = countOpenFds();
+  for (int i = 0; i < 50; ++i)
+  {
+    Client client(dead_port, "127.0.0.1");
+    EXPECT_FALSE(client.connect(2, std::chrono::milliseconds(20)));
+  }
+  const size_t after = countOpenFds();
+
+  EXPECT_LE(after, baseline + slack) << "Open file descriptors grew from " << baseline << " to " << after
+                                     << " over 50 failed connection attempts; a descriptor is leaking";
+#endif  // __linux__
+}
+
+// Regression test targeting the retry loop specifically: with unlimited retries the socket keeps
+// creating new descriptors between attempts. Letting it retry several times and then disconnecting
+// must not leave leaked descriptors behind.
+TEST_F(TCPSocketTest, no_fd_leak_in_retry_loop)
+{
+#ifndef __linux__
+  GTEST_SKIP() << "Counting open file descriptors via /proc/self/fd is Linux-only";
+#else
+  const int dead_port = 12321;
+  const size_t slack = 4;
+
+  const size_t baseline = countOpenFds();
+
+  Client client(dead_port, "127.0.0.1");
+  // Unlimited retries with a short back-off, so the loop runs many iterations while we wait.
+  std::thread connect_thread([&client]() { client.connect(0, std::chrono::milliseconds(50)); });
+
+  // Give the retry loop time to run through a good number of failed attempts.
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  client.disconnect();
+  connect_thread.join();
+
+  const size_t after = countOpenFds();
+  EXPECT_LE(after, baseline + slack) << "Open file descriptors grew from " << baseline << " to " << after
+                                     << " while retrying to connect; the retry loop is leaking descriptors";
+#endif  // __linux__
 }
 
 int main(int argc, char* argv[])
