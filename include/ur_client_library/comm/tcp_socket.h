@@ -69,6 +69,8 @@ private:
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
                      const std::chrono::milliseconds reconnection_time);
 
+  void freeFileDescriptor();
+
 protected:
   /*!
    * \brief Atomically moves state_ to `desired`, unless a deliberate disconnect() is in effect.
