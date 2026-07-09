@@ -293,6 +293,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       if (isStopRequested())
       {
         freeaddrinfo(result);
+        freeFileDescriptor();
         return false;
       }
     }
@@ -304,6 +305,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       if (++connect_counter >= max_num_tries && max_num_tries > 0)
       {
         URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
+        freeFileDescriptor();
         return false;
       }
       else
@@ -324,6 +326,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
         }
         if (isStopRequested())
         {
+          freeFileDescriptor();
           return false;
         }
       }
@@ -402,6 +405,15 @@ bool TCPSocket::setTargetStateUnlessStopRequested(SocketState desired)
   return false;  // a deliberate disconnect() is in effect; state_ left untouched
 }
 
+void TCPSocket::freeFileDescriptor()
+{
+  if (socket_fd_ >= 0)
+  {
+    ::ur_close(socket_fd_);
+    socket_fd_ = INVALID_SOCKET;
+  }
+}
+
 void TCPSocket::close()
 {
   if (state_ != SocketState::Closed)
@@ -410,11 +422,7 @@ void TCPSocket::close()
     target_state_ = SocketState::Closed;
     state_ = SocketState::Disconnecting;
   }
-  if (socket_fd_ >= 0)
-  {
-    ::ur_close(socket_fd_);
-    socket_fd_ = INVALID_SOCKET;
-  }
+  freeFileDescriptor();
   state_ = SocketState::Closed;
 }
 
