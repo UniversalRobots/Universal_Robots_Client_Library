@@ -278,6 +278,11 @@ set_tests_properties(TCPSocketTest.setup_interruptible_by_close
                      TCPSocketTest.setup_interruptible_during_blocking_connect
                      PROPERTIES TIMEOUT 60)
 
+add_executable(unique_fd_tests test_unique_fd.cpp)
+target_link_libraries(unique_fd_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET unique_fd_tests
+)
+
 add_executable(stream_tests test_stream.cpp)
 target_link_libraries(stream_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET stream_tests
