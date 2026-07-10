@@ -26,6 +26,7 @@
  */
 //----------------------------------------------------------------------
 
+#include <netinet/tcp.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/comm/tcp_server.h>
 
@@ -72,6 +73,8 @@ void TCPServer::init()
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
 #endif
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
+
+  ur_setsockopt(listen_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
 
