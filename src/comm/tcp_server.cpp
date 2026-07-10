@@ -26,6 +26,9 @@
  */
 //----------------------------------------------------------------------
 
+#ifndef _WIN32
+#  include <netinet/tcp.h>
+#endif
 #include <ur_client_library/log.h>
 #include <ur_client_library/comm/tcp_server.h>
 
@@ -67,11 +70,11 @@ void TCPServer::init()
   {
     throw makeSocketError("Failed to create socket endpoint");
   }
-  int flag = 1;
+  constexpr int flag = 1;
 #ifndef _WIN32
-  ur_setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
+  setSocketOptionAndWarnOnError(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag), "SO_REUSEADDR");
 #endif
-  ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
+  setSocketOptionAndWarnOnError(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag), "SO_KEEPALIVE");
 
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
 
@@ -257,6 +260,13 @@ void TCPServer::handleConnect()
       ur_close(client_fd);
     }
   }
+
+  if (accepted)
+  {
+    constexpr int flag = 1;
+    setSocketOptionAndWarnOnError(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag), "TCP_NODELAY");
+  }
+
   {
     std::lock_guard<std::mutex> lk(callback_mutex_);
     if (new_connection_callback_ && accepted)

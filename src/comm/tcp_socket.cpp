@@ -24,6 +24,7 @@
 #include <cstring>
 #include <sstream>
 #include <thread>
+#include "ur_client_library/comm/socket_t.h"
 
 #ifndef _WIN32
 #  include <arpa/inet.h>
@@ -52,12 +53,12 @@ TCPSocket::~TCPSocket()
 
 void TCPSocket::setupOptions()
 {
-  int flag = 1;
-  ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+  constexpr int flag = 1;
+  setSocketOptionAndWarnOnError(socket_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag), "TCP_NODELAY");
 
   // macOS does not have TCP_QUICKACK
 #ifdef TCP_QUICKACK
-  ur_setsockopt(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(int));
+  setSocketOptionAndWarnOnError(socket_fd_, IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(flag), "TCP_QUICKACK");
 #endif
 
   if (recv_timeout_ != nullptr)
@@ -65,9 +66,10 @@ void TCPSocket::setupOptions()
 #ifdef _WIN32
     DWORD value = recv_timeout_->tv_sec * 1000;
     value += recv_timeout_->tv_usec / 1000;
-    ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value));
+    setSocketOptionAndWarnOnError(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value), "SO_RCVTIMEO");
 #else
-    ur_setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+    setSocketOptionAndWarnOnError(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval),
+                                  "SO_RCVTIMEO");
 #endif
   }
 }
