@@ -261,8 +261,11 @@ void TCPServer::handleConnect()
     }
   }
 
-  int flag = 1;
-  ur_setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+  if (accepted)
+  {
+    constexpr int flag = 1;
+    setSocketOptionAndWarnOnError(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag), "TCP_NODELAY");
+  }
 
   {
     std::lock_guard<std::mutex> lk(callback_mutex_);

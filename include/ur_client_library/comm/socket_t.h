@@ -71,6 +71,8 @@ typedef int socket_t;
 #  define MSG_NOSIGNAL 0
 #endif
 
+#include "ur_client_library/log.h"
+
 /*!
  * \brief Get the last socket error as an std::error_code
  *
@@ -91,4 +93,15 @@ inline std::error_code getLastSocketErrorCode()
 inline std::system_error makeSocketError(const std::string& message)
 {
   return std::system_error(getLastSocketErrorCode(), message);
+}
+
+inline void setSocketOptionAndWarnOnError(socket_t socket, int level, int optname, const void* optval,
+                                          unsigned int optlen, const std::string& option_name)
+{
+  int result = ur_setsockopt(socket, level, optname, optval, optlen);
+  if (result != 0)
+  {
+    std::error_code error_code = getLastSocketErrorCode();
+    URCL_LOG_WARN("Failed to set socket option %s: %s", option_name.c_str(), error_code.message().c_str());
+  }
 }
