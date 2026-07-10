@@ -76,8 +76,6 @@ void TCPServer::init()
 #endif
   ur_setsockopt(listen_fd_, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(int));
 
-  ur_setsockopt(listen_fd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
-
   URCL_LOG_DEBUG("Created socket with FD %d", (int)listen_fd_);
 
   FD_ZERO(&masterfds_);
@@ -262,6 +260,10 @@ void TCPServer::handleConnect()
       ur_close(client_fd);
     }
   }
+
+  int flag = 1;
+  ur_setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+
   {
     std::lock_guard<std::mutex> lk(callback_mutex_);
     if (new_connection_callback_ && accepted)
