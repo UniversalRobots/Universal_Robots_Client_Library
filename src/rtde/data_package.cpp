@@ -455,6 +455,7 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "target_gravity", vector3d_t() },
   { "target_base_acceleration", vector6d_t() },
   { "control_step", uint64_t() },
+  { "target_base_wrench", vector6d_t() },
 
   // NOT IN OFFICIAL DOCS
   { "tool_digital_output_mask", uint8_t() },
