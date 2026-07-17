@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.14.0 (2026-07-17)
+-------------------
 * RTDE: Add target_base_wrench field (`#539 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/539>`_)
 * Use tcp_nodelay on socket server (`#537 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/537>`_)
 * Streaming API for trajectory forwarding (`#528 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/528>`_)
