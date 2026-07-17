@@ -2,6 +2,22 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* RTDE: Add target_base_wrench field (`#539 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/539>`_)
+* Use tcp_nodelay on socket server (`#537 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/537>`_)
+* Streaming API for trajectory forwarding (`#528 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/528>`_)
+* background Enable FIFO scheduling by default for RTDE producer thread (`#536 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/536>`_)
+* Update cpp-httplib to version 0.49.0 (`#534 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/534>`_)
+* Update ici config with host-mounted urcap storage and test upload (`#532 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/532>`_)
+* Bump actions/cache from 5 to 6 (`#533 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/533>`_)
+* [tests] Enable running integration tests against a custom robot IP (`#531 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/531>`_)
+* Fix RTDE control_step (`#529 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/529>`_)
+* Enhance robot program state logging with clearer messages for running… (`#527 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/527>`_)
+* Add 10.13 to test matrix (`#517 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/517>`_)
+* Bump actions/checkout from 6 to 7 (`#525 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/525>`_)
+* Contributors: Andrew C. Morrow, Felix Exner, Rune Søe-Knudsen, Sergi Romero, dependabot[bot]
+
 2.13.0 (2026-06-17)
 -------------------
 * [ScriptCommandInterface] Add set_target_payload support to ScriptCommandInterface (`#515 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/515>`_)
