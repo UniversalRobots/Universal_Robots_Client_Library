@@ -118,6 +118,9 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries(urcl PUBLIC "${CMAKE_THREAD_LIBS_INIT}")
 endif()
+if(UNIX AND NOT APPLE)
+  target_link_libraries(urcl PUBLIC "rt")
+endif()
 
 # When warnings are treated as errors, also enable high warning level for all targets
 if(CMAKE_COMPILE_WARNING_AS_ERROR)
