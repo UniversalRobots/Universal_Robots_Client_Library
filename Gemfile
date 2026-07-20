@@ -3,6 +3,6 @@
 
 source 'https://rubygems.org'
 
-gem 'bashcov'
-gem 'simplecov'
-gem 'simplecov-cobertura'
+gem 'bashcov', '~> 3.3'
+gem 'simplecov', '~> 0.22'
+gem 'simplecov-cobertura', '~> 3.0'
