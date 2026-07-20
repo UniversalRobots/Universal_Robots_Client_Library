@@ -310,7 +310,7 @@ jobs:
         id: setup-bats
         uses: bats-core/bats-action@4.0.0
       - name: Install Ruby dependencies
-        run: bundle update --bundler && bundle install
+        run: bundle install
       - name: Run unittests
         shell: bash
         env:
