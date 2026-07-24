@@ -48,10 +48,16 @@
 #  define SCHED_FIFO (1)
 
 typedef HANDLE pthread_t;
+typedef HANDLE pprocess_t;
 
 static inline pthread_t pthread_self()
 {
   return ::GetCurrentThread();
+}
+
+static inline pprocess_t pprocess_self()
+{
+  return ::GetCurrentProcess();
 }
 
 static inline int sched_get_priority_max(int policy)
@@ -96,7 +102,88 @@ static inline int sched_get_priority_max(int policy)
 
 namespace urcl
 {
-bool setFiFoScheduling(pthread_t& thread, const int priority);
+
+#ifdef _WIN32
+
+/*!
+ * \brief Set the priority class of a process.
+ *
+ * Wraps the corresponding operating system API and verifies that the requested
+ * priority class has been applied successfully.
+ *
+ * \param process Process handle.
+ * \param priority Windows process priority class.
+ *
+ * \returns True if the priority class was applied successfully.
+ */
+bool setProcessPriority(pprocess_t& process, DWORD priority);
+
+/*!
+ * \brief Restrict a process to a set of CPUs.
+ *
+ * Wraps the corresponding operating system API and verifies that the requested
+ * CPU affinity mask has been applied successfully.
+ *
+ * \param process Process handle.
+ * \param cpu_mask Bit mask describing the CPUs available to the process.
+ *
+ * \returns True if the affinity mask was applied successfully.
+ */
+bool setProcessAffinity(pprocess_t& process, DWORD_PTR cpu_mask);
+
+/*!
+ * \brief Restrict a thread to a set of CPUs.
+ *
+ * \param thread Thread handle.
+ * \param cpu_mask Bit mask describing the CPUs available to the thread.
+ *
+ * \returns True if the affinity mask was applied successfully.
+ */
+bool setThreadAffinity(pthread_t& thread, DWORD_PTR cpu_mask);
+
+/*!
+ * \brief Set the scheduling priority of a thread.
+ *
+ * Wraps the corresponding operating system API and verifies that the requested
+ * priority has been applied successfully.
+ *
+ * \param thread Thread handle.
+ * \param priority Windows thread priority value.
+ *
+ * \returns True if the priority was applied successfully.
+ */
+bool setThreadPriority(pthread_t& thread, const int priority);
+
+#elif __linux__
+
+/*!
+ * \brief Restrict a thread to a set of CPUs.
+ *
+ * \param thread Thread handle.
+ * \param cpuset Set of CPUs available to the thread.
+ *
+ * \returns True if the CPU affinity was applied successfully.
+ */
+bool setThreadAffinity(pthread_t& thread, const cpu_set_t& cpuset);
+
+#endif
+
+/*!
+ * \brief Configure high-priority scheduling for a thread.
+ *
+ * On Linux, this configures ``SCHED_FIFO`` scheduling using the supplied
+ * priority.
+ *
+ * On Windows, this configures the process to use
+ * ``REALTIME_PRIORITY_CLASS`` and sets the thread to the supplied Windows
+ * thread priority.
+ *
+ * \param thread Thread handle.
+ * \param priority Scheduling priority to apply.
+ *
+ * \returns True if the scheduling configuration was applied successfully.
+ */
+bool setFiFoScheduling(pthread_t& thread, int priority);
 
 /*!
  * \brief Wait for a condition to be true.
