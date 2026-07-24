@@ -36,11 +36,15 @@ namespace comm
  */
 enum class SocketState
 {
-  Invalid,       ///< Socket is initialized or setup failed
-  Connected,     ///< Socket is connected and ready to use
-  Disconnected,  ///< Socket is disconnected and cannot be used
-  Closed         ///< Connection to socket got closed
+  Invalid,         ///< Socket is initialized but was never connected
+  Connecting,      ///< A connection is in progress
+  Connected,       ///< Socket is connected and ready to use
+  LostConnection,  ///< Connection dropped unexpectedly; auto-reconnect is expected to pick it up
+  Disconnecting,   ///< A deliberate disconnect() is in progress
+  Closed,          ///< Connection to socket got closed
 };
+
+const std::string& socketStateToString(SocketState state);
 
 /*!
  * \brief Class for TCP socket abstraction
@@ -50,19 +54,64 @@ class TCPSocket
 private:
   std::atomic<socket_t> socket_fd_;
   std::atomic<SocketState> state_;
+  std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
 
   void setupOptions();
 
+  // Performs an interruptible, non-blocking connect on an already-created socket.
+  // Polls in short slices so that a concurrent disconnect() aborts the attempt
+  // promptly on all platforms (POSIX close() of a blocked connect() is reliable,
+  // Winsock's is not). Restores blocking mode on success.
+  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
+
+  bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
+                     const std::chrono::milliseconds reconnection_time);
+
+  void freeFileDescriptor();
+
 protected:
+  /*!
+   * \brief Atomically moves state_ to `desired`, unless a deliberate disconnect() is in effect.
+   *
+   * Returns true if the state was set, false if a deliberate stop is
+   * active (in which case state_ is left untouched). This is how the connect/retry machinery
+   * updates its in-progress state without ever clobbering a teardown signal.
+   */
+  bool setTargetStateUnlessStopRequested(SocketState desired);
+
+  /*!
+   * \brief Query whether there has been a deliberate disconnect() request.
+   *
+   * True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
+   * set").
+   */
+  bool isStopRequested() const
+  {
+    return target_state_ == SocketState::Closed;
+  }
+
+  /*!
+   * \brief Performs a blocking connect on an already-created socket.
+   *
+   * This is the platform-native, uninterruptible connect. It is used when the caller has
+   * already established that no deliberate disconnect() is in effect, and is willing to block
+   * until the connect succeeds or fails. The caller must ensure that the socket is in blocking
+   * mode before calling this.
+   */
+  [[deprecated("Use connect() instead, which is interruptible by a concurrent disconnect()")]]
   static bool open(socket_t socket_fd, struct sockaddr* address, size_t address_len)
   {
     return ::connect(socket_fd, address, static_cast<socklen_t>(address_len)) == 0;
   }
 
+  [[deprecated("Use the public method connect() instead")]]
   bool setup(const std::string& host, const int port, const size_t max_num_tries = 0,
-             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+             const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME)
+  {
+    return connect(host, port, max_num_tries, reconnection_time);
+  }
 
   std::unique_ptr<timeval> recv_timeout_;
 
@@ -133,9 +182,59 @@ public:
   bool write(const uint8_t* buf, const size_t buf_len, size_t& written);
 
   /*!
-   * \brief Closes the connection to the socket.
+   * \brief Establishes a connection to the configured host/port.
+   *
+   * This is the explicit connection setup method. It clears any prior deliberate
+   * disconnect() (moving the socket to Connecting) and then attempts to connect, retrying up to
+   * max_num_tries times (unlimited when 0).
+   *
+   * \param host Host to connect to
+   * \param port Port to connect to
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time Time between connection attempts
+   *
+   * \returns True on success, false if the connection could not be established or was aborted by
+   * a concurrent disconnect()
+   */
+  bool connect(const std::string& host, const int port, const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Reconnects to the configured host/port.
+   *
+   * This is the explicit reconnection method. It can only be called when the socket is in
+   * LostConnection state, and will attempt to reconnect, retrying up to max_num_tries times
+   * (unlimited when 0). Thus, when an explicit disconnect() is in effect, this will fail
+   * immediately. When a concurrent disconnect() is called while this is in progress, it will abort
+   * and return false.
+   *
+   * \param host Host to connect to
+   * \param port Port to connect to
+   * \param max_num_tries Maximum number of connection attempts before failing. Unlimited when 0.
+   * \param reconnection_time Time between connection attempts
+   *
+   * \returns True on success, false if the connection could not be established or was aborted by
+   * a concurrent disconnect()
+   */
+  bool reconnect(const std::string& host, const int port, const size_t max_num_tries = 0,
+                 const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Disconnects the client
+   *
+   * This overwrites connection attempts. When a deliberate disconnect() has been called, the
+   * socket will not execute any connection attempts until it has reached the CLOSED state and
+   * connect() is called again.
    */
   void close();
+
+  /*!
+   * \brief Alias function for close() to disconnect the client
+   */
+  void disconnect()
+  {
+    close();
+  }
 
   /*!
    * \brief Setup Receive timeout used for this socket.

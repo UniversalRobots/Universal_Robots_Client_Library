@@ -69,12 +69,33 @@ private:
       if (!running_)
         return false;
 
-      if (stream_.getState() == SocketState::Connected)
+      const SocketState state = stream_.getState();
+
+      switch (state)
       {
-        continue;
+        case SocketState::Invalid:
+          URCL_LOG_WARN("Stream is invalid. Connect it before trying to read!");
+          break;
+        case SocketState::Connecting:
+          URCL_LOG_WARN("Stream is connecting but not ready, yet. Re-attempting to read!");
+          continue;
+          break;
+        case SocketState::Connected:
+          URCL_LOG_WARN("Stream is connected but failed to read from it. Re-attempting to read!");
+          continue;
+          break;
+        case SocketState::LostConnection:
+          URCL_LOG_WARN("Lost connection to stream, attempting to reconnect...");
+          break;
+        case SocketState::Disconnecting:
+          URCL_LOG_WARN("Stream is disconnecting. Connect it before trying to read!");
+          break;
+        case SocketState::Closed:
+          URCL_LOG_WARN("Stream is disconnected. Connect it before trying to read!");
+          break;
       }
 
-      if (stream_.closed())
+      if (stream_.closed() || stream_.stopRequested())
         return false;
 
       if (on_reconnect_cb_)
@@ -85,9 +106,23 @@ private:
       }
 
       URCL_LOG_WARN("Failed to read from stream, reconnecting in %ld seconds...", timeout_.count());
-      std::this_thread::sleep_for(timeout_);
+      // Sleep in small slices so the producer can be stopped (running_ == false)
+      // or woken by a stream close (e.g. from a destructor calling stop()) within
+      // ~100 ms, instead of blocking for the full (exponentially growing) timeout.
+      // Without this, a thread joining the pipeline at teardown could block for up
+      // to 120 s while this thread sleeps here.
+      const auto sleep_slice = std::chrono::milliseconds(100);
+      const auto sleep_total = std::chrono::duration_cast<std::chrono::milliseconds>(timeout_);
+      for (auto slept = std::chrono::milliseconds(0);
+           slept < sleep_total && running_ && !stream_.closed() && !stream_.stopRequested(); slept += sleep_slice)
+      {
+        std::this_thread::sleep_for(sleep_slice);
+      }
 
-      if (stream_.connect())
+      if (!running_ || stream_.closed() || stream_.stopRequested())
+        return false;
+
+      if (stream_.reconnect())
         continue;
 
       auto next = timeout_ * 2;

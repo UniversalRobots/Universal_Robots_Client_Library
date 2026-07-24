@@ -67,7 +67,7 @@ PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm:
 PrimaryClient::~PrimaryClient()
 {
   URCL_LOG_INFO("Stopping primary client pipeline");
-  pipeline_->stop();
+  stop();
 }
 
 void PrimaryClient::start(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
@@ -79,8 +79,8 @@ void PrimaryClient::start(const size_t max_num_tries, const std::chrono::millise
 
 void PrimaryClient::stop()
 {
+  stream_.disconnect();
   pipeline_->stop();
-  stream_.close();
 }
 
 void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
