@@ -29,7 +29,7 @@ MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
 MODE_TORQUE = 8
 # Data dimensions of the message received on the reverse interface
-REVERSE_INTERFACE_DATA_DIMENSION = 8
+REVERSE_INTERFACE_DATA_DIMENSION = 15
 
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
@@ -1217,7 +1217,9 @@ while control_mode > MODE_STOPPED:
     elif control_mode == MODE_FREEDRIVE:
       if params_mult[2] == FREEDRIVE_MODE_START:
         textmsg("Entering freedrive mode")
-        freedrive_mode()
+        free_axes = [params_mult[3], params_mult[4], params_mult[5], params_mult[6], params_mult[7], params_mult[8]]
+        feature_pose = p[params_mult[9]/MULT_jointstate, params_mult[10]/MULT_jointstate, params_mult[11]/MULT_jointstate, params_mult[12]/MULT_jointstate, params_mult[13]/MULT_jointstate, params_mult[14]/MULT_jointstate]
+        freedrive_mode(free_axes, feature_pose)
       elif params_mult[2] == FREEDRIVE_MODE_STOP:
         textmsg("Leaving freedrive mode")
         end_freedrive_mode()

@@ -266,6 +266,15 @@ bool UrDriver::writeFreedriveControlMessage(const control::FreedriveControlMessa
   return reverse_interface_->writeFreedriveControlMessage(freedrive_action, robot_receive_timeout);
 }
 
+bool UrDriver::writeConstrainedFreedriveControlMessage(const control::FreedriveControlMessage freedrive_action,
+                                                       const std::array<int32_t, 6>& free_axes,
+                                                       const std::array<double, 6>& feature_pose,
+                                                       const RobotReceiveTimeout& robot_receive_timeout)
+{
+  return reverse_interface_->writeFreedriveControlMessage(freedrive_action, robot_receive_timeout, free_axes,
+                                                          feature_pose);
+}
+
 bool UrDriver::zeroFTSensor()
 {
   if (getVersion().major < 5)

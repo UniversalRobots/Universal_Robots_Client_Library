@@ -53,14 +53,44 @@ const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
-void sendFreedriveMessageOrDie(const control::FreedriveControlMessage freedrive_action)
+void runFreedrive(UrDriver& urdriver, std::chrono::seconds duration)
 {
-  bool ret = g_my_robot->getUrDriver()->writeFreedriveControlMessage(freedrive_action);
-  if (!ret)
+  URCL_LOG_INFO("Starting freedrive mode");
+
+  urdriver.writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_START);
+
+  auto start = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start < duration || duration.count() == 0)
   {
-    URCL_LOG_ERROR("Could not send joint command. Is there an external_control program running on the robot?");
-    exit(1);
+    // Keeping the robot in freedrive by sending NOOP messages
+    urdriver.writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
+
+  urdriver.writeFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP);
+  URCL_LOG_INFO("Stopping freedrive mode");
+}
+
+void runConstrainedFreedrive(UrDriver& urdriver, std::array<int32_t, 6>& free_axes, std::array<double, 6>& feature_pose,
+                             std::chrono::seconds duration)
+{
+  URCL_LOG_INFO("Starting constrained freedrive mode");
+
+  urdriver.writeConstrainedFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_START, free_axes,
+                                                   feature_pose);
+
+  auto start = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start < duration || duration.count() == 0)
+  {
+    // Keeping the robot in constrained freedrive by sending NOOP messages
+    urdriver.writeConstrainedFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_NOOP, free_axes,
+                                                     feature_pose);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+
+  urdriver.writeConstrainedFreedriveControlMessage(control::FreedriveControlMessage::FREEDRIVE_STOP, free_axes,
+                                                   feature_pose);
+  URCL_LOG_INFO("Stopping constrained freedrive mode");
 }
 
 int main(int argc, char* argv[])
@@ -73,15 +103,26 @@ int main(int argc, char* argv[])
     robot_ip = std::string(argv[1]);
   }
 
-  // Parse how many seconds to run
-  auto second_to_run = std::chrono::seconds(0);
+  // Select the freedrive mode
+  bool constrained = false;
   if (argc > 2)
   {
-    second_to_run = std::chrono::seconds(std::stoi(argv[2]));
+    std::string arg = argv[2];
+    constrained = (arg == "true" || arg == "1");
   }
 
-  bool headless_mode = true;
+  // Parse how many seconds to run
+  auto second_to_run = std::chrono::seconds(0);
+  if (argc > 3)
+  {
+    second_to_run = std::chrono::seconds(std::stoi(argv[3]));
+  }
 
+  std::array<int32_t, 6> free_axes = { 1, 0, 1, 1, 0, 1 };
+  std::array<double, 6> feature_pose = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  // Initialize robot connection
+  bool headless_mode = true;
   g_my_robot = std::make_unique<ExampleRobotWrapper>(robot_ip, OUTPUT_RECIPE, INPUT_RECIPE, headless_mode,
                                                      "external_control.urp");
 
@@ -91,24 +132,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  URCL_LOG_INFO("Starting freedrive mode");
-  sendFreedriveMessageOrDie(control::FreedriveControlMessage::FREEDRIVE_START);
-
-  std::chrono::duration<double> time_done(0);
-  std::chrono::duration<double> timeout(second_to_run);
-  auto stopwatch_last = std::chrono::steady_clock::now();
-  auto stopwatch_now = stopwatch_last;
-
-  while (time_done < timeout || second_to_run.count() == 0)
+  // Execute selected freedrive mode
+  if (constrained)
   {
-    sendFreedriveMessageOrDie(control::FreedriveControlMessage::FREEDRIVE_NOOP);
-
-    stopwatch_now = std::chrono::steady_clock::now();
-    time_done += stopwatch_now - stopwatch_last;
-    stopwatch_last = stopwatch_now;
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    runConstrainedFreedrive(*g_my_robot->getUrDriver(), free_axes, feature_pose, second_to_run);
   }
-
-  URCL_LOG_INFO("Stopping freedrive mode");
-  sendFreedriveMessageOrDie(control::FreedriveControlMessage::FREEDRIVE_STOP);
+  else
+  {
+    runFreedrive(*g_my_robot->getUrDriver(), second_to_run);
+  }
 }

@@ -622,6 +622,26 @@ public:
                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
+   * \brief Writes a control message in freedrive mode.
+   *
+   * \param freedrive_action The action to be taken, such as starting or stopping freedrive
+   * \param free_axes A 6-dimensional vector (x, y, z, rx, ry, rz) defining which axes are compliant.
+   * Use 1 to enable movement in an axis and 0 to lock it.
+   * \param feature_pose A pose vector [x, y, z, rx, ry, rz] defining the freedrive frame relative to the base frame.
+   * Position values (x, y, z) should be in meters, and orientation values (rx, ry, rz) in radians.
+   * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
+   * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
+   * function to create the RobotReceiveTimeout object
+   *
+   * \returns True on successful write.
+   */
+  bool writeConstrainedFreedriveControlMessage(
+      const control::FreedriveControlMessage freedrive_action,
+      const std::array<int32_t, 6>& free_axes = { 1, 1, 1, 1, 1, 1 },
+      const std::array<double, 6>& feature_pose = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
+
+  /*!
    * \brief Zero the force torque sensor (only availbe on e-Series). Note:  It requires the external control script to
    * be running or the robot to be in headless mode
    *

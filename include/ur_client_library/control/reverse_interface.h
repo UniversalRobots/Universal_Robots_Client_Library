@@ -170,12 +170,18 @@ public:
    * \param robot_receive_timeout The read timeout configuration for the reverse socket running in the external
    * control script on the robot. If you want to make the read function blocking then use RobotReceiveTimeout::off()
    * function to create the RobotReceiveTimeout object
+   * \param free_axes A 6-dimensional vector (x, y, z, rx, ry, rz) defining which axes are compliant.
+   * Use 1 to enable movement in an axis and 0 to lock it.
+   * \param feature_pose A pose vector [x, y, z, rx, ry, rz] defining the freedrive frame relative to the base frame.
+   * Position values (x, y, z) should be in meters, and orientation values (rx, ry, rz) in radians.
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
   bool
   writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,
-                               const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
+                               const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200),
+                               const std::array<int32_t, 6>& free_axes = { 1, 1, 1, 1, 1, 1 },
+                               const std::array<double, 6>& feature_pose = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 });
 
   /*!
    * \brief Set the Keepalive count. This will set the number of allowed timeout reads on the robot.
@@ -258,7 +264,7 @@ protected:
     return s;
   }
 
-  static const int MAX_MESSAGE_LENGTH = 8;
+  static const int MAX_MESSAGE_LENGTH = 15;
 
   std::function<void(bool)> handle_program_state_;
   std::chrono::milliseconds step_time_;
