@@ -513,17 +513,23 @@ main() {
 
     # Download external_control URCap
     get_download_url_urcap $URCAP_VERSION
+    download_urcap=false
     if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
       # if externalcontrol-<version>.jar does exist with another version, prompt the user whether
       # the newer version should be downloaded and used.
       if compgen -G "${URCAP_STORAGE}/externalcontrol-*.jar" > /dev/null; then
         if prompt_urcap_update "$URCAP_VERSION"; then
-          echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
           rm -f "${URCAP_STORAGE}/externalcontrol-"*.jar
-          curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
+          download_urcap=true
         else
           echo "Continuing without downloading the latest version. The older version will be used."
         fi
+      else
+        download_urcap=true
+      fi
+      if [[ $download_urcap = true ]]; then
+        echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
+        curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
       fi
     fi
     docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
