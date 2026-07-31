@@ -283,6 +283,37 @@ get_download_url_urcap()
   URCAP_DOWNLOAD_URL="https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v$URCAP_VERSION/externalcontrol-$URCAP_VERSION.jar"
 }
 
+# Prompt the user whether an already-installed External Control URCap should be
+# replaced by a newer version. If no answer is given within URCAP_PROMPT_TIMEOUT
+# seconds (default: 10), the prompt is cancelled and the existing version is kept.
+#
+# $1 the new URCap version that would be installed
+# reads URCAP_STORAGE for the prompt message
+# reads URCAP_PROMPT_TIMEOUT (env, optional) for the timeout in seconds
+# returns 0 if the user accepted the update, 1 otherwise (including on timeout)
+prompt_urcap_update()
+{
+  local new_version=$1
+  local timeout=${URCAP_PROMPT_TIMEOUT:-10}
+  local answer=""
+
+  echo "An older version of the External Control URCap is already present in ${URCAP_STORAGE}."
+  echo "Do you want to remove it and download the latest version (${new_version})? [y/N] (auto-N in ${timeout}s)"
+  if ! read -r -t "$timeout" answer; then
+    answer=""
+    echo # newline after the timed-out prompt
+    echo "No answer within ${timeout}s, continuing with the existing version."
+  fi
+  case "$answer" in
+    [yY][eE][sS]|[yY])
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 post_setup_polyscopex()
 {
 
@@ -486,24 +517,13 @@ main() {
       # if externalcontrol-<version>.jar does exist with another version, prompt the user whether
       # the newer version should be downloaded and used.
       if compgen -G "${URCAP_STORAGE}/externalcontrol-*.jar" > /dev/null; then
-        URCAP_PROMPT_TIMEOUT=${URCAP_PROMPT_TIMEOUT:-10}
-        echo "An older version of the External Control URCap is already present in ${URCAP_STORAGE}."
-        echo "Do you want to remove it and download the latest version (${URCAP_VERSION})? [y/N] (auto-N in ${URCAP_PROMPT_TIMEOUT}s)"
-        if ! read -r -t "$URCAP_PROMPT_TIMEOUT" answer; then
-          answer=""
-          echo # newline after the timed-out prompt
-          echo "No answer within ${URCAP_PROMPT_TIMEOUT}s, continuing with the existing version."
+        if prompt_urcap_update "$URCAP_VERSION"; then
+          echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
+          rm -f "${URCAP_STORAGE}/externalcontrol-"*.jar
+          curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
+        else
+          echo "Continuing without downloading the latest version. The older version will be used."
         fi
-        case "$answer" in
-          [yY][eE][sS]|[yY])
-            echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
-            rm -f "${URCAP_STORAGE}/externalcontrol-"*.jar
-            curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
-            ;;
-          *)
-            echo "Continuing without downloading the latest version. The older version will be used."
-            ;;
-        esac
       fi
     fi
     docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\

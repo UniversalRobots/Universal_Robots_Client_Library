@@ -641,3 +641,45 @@ setup() {
 
 }
 
+@test "prompt_urcap_update accepts yes" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  URCAP_PROMPT_TIMEOUT=5
+  run prompt_urcap_update "1.0.5" <<< "y"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "prompt_urcap_update rejects no" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  URCAP_PROMPT_TIMEOUT=5
+  run prompt_urcap_update "1.0.5" <<< "n"
+  echo "$output"
+  [ "$status" -eq 1 ]
+}
+
+@test "prompt_urcap_update rejects empty answer" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  URCAP_PROMPT_TIMEOUT=5
+  run prompt_urcap_update "1.0.5" <<< ""
+  echo "$output"
+  [ "$status" -eq 1 ]
+}
+
+@test "prompt_urcap_update times out when no input is provided" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  URCAP_PROMPT_TIMEOUT=1
+  # Feed a stdin source that never produces a line before the timeout elapses.
+  run prompt_urcap_update "1.0.5" < <(sleep 3)
+  echo "$output"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"No answer within 1s"* ]]
+}
+
+@test "prompt_urcap_update honours URCAP_PROMPT_TIMEOUT in prompt text" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  URCAP_PROMPT_TIMEOUT=7
+  run prompt_urcap_update "1.0.5" <<< "n"
+  echo "$output"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"auto-N in 7s"* ]]
+}
