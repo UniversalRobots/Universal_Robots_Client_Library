@@ -483,8 +483,28 @@ main() {
     # Download external_control URCap
     get_download_url_urcap $URCAP_VERSION
     if [[ ! -f "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" ]]; then
-      echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
-      curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
+      # if externalcontrol-<version>.jar does exist with another version, prompt the user whether
+      # the newer version should be downloaded and used.
+      if compgen -G "${URCAP_STORAGE}/externalcontrol-*.jar" > /dev/null; then
+        URCAP_PROMPT_TIMEOUT=${URCAP_PROMPT_TIMEOUT:-10}
+        echo "An older version of the External Control URCap is already present in ${URCAP_STORAGE}."
+        echo "Do you want to remove it and download the latest version (${URCAP_VERSION})? [y/N] (auto-N in ${URCAP_PROMPT_TIMEOUT}s)"
+        if ! read -r -t "$URCAP_PROMPT_TIMEOUT" answer; then
+          answer=""
+          echo # newline after the timed-out prompt
+          echo "No answer within ${URCAP_PROMPT_TIMEOUT}s, continuing with the existing version."
+        fi
+        case "$answer" in
+          [yY][eE][sS]|[yY])
+            echo "Downloading and installing External Control URCap version ${URCAP_VERSION}"
+            rm -f "${URCAP_STORAGE}/externalcontrol-"*.jar
+            curl -L -o "${URCAP_STORAGE}/externalcontrol-${URCAP_VERSION}.jar" "$URCAP_DOWNLOAD_URL"
+            ;;
+          *)
+            echo "Continuing without downloading the latest version. The older version will be used."
+            ;;
+        esac
+      fi
     fi
     docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
       -v ${URCAP_STORAGE}:/urcaps \
