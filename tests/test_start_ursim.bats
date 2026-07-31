@@ -683,3 +683,43 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"auto-N in 7s"* ]]
 }
+
+@test "no_urcap_present_triggers_download" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  rm -rf "$URCAP_STORAGE"
+  mkdir -p "$URCAP_STORAGE"
+  URCAP_VERSION="latest"
+  get_download_url_urcap "$URCAP_VERSION"
+  run main -t -u ${URCAP_STORAGE}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ -f "$URCAP_STORAGE/externalcontrol-$URCAP_VERSION.jar" ]
+}
+
+@test "Existing URCap with answering no doesn't trigger download" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  rm -rf "$URCAP_STORAGE"
+  mkdir -p "$URCAP_STORAGE"
+  URCAP_VERSION="latest"
+  get_download_url_urcap "$URCAP_VERSION"
+  touch "$URCAP_STORAGE/externalcontrol-0.0.1.jar"
+  run main -t -u ${URCAP_STORAGE} <<< "n"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ ! -f "$URCAP_STORAGE/externalcontrol-$URCAP_VERSION.jar" ]
+  [ -f "$URCAP_STORAGE/externalcontrol-0.0.1.jar" ]
+}
+
+@test "Existing URCap with answering yes does trigger download" {
+  URCAP_STORAGE=/tmp/ursim-test-urcaps
+  rm -rf "$URCAP_STORAGE"
+  mkdir -p "$URCAP_STORAGE"
+  URCAP_VERSION="latest"
+  get_download_url_urcap "$URCAP_VERSION"
+  touch "$URCAP_STORAGE/externalcontrol-0.0.1.jar"
+  run main -t -u ${URCAP_STORAGE} <<< "y"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ -f "$URCAP_STORAGE/externalcontrol-$URCAP_VERSION.jar" ]
+  [ ! -f "$URCAP_STORAGE/externalcontrol-0.0.1.jar" ]
+}
