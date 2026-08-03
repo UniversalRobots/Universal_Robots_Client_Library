@@ -419,7 +419,7 @@ bool RTDEClient::setupOutputs()
         else
         {
           URCL_LOG_ERROR("%s", error_message.str().c_str());
-          throw UrException(error_message.str());
+          throw RTDEInvalidKeyException(unavailable_variables, error_message.str());
         }
       }
       else
