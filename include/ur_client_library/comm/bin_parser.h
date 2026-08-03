@@ -108,7 +108,7 @@ public:
    */
   ~BinParser()
   {
-    parent_.buf_pos_ = buf_pos_;
+    parent_.buf_pos_ = buf_pos_ > parent_.buf_end_ ? parent_.buf_end_ : buf_pos_;
   }
 
   /*!
@@ -280,6 +280,8 @@ public:
    */
   void parse(std::string& val, size_t len)
   {
+    if (len > size_t(buf_end_ - buf_pos_))
+      throw UrException("Could not parse received package: requested string length exceeds remaining buffer size.");
     val.assign(reinterpret_cast<char*>(buf_pos_), len);
     buf_pos_ += len;
   }
@@ -341,6 +343,8 @@ public:
    */
   void consume(size_t bytes)
   {
+    if (bytes > size_t(buf_end_ - buf_pos_))
+      throw UrException("Could not parse received package: attempted to consume more bytes than remaining in buffer.");
     buf_pos_ += bytes;
   }
 
