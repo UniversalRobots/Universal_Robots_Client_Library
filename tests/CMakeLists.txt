@@ -41,7 +41,7 @@ if (INTEGRATION_TESTS)
   endif()
 
   add_executable(rtde_tests test_rtde_client.cpp fake_rtde_server.cpp)
-  target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+  target_link_libraries(rtde_tests PRIVATE ur_client_library::urcl GTest::gmock_main)
   gtest_add_tests(TARGET      rtde_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
