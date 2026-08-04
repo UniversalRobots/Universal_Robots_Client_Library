@@ -545,8 +545,10 @@ TEST(bin_parser, sub_parser_destructor_clamps_to_parent_end)
   comm::BinParser bp_parent(buffer, sizeof(buffer));
 
   {
-    comm::BinParser bp_child(bp_parent, sizeof(buffer));
-    bp_child.consume(sizeof(buffer));  // Exactly at end - valid.
+    // Initialize a child parser with a wrong size (one byte too long). The child will consume to
+    // its end (which effectively only increments the internal buffer pointer), which is one byte past the parent's end.
+    comm::BinParser bp_child(bp_parent, sizeof(buffer) + 1);
+    bp_child.consume();
     EXPECT_TRUE(bp_child.empty());
   }
 
