@@ -472,7 +472,7 @@ TEST(bin_parser, peek_throws_when_past_end)
 TEST(bin_parser, parse_string_too_long_throws)
 {
   // Only 4 bytes available, but caller asks for 8.
-  uint8_t buffer[] = { 0x66, 0x6F, 0x6F, 0x67 };  // "foob"
+  uint8_t buffer[] = { 0x66, 0x6F, 0x6F, 0x62 };  // "foob"
   comm::BinParser bp(buffer, sizeof(buffer));
 
   std::string s;
