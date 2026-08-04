@@ -21,11 +21,11 @@
 #pragma once
 #include <atomic>
 #include <chrono>
-#include <mutex>
 #include <string>
 #include <memory>
 
 #include "ur_client_library/comm/socket_t.h"
+#include "ur_client_library/comm/unique_fd.h"
 
 namespace urcl
 {
@@ -52,7 +52,7 @@ const std::string& socketStateToString(SocketState state);
 class TCPSocket
 {
 private:
-  std::atomic<socket_t> socket_fd_;
+  UniqueFd socket_;
   std::atomic<SocketState> state_;
   std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
@@ -68,8 +68,6 @@ private:
 
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
                      const std::chrono::milliseconds reconnection_time);
-
-  void freeFileDescriptor();
 
 protected:
   /*!
@@ -140,7 +138,7 @@ public:
    */
   socket_t getSocketFD()
   {
-    return socket_fd_;
+    return socket_.get();
   }
 
   /*!

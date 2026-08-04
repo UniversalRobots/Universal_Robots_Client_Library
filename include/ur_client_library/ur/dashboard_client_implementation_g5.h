@@ -28,9 +28,11 @@
 
 #pragma once
 
+#include <mutex>
+#include <unordered_map>
+
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/ur/dashboard_client_implementation.h>
-#include <unordered_map>
 #include "ur_client_library/ur/version_information.h"
 
 namespace urcl
