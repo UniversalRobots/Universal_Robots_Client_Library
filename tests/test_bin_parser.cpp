@@ -313,8 +313,22 @@ TEST(bin_parser, parse_outside_buffer_length)
 
   EXPECT_EQ(expected_int, parsed_int);
 
-  // Parse outside buffer length
+#if defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#elif defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable : 6385)
+#endif
+  // Explicitly attempt to parse outside the buffer length, should throw an exception.
+  // Since compilers might have a static analysis that the buffer is too small, we disable the
+  // warning for this test.
   EXPECT_THROW(bp.parse<int32_t>(parsed_int), UrException);
+#if defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
 }
 
 TEST(bin_parser, bin_parser_parent)
