@@ -790,6 +790,68 @@ TEST_F(ScriptReaderTest, IncludeRejectsPipeAsQuote)
   std::filesystem::remove_all(tmp_root);
 }
 
+#ifndef _WIN32
+// If `weakly_canonical` throws (e.g. on a symlink cycle), the top-level readScriptFile must
+// translate that filesystem_error into a UrException whose message names the input path.
+// Symlinks are POSIX-only in this project (Windows requires elevation), so gate the test.
+TEST_F(ScriptReaderTest, ReadScriptFileWrapsFilesystemError)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_readfile_fs_err";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+
+  // Self-referencing symlink: weakly_canonical resolves symlinks and will bail out with ELOOP.
+  const auto loop = tmp_root / "loop";
+  std::filesystem::create_symlink(loop, loop);
+
+  ScriptReader reader;
+  try
+  {
+    reader.readScriptFile(loop.string());
+    FAIL() << "Expected UrException from filesystem_error wrapping";
+  }
+  catch (const urcl::UrException& e)
+  {
+    // Message should mention the top-level context and the offending path so callers can debug.
+    const std::string what = e.what();
+    EXPECT_NE(what.find("script file path"), std::string::npos) << "unexpected message: " << what;
+    EXPECT_NE(what.find(loop.string()), std::string::npos) << "unexpected message: " << what;
+  }
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// Same idea, but for the include path resolution in replaceIncludes: the include target is a
+// symlink cycle, so weakly_canonical throws and we should surface it as a UrException.
+TEST_F(ScriptReaderTest, IncludeWrapsFilesystemError)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_include_fs_err";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+
+  // Include target is a symlink that points to itself. The main script itself resolves fine, so
+  // the failure has to originate from replaceIncludes, not readScriptFile.
+  std::filesystem::create_symlink(tmp_root / "loop", tmp_root / "loop");
+  const auto main_script = writeScriptFile(tmp_root, "main.urscript", "{% include \"loop\" %}");
+
+  ScriptReader reader;
+  try
+  {
+    reader.readScriptFile(main_script.string());
+    FAIL() << "Expected UrException from filesystem_error wrapping";
+  }
+  catch (const urcl::UrException& e)
+  {
+    const std::string what = e.what();
+    EXPECT_NE(what.find("include path"), std::string::npos) << "unexpected message: " << what;
+    // The raw include spelling (what the user wrote, not the resolved path) should be in the msg.
+    EXPECT_NE(what.find("'loop'"), std::string::npos) << "unexpected message: " << what;
+  }
+
+  std::filesystem::remove_all(tmp_root);
+}
+#endif  // _WIN32
+
 // A test that produce all script files to a subfolder for different software version to be manually inspected
 TEST_F(ScriptReaderTest, TestProduceAllScriptFiles)
 {

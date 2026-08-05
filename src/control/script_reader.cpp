@@ -133,25 +133,58 @@ bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVa
   throw std::runtime_error("Unknown variant type passed to equality check. Please contact the developers.");
 }
 
-std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
+namespace
 {
-  // Top-level entry point: normalize the input path, set up the include root, reset the include
-  // stack/depth counters, then delegate to the internal impl.
-  std::filesystem::path input_path(filename);
-  std::filesystem::path canonical_input;
+// Returns true if `candidate` (already lexically-normalized) is inside `root` (also normalized).
+bool isPathInside(const std::filesystem::path& candidate, const std::filesystem::path& root)
+{
+  const auto rel = candidate.lexically_relative(root);
+  if (rel.empty())
+  {
+    // No relative path exists (e.g. different roots on Windows) -> definitely outside.
+    return false;
+  }
+  for (const auto& part : rel)
+  {
+    if (part == "..")
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Runs std::filesystem::weakly_canonical on `input` and wraps any filesystem_error in a UrException
+// with a message that includes `context` (e.g. "script file path" / "include path") and the raw
+// user-facing spelling of the path (`raw`). Both call sites in ScriptReader need identical wrapping
+// but with a different label and different raw string, so keep those parameters explicit.
+//
+// weakly_canonical is preferred over canonical because it tolerates trailing components that do
+// not yet exist -- we defer "file not found" reporting to readFileContent, which produces a nicer
+// error. Symlink cycles and similar low-level failures still throw here, and are what this helper
+// converts.
+std::filesystem::path canonicalizeOrThrow(const std::filesystem::path& input, const std::string& raw,
+                                          const char* context)
+{
   try
   {
-    // weakly_canonical works even if trailing components don't yet exist (we still want a useful
-    // error message from readFileContent below rather than a filesystem_error here). It also
-    // resolves symlinks in existing components, which matters for the containment check.
-    canonical_input = std::filesystem::weakly_canonical(input_path);
+    return std::filesystem::weakly_canonical(input);
   }
   catch (const std::filesystem::filesystem_error& e)
   {
     std::stringstream ss;
-    ss << "Could not resolve script file path '" << filename << "': " << e.what();
+    ss << "Could not resolve " << context << " '" << raw << "': " << e.what();
     throw UrException(ss.str().c_str());
   }
+}
+}  // namespace
+
+std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
+{
+  // Top-level entry point: normalize the input path, set up the include root, reset the include
+  // stack/depth counters, then delegate to the internal impl.
+  const std::filesystem::path canonical_input =
+      canonicalizeOrThrow(std::filesystem::path(filename), filename, "script file path");
 
   root_dir_ = canonical_input.parent_path();
   current_dir_.clear();
@@ -225,28 +258,6 @@ std::string ScriptReader::readFileContent(const std::string& file_path)
   return content;
 }
 
-namespace
-{
-// Returns true if `candidate` (already lexically-normalized) is inside `root` (also normalized).
-bool isPathInside(const std::filesystem::path& candidate, const std::filesystem::path& root)
-{
-  const auto rel = candidate.lexically_relative(root);
-  if (rel.empty())
-  {
-    // No relative path exists (e.g. different roots on Windows) -> definitely outside.
-    return false;
-  }
-  for (const auto& part : rel)
-  {
-    if (part == "..")
-    {
-      return false;
-    }
-  }
-  return true;
-}
-}  // namespace
-
 void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
 {
   // Character class fixed: previously the regex used `['|"]` which matches `'`, `|`, or `"` (the
@@ -276,19 +287,9 @@ void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
       throw UrException(("Rooted or absolute include paths are not allowed: '" + raw + "'").c_str());
     }
 
-    std::filesystem::path resolved;
-    try
-    {
-      // weakly_canonical collapses `..` components and resolves symlinks where possible, which is
-      // what we need to make the containment check trustworthy.
-      resolved = std::filesystem::weakly_canonical(current_dir_ / requested);
-    }
-    catch (const std::filesystem::filesystem_error& e)
-    {
-      std::stringstream ss;
-      ss << "Could not resolve include path '" << raw << "': " << e.what();
-      throw UrException(ss.str().c_str());
-    }
+    // weakly_canonical collapses `..` components and resolves symlinks where possible, which is
+    // what we need to make the containment check trustworthy.
+    const std::filesystem::path resolved = canonicalizeOrThrow(current_dir_ / requested, raw, "include path");
 
     if (!isPathInside(resolved, root_dir_))
     {
