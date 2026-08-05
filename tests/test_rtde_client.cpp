@@ -27,13 +27,12 @@
 //----------------------------------------------------------------------
 
 #include <algorithm>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <thread>
-#include <unordered_map>
-#include <utility>
 #include <iostream>
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/exceptions.h"
@@ -49,6 +48,25 @@ using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 uint32_t g_FAKE_RTDE_PORT = 13875;
+
+class TestableRTDEClient : public rtde_interface::RTDEClient
+{
+public:
+  TestableRTDEClient() = delete;
+  TestableRTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::vector<std::string>& output_recipe,
+                     const std::vector<std::string>& input_recipe, double target_frequency = 0.0,
+                     bool ignore_unavailable_outputs = false, const uint32_t port = UR_RTDE_PORT)
+    : rtde_interface::RTDEClient(robot_ip, notifier, output_recipe, input_recipe, target_frequency,
+                                 ignore_unavailable_outputs, port)
+  {
+  }
+
+  // replace the member directly
+  void injectOutputRecipe(const std::vector<std::string>& output_recipe)
+  {
+    output_recipe_ = output_recipe;
+  }
+};
 
 class RTDEClientTest : public ::testing::Test
 {
@@ -276,9 +294,30 @@ TEST_F(RTDEClientTest, input_recipe_with_invalid_key)
   std::vector<std::string> actual_input_recipe = resources_input_recipe_;
   actual_input_recipe.push_back("i_do_not_exist");
 
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_,
-                                                            actual_input_recipe)),
-               RTDEInvalidKeyException);
+  EXPECT_THAT(
+      [&]() {
+        client_.reset(
+            new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe));
+      },
+      testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_exist")));
+}
+
+TEST_F(RTDEClientTest, output_recipe_with_invalid_key)
+{
+  std::vector<std::string> actual_output_recipe = resources_output_recipe_;
+  actual_output_recipe.push_back("i_do_not_exist");
+
+  EXPECT_THAT(
+      [&]() {
+        client_.reset(
+            new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, actual_output_recipe, resources_input_recipe_));
+      },
+      testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_exist")));
+
+  TestableRTDEClient client(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
+  client.injectOutputRecipe(actual_output_recipe);
+  EXPECT_THAT([&]() { client.init(); }, testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_"
+                                                                                                           "exist")));
 }
 
 TEST_F(RTDEClientTest, recipe_comparison)
