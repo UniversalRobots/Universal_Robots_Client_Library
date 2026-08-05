@@ -313,8 +313,22 @@ TEST(bin_parser, parse_outside_buffer_length)
 
   EXPECT_EQ(expected_int, parsed_int);
 
-  // Parse outside buffer length
+#if defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#elif defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable : 6385)
+#endif
+  // Explicitly attempt to parse outside the buffer length, should throw an exception.
+  // Since compilers might have a static analysis that the buffer is too small, we disable the
+  // warning for this test.
   EXPECT_THROW(bp.parse<int32_t>(parsed_int), UrException);
+#if defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
 }
 
 TEST(bin_parser, bin_parser_parent)
@@ -467,6 +481,94 @@ TEST(bin_parser, peek_throws_when_past_end)
   bp.parse(val);
   EXPECT_EQ(val, 0x1234u);
   EXPECT_THROW(bp.peek<uint16_t>(), UrException);
+}
+
+TEST(bin_parser, parse_string_too_long_throws)
+{
+  // Only 4 bytes available, but caller asks for 8.
+  uint8_t buffer[] = { 0x66, 0x6F, 0x6F, 0x62 };  // "foob"
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  std::string s;
+  EXPECT_THROW(bp.parse(s, 8), UrException);
+  // Buffer position must not have advanced on failure, so the data is still parseable.
+  std::string ok;
+  bp.parse(ok, 4);
+  EXPECT_EQ(ok, "foob");
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(bin_parser, parse_length_prefixed_string_truncated_throws)
+{
+  // Length prefix says 10 bytes follow, but only 3 are present.
+  uint8_t buffer[] = { 0x0a, 0x61, 0x62, 0x63 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  std::string s;
+  EXPECT_THROW(bp.parse(s), UrException);
+}
+
+TEST(bin_parser, consume_past_end_throws)
+{
+  uint8_t buffer[] = { 0x00, 0x01, 0x02, 0x03 };
+  comm::BinParser bp(buffer, sizeof(buffer));
+
+  EXPECT_THROW(bp.consume(sizeof(buffer) + 1), UrException);
+  // Consume must not have advanced the buffer position on failure.
+  EXPECT_TRUE(bp.checkSize(sizeof(buffer)));
+
+  // A subsequent full consume must still work and leave the parser empty
+  // (i.e. buf_pos_ is not past buf_end_, so checkSize reflects reality).
+  bp.consume(sizeof(buffer));
+  EXPECT_TRUE(bp.empty());
+  EXPECT_FALSE(bp.checkSize(1));
+}
+
+TEST(bin_parser, sub_parser_over_consume_throws_and_preserves_parent)
+{
+  uint8_t buffer[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+  comm::BinParser bp_parent(buffer, sizeof(buffer));
+
+  {
+    // Sub-parser covers only the first 4 bytes.
+    comm::BinParser bp_child(bp_parent, 4);
+    // Attempting to consume past the child's end must throw without advancing
+    // the child's buf_pos_, so the parent's state stays valid.
+    EXPECT_THROW(bp_child.consume(1000), UrException);
+  }
+
+  // Parent must still see all 8 bytes since the child never advanced.
+  EXPECT_TRUE(bp_parent.checkSize(sizeof(buffer)));
+  uint32_t val;
+  bp_parent.parse(val);
+  EXPECT_EQ(val, 0x00010203u);
+  bp_parent.parse(val);
+  EXPECT_EQ(val, 0x04050607u);
+  EXPECT_TRUE(bp_parent.empty());
+}
+
+TEST(bin_parser, sub_parser_destructor_clamps_to_parent_end)
+{
+  // Directly exercise the destructor's clamp: manually place the child's
+  // buf_pos_ past its buf_end_ using pointer manipulation via a raw buffer
+  // pointer, and verify the parent is not corrupted.
+  // We simulate this by using a sub-parser and manually consuming inside
+  // its bounds, then calling the destructor. The destructor must never set
+  // parent.buf_pos_ > parent.buf_end_.
+  uint8_t buffer[] = { 0x00, 0x01, 0x02, 0x03 };
+  comm::BinParser bp_parent(buffer, sizeof(buffer));
+
+  {
+    // Initialize a child parser with a wrong size (one byte too long). The child will consume to
+    // its end (which effectively only increments the internal buffer pointer), which is one byte past the parent's end.
+    comm::BinParser bp_child(bp_parent, sizeof(buffer) + 1);
+    bp_child.consume();
+    EXPECT_TRUE(bp_child.empty());
+  }
+
+  // Parent's buf_pos_ must equal buf_end_ after the child destructs.
+  EXPECT_TRUE(bp_parent.empty());
+  EXPECT_FALSE(bp_parent.checkSize(1));
 }
 
 TEST(bin_parser, parse_into_variant)

@@ -108,7 +108,7 @@ public:
    */
   ~BinParser()
   {
-    parent_.buf_pos_ = buf_pos_;
+    parent_.buf_pos_ = buf_pos_ > parent_.buf_end_ ? parent_.buf_end_ : buf_pos_;
   }
 
   /*!
@@ -121,7 +121,7 @@ public:
   template <typename T>
   T peek()
   {
-    if (buf_pos_ + sizeof(T) > buf_end_)
+    if (sizeof(T) > size_t(buf_end_ - buf_pos_))
       throw UrException("Could not parse received package. This can occur if the driver is started while the robot is "
                         "booting - please restart the driver once the robot has finished booting. "
                         "If the problem persists after the robot has booted, please contact the package maintainer.");
@@ -280,6 +280,8 @@ public:
    */
   void parse(std::string& val, size_t len)
   {
+    if (len > size_t(buf_end_ - buf_pos_))
+      throw UrException("Could not parse received package: requested string length exceeds remaining buffer size.");
     val.assign(reinterpret_cast<char*>(buf_pos_), len);
     buf_pos_ += len;
   }
@@ -341,6 +343,8 @@ public:
    */
   void consume(size_t bytes)
   {
+    if (bytes > size_t(buf_end_ - buf_pos_))
+      throw UrException("Could not parse received package: attempted to consume more bytes than remaining in buffer.");
     buf_pos_ += bytes;
   }
 
