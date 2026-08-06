@@ -157,11 +157,11 @@ TCPSocket::~TCPSocket()
 void TCPSocket::setupOptions()
 {
   constexpr int flag = 1;
-  setSocketOptionAndWarnOnError(socket_.get(), IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag), "TCP_NODELAY");
+  setSocketOptionAndWarnOnError(socket_fd_.get(), IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag), "TCP_NODELAY");
 
   // macOS does not have TCP_QUICKACK
 #ifdef TCP_QUICKACK
-  setSocketOptionAndWarnOnError(socket_.get(), IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(flag), "TCP_QUICKACK");
+  setSocketOptionAndWarnOnError(socket_fd_.get(), IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(flag), "TCP_QUICKACK");
 #endif
 
   if (recv_timeout_ != nullptr)
@@ -169,9 +169,9 @@ void TCPSocket::setupOptions()
 #ifdef _WIN32
     DWORD value = recv_timeout_->tv_sec * 1000;
     value += recv_timeout_->tv_usec / 1000;
-    setSocketOptionAndWarnOnError(socket_.get(), SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value), "SO_RCVTIMEO");
+    setSocketOptionAndWarnOnError(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value), "SO_RCVTIMEO");
 #else
-    setSocketOptionAndWarnOnError(socket_.get(), SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval),
+    setSocketOptionAndWarnOnError(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval),
                                   "SO_RCVTIMEO");
 #endif
   }
@@ -283,9 +283,9 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
     {
       // reset() closes the descriptor created by a previous failed attempt before adopting the new
       // one, so retrying does not leak file descriptors.
-      socket_.reset(::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
+      socket_fd_.reset(::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
 
-      if (socket_.get() != -1 && openInterruptible(socket_.get(), p->ai_addr, p->ai_addrlen))
+      if (socket_fd_.get() != -1 && openInterruptible(socket_fd_.get(), p->ai_addr, p->ai_addrlen))
       {
         connected = true;
         break;
@@ -294,7 +294,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       if (isStopRequested())
       {
         freeaddrinfo(result);
-        socket_.reset();
+        socket_fd_.reset();
         return false;
       }
     }
@@ -306,7 +306,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       if (++connect_counter >= max_num_tries && max_num_tries > 0)
       {
         URCL_LOG_ERROR("Failed to establish connection for %s:%d after %d tries", host.c_str(), port, max_num_tries);
-        socket_.reset();
+        socket_fd_.reset();
         return false;
       }
       else
@@ -327,7 +327,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
         }
         if (isStopRequested())
         {
-          socket_.reset();
+          socket_fd_.reset();
           return false;
         }
       }
@@ -414,7 +414,7 @@ void TCPSocket::close()
     target_state_ = SocketState::Closed;
     state_ = SocketState::Disconnecting;
   }
-  socket_.reset();
+  socket_fd_.reset();
   state_ = SocketState::Closed;
 }
 
@@ -422,7 +422,7 @@ std::string TCPSocket::getIP() const
 {
   sockaddr_in name;
   socklen_t len = sizeof(name);
-  int res = ::getsockname(socket_.get(), (sockaddr*)&name, &len);
+  int res = ::getsockname(socket_fd_.get(), (sockaddr*)&name, &len);
 
   if (res < 0)
   {
@@ -452,9 +452,9 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
     return false;
 
 #ifdef _WIN32
-  ssize_t res = ::recv(socket_.get(), reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
+  ssize_t res = ::recv(socket_fd_.get(), reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
 #else
-  ssize_t res = ::recv(socket_.get(), buf, buf_len, 0);
+  ssize_t res = ::recv(socket_fd_.get(), buf, buf_len, 0);
 #endif
 
   if (res == 0)
@@ -501,7 +501,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
   while (written < buf_len)
   {
     ssize_t sent =
-        ::send(socket_.get(), reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
+        ::send(socket_fd_.get(), reinterpret_cast<const char*>(buf + written), static_cast<socklen_t>(remaining), 0);
 
     if (sent <= 0)
     {

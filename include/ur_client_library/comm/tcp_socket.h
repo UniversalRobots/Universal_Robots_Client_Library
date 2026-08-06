@@ -52,7 +52,7 @@ const std::string& socketStateToString(SocketState state);
 class TCPSocket
 {
 private:
-  UniqueFd socket_;
+  UniqueFd socket_fd_;
   std::atomic<SocketState> state_;
   std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
@@ -138,7 +138,7 @@ public:
    */
   socket_t getSocketFD()
   {
-    return socket_.get();
+    return socket_fd_.get();
   }
 
   /*!
