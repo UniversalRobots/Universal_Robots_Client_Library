@@ -616,6 +616,242 @@ TEST_F(ScriptReaderTest, TestFrictionScalesConstantsAndHandler)
             std::string::npos);
 }
 
+// --- Security regression tests -------------------------------------------------------------------
+
+namespace
+{
+// Helper: create a script file inside `dir` with the given contents. Returns the full path.
+std::filesystem::path writeScriptFile(const std::filesystem::path& dir, const std::string& name,
+                                      const std::string& contents)
+{
+  const auto path = dir / name;
+  std::ofstream ofs(path);
+  ofs << contents;
+  ofs.close();
+  return path;
+}
+}  // namespace
+
+// Path traversal via `..` must be rejected: an include cannot escape the root script's directory.
+TEST_F(ScriptReaderTest, IncludeRejectsParentTraversal)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_traversal";
+  std::filesystem::remove_all(tmp_root);
+  const auto project_dir = tmp_root / "project";
+  const auto secret_dir = tmp_root / "secret";
+  std::filesystem::create_directories(project_dir);
+  std::filesystem::create_directories(secret_dir);
+  writeScriptFile(secret_dir, "leak.txt", "SECRET_CONTENT");
+  const auto main_script = writeScriptFile(project_dir, "main.urscript", "{% include \"../secret/leak.txt\" %}");
+
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile(main_script.string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// Absolute include paths must be rejected outright. Prior to the fix, std::filesystem::path::operator/
+// silently discarded the LHS when the RHS was absolute, letting `{% include "/etc/..." %}` escape.
+TEST_F(ScriptReaderTest, IncludeRejectsAbsolutePath)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_absolute";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+  const auto target = writeScriptFile(tmp_root, "target.txt", "TARGET");
+  // The include payload is `/<absolute-path>/target.txt`.
+  const std::string include_body = "{% include \"" + target.string() + "\" %}";
+  // The main script lives elsewhere (its own root), so absolute-path escape is what's being tested.
+  const auto project_dir = tmp_root / "project";
+  std::filesystem::create_directories(project_dir);
+  const auto main_script = writeScriptFile(project_dir, "main.urscript", include_body);
+
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile(main_script.string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// A file that includes itself must be rejected instead of recursing forever.
+TEST_F(ScriptReaderTest, IncludeSelfReferenceRejected)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_self";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+  const auto self = writeScriptFile(tmp_root, "self.urscript", "{% include \"self.urscript\" %}");
+
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile(self.string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// A -> B -> A must be rejected instead of recursing forever.
+TEST_F(ScriptReaderTest, IncludeCycleRejected)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_cycle";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+  writeScriptFile(tmp_root, "a.urscript", "{% include \"b.urscript\" %}");
+  writeScriptFile(tmp_root, "b.urscript", "{% include \"a.urscript\" %}");
+
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile((tmp_root / "a.urscript").string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// A deeply nested but non-cyclic include chain must be rejected once the depth cap is exceeded.
+// Uses N+1 distinct files chained a0 -> a1 -> ... -> aN where N is well past kMaxIncludeDepth.
+TEST_F(ScriptReaderTest, IncludeExceedingDepthLimitRejected)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_depth";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+
+  constexpr std::size_t kChainLen = 64;  // > ScriptReader::kMaxIncludeDepth (32)
+  for (std::size_t i = 0; i < kChainLen; ++i)
+  {
+    const std::string next = "a" + std::to_string(i + 1) + ".urscript";
+    writeScriptFile(tmp_root, "a" + std::to_string(i) + ".urscript", "{% include \"" + next + "\" %}");
+  }
+  writeScriptFile(tmp_root, "a" + std::to_string(kChainLen) + ".urscript", "leaf");
+
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile((tmp_root / "a0.urscript").string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// A file including two siblings back-to-back must resolve BOTH relative to the parent's directory
+// (not relative to the first included file's directory).
+TEST_F(ScriptReaderTest, SiblingIncludesResolveRelativeToParent)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_siblings";
+  std::filesystem::remove_all(tmp_root);
+  const auto root_dir = tmp_root / "root";
+  const auto sub_dir = root_dir / "sub";
+  std::filesystem::create_directories(sub_dir);
+
+  // sub/child.urscript exists at sub/. If script_path_ were corrupted by processing sub/child,
+  // resolving `sibling.urscript` from root/ would fail (looking inside sub/).
+  writeScriptFile(sub_dir, "child.urscript", "CHILD");
+  writeScriptFile(root_dir, "sibling.urscript", "SIBLING");
+  const auto main_script = writeScriptFile(root_dir, "main.urscript",
+                                           "{% include \"sub/child.urscript\" %}\n"
+                                           "{% include \"sibling.urscript\" %}");
+
+  ScriptReader reader;
+  const std::string out = reader.readScriptFile(main_script.string());
+  EXPECT_EQ(out, "CHILD\nSIBLING");
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+#ifdef _WIN32
+// Windows-only regression: paths like `\evil.txt` (root directory, no drive) and `Z:evil.txt`
+// (drive-relative on a different drive) both slip past `path::is_absolute()` on Windows but would
+// still let `operator/=` drop the LHS. Verify the strengthened check (has_root_name /
+// has_root_directory) rejects them up front. Gated to Windows because on POSIX these are just
+// filenames with weird characters and the rejection path we want to exercise is not reachable.
+TEST_F(ScriptReaderTest, IncludeRejectsRootedWindowsStylePaths)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_rooted";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+  writeScriptFile(tmp_root, "target.txt", "TARGET");
+
+  const auto main_bs = writeScriptFile(tmp_root, "main_bs.urscript", "{% include \"\\target.txt\" %}");
+  ScriptReader reader;
+  EXPECT_THROW(reader.readScriptFile(main_bs.string()), urcl::UrException);
+
+  const auto main_drive = writeScriptFile(tmp_root, "main_drive.urscript", "{% include \"Z:target.txt\" %}");
+  ScriptReader reader2;
+  EXPECT_THROW(reader2.readScriptFile(main_drive.string()), urcl::UrException);
+
+  std::filesystem::remove_all(tmp_root);
+}
+#endif  // _WIN32
+
+// Regression for the character-class bug: previously `['|"]` accepted `|` as a quote character.
+TEST_F(ScriptReaderTest, IncludeRejectsPipeAsQuote)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_pipe";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+  writeScriptFile(tmp_root, "target.txt", "TARGET");
+  // `{% include |target.txt| %}` should NOT match the include pattern anymore.
+  const auto main_script = writeScriptFile(tmp_root, "main.urscript", "prefix {% include |target.txt| %} suffix");
+
+  ScriptReader reader;
+  const std::string out = reader.readScriptFile(main_script.string());
+  // Pattern doesn't match -> the line is emitted verbatim, no include performed.
+  EXPECT_EQ(out, "prefix {% include |target.txt| %} suffix");
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+#ifndef _WIN32
+// If `weakly_canonical` throws (e.g. on a symlink cycle), the top-level readScriptFile must
+// translate that filesystem_error into a UrException whose message names the input path.
+// Symlinks are POSIX-only in this project (Windows requires elevation), so gate the test.
+TEST_F(ScriptReaderTest, ReadScriptFileWrapsFilesystemError)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_readfile_fs_err";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+
+  // Self-referencing symlink: weakly_canonical resolves symlinks and will bail out with ELOOP.
+  const auto loop = tmp_root / "loop";
+  std::filesystem::create_symlink(loop, loop);
+
+  ScriptReader reader;
+  try
+  {
+    reader.readScriptFile(loop.string());
+    FAIL() << "Expected UrException from filesystem_error wrapping";
+  }
+  catch (const urcl::UrException& e)
+  {
+    // Message should mention the top-level context and the offending path so callers can debug.
+    const std::string what = e.what();
+    EXPECT_NE(what.find("script file path"), std::string::npos) << "unexpected message: " << what;
+    EXPECT_NE(what.find(loop.string()), std::string::npos) << "unexpected message: " << what;
+  }
+
+  std::filesystem::remove_all(tmp_root);
+}
+
+// Same idea, but for the include path resolution in replaceIncludes: the include target is a
+// symlink cycle, so weakly_canonical throws and we should surface it as a UrException.
+TEST_F(ScriptReaderTest, IncludeWrapsFilesystemError)
+{
+  const auto tmp_root = std::filesystem::temp_directory_path() / "urcl_script_reader_include_fs_err";
+  std::filesystem::remove_all(tmp_root);
+  std::filesystem::create_directories(tmp_root);
+
+  // Include target is a symlink that points to itself. The main script itself resolves fine, so
+  // the failure has to originate from replaceIncludes, not readScriptFile.
+  std::filesystem::create_symlink(tmp_root / "loop", tmp_root / "loop");
+  const auto main_script = writeScriptFile(tmp_root, "main.urscript", "{% include \"loop\" %}");
+
+  ScriptReader reader;
+  try
+  {
+    reader.readScriptFile(main_script.string());
+    FAIL() << "Expected UrException from filesystem_error wrapping";
+  }
+  catch (const urcl::UrException& e)
+  {
+    const std::string what = e.what();
+    EXPECT_NE(what.find("include path"), std::string::npos) << "unexpected message: " << what;
+    // The raw include spelling (what the user wrote, not the resolved path) should be in the msg.
+    EXPECT_NE(what.find("'loop'"), std::string::npos) << "unexpected message: " << what;
+  }
+
+  std::filesystem::remove_all(tmp_root);
+}
+#endif  // _WIN32
+
 // A test that produce all script files to a subfolder for different software version to be manually inspected
 TEST_F(ScriptReaderTest, TestProduceAllScriptFiles)
 {
