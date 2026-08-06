@@ -88,11 +88,11 @@ RTDEClient::~RTDEClient()
 {
   prod_->setReconnectionCallback(nullptr);
   stop_reconnection_ = true;
+  disconnect();
   if (reconnecting_thread_.joinable())
   {
     reconnecting_thread_.join();
   }
-  disconnect();
 }
 
 bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::milliseconds reconnection_timeout,
@@ -509,11 +509,8 @@ bool RTDEClient::setupInputs()
 
 void RTDEClient::disconnect()
 {
-  if (client_state_ > ClientState::UNINITIALIZED)
-  {
-    stream_.disconnect();
-    writer_.stop();
-  }
+  stream_.disconnect();
+  writer_.stop();
   client_state_ = ClientState::UNINITIALIZED;
   prod_->stopProducer();
   stopBackgroundRead();

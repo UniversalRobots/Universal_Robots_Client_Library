@@ -1,0 +1,71 @@
+<mxfile host="Electron" agent="ur_client_library">
+  <diagram id="tcp_socket_states" name="TCPSocket state machine">
+    <mxGraphModel dx="1417" dy="858" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="start" parent="1" style="ellipse;fillColor=#000000;strokeColor=#000000;html=1;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="80" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="Invalid" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a0522d;strokeColor=#6D1F00;fontSize=14;fontColor=#ffffff;" value="Invalid" vertex="1">
+          <mxGeometry height="50" width="160" x="10" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="Closed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;" value="Closed" vertex="1">
+          <mxGeometry height="50" width="160" x="220" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="Connecting" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#36393d;fontSize=14;" value="Connecting" vertex="1">
+          <mxGeometry height="50" width="160" x="220" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="Connected" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#000000;fontSize=14;" value="Connected" vertex="1">
+          <mxGeometry height="50" width="160" x="340" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="LostConnection" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#000000;fontSize=14;" value="LostConnection" vertex="1">
+          <mxGeometry height="50" width="160" x="220" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="Disconnecting" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#36393d;fontSize=14;" value="Disconnecting" vertex="1">
+          <mxGeometry height="50" width="160" x="600" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="e_start_invalid" edge="1" parent="1" source="start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#7f7f7f;fontColor=#7f7f7f;noEdgeStyle=1;" target="Invalid" value="TCPSocket()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_invalid_connecting" edge="1" parent="1" source="Invalid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#1f77b4;fontColor=#1f77b4;noEdgeStyle=1;" target="Connecting" value="connect()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_closed_connecting" edge="1" parent="1" source="Closed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#1f77b4;fontColor=#1f77b4;noEdgeStyle=1;" target="Connecting" value="connect()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_connecting_connected" edge="1" parent="1" source="Connecting" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#2ca02c;fontColor=#2ca02c;noEdgeStyle=1;" target="Connected" value="on_&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(44, 160, 44), rgb(57, 156, 57));&quot;&gt;success&lt;/span&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_connecting_disconnecting" edge="1" parent="1" source="Connecting" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#d62728;fontColor=#d62728;noEdgeStyle=1;" target="Disconnecting" value="on_error, disconnect()">
+          <mxGeometry relative="1" x="-0.2568" y="8" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_connected_lost" edge="1" parent="1" source="Connected" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#8c564b;fontColor=#8c564b;noEdgeStyle=1;" target="LostConnection" value="read(): EOF or perm. error">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_connected_disconnecting" edge="1" parent="1" source="Connected" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#d62728;fontColor=#d62728;noEdgeStyle=1;" target="Disconnecting" value="disconnect()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lost_reconnecting" edge="1" parent="1" source="LostConnection" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#17becf;fontColor=#17becf;noEdgeStyle=1;" target="Connecting" value="reconnect()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lost_disconnecting" edge="1" parent="1" source="LostConnection" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#d62728;fontColor=#d62728;noEdgeStyle=1;" target="Disconnecting" value="disconnect()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_disconnecting_disconnected" edge="1" parent="1" source="Disconnecting" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;fontSize=11;strokeColor=#82b366;fontColor=#d62728;noEdgeStyle=1;fillColor=#d5e8d4;" target="Closed" value="&lt;div&gt;&lt;font style=&quot;color: rgb(151, 208, 119);&quot;&gt;on_success&lt;/font&gt;&lt;/div&gt;">
+          <mxGeometry relative="1" x="0.0013" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="249.56985294117658" y="177" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="EPpyj3g_8WyPdl9NbQM6-1" edge="1" parent="1" source="Connecting" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#CC0000;" target="LostConnection" value="on_error">
+          <mxGeometry relative="1" y="-30" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
