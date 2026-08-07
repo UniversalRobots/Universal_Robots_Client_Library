@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.14.1 (2026-08-07)
+-------------------
 * fix: teardown blocks indefinitely when a reconnect thread is active and the robot is unreachable (`#519 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/519>`_)
 * Harden script_reader against vulnerabilities (`#546 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/546>`_)
 * Add missing keys to RTDEInvalidKeyException
