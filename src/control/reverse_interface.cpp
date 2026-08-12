@@ -121,10 +121,13 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int point_number,
+                                                     const int32_t move_id, const int point_number,
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
-  const int message_length = 3;
+  // The move identifier occupies the slot which used to be the first of the padding, so the zero
+  // fill below has to begin one slot further along than it did. Otherwise it would write over the
+  // identifier we just placed there.
+  const int message_length = 4;
   if (client_fd_ == INVALID_SOCKET)
   {
     return false;
@@ -151,6 +154,9 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   b_pos += append(b_pos, val);
 
   val = htobe32(point_number);
+  b_pos += append(b_pos, val);
+
+  val = htobe32(move_id);
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands

@@ -147,6 +147,13 @@ public:
    *   TRAJECTORY_STREAM_START. \p point_number must equal the total number of motion primitives the
    *   producer wrote on the trajectory socket since TRAJECTORY_STREAM_START.
    *
+   * \param move_id The identifier of the move which TRAJECTORY_START and TRAJECTORY_STREAM_START
+   * begin. The robot executes only those trajectory points which carry the identifier of the move
+   * it is currently running, and discards any that were left behind by an earlier one, so this
+   * must be the same identifier that is given to TrajectoryPointInterface::setMoveId() before that
+   * move's points are written. The remaining actions do not begin a move, and the robot ignores
+   * the field for them. A value of 0 belongs to no move.
+   *
    * \param point_number Mode-dependent point-count argument. See the description of \p
    * trajectory_action for the per-mode semantics.
    *
@@ -159,9 +166,9 @@ public:
    * \see examples/trajectory_point_interface.cpp for a finite-trajectory usage example, or
    * examples/trajectory_streaming.cpp for an open-ended streaming trajectory example.
    */
-  bool
-  writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
-                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
+  bool writeTrajectoryControlMessage(
+      const TrajectoryControlMessage trajectory_action, const int32_t move_id, const int point_number,
+      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.

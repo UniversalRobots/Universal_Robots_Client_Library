@@ -29,6 +29,7 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -41,6 +42,7 @@
 #include "ur_client_library/control/trajectory_point_interface.h"
 #include "ur_client_library/example_robot_wrapper.h"
 #include "ur_client_library/log.h"
+#include "ur_client_library/rtde/data_package.h"
 #include "ur_client_library/types.h"
 
 using namespace urcl;
@@ -80,6 +82,10 @@ protected:
     g_my_robot = std::make_unique<ExampleRobotWrapper>(g_ROBOT_IP, OUTPUT_RECIPE, INPUT_RECIPE, g_HEADLESS,
                                                        "external_control.urp", SCRIPT_FILE);
     ASSERT_TRUE(g_my_robot->isHealthy());
+    // The tests which assert on motion read the joint positions from RTDE, and
+    // getDataPackage() fails immediately unless the background reader has been
+    // started.
+    g_my_robot->startRTDECommununication(true);
     g_my_robot->getUrDriver()->registerTrajectoryDoneCallback(&handleTrajectoryState);
   }
 
@@ -98,6 +104,67 @@ protected:
     std::lock_guard<std::mutex> lk(g_trajectory_result_mutex);
     g_trajectory_result = control::TrajectoryResult::TRAJECTORY_RESULT_UNKNOWN;
     g_trajectory_result_received = false;
+  }
+
+  // Read the current joint positions of the arm. The output recipe this fixture
+  // uses already carries actual_q, so observing motion requires no additional
+  // configuration. We report a read which produced nothing rather than asserting
+  // on it, so that a caller polling for a position can treat it as a reason to
+  // try again instead of as a failure.
+  static bool readJointPositions(vector6d_t& joint_positions)
+  {
+    rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+    if (!g_my_robot->getUrDriver()->getDataPackage(data_pkg))
+    {
+      return false;
+    }
+    return data_pkg.getData("actual_q", joint_positions);
+  }
+
+  static bool jointsNear(const vector6d_t& lhs, const vector6d_t& rhs, double tolerance)
+  {
+    for (size_t i = 0; i < lhs.size(); ++i)
+    {
+      if (std::fabs(lhs[i] - rhs[i]) > tolerance)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Poll until every joint lies within `tolerance` of `target`, or until the
+  // deadline passes, and return the last sample we read in either case. The
+  // background reader returns the newest package it has seen without blocking,
+  // so this loop has to pace itself. We return the sample rather than a bool
+  // because callers follow this with EXPECT_NEAR, which then reports the
+  // position the arm actually reached when it fails.
+  static vector6d_t waitForJointsNear(const vector6d_t& target, double tolerance, std::chrono::milliseconds timeout)
+  {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    vector6d_t joint_positions = { 0, 0, 0, 0, 0, 0 };
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+      if (readJointPositions(joint_positions) && jointsNear(joint_positions, target, tolerance))
+      {
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return joint_positions;
+  }
+
+  // Assert that the arm came to rest at `target`. We have to assert on motion
+  // because the trajectory result on its own cannot distinguish a move which ran
+  // from a move which reported success without ever moving the arm.
+  static void expectArmReached(const vector6d_t& target)
+  {
+    const double k_position_tolerance = 0.01;
+    const vector6d_t reached = waitForJointsNear(target, k_position_tolerance, std::chrono::seconds(2));
+    for (size_t i = 0; i < target.size(); ++i)
+    {
+      EXPECT_NEAR(target[i], reached[i], k_position_tolerance) << "joint " << i << " did not reach its target";
+    }
   }
 
   // Pump TRAJECTORY_NOOP on the reverse socket so the urscript's main
@@ -518,13 +585,16 @@ TEST_F(TrajectoryStreamingTest, finite_underrun_then_finite_move_recovers)
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
 }
 
-// Recovery from a streaming underrun by way of a finite move. This test fails.
-// An aborted stream leaves `trajectory_points_left` at `STREAMING_SENTINEL` and
-// `trajectory_streaming` true, so `clearTrajectoryPointsThread` has no real
-// bound and keeps reading until the socket goes quiet. On the next trajectory
-// command those reads consume the point belonging to the recovery move, and the
-// recovery move starves in turn. This is the `TRAJECTORY_MODE_RECEIVE` branch of
-// the dispatcher.
+// Recovery from a streaming underrun by way of a finite move, taking the
+// `TRAJECTORY_MODE_RECEIVE` branch of the dispatcher.
+//
+// A stream which aborted used to leave `trajectory_points_left` holding
+// `STREAMING_SENTINEL` and `trajectory_streaming` still true, which gave
+// `clearTrajectoryPointsThread` no real bound to drain against, so it went on
+// reading until the socket fell quiet. Those reads consumed the point belonging
+// to the recovery move on the next trajectory command, and so the recovery move
+// starved in its turn. The underrun now resets both of those globals before it
+// reports failure, which is what this test holds in place.
 //
 // See https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/550.
 TEST_F(TrajectoryStreamingTest, stream_underrun_then_finite_move_recovers)
@@ -562,11 +632,11 @@ TEST_F(TrajectoryStreamingTest, stream_underrun_then_finite_move_recovers)
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
 }
 
-// The same underrun as `stream_underrun_then_finite_move_recovers`, but the
-// recovery is itself a stream, so the dispatcher takes the
+// The same underrun as `stream_underrun_then_finite_move_recovers`, except that
+// the recovery is itself a stream, so the dispatcher takes the
 // `TRAJECTORY_MODE_STREAM_START` branch rather than `TRAJECTORY_MODE_RECEIVE`.
-// This test fails for the same reason. A change that cleaned up only one of the
-// two branches would still be caught here.
+// The two branches used to fail in the same way, and a change which repaired
+// only one of them would still be caught here.
 //
 // See https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/550.
 TEST_F(TrajectoryStreamingTest, stream_underrun_then_stream_recovers)
@@ -611,27 +681,31 @@ TEST_F(TrajectoryStreamingTest, stream_underrun_then_stream_recovers)
 }
 
 // After a stream underruns, the producer does not learn of the failure
-// immediately and keeps writing. Those stale points stay in the trajectory
-// socket, and the next trajectory must not execute them. We can observe that
-// without RTDE by making the stale point one the robot will refuse: a wrist move
-// of about one radian demanded in 1ms is roughly 1000 rad/s, far above
-// `JOINT_IGNORE_SPEED`, so `targetWithinLimits` rejects it and whichever
-// trajectory reads it ends in CANCELED. SUCCESS therefore means the recovery ran
-// its own point, and CANCELED means it ran the stale one.
+// immediately and carries on writing. Those leftover points stay in the
+// trajectory socket, and the next trajectory must not execute them. This is the
+// complaint that the issue below was filed about.
 //
-// This currently fails with FAILURE rather than CANCELED. An aborted stream
-// leaves `trajectory_points_left` at `STREAMING_SENTINEL`, so the cleanup before
-// the next trajectory has no real bound and consumes the recovery move's own
-// point, just as in `stream_underrun_then_finite_move_recovers`. The recovery
-// starves before it ever reaches the stale point, so the stale point is never
-// executed and the distinction above does not yet come into play. It becomes the
-// operative signal once that cleanup is bounded.
+// We can observe it without reading any positions, by making the leftover point
+// one that the robot will refuse. A wrist move of about one radian demanded in
+// 1ms is roughly 1000 rad/s, far above `JOINT_IGNORE_SPEED`, so
+// `targetWithinLimits` rejects it and whichever trajectory reads it ends in
+// CANCELED. A result of SUCCESS therefore tells us the recovery ran its own
+// point, and CANCELED tells us it ran the leftover one.
+//
+// That distinction is not sufficient on its own, because it cannot tell either
+// of those outcomes apart from a recovery which ran nothing at all. The loop in
+// the trajectory thread runs for as long as the result is SUCCESS and points
+// remain, and the result begins as SUCCESS, so a recovery which consumed the
+// leftover record, reached zero and exited without moving would report SUCCESS
+// as well. We therefore have the recovery target a pose which neither the stream
+// nor the leftover point ever asked for, and assert that the arm arrived at it.
 //
 // See https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/550.
 TEST_F(TrajectoryStreamingTest, stream_underrun_stale_points_not_executed_by_recovery)
 {
   const vector6d_t pose_a = { 0.0, -1.57, 0.0, -1.57, 0.0, 0.0 };
   const vector6d_t pose_b = { 0.0, -1.57, 0.0, -1.57, 0.0, 0.15 };
+  const vector6d_t recovery_pose = { 0.0, -1.57, 0.0, -1.57, 0.0, -0.30 };
   const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
   // Pre-position.
   ASSERT_TRUE(
@@ -658,13 +732,76 @@ TEST_F(TrajectoryStreamingTest, stream_underrun_stale_points_not_executed_by_rec
   const vector6d_t stale_fast_pose = { 0.0, -1.57, 0.0, -1.57, 0.0, 1.0 };
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(stale_fast_pose, zero, zero, 0.001f));
 
-  // Recovery: a finite move with one valid point. It must run its own point and
-  // end in SUCCESS.
+  // Recovery: a finite move with one valid point. It must run its own point, end
+  // in SUCCESS, and actually move the arm to the pose that point asked for.
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(recovery_pose, zero, zero, 2.0f));
+  EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
+            waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
+  expectArmReached(recovery_pose);
+}
+
+// A client which cancels a stream with a count smaller than the number of points
+// it actually wrote leaves those records queued on the trajectory socket. The
+// dispatcher works the bound for the cleanup out as the count it was given less
+// the number already consumed, so a count of zero produces a negative bound, and
+// `clearTrajectoryPointsThread`, whose loop runs only while
+// `trajectory_points_left` is above zero, drains nothing at all. This is the bug
+// that the Viam module shipped, which sent a count of zero. It degrades rather
+// than breaks, because the eager drain misses those records and the move which
+// follows disposes of them instead, by recognizing that they name an earlier
+// move.
+//
+// Were the identifiers not there, the recovery would read the first of the
+// leftover records as though it were its own point, execute it, and report
+// SUCCESS from the wrong pose. Only the assertion on motion catches that, which
+// is why the recovery targets a pose the cancelled stream never asked for.
+//
+// The cancel leaves a run of records queued rather than only one, so a skip
+// which worked for the first record alone would not be enough to pass here.
+TEST_F(TrajectoryStreamingTest, cancel_with_short_count_then_finite_move_recovers)
+{
+  const vector6d_t pose_a = { 0.0, -1.57, 0.0, -1.57, 0.0, 0.0 };
+  const vector6d_t stale_pose = { 0.0, -1.57, 0.0, -1.57, 0.0, 0.30 };
+  const vector6d_t recovery_pose = { 0.0, -1.57, 0.0, -1.57, 0.0, -0.30 };
+  const vector6d_t zero = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  // Pre-position.
   ASSERT_TRUE(
       g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(pose_a, zero, zero, 2.0f));
+  ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
+            waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
+  resetTrajectoryResultState();
+
+  // Pile points into the socket faster than the arm can run them, so that a
+  // cancel leaves most of them unread.
+  const int k_num_points = 20;
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+      control::TrajectoryControlMessage::TRAJECTORY_STREAM_START));
+  for (int i = 0; i < k_num_points; ++i)
+  {
+    ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(stale_pose, zero, zero, 0.1f));
+  }
+
+  // Let the thread consume a point or two so that the cancel arrives in the
+  // middle of the stream rather than racing the spawn of the thread, and then
+  // cancel with a count which understates what we wrote.
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+      control::TrajectoryControlMessage::TRAJECTORY_CANCEL, 0));
+  ASSERT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED,
+            waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
+  resetTrajectoryResultState();
+
+  // Recovery: one valid point, to a pose the cancelled stream never asked for.
+  ASSERT_TRUE(
+      g_my_robot->getUrDriver()->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1));
+  ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectorySplinePoint(recovery_pose, zero, zero, 2.0f));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_SUCCESS,
             waitForTrajectoryResultPumpingNoops(std::chrono::seconds(5)));
+  expectArmReached(recovery_pose);
 }
 
 int main(int argc, char* argv[])

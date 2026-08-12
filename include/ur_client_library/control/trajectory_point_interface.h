@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_TRAJECTORY_INTERFACE_H_INCLUDED
 
+#include <atomic>
 #include <list>
 #include <optional>
 
@@ -63,7 +64,7 @@ std::string trajectoryResultToString(const TrajectoryResult result);
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
-  static const int MESSAGE_LENGTH = 21;
+  static const int MESSAGE_LENGTH = 22;
 
   TrajectoryPointInterface() = delete;
   /*!
@@ -139,6 +140,21 @@ public:
 
   void removeTrajectoryEndCallback(const uint32_t callback_id);
 
+  /*!
+   * \brief Sets the identifier that will be written into every subsequent trajectory point.
+   *
+   * The robot discards any point whose identifier is not that of the move it is currently
+   * executing. That is what prevents the points of a move which has failed or been cancelled from
+   * being executed by the move that follows it. A caller must set this to the identifier that was
+   * announced in the control message which began the move, and must do so before writing any of
+   * that move's points. Callers working through UrDriver have no need to call this, because it
+   * assigns and applies the identifiers itself.
+   *
+   * \param move_id The identifier of the move that the following points belong to. A value of 0
+   * belongs to no move.
+   */
+  void setMoveId(int32_t move_id);
+
 protected:
   virtual void connectionCallback(const socket_t filedescriptor) override;
 
@@ -151,6 +167,10 @@ private:
 
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;
+
+  // Written into each outgoing point. It stays zero until some move announces an identifier, which
+  // is also the value the script starts out with, so the two of them agree that no move is running.
+  std::atomic<int32_t> move_id_ = { 0 };
 };
 
 }  // namespace control

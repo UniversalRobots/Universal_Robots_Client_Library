@@ -252,7 +252,18 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
                                              const int point_number, const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
+  // The identifier a point carries is what distinguishes it from the points left behind by an
+  // earlier move, so a command which begins a move takes the next identifier and gives it to both
+  // of the parties that need it. The robot learns of it from the control message itself, and the
+  // trajectory interface needs it in order to write it into the points which follow. The commands
+  // that do not begin a move carry the current identifier along with them, and the robot ignores it.
+  if (trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_START ||
+      trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_STREAM_START)
+  {
+    trajectory_interface_->setMoveId(++trajectory_move_id_);
+  }
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, trajectory_move_id_, point_number,
+                                                           robot_receive_timeout);
 }
 
 bool UrDriver::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> motion_instruction)

@@ -61,6 +61,11 @@ MOTION_TYPE_OPTIMOVEL_JOINT = 13
 MOTION_TYPE_SPLINE = 51
 TRAJECTORY_DATA_DIMENSION = 3 * 6 + 1
 
+# How many points may be discarded in a row before the discarding thread yields.
+# A long run of points left over from an earlier move would otherwise starve the
+# other threads, which is why clearTrajectoryPointsThread yields as it drains.
+TRAJECTORY_DISCARD_SYNC_LIMIT = 10
+
 TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
 TRAJECTORY_RESULT_FAILURE = 2
@@ -113,6 +118,11 @@ global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
 global trajectory_streaming = False
+# The identifier of the move being executed, announced by the control message
+# that begins it. Every trajectory point carries the identifier of the move it
+# was written for, so we can recognize points belonging to a move that has
+# already ended and discard them. A value of 0 belongs to no move.
+global trajectory_move_id = 0
 global spline_qdd = [0, 0, 0, 0, 0, 0]
 global spline_qd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
@@ -553,11 +563,14 @@ thread trajectoryThread():
   # can distinguish a clean post-STREAM_END drain (flag has since been
   # cleared) from a mid-stream underrun (flag still set).
   local was_streaming_at_start = trajectory_streaming
+  local my_move_id = trajectory_move_id
+  local discarded_points = 0
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
   local INDEX_SPLINE_TYPE = INDEX_BLEND
   local INDEX_POINT_TYPE = INDEX_BLEND + 1
+  local INDEX_MOVE_ID = INDEX_POINT_TYPE + 1
   spline_qdd = [0, 0, 0, 0, 0, 0]
   spline_qd = [0, 0, 0, 0, 0, 0]
   enter_critical
@@ -568,11 +581,28 @@ thread trajectoryThread():
     if is_robot_moving:
       timeout = get_steptime()
     end
-    #reading trajectory point + blend radius + type of point (cartesian/joint based)
-    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1, "trajectory_socket", timeout)
+    #reading trajectory point + blend radius + type of point (cartesian/joint based) + move id
+    local raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION+1+1+1, "trajectory_socket", timeout)
+    # Note that we count the point down before knowing whether one arrived, so a
+    # read which timed out still spends one. Moving this into the success branch
+    # below would mean revisiting the underrun predicate that was written against
+    # its placement here, and nothing depends on the count being exact any longer
+    # now that points are recognized by the move they name.
     trajectory_points_left = trajectory_points_left - 1
 
-    if raw_point[0] > 0:
+    if raw_point[0] > 0 and raw_point[INDEX_MOVE_ID] != my_move_id:
+      # This point belongs to some other move, whose producer had not yet learned
+      # that it had ended. It is not ours to execute and was never part of our
+      # total, so we give back the count we spent reading it. An identifier ahead
+      # of our own would mean points arriving for a move we were never told
+      # about, which we can do no better with than discard as well.
+      trajectory_points_left = trajectory_points_left + 1
+      discarded_points = discarded_points + 1
+      if discarded_points >= TRAJECTORY_DISCARD_SYNC_LIMIT:
+        sync()
+        discarded_points = 0
+      end
+    elif raw_point[0] > 0:
       local q = [raw_point[1] / MULT_jointstate, raw_point[2] / MULT_jointstate, raw_point[3] / MULT_jointstate, raw_point[4] / MULT_jointstate, raw_point[5] / MULT_jointstate, raw_point[6] / MULT_jointstate]
       local tmptime = raw_point[INDEX_TIME] / MULT_time
       local blend_radius = raw_point[INDEX_BLEND] / MULT_time
@@ -768,6 +798,11 @@ thread trajectoryThread():
         spline_qdd = [0, 0, 0, 0, 0, 0]
         spline_qd = [0, 0, 0, 0, 0, 0]
       end
+      # Only a point we actually executed can end the first point of the move.
+      # Sitting after the branches instead, as this once did, a discarded point
+      # would clear the flag and the first point we do execute would lose its
+      # first point handling. The failed read branches below all end the loop.
+      is_first_point = False
     else:
       if was_streaming_at_start and not trajectory_streaming and trajectory_points_left < 0:
         # Race: STREAM_END was processed after the consumer had already
@@ -783,9 +818,19 @@ thread trajectoryThread():
       else:
         textmsg("Receiving trajectory point failed!")
         trajectory_result = TRAJECTORY_RESULT_FAILURE
+        if trajectory_streaming:
+          # We underran mid-stream, with no STREAM_END, so trajectory_points_left
+          # still holds the open ended STREAMING_SENTINEL rather than a real
+          # count. Left that way, the cleanup before the next trajectory command
+          # bounds its drain by it, runs unbounded, and swallows that command's
+          # points. A finite trajectory, or a stream STREAM_END has closed, leaves
+          # a genuine count that the cleanup needs, so we reset only while a
+          # stream is still open.
+          trajectory_streaming = False
+          trajectory_points_left = 0
+        end
       end
     end
-    is_first_point = False
   end
   exit_critical
   stopj(STOPJ_ACCELERATION)
@@ -806,7 +851,10 @@ thread clearTrajectoryPointsThread():
   {% endif %}
 
   while trajectory_points_left > 0:
-    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 2, "trajectory_socket", timeout)
+    # We have to read a whole record here, move identifier included. One field
+    # short would leave the trailing integer of every drained record behind and
+    # put every later read on this socket out of step with the stream.
+    raw_point = socket_read_binary_integer(TRAJECTORY_DATA_DIMENSION + 3, "trajectory_socket", timeout)
     if raw_point[0] <= 0:
       trajectory_points_left = 0
       textmsg("No more trajectory points in the buffer. Resetting trajectory_points_left to 0.")
@@ -1166,6 +1214,9 @@ while control_mode > MODE_STOPPED:
         # This is a legacy finite trajectory; ensure trajectory_streaming
         # does not leak in from any prior streaming session.
         trajectory_streaming = False
+        # Adopt the identifier this move announced before spawning the thread, so
+        # that it knows which points are its own from its first read.
+        trajectory_move_id = params_mult[4]
         trajectory_points_left = params_mult[3]
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_STREAM_START:
@@ -1173,6 +1224,7 @@ while control_mode > MODE_STOPPED:
         request_trajectory_cleanup()
         wait_for_trajectory_cleanup()
         trajectory_streaming = True
+        trajectory_move_id = params_mult[4]
         trajectory_points_left = STREAMING_SENTINEL
         thread_trajectory = run trajectoryThread()
       elif params_mult[2] == TRAJECTORY_MODE_STREAM_END:

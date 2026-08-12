@@ -28,6 +28,7 @@
 #ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -1127,6 +1128,13 @@ private:
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<control::ScriptReader> script_reader_;
+
+  // Identifies the move that is currently being sent to the robot. The driver is what assigns these
+  // identifiers, because it is the only object which observes both the boundaries between moves and
+  // every point written within them. It issues one identifier for each command that begins a move,
+  // and never reuses one for the life of a connection. A value of 0 belongs to no move, and is what
+  // the robot holds before it has been told about any.
+  std::atomic<int32_t> trajectory_move_id_ = { 0 };
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
