@@ -133,15 +133,108 @@ bool operator==(const ScriptReader::DataVariant& lhs, const ScriptReader::DataVa
   throw std::runtime_error("Unknown variant type passed to equality check. Please contact the developers.");
 }
 
+namespace
+{
+// Returns true if `candidate` (already lexically-normalized) is inside `root` (also normalized).
+bool isPathInside(const std::filesystem::path& candidate, const std::filesystem::path& root)
+{
+  const auto rel = candidate.lexically_relative(root);
+  if (rel.empty())
+  {
+    // No relative path exists (e.g. different roots on Windows) -> definitely outside.
+    return false;
+  }
+  for (const auto& part : rel)
+  {
+    if (part == "..")
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Runs std::filesystem::weakly_canonical on `input` and wraps any filesystem_error in a UrException
+// with a message that includes `context` (e.g. "script file path" / "include path") and the raw
+// user-facing spelling of the path (`raw`). Both call sites in ScriptReader need identical wrapping
+// but with a different label and different raw string, so keep those parameters explicit.
+//
+// weakly_canonical is preferred over canonical because it tolerates trailing components that do
+// not yet exist -- we defer "file not found" reporting to readFileContent, which produces a nicer
+// error. Symlink cycles and similar low-level failures still throw here, and are what this helper
+// converts.
+std::filesystem::path canonicalizeOrThrow(const std::filesystem::path& input, const std::string& raw,
+                                          const char* context)
+{
+  try
+  {
+    return std::filesystem::weakly_canonical(input);
+  }
+  catch (const std::filesystem::filesystem_error& e)
+  {
+    std::stringstream ss;
+    ss << "Could not resolve " << context << " '" << raw << "': " << e.what();
+    throw UrException(ss.str().c_str());
+  }
+}
+}  // namespace
+
 std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
 {
-  script_path_ = filename;
-  std::string script_code = readFileContent(filename);
+  // Top-level entry point: normalize the input path, set up the include root, reset the include
+  // stack/depth counters, then delegate to the internal impl.
+  const std::filesystem::path canonical_input =
+      canonicalizeOrThrow(std::filesystem::path(filename), filename, "script file path");
 
-  replaceVariables(script_code, data);
-  replaceConditionals(script_code, data);
-  replaceIncludes(script_code, data);
+  root_dir_ = canonical_input.parent_path();
+  current_dir_.clear();
+  include_stack_.clear();
+  include_depth_ = 0;
 
+  return readScriptFileImpl(canonical_input, data);
+}
+
+std::string ScriptReader::readScriptFileImpl(const std::filesystem::path& canonical_path, const DataDict& data)
+{
+  const std::string path_key = canonical_path.string();
+
+  if (include_stack_.count(path_key) != 0)
+  {
+    throw UrException(("Circular include detected while processing script file: '" + path_key + "'").c_str());
+  }
+  if (include_depth_ >= MAX_INCLUDE_DEPTH)
+  {
+    std::stringstream ss;
+    ss << "Maximum include depth (" << MAX_INCLUDE_DEPTH << ") exceeded while processing script file: '" << path_key
+       << "'";
+    throw UrException(ss.str().c_str());
+  }
+
+  // Save-restore the per-file state so a nested include cannot corrupt the parent's include base.
+  const std::filesystem::path previous_dir = current_dir_;
+  current_dir_ = canonical_path.parent_path();
+  include_stack_.insert(path_key);
+  ++include_depth_;
+
+  std::string script_code;
+  try
+  {
+    script_code = readFileContent(path_key);
+    replaceVariables(script_code, data);
+    replaceConditionals(script_code, data);
+    replaceIncludes(script_code, data);
+  }
+  catch (...)
+  {
+    include_stack_.erase(path_key);
+    --include_depth_;
+    current_dir_ = previous_dir;
+    throw;
+  }
+
+  include_stack_.erase(path_key);
+  --include_depth_;
+  current_dir_ = previous_dir;
   return script_code;
 }
 
@@ -167,16 +260,47 @@ std::string ScriptReader::readFileContent(const std::string& file_path)
 
 void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
 {
-  std::regex include_pattern(R"(\{\%\s*include\s*['|"]([^'"]+)['|"]\s*\%\})");
+  // Character class fixed: previously the regex used `['|"]` which matches `'`, `|`, or `"` (the
+  // `|` is literal inside a character class, not alternation).
+  std::regex include_pattern(R"(\{\%\s*include\s*['"]([^'"]+)['"]\s*\%\})");
 
   std::smatch match;
 
-  // Replace all include patterns in the line
+  // Replace all include patterns in the script.
   while (std::regex_search(script, match, include_pattern))
   {
-    std::filesystem::path relative_file_path(match[1].str());
-    std::string file_content =
-        readScriptFile((script_path_.parent_path() / relative_file_path.string()).string(), data);
+    const std::string raw = match[1].str();
+    std::filesystem::path requested(raw);
+
+    // Reject any path with a root name and/or a root directory. On POSIX this only rules out
+    // absolute paths (`/etc/passwd`). On Windows this additionally covers:
+    //   * `\evil.txt`         (root directory but no drive) — operator/= would prepend LHS's drive
+    //     and drop LHS's relative portion, yielding `C:\evil.txt` and escaping root_dir_.
+    //   * `C:evil.txt`        (drive-relative, no root directory) — safe when the drive matches
+    //     LHS, but for a different drive operator/= replaces LHS entirely.
+    //   * `\\server\share\x`  (UNC), `\\?\C:\x` (extended-length) — already caught by is_absolute()
+    //     but redundantly rejected here.
+    // std::filesystem::path::operator/ has surprising drop-LHS semantics in all these cases, so
+    // rejecting them up front is safer than relying on the containment check alone.
+    if (requested.is_absolute() || requested.has_root_name() || requested.has_root_directory())
+    {
+      throw UrException(("Rooted or absolute include paths are not allowed: '" + raw + "'").c_str());
+    }
+
+    // weakly_canonical collapses `..` components and resolves symlinks where possible, which is
+    // what we need to make the containment check trustworthy.
+    const std::filesystem::path resolved = canonicalizeOrThrow(current_dir_ / requested, raw, "include path");
+
+    if (!isPathInside(resolved, root_dir_))
+    {
+      std::stringstream ss;
+      ss << "Include path '" << raw << "' resolves outside of the script root directory '" << root_dir_.string()
+         << "' (resolved to '" << resolved.string() << "')";
+      throw UrException(ss.str().c_str());
+    }
+
+    // Recurse via the impl so include_stack_/include_depth_/current_dir_ stay consistent.
+    std::string file_content = readScriptFileImpl(resolved, data);
     script.replace(match.position(0), match.length(0), file_content);
   }
 }

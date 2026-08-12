@@ -29,9 +29,11 @@
 // -- END LICENSE BLOCK ------------------------------------------------
 
 #pragma once
+#include <cstddef>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 
 #include <ur_client_library/ur/datatypes.h>
@@ -100,8 +102,14 @@ private:
     bool parent_render;      // Is the parent block rendering?
   };
 
-  std::filesystem::path script_path_;
+  // Parameters for recursive script reading and include handling
+  static constexpr std::size_t MAX_INCLUDE_DEPTH = 32;
+  std::filesystem::path root_dir_;
+  std::filesystem::path current_dir_;
+  std::unordered_set<std::string> include_stack_;
+  std::size_t include_depth_ = 0;
 
+  std::string readScriptFileImpl(const std::filesystem::path& canonical_path, const DataDict& data);
   static std::string readFileContent(const std::string& file_path);
   void replaceIncludes(std::string& script_code, const DataDict& data);
   static void replaceVariables(std::string& script_code, const DataDict& data);

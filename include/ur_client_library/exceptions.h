@@ -286,12 +286,20 @@ public:
   {
   }
 
+  explicit RTDEInvalidKeyException(const std::vector<std::string>& invalid_keys, const std::string& text = "")
+    : std::runtime_error(text)
+  {
+    this->invalid_keys = invalid_keys;
+  }
+
   virtual ~RTDEInvalidKeyException() = default;
 
   virtual const char* what() const noexcept override
   {
     return std::runtime_error::what();
   }
+
+  std::vector<std::string> invalid_keys;
 };
 
 class RTDEInputConflictException : public UrException

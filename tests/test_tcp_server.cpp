@@ -34,8 +34,14 @@
 #include <condition_variable>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <unistd.h>
+#  include <sys/resource.h>
+#endif
 #include "test_utils.h"
 
 #include <ur_client_library/comm/tcp_server.h>
@@ -52,7 +58,7 @@ protected:
     Client(const int& port)
     {
       std::string host = "127.0.0.1";
-      TCPSocket::setup(host, port);
+      TCPSocket::connect(host, port);
     }
 
     void send(const std::string& text)
@@ -269,7 +275,7 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
   }
   EXPECT_FALSE(read_success);
   // If the read just would have timeouted, the client state would still be connected.
-  EXPECT_EQ(client.getState(), comm::SocketState::Disconnected);
+  EXPECT_EQ(client.getState(), comm::SocketState::LostConnection);
 }
 
 TEST_F(TCPServerTest, double_shutdown)
@@ -495,6 +501,186 @@ TEST_F(TCPServerTest, shutdown_during_active_writes)
   server.shutdown();
   stop.store(true);
   writer.join();
+}
+
+// Verifies that the server receives data from many clients that all send simultaneously. This
+// exercises the poll() revents loop across many client file descriptors and guards against
+// missed read events when several sockets are readable at once.
+TEST_F(TCPServerTest, receives_from_many_concurrent_clients)
+{
+  comm::TCPServer server(0);
+
+  std::mutex mtx;
+  std::condition_variable cv;
+  std::atomic<int> message_count{ 0 };
+
+  server.setMessageCallback([&](const socket_t, char*, int) {
+    message_count.fetch_add(1);
+    std::lock_guard<std::mutex> lk(mtx);
+    cv.notify_all();
+  });
+  server.start();
+
+#ifdef _WIN32
+  // Windows allows a maximum of 64 sockets per process by default.
+  constexpr int num_clients = 50;
+#else
+  constexpr int num_clients = 100;
+#endif
+
+  std::vector<std::unique_ptr<Client>> clients;
+  for (int i = 0; i < num_clients; ++i)
+  {
+    clients.push_back(std::make_unique<Client>(server.getPort()));
+  }
+
+  // Every client sends a single message concurrently.
+  std::vector<std::thread> senders;
+  for (auto& client : clients)
+  {
+    senders.emplace_back([&client]() { client->send("ping\n"); });
+  }
+  for (auto& t : senders)
+  {
+    t.join();
+  }
+
+  // The server's poll() loop must observe activity on every client FD and deliver all messages.
+  std::unique_lock<std::mutex> lk(mtx);
+  EXPECT_TRUE(cv.wait_for(lk, std::chrono::seconds(5), [&]() { return message_count.load() >= num_clients; }));
+  EXPECT_EQ(message_count.load(), num_clients);
+}
+
+#ifndef _WIN32
+// Regression test for the FD_SETSIZE limitation of select(): a client whose accepted socket file
+// descriptor number is >= FD_SETSIZE (1024) must still be serviced normally. This is the exact
+// scenario that occurs when the hosting process (e.g. a JVM) holds many file descriptors. The old
+// select()-based implementation rejected/crashed on such descriptors; poll() handles them.
+TEST_F(TCPServerTest, services_client_with_high_fd_number)
+{
+  // Make sure we are allowed to open more than FD_SETSIZE descriptors; raise the soft limit if
+  // needed and skip the test if the hard limit does not allow it.
+  struct rlimit rl;
+  ASSERT_EQ(getrlimit(RLIMIT_NOFILE, &rl), 0);
+  const rlim_t needed = static_cast<rlim_t>(FD_SETSIZE) + 64;
+  if (rl.rlim_cur < needed)
+  {
+    rl.rlim_cur = std::min<rlim_t>(needed, rl.rlim_max);
+    if (setrlimit(RLIMIT_NOFILE, &rl) != 0 || rl.rlim_cur < needed)
+    {
+      GTEST_SKIP() << "Cannot raise RLIMIT_NOFILE above FD_SETSIZE; skipping high-fd test.";
+    }
+  }
+
+  // Consume the low-numbered descriptors so that subsequently created sockets are assigned fd
+  // numbers beyond FD_SETSIZE.
+  std::vector<int> fd_hogs;
+  while (true)
+  {
+    int fd = ::open("/dev/null", O_RDONLY);
+    if (fd < 0)
+    {
+      break;
+    }
+    fd_hogs.push_back(fd);
+    if (fd > static_cast<int>(FD_SETSIZE) + 8)
+    {
+      break;
+    }
+  }
+  const bool pushed_past_limit = !fd_hogs.empty() && fd_hogs.back() > static_cast<int>(FD_SETSIZE);
+  if (!pushed_past_limit)
+  {
+    for (int fd : fd_hogs)
+    {
+      ::close(fd);
+    }
+    GTEST_SKIP() << "Could not allocate descriptors beyond FD_SETSIZE; skipping.";
+  }
+
+  TestableTcpServer server(port_);
+  server.start();
+
+  Client client(port_);
+  EXPECT_TRUE(server.waitForConnectionCallback(2000));
+
+  // The server-side accepted client FD should exceed FD_SETSIZE -- the case that breaks select().
+  auto client_fds = server.getClientFDs();
+  ASSERT_FALSE(client_fds.empty());
+  EXPECT_GT(client_fds.back(), static_cast<socket_t>(FD_SETSIZE));
+
+  // Data must flow both ways on the high-numbered descriptor.
+  const std::string message = "high fd message\n";
+  client.send(message);
+  EXPECT_TRUE(server.waitForMessageCallback(2000));
+  EXPECT_EQ(server.getReceivedMessage(), message);
+
+  size_t written;
+  const auto* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  ASSERT_TRUE(server.write(data, message.size(), written));
+  EXPECT_EQ(client.recv(), message);
+
+  // Disconnect must also be detected on the high-numbered descriptor.
+  client.close();
+  EXPECT_TRUE(server.waitForDisconnectionCallback(2000));
+
+  for (int fd : fd_hogs)
+  {
+    ::close(fd);
+  }
+}
+#endif
+
+// White-box regression test: the cached poll set must stay in sync with the connected client set
+// as clients connect and disconnect. rebuildPollfds() runs before the connect/disconnect callbacks
+// fire, so once waitForConnectionCallback()/waitForDisconnectionCallback() returns the poll set is
+// already rebuilt and the invariant can be checked deterministically.
+TEST_F(TCPServerTest, poll_set_tracks_client_set)
+{
+  TestableTcpServer server(port_);
+  server.start();
+  EXPECT_EQ(server.getPollSetSize(), 1u);  // listen socket only
+
+  std::vector<std::unique_ptr<Client>> clients;
+  for (int i = 0; i < 5; ++i)
+  {
+    clients.push_back(std::make_unique<Client>(port_));
+    ASSERT_TRUE(server.waitForConnectionCallback());
+    EXPECT_EQ(server.getPollSetSize(), server.getClientFDs().size() + 1);
+  }
+
+  while (!clients.empty())
+  {
+    clients.back()->close();
+    clients.pop_back();
+    ASSERT_TRUE(server.waitForDisconnectionCallback());
+    EXPECT_EQ(server.getPollSetSize(), server.getClientFDs().size() + 1);
+  }
+  EXPECT_EQ(server.getPollSetSize(), 1u);  // back to listen socket only
+}
+
+// Regression test for the snapshot-before-mutate ordering in spin(): a new client connecting must
+// not cause an already-connected client's message that arrives in the same poll cycle to be
+// dropped. If the revents were read after handleConnect() rebuilt the poll set, the existing
+// client's activity would be lost and waitForMessageCallback() would time out.
+TEST_F(TCPServerTest, message_not_lost_when_client_connects_concurrently)
+{
+  TestableTcpServer server(0);
+  server.start();
+  Client existing(server.getPort());
+  ASSERT_TRUE(server.waitForConnectionCallback());
+
+  for (int i = 0; i < 50; ++i)
+  {
+    std::unique_ptr<Client> fresh;
+    std::thread connector([&]() { fresh = std::make_unique<Client>(server.getPort()); });
+    existing.send("ping\n");
+    ASSERT_TRUE(server.waitForMessageCallback(2000));
+    connector.join();
+    ASSERT_TRUE(server.waitForConnectionCallback(2000));
+    fresh->close();
+    ASSERT_TRUE(server.waitForDisconnectionCallback(2000));
+  }
 }
 
 int main(int argc, char* argv[])

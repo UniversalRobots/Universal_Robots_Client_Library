@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.14.1 (2026-08-07)
+-------------------
+* fix: teardown blocks indefinitely when a reconnect thread is active and the robot is unreachable (`#519 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/519>`_)
+* Harden script_reader against vulnerabilities (`#546 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/546>`_)
+* Add missing keys to RTDEInvalidKeyException
+* Fix OOB read vulnerability in bin parser (`#545 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/545>`_)
+* [start_ursim] Offer updating g5 urcap (`#543 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/543>`_)
+* Link urcl to rt on non-Apple Unix (`#540 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/540>`_)
+* Fix dependencies for bats (`#542 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/542>`_)
+* Bump actions/setup-python from 6 to 7 (`#541 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/541>`_)
+* Contributors: Felix Exner, Rune Søe-Knudsen, Tobias Fischer, dependabot[bot]
+
 2.14.0 (2026-07-17)
 -------------------
 * RTDE: Add target_base_wrench field (`#539 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/539>`_)
