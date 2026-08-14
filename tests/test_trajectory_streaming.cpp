@@ -453,7 +453,7 @@ TEST_F(TrajectoryStreamingTest, stream_end_with_overcount_yields_failure)
 // A streaming producer is obliged to keep the trajectory socket fed, but that
 // obligation is about trajectory time rather than about how often it writes.
 // Here the producer writes twenty points of 0.1s each and then stops writing for
-// 500ms, while continuing to answer the reverse interface with NOOPs. The gap is
+// 400ms, while continuing to answer the reverse interface with NOOPs. The gap is
 // much longer than the per-point socket read timeout, which is `get_steptime`
 // (2-8ms) once the robot is moving, but much shorter than the two seconds of
 // trajectory time already in the socket. The `trajectoryThread` should read
@@ -488,10 +488,11 @@ TEST_F(TrajectoryStreamingTest, stream_survives_send_gap_while_unread_points_rem
         g_my_robot->getUrDriver()->writeTrajectorySplinePoint(i % 2 == 0 ? pose_b : pose_a, zero, zero, k_step_time));
   }
 
-  // Stop writing to the trajectory socket for 500ms while the thread consumes
-  // what we already sent. We keep answering the reverse interface with NOOPs so
-  // that only the trajectory socket goes quiet.
-  for (int i = 0; i < 10; ++i)
+  // Stop writing to the trajectory socket for 400ms while the thread consumes
+  // what we already sent, still answering the reverse interface with NOOPs so
+  // that only the trajectory socket goes quiet. The gap stays under the script's
+  // 0.5s constant, which sleep_for could otherwise overshoot.
+  for (int i = 0; i < 8; ++i)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     ASSERT_TRUE(

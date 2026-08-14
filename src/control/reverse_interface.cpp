@@ -121,7 +121,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int32_t move_id, const int point_number,
+                                                     const int move_id, const int point_number,
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
   // The move identifier occupies the slot which used to be the first of the padding, so the zero

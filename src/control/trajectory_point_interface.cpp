@@ -351,7 +351,7 @@ void TrajectoryPointInterface::removeTrajectoryEndCallback(const uint32_t handle
       [handler_id](const HandlerFunction<void(TrajectoryResult)>& h) { return h.id == handler_id; });
 }
 
-void TrajectoryPointInterface::setMoveId(const int32_t move_id)
+void TrajectoryPointInterface::setMoveId(const int move_id)
 {
   move_id_.store(move_id);
 }

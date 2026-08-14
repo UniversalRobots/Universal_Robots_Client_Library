@@ -167,7 +167,7 @@ public:
    * examples/trajectory_streaming.cpp for an open-ended streaming trajectory example.
    */
   bool writeTrajectoryControlMessage(
-      const TrajectoryControlMessage trajectory_action, const int32_t move_id, const int point_number,
+      const TrajectoryControlMessage trajectory_action, const int move_id, const int point_number,
       const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
 
   /*!

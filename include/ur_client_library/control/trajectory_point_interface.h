@@ -153,7 +153,7 @@ public:
    * \param move_id The identifier of the move that the following points belong to. A value of 0
    * belongs to no move.
    */
-  void setMoveId(int32_t move_id);
+  void setMoveId(int move_id);
 
 protected:
   virtual void connectionCallback(const socket_t filedescriptor) override;
