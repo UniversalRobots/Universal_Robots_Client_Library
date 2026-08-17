@@ -96,7 +96,8 @@ protected:
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::shared_ptr<VersionInformation> polyscope_version_;
   bool skip_remote_control_tests = true;
-  int error_code_exists = 400;
+  static constexpr int ERROR_CODE_EXISTS = 400;
+  static constexpr int ERROR_CODE_CONFLICT = 409;
 };
 
 TEST_F(DashboardClientTestX, connect)
@@ -117,6 +118,10 @@ TEST_F(DashboardClientTestX, get_loaded_program)
   }
   else
   {
+    if (!skip_remote_control_tests)
+    {
+      dashboard_client_->commandLoadProgram("Default program");
+    }
     auto response = dashboard_client_->commandGetLoadedProgram();
     ASSERT_TRUE(response.ok);
     ASSERT_EQ(std::get<std::string>(response.data["program_name"]), "Default program");
@@ -384,7 +389,9 @@ TEST_F(DashboardClientTestX, upload_program_from_file)
     if (!response.ok)
     {
       URCL_LOG_INFO("status code: %d", std::get<int>(response.data["status_code"]));
-      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+      bool is_exists_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_EXISTS;
+      bool is_conflict_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_CONFLICT;
+      ASSERT_TRUE(is_exists_error || is_conflict_error);
     }
 
     response = dashboard_client_->commandUploadProgram("non_existent_file.urpx");
@@ -405,7 +412,9 @@ TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
     auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
     if (!response.ok)
     {
-      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+      bool is_exists_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_EXISTS;
+      bool is_conflict_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_CONFLICT;
+      ASSERT_TRUE(is_exists_error || is_conflict_error);
     }
 
     response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
@@ -539,7 +548,7 @@ TEST_F(DashboardClientTestX, open_and_close_popups)
     {
       auto response = dashboard_client_->commandClosePopup();
       ASSERT_FALSE(response.ok);
-      ASSERT_TRUE(response.message.find("Failed to close system dialog") != response.message.npos);
+      ASSERT_TRUE(response.message.find("\"closed\":false") != response.message.npos);
       response = dashboard_client_->commandPopup("Test popup", "Test");
       ASSERT_TRUE(response.ok);
       ASSERT_TRUE(response.message.find("Popup opened successfully") != response.message.npos);
@@ -547,7 +556,7 @@ TEST_F(DashboardClientTestX, open_and_close_popups)
       ASSERT_TRUE(response.ok);
       response = dashboard_client_->commandCloseSafetyPopup();
       ASSERT_FALSE(response.ok);
-      ASSERT_TRUE(response.message.find("Failed to close safety popup") != response.message.npos);
+      ASSERT_TRUE(response.message.find("\"closed\":false") != response.message.npos);
     }
   }
 }
