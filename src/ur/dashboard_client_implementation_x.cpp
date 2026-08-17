@@ -84,7 +84,7 @@ std::unordered_map<std::string, RobotAPICommand> DashboardClientImplX::g_command
     { "/system/v1/log", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
   { "generate_flight_report",
     { "/supportfiles/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
-  { "download_flight_reports",
+  { "download_support_files",
     { "/supportfiles/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
   { "set_operational_mode",
     { "/operational-mode/v1", VersionInformation::fromString("4.2.0"), VersionInformation::fromString("10.14.0") } },
@@ -517,13 +517,67 @@ DashboardResponse DashboardClientImplX::commandGetUserRole()
 DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unused]] const std::string& report_type)
 {
   assertHasCommand("generate_flight_report");
+
+  if (!report_type.empty())
+  {
+    URCL_LOG_WARN("The report_type parameter is not used in the PolyScope X Robot API. Ignoring it.");
+  }
+  auto timeout = std::chrono::seconds(30);  // Default timeout for generating flight report
+
+  timeval configured_tv = getConfiguredReceiveTimeout();
+  // Preserve sub-second precision: duration_cast<seconds> truncates fractional values,
+  // so go via microseconds (the smallest unit timeval can represent) and split.
+  const auto pwron_us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
+  timeval flightreport_tv;
+  flightreport_tv.tv_sec = static_cast<long>(pwron_us.count() / 1'000'000);
+  flightreport_tv.tv_usec = static_cast<long>(pwron_us.count() % 1'000'000);
+  setReceiveTimeout(flightreport_tv);
   const std::string endpoint = g_command_list["generate_flight_report"].endpoint;
-  auto response = post(endpoint, "", "application/json");
-  auto json = json::parse(response.message);
-  std::cout << json << std::endl;
-  // std::cout << response << std::endl;
+
+  DashboardResponse response;
+  try
+  {
+    response = post(endpoint, "", "application/json");
+  }
+  catch (...)
+  {
+    setReceiveTimeout(configured_tv);
+    throw;
+  }
+
+  setReceiveTimeout(configured_tv);
   return response;
-  // throw NotImplementedException("commandGenerateFlightReport is not implemented for DashboardClientImplX.");
+}
+
+DashboardResponse DashboardClientImplX::commandDownloadSupportFiles([[maybe_unused]] const std::string& save_path)
+{
+  assertHasCommand("download_support_files");
+  const std::string endpoint = g_command_list["download_support_files"].endpoint;
+
+  auto response = get(endpoint, false);  // The json response is pretty long. Don't print it.
+                                         //
+
+  std::cout << "Saving support files to: " << save_path << std::endl;
+  if (response.ok)
+  {
+    std::ofstream save_file(save_path, std::ios_base::out);
+    if (!save_file.is_open())
+    {
+      DashboardResponse error_response;
+      error_response.ok = false;
+      error_response.message = "Failed to open file for saving: " + save_path;
+      URCL_LOG_ERROR(error_response.message.c_str());
+      return error_response;
+    }
+    save_file << response.message;
+
+    response.message = "Downloaded support files to " + save_path;
+  }
+  else
+  {
+    URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+  }
+  return response;
 }
 
 DashboardResponse DashboardClientImplX::commandGenerateSupportFile([[maybe_unused]] const std::string& dir_path)

@@ -661,6 +661,53 @@ TEST_F(DashboardClientTestX, add_to_log)
   }
 }
 
+TEST_F(DashboardClientTestX, generate_flight_report)
+{
+  if (skip_remote_control_tests)
+  {
+    GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
+  }
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGenerateFlightReport(), NotImplementedException);
+  }
+  else
+  {
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandGenerateFlightReport();
+      ASSERT_FALSE(response.ok);
+      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandGenerateFlightReport();
+      ASSERT_TRUE(response.ok);
+      EXPECT_TRUE(response.message.find("Flight report generated") != response.message.npos);
+    }
+  }
+}
+
+TEST_F(DashboardClientTestX, download_support_files)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  {
+    ASSERT_THROW(dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip"), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip");
+    ASSERT_TRUE(response.ok);
+    // Check that the file was created and has some content
+    std::ifstream file("/tmp/support_files.zip", std::ios::binary | std::ios::ate);
+    ASSERT_TRUE(file.is_open());
+    std::streamsize size = file.tellg();
+    ASSERT_GT(size, 0);
+  }
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
