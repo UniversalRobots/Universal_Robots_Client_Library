@@ -470,7 +470,8 @@ public:
    *
    * \param report_type The report type to set for the flight report
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version
+   * lower than 10.14.0
    */
   virtual DashboardResponse commandGenerateFlightReport(const std::string& report_type) = 0;
 
