@@ -382,7 +382,7 @@ DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_te
   return post("/popup/v1", R"({"title": "TITLE )" + title + R"(", "message": ")" + popup_text + R"("})");
 }
 
-DashboardResponse DashboardClientImplX::commandAddToLog([[maybe_unused]] const std::string& log_text)
+DashboardResponse DashboardClientImplX::commandAddToLog(const std::string& log_text)
 {
   assertHasCommand("add_to_log");
   const std::string endpoint = g_command_list["add_to_log"].endpoint;
