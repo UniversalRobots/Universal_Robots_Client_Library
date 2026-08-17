@@ -134,7 +134,7 @@ public:
   DashboardResponse commandClosePopup() override;
   DashboardResponse commandCloseSafetyPopup() override;
   DashboardResponse commandGenerateFlightReport(const std::string& report_type = "") override;
-  DashboardResponse commandDownloadSupportFiles(const std::string& save_path);
+  DashboardResponse commandDownloadSupportFiles(const std::string& save_path) override;
   DashboardResponse commandGenerateSupportFile(const std::string& dir_path) override;
   DashboardResponse commandGetLoadedProgram() override;
   DashboardResponse commandGetOperationalMode() override;

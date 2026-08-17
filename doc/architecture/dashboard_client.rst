@@ -80,3 +80,10 @@ Internally, the dashboard client makes calls against a RESTful (**Re**\ presenta
 .. code-block:: json
 
     {"state":"PAUSED","message":"Program state changed: PAUSED","details":"Pause successful"}
+
+The following commands are only available for PolyScope X robots and will throw a
+``NotImplementedException`` when called on G5 (CB3 / PolyScope 5) robots:
+
+- ``commandDownloadSupportFiles(save_path)``: Downloads support files from the robot as a zip
+  archive and saves them to the given path on the local machine. Available from PolyScope X
+  10.14.0 onward.

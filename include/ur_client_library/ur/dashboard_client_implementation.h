@@ -486,6 +486,15 @@ public:
   virtual DashboardResponse commandGenerateSupportFile(const std::string& dir_path) = 0;
 
   /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the user's computer
+   *
+   * \throws an NotImplementedException when called on G5 robots
+   */
+  virtual DashboardResponse commandDownloadSupportFiles(const std::string& save_path) = 0;
+
+  /*!
    * \brief Flush the polyscope log to the log_history.txt file
    *
    * \throws an NotImplementedException when called on PolyScope X robots

@@ -710,6 +710,28 @@ public:
   DashboardResponse commandGenerateSupportFileWithResponse(const std::string& dir_path);
 
   /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \note Only available for PolyScope X robots.
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the machine where the
+   * dashboard client is running.
+   *
+   * \return True on success
+   */
+  bool commandDownloadSupportFiles(const std::string& save_path);
+
+  /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \note Only available for PolyScope X robots.
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the machine where the
+   * dashboard client is running.
+   */
+  DashboardResponse commandDownloadSupportFilesWithResponse(const std::string& save_path);
+
+  /*!
    * \brief Flush the polyscope log to the log_history.txt file
    *
    * \return True succeeded

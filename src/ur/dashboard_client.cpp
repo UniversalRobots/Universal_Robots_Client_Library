@@ -538,6 +538,16 @@ DashboardResponse DashboardClient::commandGenerateSupportFileWithResponse(const 
   return impl_->commandGenerateSupportFile(dir_path);
 }
 
+bool DashboardClient::commandDownloadSupportFiles(const std::string& save_path)
+{
+  return commandDownloadSupportFilesWithResponse(save_path).ok;
+}
+
+DashboardResponse DashboardClient::commandDownloadSupportFilesWithResponse(const std::string& save_path)
+{
+  return impl_->commandDownloadSupportFiles(save_path);
+}
+
 bool DashboardClient::commandSaveLog()
 {
   return commandSaveLogWithResponse().ok;

@@ -1171,6 +1171,11 @@ DashboardResponse DashboardClientImplG5::commandGenerateSupportFile(const std::s
   return response;
 }
 
+DashboardResponse DashboardClientImplG5::commandDownloadSupportFiles([[maybe_unused]] const std::string& save_path)
+{
+  throw NotImplementedException("commandDownloadSupportFiles is not implemented for DashboardClientImplG5.");
+}
+
 DashboardResponse DashboardClientImplG5::commandSaveLog()
 {
   DashboardResponse response;

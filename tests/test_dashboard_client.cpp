@@ -65,6 +65,7 @@ public:
   MOCK_METHOD(DashboardResponse, commandCloseSafetyPopup, (), (override));
   MOCK_METHOD(DashboardResponse, commandGenerateFlightReport, (const std::string&), (override));
   MOCK_METHOD(DashboardResponse, commandGenerateSupportFile, (const std::string&), (override));
+  MOCK_METHOD(DashboardResponse, commandDownloadSupportFiles, (const std::string&), (override));
   MOCK_METHOD(DashboardResponse, commandGetLoadedProgram, (), (override));
   MOCK_METHOD(DashboardResponse, commandGetOperationalMode, (), (override));
   MOCK_METHOD(DashboardResponse, commandGetRobotModel, (), (override));
@@ -241,6 +242,14 @@ TEST_F(DashboardClientTest, flight_report_and_support_file)
   EXPECT_CALL(*impl, commandGenerateSupportFile(".")).WillOnce(testing::Return(SUCCESS_RESPONSE));
   EXPECT_TRUE(dashboard_client_->commandGenerateFlightReport(""));
   EXPECT_TRUE(dashboard_client_->commandGenerateSupportFile("."));
+}
+
+TEST_F(DashboardClientTest, download_support_files)
+{
+  EXPECT_TRUE(dashboard_client_->connect());
+  const auto impl = dashboard_client_->getImplPtr();
+  EXPECT_CALL(*impl, commandDownloadSupportFiles("/tmp/support.zip")).WillOnce(testing::Return(SUCCESS_RESPONSE));
+  EXPECT_TRUE(dashboard_client_->commandDownloadSupportFiles("/tmp/support.zip"));
 }
 
 TEST_F(DashboardClientTest, version_specific_calls)
