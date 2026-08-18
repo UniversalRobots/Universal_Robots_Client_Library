@@ -67,7 +67,10 @@ protected:
   {
     if (std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL") != nullptr)
     {
-      skip_remote_control_tests = false;
+      if (parseBoolean(std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL")))
+      {
+        skip_remote_control_tests = false;
+      }
     }
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
