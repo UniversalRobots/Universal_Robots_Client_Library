@@ -23,7 +23,6 @@ target_link_libraries(fake_primary_server PRIVATE ur_client_library::urcl)
 include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
-option(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL "Run Polyscope X tests that require remote control" OFF)
 option(CHECK_RTDE_DOCS_RECIPE "Fetch the RTDE documentation to auto-generate a recipe containing all output fields and check that with the RTDE client. Requires python3 and pandas and an internet connection." OFF)
 set(INTEGRATION_TESTS_ROBOT_IP "" CACHE STRING "If set, override the default robot IP (192.168.56.101) compiled into each integration test main() by passing --robot_ip <ip> to every ctest-registered integration test.")
 # Build Tests
@@ -34,10 +33,6 @@ if (INTEGRATION_TESTS)
   set(INTEGRATION_TESTS_ROBOT_IP_ARG "")
   if(INTEGRATION_TESTS_ROBOT_IP)
     set(INTEGRATION_TESTS_ROBOT_IP_ARG --robot_ip ${INTEGRATION_TESTS_ROBOT_IP})
-  endif()
-
-  if(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL)
-    add_compile_definitions(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL=1 )
   endif()
 
   add_executable(rtde_tests test_rtde_client.cpp fake_rtde_server.cpp)

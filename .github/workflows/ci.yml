@@ -75,18 +75,25 @@ jobs:
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
           - ROBOT_MODEL: 'ur7e'
             URSIM_VERSION: '10.13.0'
-            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.13.0/ur7e'
+            POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
+            CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB'
 
     steps:
       - uses: actions/checkout@v7
       - name: start ursim
         run: |
-          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
+          CITADEL_DB_ARG=""
+          if [ -n "$CITADEL_DB_FOLDER" ]; then
+            CITADEL_DB_ARG="-c $CITADEL_DB_FOLDER"
+          fi
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER $CITADEL_DB_ARG -d -f DISABLED
         env:
           DOCKER_RUN_OPTS: --network ursim_net
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
+          CITADEL_DB_FOLDER: ${{matrix.env.CITADEL_DB_FOLDER || ''}}
       - id: check_polyscopex
         run: |
           if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
@@ -115,6 +122,7 @@ jobs:
         run: cd build && ctest --output-on-failure --output-junit junit.xml
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL: ${{matrix.env.POLYSCOPE_X_WITH_REMOTE_CONTROL || ''}}
       - name: Upload test results to Codecov
         uses: codecov/codecov-action@v7
         with:

@@ -32,6 +32,7 @@
 #include <ur_client_library/exceptions.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <thread>
 #include "gtest/gtest.h"
 #include "test_utils.h"
@@ -64,11 +65,10 @@ class DashboardClientTestX : public ::testing::Test
 protected:
   void SetUp()
   {
-#ifdef POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL
-#  if POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL == 1
-    skip_remote_control_tests = false;
-#  endif
-#endif
+    if (std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL") != nullptr)
+    {
+      skip_remote_control_tests = false;
+    }
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
