@@ -68,7 +68,8 @@ protected:
   {
     if (std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL") != nullptr)
     {
-      if (parseBoolean(std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL")))
+      std::string env_var = std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL");
+      if (env_var != "" && parseBoolean(env_var))
       {
         skip_remote_control_tests = false;
       }
