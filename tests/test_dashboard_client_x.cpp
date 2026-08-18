@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <thread>
 #include "gtest/gtest.h"
 #include "test_utils.h"
@@ -510,6 +511,30 @@ TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
   EXPECT_FALSE(dashboard_client_->connect());
 }
 
+class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener
+{
+public:
+  void OnTestEnd(const ::testing::TestInfo& test_info) override
+  {
+    if (!test_info.result()->Failed())
+    {
+      return;
+    }
+
+    const char* dir_env = std::getenv("POLYSCOPE_X_SCREENSHOT_DIR");
+    std::filesystem::path screenshot_dir = dir_env ? dir_env : "test_artifacts/screenshots";
+    std::filesystem::create_directories(screenshot_dir);
+
+    std::string filename =
+        (screenshot_dir / (std::string(test_info.test_suite_name()) + "." + test_info.name() + ".png")).string();
+    std::string cmd = "chrome --headless=new --no-sandbox --disable-settuid-sandbox"
+                      " --window-size=1920,1080"
+                      " --screenshot=" +
+                      filename + " http://" + g_ROBOT_IP + " 2>/dev/null || true";
+    [[maybe_unused]] int ret = std::system(cmd.c_str());
+  }
+};
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
@@ -522,6 +547,8 @@ int main(int argc, char* argv[])
       ++i;
     }
   }
+
+  ::testing::UnitTest::GetInstance()->listeners().Append(new PolyScopeScreenshotListener());
 
   return RUN_ALL_TESTS();
 }
