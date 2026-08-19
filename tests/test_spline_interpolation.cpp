@@ -202,6 +202,7 @@ protected:
                            [this] { return async_ready; }))  // Setting up the thread might take some time
     {
       async_stop = true;
+      lk.unlock();
       confirm_future.wait();
       return false;
     }
