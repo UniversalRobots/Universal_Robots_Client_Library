@@ -92,8 +92,8 @@ TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_retur
     is_trajectory_running = executor->isTrajectoryRunning();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  ASSERT_TRUE(executor->isTrajectoryRunning());
-  ASSERT_FALSE(executor->cancelMotion());
+  EXPECT_TRUE(executor->isTrajectoryRunning());
+  EXPECT_FALSE(executor->cancelMotion());
   move_thread.join();
   std::remove(test_script_file.c_str());
 }
