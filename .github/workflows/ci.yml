@@ -116,6 +116,9 @@ jobs:
         run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
       - name: Install Python dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pandas python3-lxml
+      - name: Install Playwright for PolyScope X screenshots
+        if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
+        run: pip install playwright && playwright install chromium
       - name: Generate rtde outputs lists
         run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
@@ -175,6 +178,17 @@ jobs:
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
           path: test_artifacts
+          if-no-files-found: error
+          retention-days: 10
+      - name: Capture PolyScope X URSim logs
+        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
+        run: docker logs ursim > test_artifacts/ursim_docker.log 2>&1
+      - name: Upload PolyScope X URSim logs
+        uses: actions/upload-artifact@v7
+        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
+          path: test_artifacts/ursim_docker.log
           if-no-files-found: error
           retention-days: 10
       - name: Upload PolyScope X screenshots

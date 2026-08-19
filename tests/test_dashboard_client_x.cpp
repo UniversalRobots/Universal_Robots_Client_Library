@@ -528,10 +528,9 @@ public:
 
     std::string filename =
         (screenshot_dir / (std::string(test_info.test_suite_name()) + "." + test_info.name() + ".png")).string();
-    std::string cmd = "chrome --headless=new --no-sandbox --disable-settuid-sandbox"
-                      " --window-size=1920,1080"
-                      " --screenshot=" +
-                      filename + " http://" + g_ROBOT_IP + " 2>/dev/null || true";
+    std::string cmd = "python3 ../tests/resources/polyscopex_screenshot.py"
+                      " http://" +
+                      g_ROBOT_IP + " " + filename + " 3000 2>/dev/null || true";
     [[maybe_unused]] int ret = std::system(cmd.c_str());
   }
 };
