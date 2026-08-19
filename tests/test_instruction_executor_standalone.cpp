@@ -87,7 +87,7 @@ TEST(InstructionExecutorTestStandalone, canceling_without_receiving_answer_retur
   std::thread move_thread([&executor]() { executor->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 2.7 }, 0.1, 0.1); });
   bool is_trajectory_running = false;
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-  while (!is_trajectory_running || std::chrono::steady_clock::now() > start + std::chrono::seconds(5))
+  while (!is_trajectory_running && std::chrono::steady_clock::now() < start + std::chrono::seconds(5))
   {
     is_trajectory_running = executor->isTrajectoryRunning();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
