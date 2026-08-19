@@ -143,6 +143,22 @@ if (INTEGRATION_TESTS)
                   TEST_SUFFIX _headless
   )
 
+  # InstructionExecutor standalone tests
+  add_executable(instruction_executor_standalone_test_urcap test_instruction_executor_standalone.cpp)
+  target_link_libraries(instruction_executor_standalone_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_standalone_test_urcap
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(instruction_executor_standalone_test_headless test_instruction_executor_standalone.cpp)
+  target_link_libraries(instruction_executor_standalone_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_standalone_test_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
+                  TEST_SUFFIX _headless
+  )
+
   add_executable(primary_client_test_headless test_primary_client.cpp fake_primary_server.cpp)
   target_link_libraries(primary_client_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET primary_client_test_headless
