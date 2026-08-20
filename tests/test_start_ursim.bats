@@ -484,6 +484,30 @@ setup() {
   [ "$program_mount" = "$target_dir" ]
 }
 
+@test "citadel_db_mounted_when_specified_for_polyscopex" {
+  target_dir=$(mktemp -d)
+  run main -v 10.13.0 -c "$target_dir" -t
+  echo "$output"
+  [ $status -eq 0 ]
+  citadel_mount=$(echo "$output" | tail -n1 | grep -Po "\-v\ [\/\w+\.\-]+:\/citadelDB" | cut -d ':' -f1 | cut -d " " -f 2)
+  [ "$citadel_mount" = "$target_dir" ]
+}
+
+@test "citadel_db_not_mounted_without_flag_for_polyscopex" {
+  run main -v 10.13.0 -t
+  echo "$output"
+  [ $status -eq 0 ]
+  [[ "$(echo "$output" | tail -n1)" != *"/citadelDB"* ]]
+}
+
+@test "citadel_db_not_mounted_for_e_series" {
+  target_dir=$(mktemp -d)
+  run main -v 5.26.0 -c "$target_dir" -t
+  echo "$output"
+  [ $status -eq 0 ]
+  [[ "$(echo "$output" | tail -n1)" != *"/citadelDB"* ]]
+}
+
 @test "setting_ip_addresss" {
   run main -t -i 123.123.123.123
   echo "$output"
