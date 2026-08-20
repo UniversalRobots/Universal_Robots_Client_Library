@@ -214,7 +214,7 @@ protected:
     // Inform thread that trajectory is sent
     trajectory_sent = true;
     // Wait for trajectory to start (should be quick)
-    if (confirm_future.wait_for(std::chrono::milliseconds(500)) != std::future_status::ready)
+    if (confirm_future.wait_for(std::chrono::milliseconds(1000)) != std::future_status::ready)
     {
       std::cout << "Trajectory could not be confirmed to have started." << std::endl;
       async_stop = true;
