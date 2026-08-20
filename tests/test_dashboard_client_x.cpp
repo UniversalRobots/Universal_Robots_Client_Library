@@ -35,6 +35,12 @@
 #include <cstdlib>
 #include <filesystem>
 #include <thread>
+#include <vector>
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
 #include "gtest/gtest.h"
 #include "test_utils.h"
 #include "ur_client_library/comm/tcp_socket.h"
@@ -530,10 +536,34 @@ public:
 
     std::string filename =
         (screenshot_dir / (std::string(test_info.test_suite_name()) + "." + test_info.name() + ".png")).string();
-    std::string cmd = "python3 ../tests/resources/polyscopex_screenshot.py"
-                      " http://" +
-                      g_ROBOT_IP + " " + filename + " 5000 2>/dev/null || true";
-    [[maybe_unused]] int ret = std::system(cmd.c_str());
+    std::string url = "http://" + g_ROBOT_IP;
+    std::string script = "../tests/resources/polyscopex_screenshot.py";
+    std::string delay = "5000";
+
+#ifndef _WIN32
+    // Build argv as a proper array — no shell involved, so spaces and metacharacters
+    // in url, filename, or script path are passed through safely.
+    std::vector<char*> args = { const_cast<char*>("python3"),     const_cast<char*>(script.c_str()),
+                                const_cast<char*>(url.c_str()),   const_cast<char*>(filename.c_str()),
+                                const_cast<char*>(delay.c_str()), nullptr };
+
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+      int devnull = open("/dev/null", O_WRONLY);
+      if (devnull >= 0)
+      {
+        dup2(devnull, STDERR_FILENO);
+        close(devnull);
+      }
+      execvp("python3", args.data());
+      _exit(1);
+    }
+    else if (pid > 0)
+    {
+      waitpid(pid, nullptr, 0);
+    }
+#endif
   }
 };
 
