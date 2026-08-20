@@ -346,11 +346,14 @@ protected:
       if (spline_travel_time_reset)
       {
         // Keep script alive when the trajectory has been sent
-        if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-                urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
+        if (trajectory_sent)
         {
-          std::cout << "Failed to write trajectory NOOP control message, exiting confirm thread" << std::endl;
-          return false;
+          if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+                  urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
+          {
+            std::cout << "Failed to write trajectory NOOP control message, exiting confirm thread" << std::endl;
+            return false;
+          }
         }
 
         // Confirm that the new trajectory is running
