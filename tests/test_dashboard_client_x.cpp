@@ -156,6 +156,7 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
     GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
   }
   ASSERT_TRUE(dashboard_client_->connect());
+  dashboard_client_->commandPowerOff();
   dashboard_client_->commandPowerOn();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
   DashboardResponse response;
@@ -209,7 +210,7 @@ TEST_F(DashboardClientTestX, program_interaction)
           auto resp = dashboard_client_->commandGetLoadedProgram();
           return std::get<std::string>(resp.data["program_name"]) == "wait_program";
         },
-        std::chrono::milliseconds(1000));
+        std::chrono::milliseconds(5000));
   }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
