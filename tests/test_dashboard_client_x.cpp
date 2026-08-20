@@ -157,6 +157,7 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
   }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
   dashboard_client_->commandPowerOn();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
   DashboardResponse response;
