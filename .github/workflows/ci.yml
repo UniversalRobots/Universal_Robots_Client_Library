@@ -118,7 +118,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y python3-pandas python3-lxml
       - name: Install Playwright for PolyScope X screenshots
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
-        run: pip install playwright && playwright install chromium
+        run: |
+          python3 -m venv $RUNNER_TEMP/playwright-venv
+          $RUNNER_TEMP/playwright-venv/bin/pip install playwright
+          $RUNNER_TEMP/playwright-venv/bin/playwright install chromium
+          echo "$RUNNER_TEMP/playwright-venv/bin" >> $GITHUB_PATH
       - name: Generate rtde outputs lists
         run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
