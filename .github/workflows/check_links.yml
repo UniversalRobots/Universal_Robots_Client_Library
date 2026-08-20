@@ -29,11 +29,11 @@ jobs:
             --cache
             --cache-exclude-status '429, 403, 404, 502'
             --max-cache-age 2d
+            --exclude '^https?://(www\.)?stackoverflow\.com'
             --exclude '^http://192\.168\.56\.101'
             --exclude 'kernel\.org\/pub\/linux\/kernel'
             --exclude 'releases/download/v\$%7BURCAP_VERSION%7D/externalcontrol-\$%7BURCAP_VERSION%7D\.jar'
             --exclude '^http://rosin-project\.eu'
-            --exclude '2013181\/gdb-causes-sem-wait-to-fail-with-eintr-error'
             --exclude 'https:\/\/lists\.apple\.com\/archives\/darwin-kernel\/2009\/Apr\/msg00010\.html'
             --exclude 'https:\/\/wiki\.linuxfoundation\.org\/realtime\/preempt_rt_versions'
             --exclude 'https:\/\/en\.cppreference\.com\/w\/cpp\/string\/basic_string\/to_string'

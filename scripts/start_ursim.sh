@@ -49,6 +49,10 @@ help()
                    for available versions. Defaults to 'latest'"
   echo "    -p <folder>    Location from which programs are read / to which programs are written.
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+  echo "    -c <folder>    Location of the citadelDB to mount into the URSim container.
+                   Only used for PolyScope X. Enables persisting settings such as
+                   remote-control mode across container restarts.
+                   If not specified, no citadelDB volume is mounted."
   echo "    -u <folder>    Location from which URCaps are read / to which URCaps are written.
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
@@ -64,6 +68,7 @@ ROBOT_SERIES=""
 URSIM_VERSION=latest
 PORT_FORWARDING=""
 PROGRAM_STORAGE_ARG=""
+CITADEL_DB_STORAGE_ARG=""
 URCAP_STORAGE_ARG=""
 DETACHED=false
 
@@ -351,7 +356,7 @@ post_setup_polyscopex()
 }
 
 parse_arguments(){
-  while getopts ":hm:v:p:u:i:f:n:dt" option; do
+  while getopts ":hm:v:p:c:u:i:f:n:dt" option; do
     case $option in
       h) # display Help
         help
@@ -364,6 +369,9 @@ parse_arguments(){
         ;;
       p) # program_folder
         PROGRAM_STORAGE_ARG=${OPTARG}
+        ;;
+      c) # citadel_db_folder
+        CITADEL_DB_STORAGE_ARG=${OPTARG}
         ;;
       u) # urcaps_folder
         URCAP_STORAGE_ARG=${OPTARG}
@@ -469,12 +477,6 @@ main() {
     PORT_FORWARDING=""
   fi
 
-  DOCKER_ARGS=""
-
-  if [ "$ROBOT_SERIES" == "polyscopex" ]; then
-    DOCKER_ARGS="$DOCKER_ARGS --privileged"
-  fi
-
   if [ -n "$PROGRAM_STORAGE_ARG" ]; then
     PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
   fi
@@ -492,18 +494,22 @@ main() {
     mkdir -p "${PROGRAM_STORAGE}"
     PROGRAM_STORAGE=$(realpath "$PROGRAM_STORAGE")
 
-    ROBOT_MODEL_CONTROLLER_FLAG=""
-    verlte "10.7.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "10.8.0" && ROBOT_MODEL_CONTROLLER_FLAG="-e ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}"
+    docker_args=(docker run --rm -d
+        --net ursim_net --ip "$IP_ADDRESS"
+        --privileged
+        -v "${PROGRAM_STORAGE}:/ur/bin/backend/applications"
+        -e "ROBOT_TYPE=${ROBOT_MODEL}"
+    )
 
-    docker_cmd="docker run --rm -d \
-      --net ursim_net --ip $IP_ADDRESS \
-      -v ${PROGRAM_STORAGE}:/ur/bin/backend/applications \
-      -e ROBOT_TYPE=${ROBOT_MODEL} \
-      $ROBOT_MODEL_CONTROLLER_FLAG \
-      $PORT_FORWARDING \
-      $DOCKER_ARGS \
-      --name $CONTAINER_NAME \
-      universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+    if [ -n "$CITADEL_DB_STORAGE_ARG" ]; then
+      mkdir -p "$CITADEL_DB_STORAGE_ARG"
+      CITADEL_DB_STORAGE=$(realpath "$CITADEL_DB_STORAGE_ARG")
+      docker_args+=(-v "${CITADEL_DB_STORAGE}:/citadelDB")
+    fi
+
+    verlte "10.7.0" "$URSIM_VERSION" && verlte "$URSIM_VERSION" "10.8.0" && \
+      docker_args+=(-e "ROBOT_TYPE_CONTROLLER=${ROBOT_MODEL}")
+
   else
     # Create local storage for programs and URCaps
     mkdir -p "${URCAP_STORAGE}"
@@ -538,21 +544,26 @@ main() {
         fi
       fi
     fi
-    docker_cmd="docker run --rm -d --net ursim_net --ip $IP_ADDRESS\
-      -v ${URCAP_STORAGE}:/urcaps \
-      -v ${PROGRAM_STORAGE}:/ursim/programs \
-      -v ${POLYSCOPE_STORAGE}:/ursim/.polyscope \
-      -e ROBOT_MODEL=${ROBOT_MODEL} \
-      $PORT_FORWARDING \
-      --name $CONTAINER_NAME \
-      universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION"
+
+    docker_args=(docker run --rm -d
+        --net ursim_net --ip "$IP_ADDRESS"
+        -v "${URCAP_STORAGE}:/urcaps"
+        -v "${PROGRAM_STORAGE}:/ursim/programs"
+        -v "${POLYSCOPE_STORAGE}:/ursim/.polyscope"
+        -e "ROBOT_MODEL=${ROBOT_MODEL}"
+    )
   fi
 
+  # PORT_FORWARDING is a space-separated list of -p flags; word-splitting is intentional
+  # shellcheck disable=SC2206
+  [[ -n "$PORT_FORWARDING" ]] && docker_args+=($PORT_FORWARDING)
+  docker_args+=(--name "$CONTAINER_NAME" "universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION")
+
   if [ "$TEST_RUN" = true ]; then
-    echo "$docker_cmd" | tr -s ' '
+    echo "${docker_args[*]}" | tr -s ' '
     exit 0
   fi
-  $docker_cmd || exit 2
+  "${docker_args[@]}" || exit 2
 
   # Stop container when interrupted
   TRAP_CMD="
