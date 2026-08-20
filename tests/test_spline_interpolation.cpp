@@ -1334,7 +1334,6 @@ TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sendi
       urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
   EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result);
-  std::cout << "Canceled second trajectory" << std::endl;
 }
 
 int main(int argc, char* argv[])
