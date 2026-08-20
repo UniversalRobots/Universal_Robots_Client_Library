@@ -171,7 +171,7 @@ protected:
 
     // Send trajectory to robot for execution
     ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-        urcl::control::TrajectoryControlMessage::TRAJECTORY_START, s_pos.size()));
+        urcl::control::TrajectoryControlMessage::TRAJECTORY_START, s_pos.size(), RobotReceiveTimeout::off()));
     for (size_t i = 0; i < s_pos.size(); i++)
     {
       // QUINTIC
@@ -330,29 +330,31 @@ protected:
       // Caller wants the thread to stop for whatever reason
       if (async_stop)
       {
+        std::cout << "Async stop triggered, exiting confirm thread" << std::endl;
         return false;
       }
 
-      // Continously check spline travel time
+      // Continuously check spline travel time
       data_pkg.getData("output_double_register_1", spline_travel_time);
-      // Confirm that a new trajectory was transferred (Travel time = 0.0)
+
+      // Confirm that a new trajectory was transferred (Travel time = 0.0 or lower than it was before)
       if (spline_travel_time < start_spline_travel_time || spline_travel_time == 0.0)
       {
         spline_travel_time_reset = true;
+        start_spline_travel_time = spline_travel_time;
       }
       if (spline_travel_time_reset)
       {
         // Keep script alive when the trajectory has been sent
-        if (trajectory_sent)
+        if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+                urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
         {
-          if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-                  urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
-          {
-            return false;
-          }
+          std::cout << "Failed to write trajectory NOOP control message, exiting confirm thread" << std::endl;
+          return false;
         }
+
         // Confirm that the new trajectory is running
-        if (std::abs(spline_travel_time) > 0.002)
+        if (std::abs(spline_travel_time) > start_spline_travel_time)
         {
           return true;
         }
@@ -377,6 +379,7 @@ protected:
         travel_time_reset_time += step_time_;
       }
     }
+    std::cout << "Failed to get data package from RTDE, exiting confirm thread" << std::endl;
     return false;
   }
 
@@ -398,7 +401,6 @@ protected:
       }
       if (cur_time > timeout)
       {
-        std::cout << std::endl;
         std::cout << "Trajectory didn't start within timeout, is the spline travel time written to output float "
                      "register 1?"
                   << std::endl;
