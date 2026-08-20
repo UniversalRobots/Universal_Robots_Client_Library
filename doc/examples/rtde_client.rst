@@ -25,6 +25,40 @@ to initialize the RTDE client.
    :start-at: const std::string OUTPUT_RECIPE
    :end-at: const std::string INPUT_RECIPE
 
+Configuring real-time scheduling
+--------------------------------
+
+To reduce scheduling jitter, the example configures CPU affinity and scheduling priorities before
+starting RTDE communication.
+
+The Universal Robots Client Library provides helper functions that simplify configuring these
+settings on both Linux and Windows.
+
+.. literalinclude:: ../../examples/rtde_client.cpp
+   :language: c++
+   :caption: examples/rtde_client.cpp
+   :linenos:
+   :lineno-match:
+   :start-at: pprocess_t process = pprocess_self();
+   :end-at: URCL_LOG_ERROR("Failed to set FIFO scheduling");
+
+The example assigns dedicated CPU cores and configures the highest available scheduling priority
+for the current thread.
+
+On Linux, ``setFiFoScheduling()`` configures ``SCHED_FIFO`` scheduling.
+
+On Windows, ``setFiFoScheduling()`` configures the process to use
+``REALTIME_PRIORITY_CLASS`` and the thread to use
+``THREAD_PRIORITY_TIME_CRITICAL``.
+
+For a detailed explanation of the available helper functions and platform-specific real-time
+configuration recommendations, see :ref:`real time setup`.
+
+.. note::
+
+   The selected CPU indices are only examples. Applications should choose CPU affinities according
+   to the available hardware and system configuration.
+
 Creating an RTDE Client
 -----------------------
 

@@ -145,3 +145,166 @@ TEST(TestHelpers, robotSeriesString)
   EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UNDEFINED), "UNDEFINED");
 }
+
+// Thread Affinity Tests
+
+TEST(TestHelpers, setThreadAffinity_basic)
+{
+#ifdef _WIN32
+  pthread_t thread = pthread_self();
+  DWORD_PTR mask = (1ULL << 0);
+  EXPECT_TRUE(setThreadAffinity(thread, mask));
+#elif __linux__
+  pthread_t thread = pthread_self();
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(0, &cpuset);
+  EXPECT_TRUE(setThreadAffinity(thread, cpuset));
+#endif
+}
+
+TEST(TestHelpers, setThreadAffinity_mult)
+{
+#ifdef _WIN32
+  pthread_t thread = pthread_self();
+  DWORD_PTR mask = (1ULL << 0) | (1ULL << 1);
+  EXPECT_TRUE(setThreadAffinity(thread, mask));
+#elif __linux__
+  pthread_t thread = pthread_self();
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(0, &cpuset);
+  CPU_SET(1, &cpuset);
+  EXPECT_TRUE(setThreadAffinity(thread, cpuset));
+#endif
+}
+
+TEST(TestHelpers, setThreadAffinity_invalid)
+{
+#ifdef _WIN32
+  pthread_t thread = pthread_self();
+  uint64_t invalid_mask = 1ULL << 63;
+  EXPECT_FALSE(setThreadAffinity(thread, invalid_mask));
+#elif __linux__
+  pthread_t thread = pthread_self();
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(63, &cpuset);
+  EXPECT_FALSE(setThreadAffinity(thread, cpuset));
+#endif
+}
+
+TEST(TestHelpers, setThreadAffinity_invalidHandle)
+{
+#ifdef _WIN32
+  pthread_t thread = nullptr;
+  EXPECT_FALSE(setThreadAffinity(thread, (1ULL << 0)));
+#elif __linux__
+  pthread_t thread{};
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(0, &cpuset);
+  EXPECT_DEATH(setThreadAffinity(thread, cpuset), "");
+#endif
+}
+
+TEST(TestHelpers, setThreadAffinity_empty)
+{
+#ifdef _WIN32
+  pthread_t thread = pthread_self();
+  EXPECT_FALSE(setThreadAffinity(thread, 0));
+#elif __linux__
+  pthread_t thread = pthread_self();
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  EXPECT_FALSE(setThreadAffinity(thread, cpuset));
+#endif
+}
+
+// Thread Priority Tests
+
+#ifdef _WIN32
+TEST(TestHelpers, setThreadPriority_allValidPriorities)
+{
+  pthread_t thread = pthread_self();
+
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_LOWEST));
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_BELOW_NORMAL));
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_NORMAL));
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_ABOVE_NORMAL));
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_HIGHEST));
+  EXPECT_TRUE(setThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL));
+}
+
+TEST(TestHelpers, setThreadPriority_invalid)
+{
+  pthread_t thread = pthread_self();
+  EXPECT_FALSE(setThreadPriority(thread, 999999));
+}
+
+TEST(TestHelpers, setThreadPriority_invalidHandle)
+{
+  pthread_t thread = nullptr;
+  EXPECT_FALSE(setThreadPriority(thread, THREAD_PRIORITY_HIGHEST));
+}
+
+// Process Priority tests
+
+TEST(TestHelpers, setProcessPriority_allValidPriorities)
+{
+  pprocess_t process = pprocess_self();
+
+  EXPECT_TRUE(setProcessPriority(process, IDLE_PRIORITY_CLASS));
+  EXPECT_TRUE(setProcessPriority(process, BELOW_NORMAL_PRIORITY_CLASS));
+  EXPECT_TRUE(setProcessPriority(process, NORMAL_PRIORITY_CLASS));
+  EXPECT_TRUE(setProcessPriority(process, ABOVE_NORMAL_PRIORITY_CLASS));
+  EXPECT_TRUE(setProcessPriority(process, HIGH_PRIORITY_CLASS));
+}
+
+TEST(TestHelpers, setProcessPriority_invalid)
+{
+  pprocess_t process = pprocess_self();
+  EXPECT_FALSE(setProcessPriority(process, 999999));
+}
+
+TEST(TestHelpers, setProcessPriority_invalidHandle)
+{
+  pprocess_t process = nullptr;
+  EXPECT_FALSE(setProcessPriority(process, NORMAL_PRIORITY_CLASS));
+}
+
+// Process Affinity Tests
+
+TEST(TestHelpers, setProcessAffinity_basic)
+{
+  pprocess_t process = pprocess_self();
+  DWORD_PTR mask = (1ULL << 0);
+  EXPECT_TRUE(setProcessAffinity(process, mask));
+}
+
+TEST(TestHelpers, setProcessAffinity_multi)
+{
+  pprocess_t process = pprocess_self();
+  DWORD_PTR mask = (1ULL << 0) | (1ULL << 1);
+  EXPECT_TRUE(setProcessAffinity(process, mask));
+}
+
+TEST(TestHelpers, setProcessAffinity_invalidHandle)
+{
+  pprocess_t process = nullptr;
+  EXPECT_FALSE(setProcessAffinity(process, (1ULL << 0)));
+}
+
+TEST(TestHelpers, setProcessAffinity_zeroMask)
+{
+  pprocess_t process = pprocess_self();
+  EXPECT_FALSE(setProcessAffinity(process, 0));
+}
+
+TEST(TestHelpers, setProcessAffinity_invalidMask)
+{
+  pprocess_t process = pprocess_self();
+  DWORD_PTR mask = 0xFFFFFFFFFFFFFFFFULL;
+  EXPECT_FALSE(setProcessAffinity(process, mask));
+}
+#endif
