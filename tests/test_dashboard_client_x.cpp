@@ -530,7 +530,7 @@ public:
         (screenshot_dir / (std::string(test_info.test_suite_name()) + "." + test_info.name() + ".png")).string();
     std::string cmd = "python3 ../tests/resources/polyscopex_screenshot.py"
                       " http://" +
-                      g_ROBOT_IP + " " + filename + " 3000 2>/dev/null || true";
+                      g_ROBOT_IP + " " + filename + " 5000 2>/dev/null || true";
     [[maybe_unused]] int ret = std::system(cmd.c_str());
   }
 };
