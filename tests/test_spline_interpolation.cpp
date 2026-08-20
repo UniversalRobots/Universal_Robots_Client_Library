@@ -193,6 +193,7 @@ protected:
   {
     async_ready = false;
     async_stop = false;
+    trajectory_sent = false;
     // Launch async thread to check that trajectory resets spline_travel_time
     auto confirm_future = std::async(std::launch::async, &SplineInterpolationTest::confirmTrajectoryStarted, this);
 
@@ -210,6 +211,8 @@ protected:
     // Send trajectory
     sendTrajectory(s_pos, s_vel, s_acc, s_time);
 
+    // Inform thread that trajectory is sent
+    trajectory_sent = true;
     // Wait for trajectory to start (should be quick)
     if (confirm_future.wait_for(std::chrono::milliseconds(500)) != std::future_status::ready)
     {
@@ -339,6 +342,15 @@ protected:
       }
       if (spline_travel_time_reset)
       {
+        // Keep script alive when the trajectory has been sent
+        if (trajectory_sent)
+        {
+          if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+                  urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
+          {
+            return false;
+          }
+        }
         // Confirm that the new trajectory is running
         if (std::abs(spline_travel_time) > 0.002)
         {
@@ -467,6 +479,7 @@ protected:
   std::mutex async_mutex;
   std::condition_variable async_cv;
   std::atomic<bool> async_stop = false;
+  std::atomic<bool> trajectory_sent = false;
 };
 
 TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
