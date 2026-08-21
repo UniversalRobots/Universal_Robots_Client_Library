@@ -606,8 +606,20 @@ TEST_F(DashboardClientTestX, get_robot_model)
     waitFor([this]() { return primary_client_->getRobotType() != urcl::RobotType::UNDEFINED; },
             std::chrono::milliseconds(1000));
 
-    const std::string true_robot = robotTypeString(primary_client_->getRobotType());
-    EXPECT_EQ(model_string, true_robot);
+    const std::string primary_client_version = robotTypeString(primary_client_->getRobotType());
+    std::string expected_model_string = primary_client_version;
+
+    // On the primary interface UR7 and UR12 show as UR5 and UR10, so we need to adjust the
+    // expected value accordingly.
+    if (model_string == "UR7")
+    {
+      expected_model_string = "UR5";
+    }
+    else if (model_string == "UR12")
+    {
+      expected_model_string = "UR10";
+    }
+    EXPECT_EQ(model_string, primary_client_version);
   }
 }
 
