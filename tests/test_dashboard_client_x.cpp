@@ -636,7 +636,7 @@ TEST_F(DashboardClientTestX, get_serial_number)
     auto response = dashboard_client_->commandGetSerialNumber();
     ASSERT_TRUE(response.ok);
     const std::string serial_number = std::get<std::string>(response.data["serial_number"]);
-    EXPECT_FALSE(serial_number.empty());  // Dont know what to check for here otherwise
+    EXPECT_FALSE(serial_number.empty());  // Don't know what to check for here otherwise
   }
 }
 
