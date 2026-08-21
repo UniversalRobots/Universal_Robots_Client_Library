@@ -562,32 +562,76 @@ DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unus
   return response;
 }
 
-DashboardResponse DashboardClientImplX::commandDownloadSupportFiles([[maybe_unused]] const std::string& save_path)
+DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::string& save_path)
 {
   assertHasCommand("download_support_files");
   const std::string endpoint = g_command_list["download_support_files"].endpoint;
 
-  auto response = get(endpoint, false);  // The json response is pretty long. Don't print it.
+  DashboardResponse response;
 
-  std::cout << "Saving support files to: " << save_path << std::endl;
-  if (response.ok)
+  std::ofstream save_file(save_path, std::ios::out | std::ios::binary);
+  if (!save_file.is_open())
   {
-    std::ofstream save_file(save_path, std::ios_base::out);
-    if (!save_file.is_open())
-    {
-      DashboardResponse error_response;
-      error_response.ok = false;
-      error_response.message = "Failed to open file for saving: " + save_path;
-      URCL_LOG_ERROR("%", error_response.message.c_str());
-      return error_response;
-    }
-    save_file << response.message;
+    response.ok = false;
+    response.message = "Failed to open file for saving: " + save_path;
+    URCL_LOG_ERROR("%s", response.message.c_str());
+    return response;
+  }
 
+  bool http_ok = true;
+  bool write_error = false;
+  std::string error_body;
+
+  // Since support files can be rather large, but not time-critical, we stream the response body to a file instead of
+  // loading it all into memory.
+  auto res = cli_->Get(
+      base_url_ + endpoint,
+      [&](const httplib::Response& r) -> bool {
+        response.data["status_code"] = r.status;
+        http_ok = (r.status >= 200 && r.status < 300);
+        return true;  // always receive body: success body goes to file, error body to error_body
+      },
+      [&](const char* data, size_t data_length) -> bool {
+        if (!http_ok)
+        {
+          error_body.append(data, data_length);
+          return true;
+        }
+        save_file.write(data, static_cast<std::streamsize>(data_length));
+        if (!save_file)
+        {
+          write_error = true;
+          return false;
+        }
+        return true;
+      });
+
+  if (!res)
+  {
+    response.ok = false;
+    response.message = "HTTP request failed: " + httplib::to_string(res.error());
+    URCL_LOG_ERROR("%s", response.message.c_str());
+    return response;
+  }
+
+  if (write_error)
+  {
+    response.ok = false;
+    response.message = "Write error while streaming support files to: " + save_path;
+    URCL_LOG_ERROR("%s", response.message.c_str());
+    return response;
+  }
+
+  if (http_ok)
+  {
+    response.ok = true;
     response.message = "Downloaded support files to " + save_path;
   }
   else
   {
-    URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+    response.ok = false;
+    response.message = error_body;
+    URCL_LOG_ERROR("Failed to download support files. Response message: %s", response.message.c_str());
   }
   return response;
 }
