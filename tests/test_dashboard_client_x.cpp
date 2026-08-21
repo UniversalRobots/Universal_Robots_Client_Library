@@ -532,7 +532,7 @@ TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
 TEST_F(DashboardClientTestX, open_and_close_popups)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandPopup(""), NotImplementedException);
     ASSERT_THROW(dashboard_client_->commandClosePopup(), NotImplementedException);
@@ -577,7 +577,7 @@ TEST_F(DashboardClientTestX, open_and_close_popups)
 TEST_F(DashboardClientTestX, get_polyscope_version)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandPolyscopeVersion(), NotImplementedException);
   }
@@ -593,7 +593,7 @@ TEST_F(DashboardClientTestX, get_polyscope_version)
 TEST_F(DashboardClientTestX, get_robot_model)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandGetRobotModel(), NotImplementedException);
   }
@@ -614,7 +614,7 @@ TEST_F(DashboardClientTestX, get_robot_model)
 TEST_F(DashboardClientTestX, get_serial_number)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandGetSerialNumber(), NotImplementedException);
   }
@@ -630,7 +630,7 @@ TEST_F(DashboardClientTestX, get_serial_number)
 TEST_F(DashboardClientTestX, shutdown_robot)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandShutdown(), NotImplementedException);
   }
@@ -653,7 +653,7 @@ TEST_F(DashboardClientTestX, shutdown_robot)
 TEST_F(DashboardClientTestX, add_to_log)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandAddToLog(""), NotImplementedException);
   }
@@ -677,7 +677,7 @@ TEST_F(DashboardClientTestX, add_to_log)
 TEST_F(DashboardClientTestX, generate_flight_report)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandGenerateFlightReport(), NotImplementedException);
   }
@@ -702,7 +702,7 @@ TEST_F(DashboardClientTestX, generate_flight_report)
 TEST_F(DashboardClientTestX, download_support_files)
 {
   ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("4.2.0"))
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
     ASSERT_THROW(dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip"), NotImplementedException);
   }
