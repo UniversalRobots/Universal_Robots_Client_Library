@@ -676,7 +676,7 @@ public:
    *
    * \return True succeeded
    */
-  bool commandGenerateFlightReport(const std::string& report_type);
+  bool commandGenerateFlightReport(const std::string& report_type = "");
 
   /*!
    * \brief Send Generate flight report command
@@ -685,7 +685,7 @@ public:
    *
    * \param report_type The report type to set for the flight report
    */
-  DashboardResponse commandGenerateFlightReportWithResponse(const std::string& report_type);
+  DashboardResponse commandGenerateFlightReportWithResponse(const std::string& report_type = "");
 
   /*!
    * \brief Send Generate support file command
