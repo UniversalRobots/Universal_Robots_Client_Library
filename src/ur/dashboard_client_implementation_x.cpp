@@ -33,6 +33,7 @@
 #ifdef _WIN32
 #  include <fcntl.h>
 #  include <io.h>
+#  include <share.h>
 #  include <sys/stat.h>
 #else
 #  include <unistd.h>
@@ -633,7 +634,9 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 #else  // _WIN32
 
   std::string temp_save_path = (dest_dir / (std::filesystem::path(save_path).filename().string() + ".tmp")).string();
-  int tmp_fd = _sopen_s(temp_save_path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+  int tmp_fd = -1;
+  _sopen_s(&tmp_fd, temp_save_path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _SH_DENYRW,
+           _S_IREAD | _S_IWRITE);
   if (tmp_fd < 0)
   {
     response.ok = false;
