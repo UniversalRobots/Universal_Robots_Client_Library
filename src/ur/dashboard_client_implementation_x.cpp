@@ -401,8 +401,8 @@ DashboardResponse DashboardClientImplX::commandAddToLog(const std::string& log_t
 {
   assertHasCommand("add_to_log");
   const std::string endpoint = g_command_list["add_to_log"].endpoint;
-  const std::string message = R"({"message": ")" + log_text + R"("})";
-  return post(endpoint, message);
+  nlohmann::json payload = { { "message", log_text } };
+  return post(endpoint, payload.dump());
 }
 
 DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
