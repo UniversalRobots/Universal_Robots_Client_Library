@@ -30,6 +30,14 @@
 #include <ios>
 #include <string>
 
+#ifdef _WIN32
+#  include <fcntl.h>
+#  include <io.h>
+#  include <sys/stat.h>
+#else
+#  include <unistd.h>
+#endif
+
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/log.h>
@@ -570,23 +578,34 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 
   DashboardResponse response;
 
-  std::string temp_save_path = (std::filesystem::path(save_path).parent_path() / "support_file_download.tmp").string();
-
-  std::ofstream save_file(temp_save_path, std::ios::out | std::ios::binary);
-  if (!save_file.is_open())
+  // Place the temp file in the same directory as the destination so that the
+  // later std::filesystem::rename stays on the same filesystem.
+  std::filesystem::path dest_dir = std::filesystem::path(save_path).parent_path();
+  if (dest_dir.empty())
   {
-    response.ok = false;
-    response.message = "Failed to open file for saving: " + save_path;
-    URCL_LOG_ERROR("%s", response.message.c_str());
-    return response;
+    dest_dir = ".";
   }
 
   bool http_ok = true;
   bool write_error = false;
   std::string error_body;
 
-  // Since support files can be rather large, but not time-critical, we stream the response body to a file instead of
-  // loading it all into memory.
+#ifndef _WIN32
+  // mkstemp atomically creates the temp file with O_CREAT|O_EXCL and a random
+  // suffix, so a symlink pre-placed at the path is rejected rather than followed.
+  // This prevents local-privilege symlink attacks in shared directories such as /tmp.
+  std::string temp_save_path = (dest_dir / (std::filesystem::path(save_path).filename().string() + ".XXXXXX")).string();
+  int tmp_fd = mkstemp(temp_save_path.data());
+  if (tmp_fd < 0)
+  {
+    response.ok = false;
+    response.message = "Failed to create temporary file for saving: " + save_path;
+    URCL_LOG_ERROR("%s", response.message.c_str());
+    return response;
+  }
+
+  // Since support files can be rather large, but not time-critical, we stream the response body
+  // to a file instead of loading it all into memory.
   auto res = cli_->Get(
       base_url_ + endpoint,
       [&](const httplib::Response& r) -> bool {
@@ -600,8 +619,8 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
           error_body.append(data, data_length);
           return true;
         }
-        save_file.write(data, static_cast<std::streamsize>(data_length));
-        if (!save_file)
+        ssize_t n = write(tmp_fd, data, data_length);
+        if (n != static_cast<ssize_t>(data_length))
         {
           write_error = true;
           return false;
@@ -609,7 +628,47 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
         return true;
       });
 
-  save_file.close();
+  close(tmp_fd);
+
+#else  // _WIN32
+
+  // _open with _O_EXCL rejects a pre-existing path (including reparse points /
+  // junctions) instead of truncating through it, mitigating symlink-style attacks.
+  std::string temp_save_path = (dest_dir / (std::filesystem::path(save_path).filename().string() + ".tmp")).string();
+  int tmp_fd = _open(temp_save_path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+  if (tmp_fd < 0)
+  {
+    response.ok = false;
+    response.message = "Failed to create temporary file for saving: " + save_path;
+    URCL_LOG_ERROR("%s", response.message.c_str());
+    return response;
+  }
+
+  auto res = cli_->Get(
+      base_url_ + endpoint,
+      [&](const httplib::Response& r) -> bool {
+        response.data["status_code"] = r.status;
+        http_ok = (r.status >= 200 && r.status < 300);
+        return true;
+      },
+      [&](const char* data, size_t data_length) -> bool {
+        if (!http_ok)
+        {
+          error_body.append(data, data_length);
+          return true;
+        }
+        int n = _write(tmp_fd, data, static_cast<unsigned int>(data_length));
+        if (n != static_cast<int>(data_length))
+        {
+          write_error = true;
+          return false;
+        }
+        return true;
+      });
+
+  _close(tmp_fd);
+
+#endif  // _WIN32
 
   if (!res)
   {
@@ -652,8 +711,7 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
     response.ok = false;
     response.message = error_body;
     URCL_LOG_ERROR("Failed to download support files. Response message: %s", response.message.c_str());
-    // delete temp file if it exists
-    std::remove(temp_save_path.c_str());
+    std::filesystem::remove(temp_save_path);
   }
   return response;
 }

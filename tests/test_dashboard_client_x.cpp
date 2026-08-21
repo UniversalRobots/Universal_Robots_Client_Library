@@ -931,14 +931,12 @@ TEST_F(DashboardClientImplXMockTest, download_support_files_not_found)
 
   const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_notfound.zip";
   std::filesystem::remove(out);
-  std::filesystem::remove(std::filesystem::path(out.string() + ".tmp"));
 
   auto response = impl_->commandDownloadSupportFiles(out.string());
 
   EXPECT_FALSE(response.ok);
   EXPECT_EQ(response.message, body);
-  EXPECT_FALSE(std::filesystem::exists(out));
-  EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(out.string() + ".tmp")));
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on server error";
 }
 
 TEST_F(DashboardClientImplXMockTest, download_support_files_server_error)
@@ -952,24 +950,22 @@ TEST_F(DashboardClientImplXMockTest, download_support_files_server_error)
 
   const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_err.zip";
   std::filesystem::remove(out);
-  std::filesystem::remove(std::filesystem::path(out.string() + ".tmp"));
 
   auto response = impl_->commandDownloadSupportFiles(out.string());
 
   EXPECT_FALSE(response.ok);
   EXPECT_EQ(response.message, body);
   EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on server error";
-  EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(out.string() + ".tmp"))) << "Temp file must be cleaned up "
-                                                                                         "on server error";
 }
 
 TEST_F(DashboardClientImplXMockTest, download_support_files_invalid_path)
 {
-  // A non-writable path must produce an error before any HTTP request is sent.
+  // A non-writable path must produce an error before any HTTP request is sent (mkstemp
+  // fails because the parent directory does not exist).
   auto response = impl_->commandDownloadSupportFiles("/nonexistent_directory/support.zip");
 
   EXPECT_FALSE(response.ok);
-  EXPECT_NE(response.message.find("Failed to open file"), std::string::npos);
+  EXPECT_NE(response.message.find("Failed to create temporary file"), std::string::npos);
 }
 
 class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener
