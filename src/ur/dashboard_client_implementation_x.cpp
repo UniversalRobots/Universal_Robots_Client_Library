@@ -570,7 +570,7 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 
   DashboardResponse response;
 
-  std::string temp_save_path = save_path + ".tmp";
+  std::string temp_save_path = (std::filesystem::path(save_path).parent_path() / "support_file_download.tmp").string();
 
   std::ofstream save_file(temp_save_path, std::ios::out | std::ios::binary);
   if (!save_file.is_open())
