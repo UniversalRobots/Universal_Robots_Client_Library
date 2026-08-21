@@ -668,19 +668,19 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 
 #endif  // _WIN32
 
-  if (!res)
+  if (write_error)
   {
     response.ok = false;
-    response.message = "HTTP request failed: " + httplib::to_string(res.error());
+    response.message = "Write error while streaming support files to: " + save_path;
     URCL_LOG_ERROR("%s", response.message.c_str());
     std::filesystem::remove(temp_save_path);
     return response;
   }
 
-  if (write_error)
+  if (!res)
   {
     response.ok = false;
-    response.message = "Write error while streaming support files to: " + save_path;
+    response.message = "HTTP request failed: " + httplib::to_string(res.error());
     URCL_LOG_ERROR("%s", response.message.c_str());
     std::filesystem::remove(temp_save_path);
     return response;
