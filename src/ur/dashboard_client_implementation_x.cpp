@@ -632,10 +632,8 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 
 #else  // _WIN32
 
-  // _open with _O_EXCL rejects a pre-existing path (including reparse points /
-  // junctions) instead of truncating through it, mitigating symlink-style attacks.
   std::string temp_save_path = (dest_dir / (std::filesystem::path(save_path).filename().string() + ".tmp")).string();
-  int tmp_fd = _open(temp_save_path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+  int tmp_fd = _sopen_s(temp_save_path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
   if (tmp_fd < 0)
   {
     response.ok = false;
