@@ -34,8 +34,10 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <thread>
 #include <vector>
+#include <urcl_3rdparty/httplib/httplib.h>
 #ifndef _WIN32
 #  include <fcntl.h>
 #  include <sys/wait.h>
@@ -732,6 +734,242 @@ TEST_F(DashboardClientTestX, download_support_files)
     // std::streamsize size = file.tellg();
     // ASSERT_GT(size, 0);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Mock tests: httplib::Server replaces a real robot so the actual
+// DashboardClientImplX code (endpoint routing, streaming download,
+// response parsing, temp-file lifecycle) is exercised without hardware.
+// Response bodies follow the OpenAPI spec at /universal-robots/robot-api/openapi.json.
+// ---------------------------------------------------------------------------
+
+// Minimal OpenAPI response: version 5.0.107 satisfies the minimum required by
+// both generate_flight_report and download_support_files.
+static constexpr const char* MOCK_OPENAPI_RESPONSE = R"({"info":{"version":"5.0.107"}})";
+// POST /supportfiles/v1  → Generate Flight Report
+// GET  /supportfiles/v1/ → Download Support Files (zip)
+static constexpr const char* MOCK_SUPPORTFILES_ENDPOINT = "/universal-robots/robot-api/supportfiles/v1";
+static constexpr const char* MOCK_OPENAPI_ENDPOINT = "/universal-robots/robot-api/openapi.json";
+
+class DashboardClientImplXMockTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+      res.set_content(MOCK_OPENAPI_RESPONSE, "application/json");
+    });
+
+    port_ = server_.bind_to_any_port("127.0.0.1");
+    server_thread_ = std::thread([this]() { server_.listen_after_bind(); });
+
+    while (!server_.is_running())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    impl_ = std::make_unique<DashboardClientImplX>("127.0.0.1:" + std::to_string(port_));
+    impl_->connect();
+  }
+
+  void TearDown() override
+  {
+    server_.stop();
+    if (server_thread_.joinable())
+    {
+      server_thread_.join();
+    }
+  }
+
+  httplib::Server server_;
+  int port_ = 0;
+  std::thread server_thread_;
+  std::unique_ptr<DashboardClientImplX> impl_;
+};
+
+// --- commandGenerateFlightReport ---
+// Spec: POST /supportfiles/v1
+//   200 → GenerateFlightReportResponse  {"message": string|null, "details": string|null}
+//   408 → APIError                      {"message": string, "details": string}
+//   429 → APIError
+//   507 → APIError
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_success)
+{
+  // 200 OK with GenerateFlightReportResponse body
+  const std::string body = R"({"message":"Flight report generated successfully.","details":null})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT,
+               [&body](const httplib::Request&, httplib::Response& res) { res.set_content(body, "application/json"); });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_TRUE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_timeout)
+{
+  // 408 Request Timeout — flight recorder took too long
+  const std::string body =
+      R"({"message":"Flight recorder service took longer time to generate the report than expected.","details":""})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 408;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_insufficient_storage)
+{
+  // 507 Insufficient Storage
+  const std::string body = R"({"message":"Insufficient storage to generate flight report.","details":""})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 507;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_report_type_ignored)
+{
+  // PolyScope X ignores the report_type argument (logs a warning). A non-empty
+  // value must not prevent a successful call.
+  const std::string body = R"({"message":"Flight report generated successfully.","details":null})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT,
+               [&body](const httplib::Request&, httplib::Response& res) { res.set_content(body, "application/json"); });
+
+  auto response = impl_->commandGenerateFlightReport("blackbox");
+  EXPECT_TRUE(response.ok);
+}
+
+// --- commandDownloadSupportFiles ---
+// Spec: GET /supportfiles/v1
+//   200 → application/zip binary
+//   204 → No Content (no flight reports available yet)
+//   404 → APIError  {"message": string, "details": string}
+//   500 → APIError
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_success)
+{
+  // 200 OK with zip binary body
+  const std::string fake_zip(R"(PK)"
+                             "\x03\x04"
+                             "fake_zip_data",
+                             18);
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&fake_zip](const httplib::Request&, httplib::Response& res) {
+    res.set_content(fake_zip, "application/zip");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+  EXPECT_TRUE(response.ok);
+
+  std::ifstream file(out, std::ios::binary);
+  ASSERT_TRUE(file.is_open());
+  const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(written, fake_zip);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_no_content)
+{
+  // 204 No Content — no flight reports are available yet.
+  // The implementation treats any 2xx as success, so ok=true and an empty file is created.
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 204; });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_empty.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+  EXPECT_TRUE(response.ok);
+  EXPECT_TRUE(std::filesystem::exists(out));
+  EXPECT_EQ(std::filesystem::file_size(out), 0u);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_overwrites_existing)
+{
+  // A second download to the same destination path must overwrite the previous file.
+  std::string server_content = "version1_data";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&server_content](const httplib::Request&, httplib::Response& res) {
+    res.set_content(server_content, "application/zip");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_overwrite.zip";
+  std::filesystem::remove(out);
+
+  EXPECT_TRUE(impl_->commandDownloadSupportFiles(out.string()).ok);
+
+  server_content = "version2_longer_data";
+  EXPECT_TRUE(impl_->commandDownloadSupportFiles(out.string()).ok);
+
+  std::ifstream file(out, std::ios::binary);
+  ASSERT_TRUE(file.is_open());
+  const std::string result((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(result, server_content);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_not_found)
+{
+  // 404 Not Found — flight recorder service not found
+  const std::string body = R"({"message":"Flight recorder service not found.","details":""})";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 404;
+    res.set_content(body, "application/json");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_notfound.zip";
+  std::filesystem::remove(out);
+  std::filesystem::remove(std::filesystem::path(out.string() + ".tmp"));
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+  EXPECT_FALSE(std::filesystem::exists(out));
+  EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(out.string() + ".tmp")));
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_server_error)
+{
+  // 500 Internal Server Error
+  const std::string body = R"({"message":"Internal server error.","details":""})";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 500;
+    res.set_content(body, "application/json");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_err.zip";
+  std::filesystem::remove(out);
+  std::filesystem::remove(std::filesystem::path(out.string() + ".tmp"));
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on server error";
+  EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(out.string() + ".tmp"))) << "Temp file must be cleaned up "
+                                                                                         "on server error";
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_invalid_path)
+{
+  // A non-writable path must produce an error before any HTTP request is sent.
+  auto response = impl_->commandDownloadSupportFiles("/nonexistent_directory/support.zip");
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("Failed to open file"), std::string::npos);
 }
 
 class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener

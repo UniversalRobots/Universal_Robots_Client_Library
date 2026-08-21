@@ -58,6 +58,7 @@ if (INTEGRATION_TESTS)
   )
 
   add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
+  target_include_directories(dashboard_client_x_tests PRIVATE ${CMAKE_SOURCE_DIR}/3rdparty)
   target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET      dashboard_client_x_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
