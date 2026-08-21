@@ -560,7 +560,7 @@ DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unus
   DashboardResponse response;
   try
   {
-    response = post(endpoint, "", "application/json");
+    response = post(endpoint, "");
   }
   catch (...)
   {

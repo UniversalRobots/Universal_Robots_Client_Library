@@ -724,7 +724,7 @@ TEST_F(DashboardClientTestX, download_support_files)
   }
   else
   {
-    auto response = dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip");
+    dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip");
     // On URSim this can't be used
     // ASSERT_TRUE(response.ok);
     //// Check that the file was created and has some content
