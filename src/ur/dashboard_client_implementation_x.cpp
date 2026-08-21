@@ -48,7 +48,6 @@ static int mkstemp(char* templ)
   _sopen_s(&fd, templ, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _SH_DENYRW, _S_IREAD | _S_IWRITE);
   return fd;
 }
-#  define close _close
 #else
 #  include <unistd.h>
 #endif
@@ -651,7 +650,11 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
         return true;
       });
 
+#ifndef _WIN32
   close(tmp_fd);
+#else
+  _close(tmp_fd);
+#endif
 
   if (write_error)
   {
