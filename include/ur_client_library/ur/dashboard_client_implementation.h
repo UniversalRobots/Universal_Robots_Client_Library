@@ -61,8 +61,7 @@ struct ProgramInformation
 
 inline std::ostream& operator<<(std::ostream& os, const ProgramInformation& pi)
 {
-  os << "Program Information: { "
-     << "\nCreated Date: " << pi.createdDate << "\nDescription: " << pi.description
+  os << "Program Information: { " << "\nCreated Date: " << pi.createdDate << "\nDescription: " << pi.description
      << "\nLast Modified Date: " << pi.lastModifiedDate << "\nLast Saved Date: " << pi.lastSavedDate
      << "\nName: " << pi.name << "\nProgram State: " << pi.programState << "\n} \n";
   return os;
@@ -321,7 +320,7 @@ public:
    *
    * \param popup_text The text to be shown in the popup
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
   virtual DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") = 0;
 
@@ -554,7 +553,7 @@ public:
   }
 
 protected:
-  virtual void assertHasCommand(const std::string& command) const = 0;
+  virtual void assertHasCommand(const std::string& command) = 0;
 
   VersionInformation polyscope_version_;
   std::string host_;

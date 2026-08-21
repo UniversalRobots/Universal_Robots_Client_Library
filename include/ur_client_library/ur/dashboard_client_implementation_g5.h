@@ -176,7 +176,7 @@ public:
 
 protected:
   virtual VersionInformation queryPolyScopeVersion();
-  void assertHasCommand(const std::string& command) const override;
+  void assertHasCommand(const std::string& command) override;
   static std::string replacePayload(const std::string& command, const std::string& payload);
   std::string retryCommandString(const std::string& requestCommand, const std::string& requestExpectedResponse,
                                  const std::string& waitRequest, const std::string& waitExpectedResponse,

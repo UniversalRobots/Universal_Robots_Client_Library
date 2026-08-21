@@ -77,7 +77,7 @@ table below or checkout the latest tag before the breaking changes were introduc
             - Logging
             - Add entry to system log
           * - 10.14.0
-            - FLight reports
+            - Flight reports
             - Generating and downloading flight reports
 
      - Using external control on |polyscope| X requires another URCapX for making external control

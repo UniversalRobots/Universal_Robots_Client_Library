@@ -278,7 +278,7 @@ VersionInformation DashboardClientImplG5::queryPolyScopeVersion()
   return VersionInformation::fromString(version_string);
 }
 
-void DashboardClientImplG5::assertHasCommand(const std::string& command) const
+void DashboardClientImplG5::assertHasCommand(const std::string& command)
 {
   if (polyscope_version_ == VersionInformation::fromString("0.0.0"))
   {

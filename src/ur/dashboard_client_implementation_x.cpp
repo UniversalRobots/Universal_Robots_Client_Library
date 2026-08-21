@@ -151,6 +151,7 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
   {
     if (res->status != 200)
     {
+      is_connected_ = false;
       URCL_LOG_ERROR("Received non-200 response code when connecting to Robot API: %d", res->status);
       return false;
     }
@@ -161,15 +162,17 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
     {
       robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
       URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
+      is_connected_ = true;
       return true;
     }
   }
+  is_connected_ = false;
   return false;
 }
 
 void DashboardClientImplX::disconnect()
 {
-  // Nothing to do here, since the Robot API doesn't keep any active connections.
+  is_connected_ = false;
   return;
 }
 
@@ -190,8 +193,16 @@ VersionInformation DashboardClientImplX::queryPolyScopeVersion()
   return VersionInformation::fromString(version_string);
 }
 
-void DashboardClientImplX::assertHasCommand(const std::string& command) const
+void DashboardClientImplX::assertHasCommand(const std::string& command)
 {
+  if (is_connected_ == false)
+  {
+    // connect will query the robot API version and set robot_api_version_ if successful.
+    if (!connect())
+    {
+      throw UrException("Failed to connect to the robot API. Cannot assert command availability.");
+    }
+  }
   if (robot_api_version_ < g_command_list.at(command).robotAPIVersion)
   {
     std::stringstream ss;
@@ -381,7 +392,8 @@ DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 DashboardResponse DashboardClientImplX::commandPopup(const std::string& popup_text, const std::string& title)
 {
   assertHasCommand("popup");
-  return post("/popup/v1", R"({"title": "TITLE )" + title + R"(", "message": ")" + popup_text + R"("})");
+  nlohmann::json payload = { { "title", title }, { "message", popup_text } };
+  return post("/popup/v1", payload.dump());
 }
 
 DashboardResponse DashboardClientImplX::commandAddToLog(const std::string& log_text)
@@ -389,7 +401,6 @@ DashboardResponse DashboardClientImplX::commandAddToLog(const std::string& log_t
   assertHasCommand("add_to_log");
   const std::string endpoint = g_command_list["add_to_log"].endpoint;
   const std::string message = R"({"message": ")" + log_text + R"("})";
-  std::cout << message << std::endl;
   return post(endpoint, message);
 }
 
@@ -557,7 +568,6 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles([[maybe_unus
   const std::string endpoint = g_command_list["download_support_files"].endpoint;
 
   auto response = get(endpoint, false);  // The json response is pretty long. Don't print it.
-                                         //
 
   std::cout << "Saving support files to: " << save_path << std::endl;
   if (response.ok)
@@ -568,7 +578,7 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles([[maybe_unus
       DashboardResponse error_response;
       error_response.ok = false;
       error_response.message = "Failed to open file for saving: " + save_path;
-      URCL_LOG_ERROR(error_response.message.c_str());
+      URCL_LOG_ERROR("%", error_response.message.c_str());
       return error_response;
     }
     save_file << response.message;

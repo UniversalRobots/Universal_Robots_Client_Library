@@ -28,6 +28,9 @@
 
 #pragma once
 
+#include <atomic>
+#include <unordered_map>
+
 #include <ur_client_library/ur/dashboard_client_implementation.h>
 #include "ur_client_library/ur/version_information.h"
 
@@ -191,7 +194,7 @@ protected:
   DashboardResponse del(const std::string& endpoint, const bool debug = true);
 
   virtual VersionInformation queryPolyScopeVersion();
-  void assertHasCommand(const std::string& command) const override;
+  void assertHasCommand(const std::string& command) override;
 
   const std::string base_url_ = "/universal-robots/robot-api";
 
@@ -202,6 +205,7 @@ protected:
   timeval send_timeout_ = { 10, 0 };
 
   static std::unordered_map<std::string, RobotAPICommand> g_command_list;
+  std::atomic<bool> is_connected_{ false };
 };
 
 }  // namespace urcl

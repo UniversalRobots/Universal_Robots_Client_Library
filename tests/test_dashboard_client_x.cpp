@@ -629,6 +629,9 @@ TEST_F(DashboardClientTestX, get_serial_number)
 
 TEST_F(DashboardClientTestX, shutdown_robot)
 {
+  // On URSim this will not really shutdown the docker container, so we can test it in CI. When
+  // tests are run on a real robot, this test should be skipped, as it will shutdown the robot and
+  // the test will fail.
   ASSERT_TRUE(dashboard_client_->connect());
   if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
   {
