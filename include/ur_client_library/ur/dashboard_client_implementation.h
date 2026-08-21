@@ -493,7 +493,10 @@ public:
    *
    * \throws an NotImplementedException when called on G5 robots
    */
-  virtual DashboardResponse commandDownloadSupportFiles(const std::string& save_path) = 0;
+  virtual DashboardResponse commandDownloadSupportFiles([[maybe_unused]] const std::string& save_path)
+  {
+    throw NotImplementedException("commandDownloadSupportFiles is not implemented for this dashboard client.");
+  }
 
   /*!
    * \brief Flush the polyscope log to the log_history.txt file
