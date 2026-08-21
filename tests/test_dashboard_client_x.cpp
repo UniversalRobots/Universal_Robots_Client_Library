@@ -640,32 +640,6 @@ TEST_F(DashboardClientTestX, get_serial_number)
   }
 }
 
-TEST_F(DashboardClientTestX, shutdown_robot)
-{
-  // On URSim this will not really shutdown the docker container, so we can test it in CI. When
-  // tests are run on a real robot, this test should be skipped, as it will shutdown the robot and
-  // the test will fail.
-  ASSERT_TRUE(dashboard_client_->connect());
-  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
-  {
-    ASSERT_THROW(dashboard_client_->commandShutdown(), NotImplementedException);
-  }
-  else
-  {
-    if (skip_remote_control_tests)
-    {
-      auto response = dashboard_client_->commandShutdown();
-      ASSERT_FALSE(response.ok);
-      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
-    }
-    else
-    {
-      auto response = dashboard_client_->commandShutdown();
-      ASSERT_TRUE(response.ok);
-    }
-  }
-}
-
 TEST_F(DashboardClientTestX, add_to_log)
 {
   ASSERT_TRUE(dashboard_client_->connect());
@@ -785,6 +759,42 @@ protected:
   std::thread server_thread_;
   std::unique_ptr<DashboardClientImplX> impl_;
 };
+
+static constexpr const char* MOCK_SHUTDOWN_ENDPOINT = "/universal-robots/robot-api/system/v1/shutdown";
+
+// --- commandShutdown ---
+// Spec: PUT /system/v1/shutdown
+//   202 → APIResponse  {"message": string|null}
+//   403 → APIError     {"message": string, "details": string}  (not in remote-control mode)
+
+TEST_F(DashboardClientImplXMockTest, shutdown_success)
+{
+  // 202 Accepted
+  const std::string body = R"({"message":null})";
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 202;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandShutdown();
+  EXPECT_TRUE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, shutdown_forbidden)
+{
+  // 403 Forbidden — robot is not in remote-control mode
+  const std::string body =
+      R"({"message":"Forbidden","details":"Not authorized to perform this operation under the current robot control mode."})";
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 403;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandShutdown();
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
 
 // --- commandGenerateFlightReport ---
 // Spec: POST /supportfiles/v1
