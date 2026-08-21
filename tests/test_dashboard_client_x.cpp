@@ -619,7 +619,7 @@ TEST_F(DashboardClientTestX, get_robot_model)
     {
       expected_model_string = "UR10";
     }
-    EXPECT_EQ(model_string, primary_client_version);
+    EXPECT_EQ(model_string, expected_model_string);
   }
 }
 
