@@ -25,9 +25,10 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <chrono>
-#include <string>
+#include <filesystem>
 #include <fstream>
 #include <ios>
+#include <string>
 
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
@@ -569,7 +570,9 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
 
   DashboardResponse response;
 
-  std::ofstream save_file(save_path, std::ios::out | std::ios::binary);
+  std::string temp_save_path = save_path + ".tmp";
+
+  std::ofstream save_file(temp_save_path, std::ios::out | std::ios::binary);
   if (!save_file.is_open())
   {
     response.ok = false;
@@ -606,11 +609,14 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
         return true;
       });
 
+  save_file.close();
+
   if (!res)
   {
     response.ok = false;
     response.message = "HTTP request failed: " + httplib::to_string(res.error());
     URCL_LOG_ERROR("%s", response.message.c_str());
+    std::filesystem::remove(temp_save_path);
     return response;
   }
 
@@ -619,11 +625,25 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
     response.ok = false;
     response.message = "Write error while streaming support files to: " + save_path;
     URCL_LOG_ERROR("%s", response.message.c_str());
+    std::filesystem::remove(temp_save_path);
     return response;
   }
 
   if (http_ok)
   {
+    // std::filesystem::rename replaces an existing destination atomically on POSIX and
+    // uses MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, so repeat downloads to
+    // the same path work correctly on both platforms.
+    std::error_code ec;
+    std::filesystem::rename(temp_save_path, save_path, ec);
+    if (ec)
+    {
+      std::filesystem::remove(temp_save_path);
+      response.ok = false;
+      response.message = "Failed to rename temporary file to final destination: " + ec.message();
+      URCL_LOG_ERROR("%s", response.message.c_str());
+      return response;
+    }
     response.ok = true;
     response.message = "Downloaded support files to " + save_path;
   }
@@ -632,6 +652,8 @@ DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::s
     response.ok = false;
     response.message = error_body;
     URCL_LOG_ERROR("Failed to download support files. Response message: %s", response.message.c_str());
+    // delete temp file if it exists
+    std::remove(temp_save_path.c_str());
   }
   return response;
 }
