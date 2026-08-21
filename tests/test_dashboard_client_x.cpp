@@ -708,7 +708,7 @@ TEST_F(DashboardClientTestX, generate_flight_report)
     }
     else
     {
-      auto response = dashboard_client_->commandGenerateFlightReport();
+      dashboard_client_->commandGenerateFlightReport();
       // On URSim this can't be used
       // ASSERT_TRUE(response.ok);
       // EXPECT_TRUE(response.message.find("Flight report generated") != response.message.npos);
