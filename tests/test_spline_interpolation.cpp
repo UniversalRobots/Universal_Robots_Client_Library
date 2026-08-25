@@ -194,6 +194,9 @@ protected:
     async_ready = false;
     async_stop = false;
     trajectory_sent = false;
+
+    g_trajectory_running = false;
+
     // Launch async thread to check that trajectory resets spline_travel_time
     auto confirm_future = std::async(std::launch::async, &SplineInterpolationTest::confirmTrajectoryStarted, this);
 
@@ -221,7 +224,9 @@ protected:
       confirm_future.wait();
       return false;
     }
-    return confirm_future.get();
+    bool trajectory_running = confirm_future.get();
+    g_trajectory_running = trajectory_running;
+    return trajectory_running;
   }
 
   void interpolate(const double& time, urcl::vector6d_t& positions, const std::vector<urcl::vector6d_t>& coefficients)
@@ -324,7 +329,7 @@ protected:
       async_cv.notify_one();
     }
 
-    bool spline_travel_time_reset = false;
+    bool spline_travel_time_reset = start_spline_travel_time == 0.0;
     while (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
     {
       // Caller wants the thread to stop for whatever reason
@@ -343,6 +348,7 @@ protected:
         spline_travel_time_reset = true;
         start_spline_travel_time = spline_travel_time;
       }
+
       if (spline_travel_time_reset)
       {
         // Keep script alive when the trajectory has been sent
@@ -359,6 +365,7 @@ protected:
         // Confirm that the new trajectory is running
         if (std::abs(spline_travel_time) > start_spline_travel_time)
         {
+          g_trajectory_running = true;
           return true;
         }
         if (trajectory_start_time > trajectory_start_timeout)
@@ -521,7 +528,6 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
   // Make sure that the trajectory has started before we start testing for trajectory execution
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
 
-  g_trajectory_running = true;
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
   while (g_trajectory_running)
@@ -636,7 +642,7 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
   // Send trajectory to the robot
   // Make sure that trajectory has started before we start testing for trajectory execution
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
-  g_trajectory_running = true;
+
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
   unsigned int loop_count = 0;
@@ -797,7 +803,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
   // Send the trajectory to the robot
   // Make sure that trajectory has started before we start testing for trajectory execution
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
-  g_trajectory_running = true;
+
   int segment_idx = 0;
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
@@ -908,7 +914,7 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
   int segment_idx = 0;
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
-  g_trajectory_running = true;
+
   while (g_trajectory_running)
   {
     ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
@@ -1021,7 +1027,7 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
   s_time = { 0.0, 1.0, 2.0 };
 
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
-  g_trajectory_running = true;
+
   urcl::vector6d_t joint_positions;
   while (g_trajectory_running)
   {
@@ -1095,7 +1101,7 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
   s_time = { 0.0, 1.0, 2.0 };
 
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
-  g_trajectory_running = true;
+
   urcl::vector6d_t joint_positions;
   while (g_trajectory_running)
   {
@@ -1274,7 +1280,7 @@ TEST_F(SplineInterpolationTest, new_trajectory_received_without_cancelling_the_o
 
   // Send the trajectory again without canceling the before one
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
-  g_trajectory_running = true;
+
   // Ensure that everything goes as expected and the robot reaches the target position
   urcl::vector6d_t joint_positions;
   while (g_trajectory_running)
