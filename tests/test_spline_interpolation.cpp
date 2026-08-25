@@ -365,7 +365,6 @@ protected:
         // Confirm that the new trajectory is running
         if (std::abs(spline_travel_time) > start_spline_travel_time)
         {
-          g_trajectory_running = true;
           return true;
         }
         if (trajectory_start_time > trajectory_start_timeout)
