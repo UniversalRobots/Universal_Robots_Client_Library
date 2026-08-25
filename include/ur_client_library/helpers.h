@@ -186,5 +186,7 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
  */
 RobotType robotTypeFromString(const std::string& robot_type_str);
 
+std::string stringFromMotionTarget(const MotionTarget& target);
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

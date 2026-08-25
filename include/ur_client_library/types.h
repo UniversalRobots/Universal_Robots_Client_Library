@@ -59,6 +59,8 @@ public:
   void setValues(const vector6d_t& values);
   void setValues(const std::vector<double>& values);
 
+  std::string toString() const;
+
 private:
   std::vector<double> values_;
 };
@@ -88,6 +90,8 @@ public:
   void setQNear(const Q& q_near);
 
   void setPose(const double x, const double y, const double z, const double rx, const double ry, const double rz);
+
+  std::string toString() const;
 
   double x;
   double y;
