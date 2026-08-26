@@ -122,9 +122,8 @@ where
 .. note::
    Spline point velocities and accelerations use the finer ``MULT_VEL_ACC`` scaling, giving 1e-8
    resolution with a maximum magnitude of ~21.47 rad/s (rad/s²). The coarser ``MULT_JOINTSTATE``
-   scaling quantizes near-zero accelerations so heavily that the reconstructed acceleration
-   profile becomes jagged, which can trigger controller faults such as "Compensation current
-   disagreement". Values exceeding the maximum magnitude are rejected by the library.
+   scaling quantizes near-zero accelerations, causing reconstructed acceleration
+   profile to become jagged, which can trigger controller faults. Values exceeding the maximum magnitude are rejected by the library.
 
 .. note::
    The ``*_POSE`` / ``*_JOINT`` motion-type variants let callers mix joint-space and Cartesian
