@@ -598,9 +598,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_rejects_goal_time_above_max_encodable
                                                                 almost_too_long_goal_time));
 }
 
-// Wire format: int32 with MULT_VEL_ACC resolution. Near-zero spline velocities and accelerations
-// must survive the double -> int32 -> double roundtrip without collapsing to zero or getting
-// quantized so coarsely that the reconstructed acceleration profile becomes jagged.
+// Near-zero spline vel/acc must survive the int32 roundtrip instead of collapsing to zero.
 TEST_F(TrajectoryPointInterfaceTest, write_spline_preserves_near_zero_velocity_and_acceleration)
 {
   urcl::vector6d_t send_pos = { 0, 0, 0, 0, 0, 0 };
@@ -621,7 +619,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_spline_preserves_near_zero_velocity_a
   }
 }
 
-// Spline velocities and accelerations are capped by int32 with MULT_VEL_ACC resolution (~21.47).
+// Spline velocities and accelerations are capped by int32 range at MULT_VEL_ACC resolution.
 TEST_F(TrajectoryPointInterfaceTest, write_rejects_spline_velocity_or_acceleration_above_max_encodable)
 {
   const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) /

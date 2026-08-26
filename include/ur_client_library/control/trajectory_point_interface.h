@@ -63,9 +63,7 @@ std::string trajectoryResultToString(const TrajectoryResult result);
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
-  // Spline target velocities and accelerations use finer resolution than MULT_JOINTSTATE.
-  // Near-zero accelerations quantised at 1e-6 create jagged acceleration profiles that can trigger
-  // controller faults.
+  // Spline vel/acc need finer resolution: quantising near-zero values at 1e-6 causes controller faults.
   static const int32_t MULT_VEL_ACC = 100000000;
   static const int MESSAGE_LENGTH = 21;
 

@@ -198,8 +198,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       throw UnsupportedMotionType();
   }
 
-  // Spline points carry per-sample velocities and accelerations in the second and third block,
-  // These need a finer resolution than profile parameters other motion types store.
+  // Only spline points carry per-sample vel/acc in the second and third block.
   const int32_t second_third_block_mult = primitive->type == MotionType::SPLINE ? MULT_VEL_ACC : MULT_JOINTSTATE;
 
   size_t index = 0;
