@@ -198,28 +198,19 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       throw UnsupportedMotionType();
   }
 
-  // Only spline points carry per-sample vel/acc in the second and third block.
-  const int32_t second_third_block_mult = primitive->type == MotionType::SPLINE ? MULT_VEL_ACC : MULT_JOINTSTATE;
-
   size_t index = 0;
-  for (auto const& pos : first_block)
-  {
-    int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-    buffer[index] = htobe32(val);
-    index++;
-  }
-  for (auto const& item : second_block)
-  {
-    int32_t val = static_cast<int32_t>(round(item * second_third_block_mult));
-    buffer[index] = htobe32(val);
-    index++;
-  }
-  for (auto const& item : third_block)
-  {
-    int32_t val = static_cast<int32_t>(round(item * second_third_block_mult));
-    buffer[index] = htobe32(val);
-    index++;
-  }
+  auto write_block = [&buffer, &index](const vector6d_t& block, const int32_t mult) {
+    for (auto const& item : block)
+    {
+      buffer[index++] = htobe32(static_cast<int32_t>(round(item * mult)));
+    }
+  };
+
+  // Only spline points carry per-sample vel/acc in the second and third block.
+  const int32_t vel_acc_mult = primitive->type == MotionType::SPLINE ? MULT_VEL_ACC : MULT_JOINTSTATE;
+  write_block(first_block, MULT_JOINTSTATE);
+  write_block(second_block, vel_acc_mult);
+  write_block(third_block, vel_acc_mult);
 
   int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
   buffer[index] = htobe32(val);
