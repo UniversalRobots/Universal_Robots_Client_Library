@@ -63,6 +63,10 @@ std::string trajectoryResultToString(const TrajectoryResult result);
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
+  // Spline target velocities and accelerations use finer resolution than MULT_JOINTSTATE.
+  // Near-zero accelerations quantised at 1e-6 create jagged acceleration profiles that can trigger
+  // controller faults.
+  static const int32_t MULT_VEL_ACC = 100000000;
   static const int MESSAGE_LENGTH = 21;
 
   TrajectoryPointInterface() = delete;
@@ -148,6 +152,7 @@ protected:
 
 private:
   const double MAX_GOAL_TIME_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_TIME;
+  const double MAX_VEL_ACC_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_VEL_ACC;
 
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;

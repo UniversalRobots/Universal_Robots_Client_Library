@@ -29,6 +29,8 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
 #include <urcl_3rdparty/portable_endian.h>
+#include <algorithm>
+#include <cmath>
 #include <math.h>
 #include <cstdint>
 #include <stdexcept>
@@ -95,6 +97,23 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   {
     URCL_LOG_ERROR("Motion primitive duration is too long. Maximum allowed duration is %f seconds.", MAX_GOAL_TIME_);
     return false;
+  }
+
+  if (primitive->type == MotionType::SPLINE)
+  {
+    auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
+    auto within_range = [this](const vector6d_t& values) {
+      return std::all_of(values.begin(), values.end(),
+                         [this](const double value) { return std::abs(value) <= MAX_VEL_ACC_; });
+    };
+    if (!within_range(spline_primitive->target_velocities) ||
+        (spline_primitive->target_accelerations.has_value() &&
+         !within_range(spline_primitive->target_accelerations.value())))
+    {
+      URCL_LOG_ERROR("Spline point velocity or acceleration out of range. Maximum allowed magnitude is %f.",
+                     MAX_VEL_ACC_);
+      return false;
+    }
   }
 
   if (client_fd_ == -1)
@@ -179,6 +198,10 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
       throw UnsupportedMotionType();
   }
 
+  // Spline points carry per-sample velocities and accelerations in the second and third block,
+  // These need a finer resolution than profile parameters other motion types store.
+  const int32_t second_third_block_mult = primitive->type == MotionType::SPLINE ? MULT_VEL_ACC : MULT_JOINTSTATE;
+
   size_t index = 0;
   for (auto const& pos : first_block)
   {
@@ -188,13 +211,13 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   }
   for (auto const& item : second_block)
   {
-    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
+    int32_t val = static_cast<int32_t>(round(item * second_third_block_mult));
     buffer[index] = htobe32(val);
     index++;
   }
   for (auto const& item : third_block)
   {
-    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
+    int32_t val = static_cast<int32_t>(round(item * second_third_block_mult));
     buffer[index] = htobe32(val);
     index++;
   }

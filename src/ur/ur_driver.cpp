@@ -49,6 +49,7 @@ namespace urcl
 static const std::string BEGIN_REPLACE("BEGIN_REPLACE");
 static const std::string JOINT_STATE_REPLACE("JOINT_STATE_REPLACE");
 static const std::string TIME_REPLACE("TIME_REPLACE");
+static const std::string VEL_ACC_REPLACE("VEL_ACC_REPLACE");
 static const std::string SERVO_J_REPLACE("SERVO_J_REPLACE");
 static const std::string SERVER_IP_REPLACE("SERVER_IP_REPLACE");
 static const std::string SERVER_PORT_REPLACE("SERVER_PORT_REPLACE");
@@ -111,6 +112,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   control::ScriptReader::DataDict data;
   data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
   data[TIME_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_TIME);
+  data[VEL_ACC_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_VEL_ACC);
   std::ostringstream out;
   out << "lookahead_time=" << servoj_lookahead_time_ << ", gain=" << servoj_gain_;
   data[SERVO_J_REPLACE] = out.str();

@@ -460,6 +460,7 @@ TEST_F(ScriptReaderTest, TestParsingExternalControl)
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
@@ -500,6 +501,7 @@ TEST_F(ScriptReaderTest, TestDirectTorquePopupOnOldVersion)
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
@@ -527,6 +529,7 @@ TEST_F(ScriptReaderTest, TestFrictionCompensationConstantsAndHandlerPolyScope523
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
@@ -557,6 +560,7 @@ TEST_F(ScriptReaderTest, TestFrictionCompensationConstantsAndHandlerPolyScope101
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
@@ -588,6 +592,7 @@ TEST_F(ScriptReaderTest, TestFrictionScalesConstantsAndHandler)
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
@@ -861,6 +866,7 @@ TEST_F(ScriptReaderTest, TestProduceAllScriptFiles)
   data["BEGIN_REPLACE"] = "";
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
