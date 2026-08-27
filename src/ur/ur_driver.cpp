@@ -147,6 +147,21 @@ void UrDriver::init(const UrDriverConfiguration& config)
   script_reader_.reset(new control::ScriptReader());
   std::string prog = script_reader_->readScriptFile(config.script_file, data);
 
+  // Legacy scripts decode spline vel/acc with MULT_jointstate; only scripts defining MULT_velacc
+  // use the finer encoding.
+  if (script_reader_->wasVariableUsed(VEL_ACC_REPLACE))
+  {
+    trajectory_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
+  }
+  else
+  {
+    URCL_LOG_WARN("The provided control script does not contain the '{{%s}}' placeholder. Falling back to legacy "
+                  "spline velocity / acceleration encoding with reduced precision. Please update your control script "
+                  "to benefit from the increased precision.",
+                  VEL_ACC_REPLACE.c_str());
+    trajectory_interface_->setVelAccMultiplier(control::ReverseInterface::MULT_JOINTSTATE);
+  }
+
   if (in_headless_mode_)
   {
     full_robot_program_ = "stop program\n";

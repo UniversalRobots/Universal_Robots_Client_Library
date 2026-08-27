@@ -101,17 +101,18 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
 
   if (primitive->type == MotionType::SPLINE)
   {
+    const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) / mult_vel_acc_;
     auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
-    auto within_range = [this](const vector6d_t& values) {
+    auto within_range = [max_vel_acc](const vector6d_t& values) {
       return std::all_of(values.begin(), values.end(),
-                         [this](const double value) { return std::abs(value) <= MAX_VEL_ACC_; });
+                         [max_vel_acc](const double value) { return std::abs(value) <= max_vel_acc; });
     };
     if (!within_range(spline_primitive->target_velocities) ||
         (spline_primitive->target_accelerations.has_value() &&
          !within_range(spline_primitive->target_accelerations.value())))
     {
       URCL_LOG_ERROR("Spline point velocity or acceleration out of range. Maximum allowed magnitude is %f.",
-                     MAX_VEL_ACC_);
+                     max_vel_acc);
       return false;
     }
   }
@@ -207,7 +208,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   };
 
   // Only spline points carry per-sample vel/acc in the second and third block.
-  const int32_t vel_acc_mult = primitive->type == MotionType::SPLINE ? MULT_VEL_ACC : MULT_JOINTSTATE;
+  const int32_t vel_acc_mult = primitive->type == MotionType::SPLINE ? mult_vel_acc_ : MULT_JOINTSTATE;
   write_block(first_block, MULT_JOINTSTATE);
   write_block(second_block, vel_acc_mult);
   write_block(third_block, vel_acc_mult);
@@ -339,6 +340,11 @@ void TrajectoryPointInterface::messageCallback([[maybe_unused]] const socket_t f
     URCL_LOG_WARN("Received %d bytes on TrajectoryPointInterface. Expecting 4 bytes, so ignoring this message",
                   nbytesrecv);
   }
+}
+
+void TrajectoryPointInterface::setVelAccMultiplier(const int32_t multiplier)
+{
+  mult_vel_acc_ = multiplier;
 }
 
 void TrajectoryPointInterface::setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)

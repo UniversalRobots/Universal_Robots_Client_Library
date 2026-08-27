@@ -135,6 +135,18 @@ public:
    */
   bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
+  /*!
+   * \brief Sets the multiplier used to encode spline point velocities and accelerations.
+   *
+   * Spline velocities and accelerations in legacy scripts have a coarser multiplier
+   * so the encoding has to match the running script. Defaults to the modern
+   * multiplier.
+   *
+   * \param multiplier The multiplier the running control script uses to decode spline velocities
+   * and accelerations.
+   */
+  void setVelAccMultiplier(const int32_t multiplier);
+
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback);
 
   uint32_t addTrajectoryEndCallback(const std::function<void(TrajectoryResult)>& callback);
@@ -150,7 +162,8 @@ protected:
 
 private:
   const double MAX_GOAL_TIME_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_TIME;
-  const double MAX_VEL_ACC_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_VEL_ACC;
+
+  int32_t mult_vel_acc_ = MULT_VEL_ACC;
 
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;

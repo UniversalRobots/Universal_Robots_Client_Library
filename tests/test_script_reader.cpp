@@ -105,6 +105,29 @@ TEST_F(ScriptReaderTest, ReadNonExistentScript)
   EXPECT_THROW(reader.readScriptFile(invalid_script_path_), std::runtime_error);
 }
 
+TEST_F(ScriptReaderTest, WasVariableUsedTracksSubstitutedPlaceholders)
+{
+  std::ofstream script(valid_script_path_);
+  script << "MULT_velacc = {{VEL_ACC_REPLACE}}";
+  script.close();
+
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
+  data["UNUSED_KEY"] = 42;
+
+  reader.readScriptFile(valid_script_path_, data);
+  EXPECT_TRUE(reader.wasVariableUsed("VEL_ACC_REPLACE"));
+  EXPECT_FALSE(reader.wasVariableUsed("UNUSED_KEY"));
+
+  // Tracking is reset on each read.
+  std::ofstream plain_script(valid_script_path_);
+  plain_script << "movej([0,0,0,0,0,0])";
+  plain_script.close();
+  reader.readScriptFile(valid_script_path_, data);
+  EXPECT_FALSE(reader.wasVariableUsed("VEL_ACC_REPLACE"));
+}
+
 TEST_F(ScriptReaderTest, ReplaceIncludes)
 {
   ScriptReader reader;

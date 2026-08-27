@@ -125,6 +125,10 @@ where
    scaling quantizes near-zero accelerations, causing reconstructed acceleration
    profile to become jagged, which can trigger controller faults. Values exceeding the maximum magnitude are rejected by the library.
 
+   Finer scaling is only used when the control script defines the matching multiplier through
+   the ``{{VEL_ACC_REPLACE}}`` placeholder. For user-supplied scripts without that placeholder the
+   library falls back to encoding spline velocities and accelerations with ``MULT_JOINTSTATE``.
+
 .. note::
    The ``*_POSE`` / ``*_JOINT`` motion-type variants let callers mix joint-space and Cartesian
    targets freely through the high-level APIs (see :ref:`instruction_executor` and the
