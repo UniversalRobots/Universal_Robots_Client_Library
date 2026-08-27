@@ -179,9 +179,9 @@ std::filesystem::path canonicalizeOrThrow(const std::filesystem::path& input, co
 }
 }  // namespace
 
-bool ScriptReader::wasVariableUsed(const std::string& key) const
+bool ScriptReader::isVariableRegistered(const std::string& key) const
 {
-  return used_variables_.count(key) != 0;
+  return variable_registry_.count(key) != 0;
 }
 
 std::string ScriptReader::readScriptFile(const std::string& filename, const DataDict& data)
@@ -195,7 +195,7 @@ std::string ScriptReader::readScriptFile(const std::string& filename, const Data
   current_dir_.clear();
   include_stack_.clear();
   include_depth_ = 0;
-  used_variables_.clear();
+  variable_registry_.clear();
 
   return readScriptFileImpl(canonical_input, data);
 }
@@ -226,7 +226,7 @@ std::string ScriptReader::readScriptFileImpl(const std::filesystem::path& canoni
   try
   {
     script_code = readFileContent(path_key);
-    replaceVariables(script_code, data, used_variables_);
+    replaceVariables(script_code, data, variable_registry_);
     replaceConditionals(script_code, data);
     replaceIncludes(script_code, data);
   }
@@ -312,7 +312,7 @@ void ScriptReader::replaceIncludes(std::string& script, const DataDict& data)
 }
 
 void ScriptReader::replaceVariables(std::string& script_code, const DataDict& data,
-                                    std::unordered_set<std::string>& used_variables)
+                                    std::unordered_set<std::string>& variable_registry)
 {
   std::regex pattern(R"(\{\{\s*([\w-]+)\s*\}\})");
   std::smatch match;
@@ -326,7 +326,7 @@ void ScriptReader::replaceVariables(std::string& script_code, const DataDict& da
       URCL_LOG_ERROR(ss.str().c_str());
       throw UnknownVariable(ss.str().c_str());
     }
-    used_variables.insert(key);
+    variable_registry.insert(key);
     std::string replaced_value;
 
     if (std::holds_alternative<std::string>(data.at(key)))

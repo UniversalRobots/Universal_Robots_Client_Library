@@ -105,7 +105,7 @@ TEST_F(ScriptReaderTest, ReadNonExistentScript)
   EXPECT_THROW(reader.readScriptFile(invalid_script_path_), std::runtime_error);
 }
 
-TEST_F(ScriptReaderTest, WasVariableUsedTracksSubstitutedPlaceholders)
+TEST_F(ScriptReaderTest, VariableRegistryTracksSubstitutedPlaceholders)
 {
   std::ofstream script(valid_script_path_);
   script << "MULT_velacc = {{VEL_ACC_REPLACE}}";
@@ -117,15 +117,15 @@ TEST_F(ScriptReaderTest, WasVariableUsedTracksSubstitutedPlaceholders)
   data["UNUSED_KEY"] = 42;
 
   reader.readScriptFile(valid_script_path_, data);
-  EXPECT_TRUE(reader.wasVariableUsed("VEL_ACC_REPLACE"));
-  EXPECT_FALSE(reader.wasVariableUsed("UNUSED_KEY"));
+  EXPECT_TRUE(reader.isVariableRegistered("VEL_ACC_REPLACE"));
+  EXPECT_FALSE(reader.isVariableRegistered("UNUSED_KEY"));
 
   // Tracking is reset on each read.
   std::ofstream plain_script(valid_script_path_);
   plain_script << "movej([0,0,0,0,0,0])";
   plain_script.close();
   reader.readScriptFile(valid_script_path_, data);
-  EXPECT_FALSE(reader.wasVariableUsed("VEL_ACC_REPLACE"));
+  EXPECT_FALSE(reader.isVariableRegistered("VEL_ACC_REPLACE"));
 }
 
 TEST_F(ScriptReaderTest, ReplaceIncludes)

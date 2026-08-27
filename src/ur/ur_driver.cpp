@@ -149,7 +149,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
 
   // Legacy scripts decode spline vel/acc with MULT_jointstate; only scripts defining MULT_velacc
   // use the finer encoding.
-  if (script_reader_->wasVariableUsed(VEL_ACC_REPLACE))
+  if (script_reader_->isVariableRegistered(VEL_ACC_REPLACE))
   {
     trajectory_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   }
