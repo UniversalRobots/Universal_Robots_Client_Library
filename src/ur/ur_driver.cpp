@@ -155,9 +155,8 @@ void UrDriver::init(const UrDriverConfiguration& config)
   }
   else
   {
-    URCL_LOG_WARN("The provided control script does not contain the '{{%s}}' placeholder. Falling back to legacy "
-                  "spline velocity / acceleration encoding with reduced precision. Please update your control script "
-                  "to benefit from the increased precision.",
+    URCL_LOG_WARN("Control script does not contain the '{{%s}}' placeholder. Falling back to legacy spline vel/acc "
+                  "encoding with reduced precision.",
                   VEL_ACC_REPLACE.c_str());
     trajectory_interface_->setVelAccMultiplier(control::ReverseInterface::MULT_JOINTSTATE);
   }

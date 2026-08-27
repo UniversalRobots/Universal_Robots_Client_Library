@@ -105,7 +105,7 @@ TEST_F(ScriptReaderTest, ReadNonExistentScript)
   EXPECT_THROW(reader.readScriptFile(invalid_script_path_), std::runtime_error);
 }
 
-TEST_F(ScriptReaderTest, VariableRegistryTracksSubstitutedPlaceholders)
+TEST_F(ScriptReaderTest, VariableRegistry)
 {
   std::ofstream script(valid_script_path_);
   script << "MULT_velacc = {{VEL_ACC_REPLACE}}";
