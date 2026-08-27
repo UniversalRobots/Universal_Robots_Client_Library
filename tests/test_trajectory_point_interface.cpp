@@ -413,7 +413,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_postions)
 
 TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
   urcl::vector6d_t send_vel = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
   urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
@@ -458,7 +457,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
 
 TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
   urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.3 };
   urcl::vector6d_t send_acc = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -503,7 +501,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
 
 TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
   urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
   urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
@@ -521,7 +518,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)
 
 TEST_F(TrajectoryPointInterfaceTest, write_splines_accelerations)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
   urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
   urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
@@ -605,7 +601,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_rejects_goal_time_above_max_encodable
 // Near-zero spline vel/acc must survive the int32 roundtrip instead of collapsing to zero.
 TEST_F(TrajectoryPointInterfaceTest, write_spline_preserves_near_zero_velocity_and_acceleration)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   urcl::vector6d_t send_pos = { 0, 0, 0, 0, 0, 0 };
   urcl::vector6d_t send_vel = { 1e-5, -1e-5, 3.4e-6, -3.4e-6, 9.9e-5, -9.9e-5 };
   urcl::vector6d_t send_acc = { 2.3e-5, -2.3e-5, 7e-6, -7e-6, 5.5e-5, -5.5e-5 };
@@ -629,7 +624,6 @@ TEST_F(TrajectoryPointInterfaceTest, write_spline_preserves_near_zero_velocity_a
 // Spline velocities and accelerations are capped by int32 range at MULT_VEL_ACC resolution.
 TEST_F(TrajectoryPointInterfaceTest, write_rejects_spline_velocity_or_acceleration_above_max_encodable)
 {
-  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_VEL_ACC);
   const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) /
                              static_cast<double>(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
 
