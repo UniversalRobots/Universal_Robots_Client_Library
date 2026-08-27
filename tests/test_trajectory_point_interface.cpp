@@ -637,9 +637,10 @@ TEST_F(TrajectoryPointInterfaceTest, write_rejects_spline_velocity_or_accelerati
   client_->getData();
 }
 
-// Legacy scripts decode spline vel/acc with MULT_JOINTSTATE, so that has to stay the default.
-TEST_F(TrajectoryPointInterfaceTest, spline_vel_acc_default_to_legacy_encoding)
+// Legacy scripts decode spline vel/acc with the coarser multiplier; the encoding must follow suit.
+TEST_F(TrajectoryPointInterfaceTest, spline_vel_acc_legacy_encoding_can_be_selected)
 {
+  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_JOINTSTATE);
   urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
   urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
   urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
