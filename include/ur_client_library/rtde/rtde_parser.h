@@ -49,6 +49,9 @@ public:
   /*!
    * \brief Creates a new RTDEParser object, registering the used recipe.
    *
+   * The data types belonging to the recipe are only known once the robot has acknowledged it, so
+   * setRecipeTypes() has to be called before data packages can be parsed.
+   *
    * \param recipe The recipe used in RTDE data communication
    */
   RTDEParser(const std::vector<std::string>& recipe) : recipe_(recipe), protocol_version_(1)
@@ -94,8 +97,32 @@ public:
     return protocol_version_;
   }
 
+protected:
+  // Relays the data types from the robot's setup acknowledgement, which only the client receives.
+  friend class RTDEClient;
+
+  /*!
+   * \brief Registers the data types belonging to the recipe, as reported by the robot in the RTDE
+   * setup acknowledgement.
+   *
+   * This has to be called before the robot starts sending data packages, i.e. before the
+   * RTDE_CONTROL_PACKAGE_START request is sent.
+   *
+   * \param types The data types, in the same order as the recipe
+   */
+  void setRecipeTypes(const std::vector<std::string>& types)
+  {
+    recipe_types_ = types;
+  }
+
 private:
+  static std::unique_ptr<DataPackage> makeTypedDataPackage(const std::vector<std::string>& recipe,
+                                                           const std::vector<std::string>& types,
+                                                           const uint16_t protocol_version);
+
   std::vector<std::string> recipe_;
+  std::vector<std::string> recipe_types_;
+  bool recipeTypesKnown() const;
   PackageType getPackageTypeFromHeader(comm::BinParser& bp) const;
   RTDEPackage* createNewPackageFromType(PackageType type) const;
 

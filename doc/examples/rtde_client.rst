@@ -56,15 +56,18 @@ fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
    :start-at: auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
    :end-before: // Change the speed slider
 
+Creating the package we read into is the last allocation the read path makes; the loop below reuses
+the same package. The recipe only names the fields, so the first package received is also what tells
+this one what type each of its fields has, which needs no further memory.
+
 In our main loop, we wait for a new data package to arrive using the blocking read method. Once
 received, data from the received package can be accessed using the ``getData()`` method of the
 ``DataPackage`` object. This method takes the key of the data to be accessed as a parameter and
 returns the corresponding value.
 
 .. note:: The key used to access data has to be part of the output recipe used to initialize the RTDE
-   client. Passing a string literal, e.g. ``"actual_q"``, is possible but not recommended as it is
-   converted to an ``std::string`` automatically, causing heap allocations which should be avoided
-   in Real-Time contexts.
+   client. ``getData()`` returns ``false`` for an unknown key, and also if the type of the passed
+   variable doesn't match the type the robot reported for that field.
 
 Writing Data to the RTDE client
 -------------------------------

@@ -290,17 +290,17 @@ TEST_F(RTDEClientTest, output_recipe_file)
   }
 }
 
+// The robot is the authority on which fields exist and what type they have, so a typo in a recipe
+// is reported when the robot rejects it during init(), not already at construction time.
 TEST_F(RTDEClientTest, input_recipe_with_invalid_key)
 {
   std::vector<std::string> actual_input_recipe = resources_input_recipe_;
   actual_input_recipe.push_back("i_do_not_exist");
 
-  EXPECT_THAT(
-      [&]() {
-        client_.reset(
-            new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe));
-      },
-      testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_exist")));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, resources_output_recipe_, actual_input_recipe));
+
+  EXPECT_THAT([&]() { client_->init(); }, testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_"
+                                                                                                             "exist")));
 }
 
 TEST_F(RTDEClientTest, output_recipe_with_invalid_key)
@@ -308,12 +308,10 @@ TEST_F(RTDEClientTest, output_recipe_with_invalid_key)
   std::vector<std::string> actual_output_recipe = resources_output_recipe_;
   actual_output_recipe.push_back("i_do_not_exist");
 
-  EXPECT_THAT(
-      [&]() {
-        client_.reset(
-            new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, actual_output_recipe, resources_input_recipe_));
-      },
-      testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_exist")));
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, actual_output_recipe, resources_input_recipe_));
+
+  EXPECT_THAT([&]() { client_->init(); }, testing::ThrowsMessage<RTDEInvalidKeyException>(testing::HasSubstr("i_do_not_"
+                                                                                                             "exist")));
 
   TestableRTDEClient client(g_ROBOT_IP, notifier_, resources_output_recipe_, resources_input_recipe_);
   client.injectOutputRecipe(actual_output_recipe);
@@ -445,7 +443,7 @@ TEST_F(RTDEClientTest, get_data_package_fake_server)
 
   // Test that we can receive a package and extract data from the received package
   const std::chrono::milliseconds read_timeout{ 100 };
-  auto data_pkg = rtde_interface::DataPackage(client_->getOutputRecipe());
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   if (!client_->getDataPackage(data_pkg, read_timeout))
   {
     std::cout << "Failed to get data package from robot" << std::endl;
@@ -471,7 +469,7 @@ TEST_F(RTDEClientTest, destroy_client_after_server_stops_sending)
   URCL_LOG_INFO("Receiving data package from fake server to verify that connection is working.");
 
   const std::chrono::milliseconds read_timeout{ 100 };
-  auto data_pkg = rtde_interface::DataPackage(client_->getOutputRecipe());
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
   double timestamp = 0.0;
@@ -771,30 +769,35 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
 {
   client_->init();
 
-  std::vector<std::string> incorrect_output_recipe = client_->getOutputRecipe();
+  const VersionInformation robot_version = client_->getVersion();
+  const std::vector<std::string> output_recipe = client_->getOutputRecipe();
+  std::vector<std::string> incorrect_output_recipe = output_recipe;
   incorrect_output_recipe.push_back("unknown_rtde_variable");
 
+  // Only one client can hold the RTDE input recipe at a time, so disconnect before setting up the
+  // next one.
+  client_.reset();
+
   // If unknown variables are not ignored, initialization should fail
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
-                                                            resources_input_recipe_, 0.0, false)),
-               RTDEInvalidKeyException);
+  auto client = std::make_unique<rtde_interface::RTDEClient>(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                             resources_input_recipe_, 0.0, false);
+  EXPECT_THROW(client->init(), RTDEInvalidKeyException);
 
   // Unknown variables (by the control box) can be ignored, so initialization should succeed
-  if ((client_->getVersion().major == 5 && client_->getVersion().minor < 23) ||
-      (client_->getVersion().major == 10 && client_->getVersion().minor < 11))
+  if ((robot_version.major == 5 && robot_version.minor < 23) || (robot_version.major == 10 && robot_version.minor < 11))
   {
-    std::vector<std::string> output_recipe = client_->getOutputRecipe();
-    output_recipe.push_back("actual_robot_energy_consumed");  // That has been added in 5.23.0 / 10.11.0
-    client_.reset(
-        new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe, resources_input_recipe_, 0.0, true));
-    EXPECT_TRUE(client_->init());
+    std::vector<std::string> newer_output_recipe = output_recipe;
+    newer_output_recipe.push_back("actual_robot_energy_consumed");  // That has been added in 5.23.0 / 10.11.0
+    client = std::make_unique<rtde_interface::RTDEClient>(g_ROBOT_IP, notifier_, newer_output_recipe,
+                                                          resources_input_recipe_, 0.0, true);
+    EXPECT_TRUE(client->init());
   }
 
   // Passing a completely unknown variable should still lead to an exception, even if unknown
   // variables are ignored.
-  EXPECT_THROW(client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, incorrect_output_recipe,
-                                                            resources_input_recipe_, 0.0, true)),
-               RTDEInvalidKeyException);
+  client = std::make_unique<rtde_interface::RTDEClient>(g_ROBOT_IP, notifier_, incorrect_output_recipe,
+                                                        resources_input_recipe_, 0.0, true);
+  EXPECT_THROW(client->init(), RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientTest, empty_input_recipe)

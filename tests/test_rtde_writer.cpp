@@ -34,6 +34,9 @@
 #include <ur_client_library/rtde/rtde_writer.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/bin_parser.h>
+#include <ur_client_library/helpers.h>
+
+#include "rtde_test_helpers.h"
 
 using namespace urcl;
 
@@ -53,7 +56,8 @@ protected:
     stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60004));
     stream_->connect();
 
-    writer_.reset(new rtde_interface::RTDEWriter(stream_.get(), input_recipe_));
+    writer_.reset(new test::TestableRTDEWriter(stream_.get(), input_recipe_));
+    writer_->setRecipeTypes(input_recipe_types_);
     writer_->init(1);
   }
 
@@ -124,7 +128,11 @@ protected:
                                              "input_int_register_25",
                                              "input_double_register_25",
                                              "external_force_torque" };
-  std::unique_ptr<rtde_interface::RTDEWriter> writer_;
+  // The data types the robot would report for the recipe above when acknowledging it
+  std::vector<std::string> input_recipe_types_ = { "UINT32", "DOUBLE", "UINT8",  "UINT8",   "UINT8",  "UINT8",
+                                                   "UINT8",  "UINT8",  "UINT8",  "UINT8",   "DOUBLE", "DOUBLE",
+                                                   "BOOL",   "INT32",  "DOUBLE", "VECTOR6D" };
+  std::unique_ptr<test::TestableRTDEWriter> writer_;
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
   std::unordered_map<std::string, input_types> parsed_data_;
@@ -189,6 +197,23 @@ TEST_F(RTDEWriterTest, send_speed_slider)
   // Setting speed slider fraction below 0 or above 1, should return false
   EXPECT_FALSE(writer_->sendSpeedSlider(-1));
   EXPECT_FALSE(writer_->sendSpeedSlider(2));
+}
+
+TEST_F(RTDEWriterTest, masks_do_not_leak_into_the_following_package)
+{
+  // A mask tells the robot which of the fields in a package it should actually act on, so a mask
+  // left over from a previous send would make the robot re-apply a value the caller didn't ask for.
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.5));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  ASSERT_EQ(std::get<uint32_t>(parsed_data_["speed_slider_mask"]), 1);
+
+  ASSERT_TRUE(writer_->sendStandardDigitalOutput(2, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  // Parsing the second package at all only works if resetting the mask kept its data type, since
+  // the type decides how many bytes the field takes up on the wire.
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["speed_slider_mask"]), 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]), 4);
 }
 
 TEST_F(RTDEWriterTest, send_standard_digital_output)
@@ -518,6 +543,56 @@ TEST_F(RTDEWriterTest, send_data_package)
   EXPECT_EQ(send_speed_slider_mask, received_speed_slider_mask);
   EXPECT_EQ(standard_digital_output_value, received_standard_digital_output_value);
   EXPECT_EQ(standard_digital_output_mask, received_standard_digital_output_mask);
+}
+
+// The fields an application leaves alone are sent as zeros, so a package means the same thing no
+// matter which values happened to be sent before it.
+TEST_F(RTDEWriterTest, unset_fields_are_sent_as_zeros)
+{
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.7));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  ASSERT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.7);
+
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+  ASSERT_TRUE(writer_->sendPackage(data_package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
+  EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+// The robot is the authority on a field's type, so writing one with the wrong type has to be
+// reported rather than serialized into a package the robot would misread.
+TEST_F(RTDEWriterTest, send_data_package_with_wrong_field_type_fails)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  // The robot reports speed_slider_mask as UINT32
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+TEST_F(RTDEWriterTest, send_data_package_with_unknown_field_fails)
+{
+  rtde_interface::DataPackage data_package({ "not_a_field_the_robot_knows" });
+  ASSERT_TRUE(data_package.setData("not_a_field_the_robot_knows", 1.0));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+// Until the robot has reported the data types of the input recipe, there is nothing to serialize
+// against.
+TEST_F(RTDEWriterTest, send_data_package_before_types_are_known_fails)
+{
+  rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.5));
+
+  EXPECT_FALSE(writer.sendPackage(data_package));
 }
 
 TEST_F(RTDEWriterTest, init_while_running_throws)

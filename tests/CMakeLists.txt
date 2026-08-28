@@ -212,6 +212,21 @@ target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl GTest::g
 gtest_add_tests(TARGET      rtde_parser_tests
 )
 
+# Checks that exchanging RTDE data doesn't allocate once the recipes have been set up. Uses the
+# in-process fake RTDE server, so it runs without a robot.
+add_executable(rtde_allocation_tests test_rtde_allocations.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_allocation_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_allocation_tests
+)
+
+# Covers RTDEClient's public interface against the in-process fake RTDE server. The tests in
+# test_rtde_client.cpp go further but need a reachable robot, so they only run with INTEGRATION_TESTS.
+add_executable(rtde_client_fake_server_tests test_rtde_client_fake_server.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_client_fake_server_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_client_fake_server_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_executable(tcp_server_tests test_tcp_server.cpp)
 if (MSVC)
   target_compile_options(tcp_server_tests PRIVATE /Zc:lambda)

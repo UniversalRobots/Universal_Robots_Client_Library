@@ -27,6 +27,28 @@ namespace urcl
 {
 namespace rtde_interface
 {
+// A package allocates its storage from the recipe and learns its field types from the robot's
+// acknowledgement afterwards, which costs no memory.
+std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage(const std::vector<std::string>& recipe,
+                                                              const std::vector<std::string>& types,
+                                                              const uint16_t protocol_version)
+{
+  auto package = std::make_unique<DataPackage>(recipe, protocol_version);
+  package->initEmpty(types);
+  return package;
+}
+
+bool RTDEParser::recipeTypesKnown() const
+{
+  if (recipe_types_.size() == recipe_.size())
+  {
+    return true;
+  }
+  URCL_LOG_ERROR("Received an RTDE data package while the data types of the output recipe are unknown. Those are "
+                 "reported by the robot when it acknowledges the recipe, so this means a data package arrived before "
+                 "the RTDE handshake was completed.");
+  return false;
+}
 
 bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
 {
@@ -54,7 +76,11 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
-      std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_, protocol_version_));
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
+      std::unique_ptr<RTDEPackage> package = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
 
       if (!package->parseWith(bp))
       {
@@ -104,6 +130,10 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
       if (result == nullptr || result->getType() != PackageType::RTDE_DATA_PACKAGE)
       {
         if (result == nullptr)
@@ -119,10 +149,30 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
                         "a DataPackage would be sent.",
                         result->getType());
         }
-        result = std::make_unique<DataPackage>(recipe_, protocol_version_);
+        result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
       }
 
-      if (!dynamic_cast<DataPackage*>(result.get())->parseWith(bp))
+      DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
+      if (!data_package->isTyped())
+      {
+        // A package built from a recipe alone doesn't know its field types yet. Applying the ones
+        // the robot reported doesn't allocate, so this happens right here rather than by handing
+        // the caller a replacement package.
+        try
+        {
+          data_package->initEmpty(recipe_types_);
+        }
+        catch (const UrException& e)
+        {
+          URCL_LOG_ERROR("The passed pre-allocated DataPackage does not fit the negotiated output recipe (%s). A new "
+                         "DataPackage will have to be allocated.",
+                         e.what());
+          result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
+          data_package = dynamic_cast<DataPackage*>(result.get());
+        }
+      }
+
+      if (!data_package->parseWith(bp))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;

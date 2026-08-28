@@ -28,6 +28,7 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 #include <mutex>
+#include "ur_client_library/helpers.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -74,11 +75,21 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
       used_masks_.push_back(field);
     }
   }
+  // All storage the send path needs is allocated here. The buffers stay unusable until the robot
+  // has reported the data types of the recipe's fields, which setRecipeTypes() then applies without
+  // allocating again.
   data_buffer0_ = std::make_shared<DataPackage>(recipe_);
   data_buffer1_ = std::make_shared<DataPackage>(recipe_);
 
   current_store_buffer_ = data_buffer0_;
   current_send_buffer_ = data_buffer1_;
+}
+
+void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  data_buffer0_->initEmpty(types);
+  data_buffer1_->initEmpty(types);
 }
 
 void RTDEWriter::init(uint8_t recipe_id)
@@ -92,6 +103,8 @@ void RTDEWriter::init(uint8_t recipe_id)
     std::lock_guard<std::mutex> lock_guard(store_mutex_);
     data_buffer0_->setRecipeID(recipe_id);
     data_buffer1_->setRecipeID(recipe_id);
+    current_store_buffer_ = data_buffer0_;
+    current_send_buffer_ = data_buffer1_;
   }
   recipe_id_ = recipe_id;
   new_data_available_ = false;
@@ -143,7 +156,20 @@ void RTDEWriter::stop()
 bool RTDEWriter::sendPackage(const DataPackage& package)
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  *current_store_buffer_ = package;
+  if (!current_store_buffer_->isTyped())
+  {
+    URCL_LOG_ERROR("Cannot send RTDE input data before the RTDE communication has been set up, as the data types of "
+                   "the input recipe are reported by the robot.");
+    return false;
+  }
+
+  // Fields the caller didn't write are sent as zeros rather than as whatever the previous package
+  // left in the buffer, so that a package means the same thing no matter what was sent before it.
+  current_store_buffer_->initEmpty();
+  if (!current_store_buffer_->copySetFieldsFrom(package))
+  {
+    return false;
+  }
   markStorageToBeSent();
   return true;
 }
@@ -404,19 +430,7 @@ void RTDEWriter::resetMasks(const std::shared_ptr<DataPackage>& buffer)
 {
   for (const auto& mask_name : used_masks_)
   {
-    // "speed_slider_mask" is uint32_t, all others are uint8_t
-    // If we reset it to the wrong type, serialization will be wrong
-    if (mask_name == "speed_slider_mask")
-
-    {
-      uint32_t mask = 0;
-      buffer->setData<uint32_t>(mask_name, mask);
-    }
-    else
-    {
-      uint8_t mask = 0;
-      buffer->setData<uint8_t>(mask_name, mask);
-    }
+    buffer->resetData(mask_name);
   }
 }
 

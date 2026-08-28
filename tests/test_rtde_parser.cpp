@@ -31,13 +31,15 @@
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/rtde/rtde_parser.h>
 
+#include "rtde_test_helpers.h"
+
 using namespace urcl;
 
 TEST(rtde_parser, request_protocol_version)
 {
   // Accepted request protocol version
   unsigned char raw_data[] = { 0x00, 0x04, 0x56, 0x01 };
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
 
   // test a non-preallocated product
   std::unique_ptr<rtde_interface::RTDEPackage> product;
@@ -83,7 +85,7 @@ TEST(rtde_parser, get_urcontrol_version)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.parse(bp, product);
 
   if (rtde_interface::GetUrcontrolVersion* data = dynamic_cast<rtde_interface::GetUrcontrolVersion*>(product.get()))
@@ -107,7 +109,7 @@ TEST(rtde_parser, control_package_pause)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.parse(bp, product);
 
   if (rtde_interface::ControlPackagePause* data = dynamic_cast<rtde_interface::ControlPackagePause*>(product.get()))
@@ -128,7 +130,7 @@ TEST(rtde_parser, control_package_start)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.parse(bp, product);
 
   if (rtde_interface::ControlPackageStart* data = dynamic_cast<rtde_interface::ControlPackageStart*>(product.get()))
@@ -150,7 +152,7 @@ TEST(rtde_parser, control_package_setup_inputs)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.parse(bp, product);
 
   if (rtde_interface::ControlPackageSetupInputs* data =
@@ -174,7 +176,7 @@ TEST(rtde_parser, control_package_setup_outputs)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.setProtocolVersion(2);
   parser.parse(bp, product);
 
@@ -200,7 +202,8 @@ TEST(rtde_parser, data_package)
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
-  rtde_interface::RTDEParser parser(recipe);
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
   parser.setProtocolVersion(2);
   parser.parse(bp, product);
 
@@ -220,6 +223,46 @@ TEST(rtde_parser, data_package)
   }
 }
 
+TEST(rtde_parser, data_package_without_recipe_types_fails)
+{
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  // Without the types from the robot's acknowledgement the payload cannot be interpreted
+  std::unique_ptr<rtde_interface::RTDEPackage> product;
+  test::TestableRTDEParser parser({ "timestamp", "target_speed_fraction" });
+  parser.setProtocolVersion(2);
+
+  EXPECT_FALSE(parser.parse(bp, product));
+}
+
+TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
+{
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(2);
+
+  // Applications that still create their packages from a recipe hand in an untyped package. It has
+  // to be usable afterwards, without being replaced by a freshly allocated one.
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+  const rtde_interface::RTDEPackage* package_address = product.get();
+
+  ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), package_address);
+
+  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+}
+
 TEST(rtde_parser, test_to_string)
 {
   // Non-existent type
@@ -227,7 +270,7 @@ TEST(rtde_parser, test_to_string)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   parser.parse(bp, product);
 
   std::stringstream expected;
@@ -244,7 +287,7 @@ TEST(rtde_parser, test_buffer_too_short)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   EXPECT_FALSE(parser.parse(bp, product));
 }
 
@@ -255,7 +298,7 @@ TEST(rtde_parser, test_buffer_too_long)
   comm::BinParser bp(raw_data, sizeof(raw_data));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
-  rtde_interface::RTDEParser parser({ "" });
+  test::TestableRTDEParser parser({ "" });
   EXPECT_FALSE(parser.parse(bp, product));
 }
 
@@ -265,7 +308,8 @@ TEST(rtde_parser, test_deprecated_parse_method)
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
-  rtde_interface::RTDEParser parser(recipe);
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
   parser.setProtocolVersion(2);
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
