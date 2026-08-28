@@ -524,6 +524,30 @@ std::vector<uint16_t> RTDEServer::requestedProtocolVersions()
   return requested_protocol_versions_;
 }
 
+void RTDEServer::setAcceptStart(const bool accept)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  accept_start_ = accept;
+}
+
+void RTDEServer::setAcceptPause(const bool accept)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  accept_pause_ = accept;
+}
+
+void RTDEServer::queueTextMessageBeforeSetupOutputs(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_setup_outputs_text_messages_.push_back(message);
+}
+
+void RTDEServer::queueTextMessageBeforeSetupInputs(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_setup_inputs_text_messages_.push_back(message);
+}
+
 void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
 {
   const std::string source = "fake_rtde_server";
@@ -615,6 +639,21 @@ void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor,
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
     {
+      std::string unexpected_message;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        if (!pending_setup_outputs_text_messages_.empty())
+        {
+          unexpected_message = pending_setup_outputs_text_messages_.front();
+          pending_setup_outputs_text_messages_.pop_front();
+        }
+      }
+      if (!unexpected_message.empty())
+      {
+        sendTextMessage(filedescriptor, unexpected_message);
+        break;
+      }
+
       bp.parse(output_frequency_);
       URCL_LOG_DEBUG("Frequency is set to %f", output_frequency_);
       std::string variable_names_str;
@@ -649,6 +688,21 @@ void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor,
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_INPUTS:
     {
+      // The client sends the input recipe once, so every queued unexpected reply has to go out now.
+      std::deque<std::string> unexpected_messages;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        unexpected_messages.swap(pending_setup_inputs_text_messages_);
+      }
+      if (!unexpected_messages.empty())
+      {
+        for (const std::string& unexpected_message : unexpected_messages)
+        {
+          sendTextMessage(filedescriptor, unexpected_message);
+        }
+        break;
+      }
+
       std::string variable_names_str;
       bp.parseRemainder(variable_names_str);
       input_recipe_ = splitString(variable_names_str);
@@ -679,32 +733,46 @@ void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor,
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
+      bool accepted;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        accepted = accept_start_;
+      }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
       size_t send_size = 0;
       send_size += rtde_interface::PackageHeader::serializeHeader(
           send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START, sizeof(uint8_t));
-      bool accepted = true;
       send_size += serializer.serialize(send_buffer + send_size, accepted);
 
       size_t written = 0;
       server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
-      startSendingDataPackages();
+      if (accepted)
+      {
+        startSendingDataPackages();
+      }
       break;
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_PAUSE:
     {
+      bool accepted;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        accepted = accept_pause_;
+      }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
       size_t send_size = 0;
       send_size += rtde_interface::PackageHeader::serializeHeader(
           send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_PAUSE, sizeof(uint8_t));
-      bool accepted = true;
       send_size += serializer.serialize(send_buffer + send_size, accepted);
 
       size_t written = 0;
       server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
-      stopSendingDataPackages();
+      if (accepted)
+      {
+        stopSendingDataPackages();
+      }
       break;
     }
     case rtde_interface::PackageType::RTDE_DATA_PACKAGE:
