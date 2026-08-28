@@ -13,12 +13,13 @@ instead of from a table of field names maintained inside the library. No applica
 change for this: ``DataPackage`` is still constructed from a recipe, still allocates all of its
 storage there, and is typed by the robot's answer afterwards, which costs no memory.
 
-Three consequences are worth knowing about:
+Four consequences are worth knowing about:
 
 - **A field name the robot doesn't know is reported later.** Since the library no longer has its own
   list of field names, a typo is caught when the robot rejects the recipe during
   ``RTDEClient::init()`` rather than while constructing the ``RTDEClient``. It is still an
-  ``RTDEInvalidKeyException``, and ``ignore_unavailable_outputs`` still strips such fields instead.
+  ``RTDEInvalidKeyException``. ``ignore_unavailable_outputs`` now also strips a name no robot knows:
+  without a list of its own, the library cannot tell a typo from a field of a newer robot.
 - **A wrongly typed input field is reported when the package is sent.** ``DataPackage::setData()``
   decides a field's type from the value passed to it, so it can no longer tell on its own that the
   robot expects something else. ``RTDEWriter::sendPackage()`` checks the package against the robot's

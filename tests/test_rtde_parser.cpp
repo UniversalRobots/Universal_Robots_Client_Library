@@ -263,6 +263,64 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
   EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
+// setData() on every field makes isTyped() true, but those types did not come from the robot.
+// The parser has to re-apply the acknowledged types rather than parse the payload as integers.
+TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_retyped_from_the_robot)
+{
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(2);
+
+  auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
+  ASSERT_TRUE(package->setData("timestamp", static_cast<uint64_t>(1)));
+  ASSERT_TRUE(package->setData("target_speed_fraction", static_cast<uint64_t>(2)));
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(package);
+  const rtde_interface::RTDEPackage* package_address = product.get();
+
+  ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), package_address);
+
+  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+}
+
+// A same-length recipe with different field names must not have the robot's types applied onto it
+// in order; the parser replaces the package instead.
+TEST(rtde_parser, pre_allocated_package_with_a_different_recipe_is_replaced)
+{
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(2);
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product =
+      std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "foo", "bar" });
+  const rtde_interface::RTDEPackage* package_address = product.get();
+
+  ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_NE(product.get(), package_address);
+
+  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+}
+
 TEST(rtde_parser, untyped_pre_allocated_data_package_takes_protocol_version_1)
 {
   // Same payload as data_package, but without the recipe-id byte that only version 2 uses.

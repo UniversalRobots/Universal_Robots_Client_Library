@@ -392,6 +392,17 @@ private:
   }
 
   /*!
+   * \brief Whether this package was constructed from the same field names, in the same order.
+   *
+   * Used by the parser to tell a same-length but different recipe from the one the robot
+   * acknowledged, so it can replace the package rather than applying types onto the wrong names.
+   */
+  bool matchesRecipe(const std::vector<std::string>& recipe) const
+  {
+    return recipe_ == recipe;
+  }
+
+  /*!
    * \brief Resets a data field to a default-constructed value of its own type.
    *
    * \param name The string identifier for the data field as used in the documentation.
