@@ -95,7 +95,12 @@ public:
    * Use this if multiple values need to be sent at once. When using the other provided functions,
    * an RTDE data package will be sent each time.
    *
-   * \param package The package to send
+   * Only the fields \p package has values for are taken over; the rest of the input recipe is sent
+   * as zeros. The values are checked against the data types the robot reported for the input
+   * recipe, so a field written with the wrong type is reported here rather than silently corrupting
+   * the package.
+   *
+   * \param package The package to send, constructed from the client's input recipe
    *
    * \returns Success of the package creation
    */
@@ -191,6 +196,22 @@ public:
    * \returns Success of the package creation
    */
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
+
+protected:
+  // Relays the data types from the robot's setup acknowledgement, which only the client receives.
+  friend class RTDEClient;
+
+  /*!
+   * \brief Applies the data types the robot reported for the input recipe.
+   *
+   * This is what makes the send buffers usable, and it is also the reference against which values
+   * passed to sendPackage() are checked.
+   *
+   * \param types The data types of the input recipe's fields, in the same order as the recipe
+   *
+   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
+   */
+  void setRecipeTypes(const std::vector<std::string>& types);
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
