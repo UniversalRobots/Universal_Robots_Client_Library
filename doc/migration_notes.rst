@@ -28,6 +28,9 @@ Three consequences are worth knowing about:
   returns ``false`` and logs which type the robot reported for that field, matching what its
   documentation always promised. Code that caught that exception should check the return value
   instead.
+- **``getData()``/``setData()`` with a ``std::string`` is now a compile error.** That alternative
+  was never a protocol type, so those calls used to compile and return ``false`` at runtime. Nothing
+  could have relied on them working.
 
 On a ``DataPackage`` that hasn't been typed yet, meaning it has neither received data nor been
 written to, ``getData()`` fails with an explanatory message instead of returning stale values, and
