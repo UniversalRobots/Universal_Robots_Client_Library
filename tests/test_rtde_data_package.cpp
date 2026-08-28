@@ -449,7 +449,7 @@ TEST(rtde_data_package, untyped_package_gets_typed_by_assignment)
 
 // Applying the robot's answer to a package an application is already holding is what lets that
 // application allocate the package wherever it likes, including before the connection exists.
-TEST(rtde_data_package, applying_types_does_not_reallocate)
+TEST(rtde_data_package, applying_types_makes_the_package_usable)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   test::TestableDataPackage package(recipe);

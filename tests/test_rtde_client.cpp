@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <sstream>
 #include <thread>
 #include <iostream>
 #include "ur_client_library/comm/tcp_server.h"
@@ -569,49 +570,51 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 }
 
 #ifdef CHECK_RTDE_DOCS_RECIPE
-TEST_F(RTDEClientTest, check_rtde_data_fields_match_docs)
+TEST_F(RTDEClientTest, docs_output_fields_are_supported_by_the_controller)
 {
-  std::ifstream docs_file(docs_output_recipe_file_);
-  std::ifstream pkg_file(exhaustive_output_recipe_file_);
-  std::vector<std::string> docs_outputs;
-  std::string line;
-  while (std::getline(docs_file, line))
+  // Only the newest robot can be expected to know every documented field.
+  const char* env_var = std::getenv("URSIM_VERSION");
+  if (env_var == nullptr || std::string(env_var) != "latest")
   {
-    docs_outputs.push_back(line);
+    GTEST_SKIP() << "Not running against the latest URSim version.";
   }
-  std::vector<std::string> pkg_outputs;
-  while (std::getline(pkg_file, line))
+
+  // A scrape that silently produced nothing would let this pass without requesting a single field.
+  ASSERT_GT(rtde_interface::RTDEClient::readRecipe(docs_output_recipe_file_).size(), 100u);
+
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, docs_output_recipe_file_, input_recipe_file_, 0.0, false));
+  try
   {
-    pkg_outputs.push_back(line);
+    ASSERT_TRUE(client_->init());
   }
-  std::sort(docs_outputs.begin(), docs_outputs.end());
-  std::sort(pkg_outputs.begin(), pkg_outputs.end());
-  if (!std::is_permutation(docs_outputs.begin(), docs_outputs.end(), pkg_outputs.begin(), pkg_outputs.end()))
+  catch (const RTDEInvalidKeyException& e)
   {
-    std::cout << "Data package output fields do not match output fields in documentation" << std::endl;
-    std::unordered_map<std::string, int> diff;
-    std::cout << "Differences: " << std::endl;
-    for (auto name : docs_outputs)
+    // invalid_keys holds every documented name the controller answered NOT_FOUND for, so one run
+    // names all of them instead of stopping at the first.
+    std::stringstream names;
+    for (std::size_t i = 0; i < e.invalid_keys.size(); ++i)
     {
-      diff[name] += 1;
-    }
-    for (auto name : pkg_outputs)
-    {
-      diff[name] -= 1;
-    }
-    for (auto elem : diff)
-    {
-      if (elem.second > 0)
+      if (i != 0)
       {
-        std::cout << elem.first << " exists in documentation, but not in data package dict." << std::endl;
+        names << ", ";
       }
-      if (elem.second < 0)
-      {
-        std::cout << elem.first << " exists in data package dict, but not in documentation." << std::endl;
-      }
+      names << e.invalid_keys[i];
     }
-    GTEST_FAIL();
+    FAIL() << "The controller does not support these documented output fields: " << names.str();
   }
+
+  client_->start();
+
+  const std::chrono::milliseconds read_timeout{ 100 };
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
+
+  double timestamp;
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
+  EXPECT_GT(timestamp, 0.0);
+
+  client_->pause();
 }
 #endif
 
@@ -643,11 +646,13 @@ TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
     EXPECT_TRUE(client->init());
   }
 
-  // Passing a completely unknown variable should still lead to an exception, even if unknown
-  // variables are ignored.
+  // Ignoring unavailable fields now also covers a name no robot knows: without a list of its own,
+  // the library cannot tell a typo from a field of a newer robot. Asking the controller about the
+  // documented fields is what guards the names instead.
   client = std::make_unique<rtde_interface::RTDEClient>(g_ROBOT_IP, notifier_, incorrect_output_recipe,
                                                         resources_input_recipe_, 0.0, true);
-  EXPECT_THROW(client->init(), RTDEInvalidKeyException);
+  EXPECT_TRUE(client->init());
+  EXPECT_THAT(client->getOutputRecipe(), testing::Not(testing::Contains("unknown_rtde_variable")));
 }
 
 TEST_F(RTDEClientTest, empty_input_recipe)

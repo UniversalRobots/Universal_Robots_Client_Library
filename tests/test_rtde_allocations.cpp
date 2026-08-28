@@ -39,17 +39,24 @@
 
 #include <ur_client_library/log.h>
 #include <ur_client_library/rtde/rtde_client.h>
+#include <ur_client_library/comm/bin_parser.h>
 
 #include "fake_rtde_server.h"
+#include "rtde_test_helpers.h"
 
 using namespace urcl;
 
 namespace
 {
-// Counting is per-thread: the fake server and, in the background-read case, the client's read
-// thread run in the same process, and their allocations are none of this test's business.
+// Counting is per-thread so the fake server's allocations are not attributed to the client.
+// blocking_receive covers parse on this thread. background_receive and sending_input_data measure
+// the calling thread (copy out of the queue / copy into the store buffer); parse and serialize
+// themselves are pinned by the same-thread tests below.
 thread_local std::size_t g_allocation_count = 0;
 thread_local bool g_count_allocations = false;
+// Stores the pointer from the guard allocation so the compiler cannot prove the new/delete pair
+// is unused and omit the call to the replaced operator new (GCC's allocation DCE at -O2).
+void* volatile g_allocation_sink = nullptr;
 
 constexpr int g_FAKE_RTDE_PORT = 60005;
 constexpr double g_RTDE_FREQUENCY = 125.0;
@@ -126,23 +133,123 @@ void operator delete[](void* memory, std::size_t) noexcept
   std::free(memory);
 }
 
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept
+{
+  if (g_count_allocations)
+  {
+    ++g_allocation_count;
+  }
+  return std::malloc(size == 0 ? 1 : size);
+}
+
+void* operator new[](std::size_t size, const std::nothrow_t&) noexcept
+{
+  return operator new(size, std::nothrow);
+}
+
+void operator delete(void* memory, const std::nothrow_t&) noexcept
+{
+  std::free(memory);
+}
+
+void operator delete[](void* memory, const std::nothrow_t&) noexcept
+{
+  std::free(memory);
+}
+
+void operator delete(void* memory, std::size_t, const std::nothrow_t&) noexcept
+{
+  std::free(memory);
+}
+
+void operator delete[](void* memory, std::size_t, const std::nothrow_t&) noexcept
+{
+  std::free(memory);
+}
+
 #if defined(__GNUC__) && !defined(__clang__)
 #  pragma GCC diagnostic pop
 #endif
 
 // Guards the tests below: if the counter stopped seeing allocations, they would pass vacuously.
-// Allocate with new, not a container: on some libstdc++ / musl builds std::allocator uses malloc
-// and would never hit the replaced operator new that the RTDE tests count.
+// Call operator new directly rather than writing `new int`: a new-expression may be omitted even
+// when the pointer escapes, which is what Alpine's gcc 15 does at -O2. Allocate with operator new
+// rather than a container: on some libstdc++ / musl builds std::allocator uses malloc and would
+// never hit the replaced operator new that the RTDE tests count.
 TEST(AllocationCounterTest, counts_allocations)
 {
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    int* value = new int{ 1 };
+    g_allocation_sink = ::operator new(sizeof(int));
     allocations = counter.count();
-    delete value;
+    ::operator delete(g_allocation_sink);
+    g_allocation_sink = nullptr;
   }
   EXPECT_GT(allocations, 0);
+}
+
+TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
+{
+  test::TestableDataPackage package({ "timestamp", "actual_q" });
+  const std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+
+  std::size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    package.initEmpty(types);
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+}
+
+TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate)
+{
+  unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                               0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(2);
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+
+  std::size_t allocations = 0;
+  bool parsed = false;
+  {
+    AllocationCounter counter;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    parsed = parser.parse(bp, product);
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_TRUE(parsed);
+  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+}
+
+TEST(DataPackageAllocationTest, serializing_a_typed_package_does_not_allocate)
+{
+  auto package = test::typedPackage({ "speed_slider_mask" }, { "UINT32" });
+  ASSERT_TRUE(package.setData("speed_slider_mask", static_cast<uint32_t>(1)));
+  package.setRecipeID(1);
+  uint8_t buffer[4096];
+
+  std::size_t allocations = 0;
+  size_t size = 0;
+  {
+    AllocationCounter counter;
+    size = package.serializePackage(buffer);
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_EQ(size, 8);
 }
 
 class RTDEAllocationTest : public ::testing::Test
@@ -229,6 +336,9 @@ TEST_F(RTDEAllocationTest, background_receive_does_not_allocate)
     ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
   }
 
+  // Measured on this thread: copying the latest package out of the queue. Parse happens on the
+  // background reader and is covered by blocking_receive and parsing_a_preallocated_package.
+
   int received = 0;
   bool all_data_read = true;
   double timestamp = 0.0;
@@ -265,6 +375,9 @@ TEST_F(RTDEAllocationTest, sending_input_data_does_not_allocate)
   {
     ASSERT_TRUE(client_->getWriter().sendSpeedSlider(0.5));
   }
+
+  // Measured on this thread: setData and copying into the store buffer. serializePackage runs on
+  // the writer thread and is covered by serializing_a_typed_package.
 
   bool all_sent = true;
   std::size_t allocations = 0;

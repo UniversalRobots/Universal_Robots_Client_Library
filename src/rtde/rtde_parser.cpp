@@ -154,11 +154,18 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
       data_package->setProtocolVersion(protocol_version_);
-      if (!data_package->isTyped())
+      // Always apply the types the robot reported. isTyped() is also true after setData() on every
+      // field, which does not mean those types came from the robot, and parseWith() would then
+      // interpret the payload as the wrong layout. Applying types does not allocate.
+      if (!data_package->matchesRecipe(recipe_))
       {
-        // A package built from a recipe alone doesn't know its field types yet. Applying the ones
-        // the robot reported doesn't allocate, so this happens right here rather than by handing
-        // the caller a replacement package.
+        URCL_LOG_ERROR("The passed pre-allocated DataPackage does not fit the negotiated output recipe. A new "
+                       "DataPackage will have to be allocated.");
+        result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
+        data_package = dynamic_cast<DataPackage*>(result.get());
+      }
+      else
+      {
         try
         {
           data_package->initEmpty(recipe_types_);
