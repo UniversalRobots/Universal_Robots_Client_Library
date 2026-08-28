@@ -351,6 +351,18 @@ protected:
    */
   void initEmpty(const std::vector<std::string>& types);
 
+  /*!
+   * \brief Records the RTDE protocol version this package will parse and serialize.
+   *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The
+   * constructor defaults to version 2, so this has to be called when the handshake falls back
+   * to version 1. Assignment of a uint16_t does not allocate.
+   */
+  void setProtocolVersion(const uint16_t protocol_version)
+  {
+    protocol_version_ = protocol_version;
+  }
+
 private:
   /*!
    * \brief Whether every field of this package has a data type.
@@ -382,16 +394,17 @@ private:
   bool resetData(const std::string_view name);
 
   /*!
+   * \brief Whether every set field in \p other can be copied into this package.
+   *
+   * Does not modify this package. Used to validate a source before clearing the destination.
+   */
+  bool canCopySetFieldsFrom(const DataPackage& other) const;
+
+  /*!
    * \brief Copies the fields that \p other has values for into this package.
    *
-   * Fields \p other hasn't written are left untouched, which is what lets an application send an
-   * input package covering only part of the recipe. This package keeps its own types, so it is
-   * where a type disagreement between the application and the robot surfaces.
-   *
-   * \param other The package to copy values from
-   *
-   * \returns True if every value could be copied, false if \p other names a field this package
-   * doesn't have or holds a value of a different type than the robot reported for it
+   * Fields \p other hasn't written are left untouched. The source must already have been checked
+   * with canCopySetFieldsFrom(); this only writes the matching values.
    */
   bool copySetFieldsFrom(const DataPackage& other);
 

@@ -334,7 +334,11 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
     return 0;
   }
 
-  uint16_t payload_size = sizeof(recipe_id_);
+  uint16_t payload_size = 0;
+  if (protocol_version_ == 2)
+  {
+    payload_size += sizeof(recipe_id_);
+  }
 
   for (auto& item : data_)
   {
@@ -353,7 +357,10 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   }
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
-  size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
+  if (protocol_version_ == 2)
+  {
+    size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
+  }
   for (size_t i = 0; i < data_.size(); ++i)
   {
     size += std::visit(
@@ -387,9 +394,9 @@ bool rtde_interface::DataPackage::resetData(const std::string_view name)
   return true;
 }
 
-bool rtde_interface::DataPackage::copySetFieldsFrom(const DataPackage& other)
+bool rtde_interface::DataPackage::canCopySetFieldsFrom(const DataPackage& other) const
 {
-  bool all_copied = true;
+  bool all_compatible = true;
   for (const auto& source : other.data_)
   {
     if (std::holds_alternative<std::monostate>(source.second))
@@ -404,19 +411,38 @@ bool rtde_interface::DataPackage::copySetFieldsFrom(const DataPackage& other)
     if (destination == data_.end())
     {
       URCL_LOG_ERROR("The data field '%s' is not part of the recipe the robot acknowledged.", source.first.c_str());
-      all_copied = false;
+      all_compatible = false;
       continue;
     }
     if (source.second.index() != destination->second.index())
     {
       URCL_LOG_ERROR("The value passed for the data field '%s' is of type %s, but the robot reports that field as %s.",
                      source.first.c_str(), typeNameOf(source.second).c_str(), typeNameOf(destination->second).c_str());
-      all_copied = false;
+      all_compatible = false;
+    }
+  }
+  return all_compatible;
+}
+
+bool rtde_interface::DataPackage::copySetFieldsFrom(const DataPackage& other)
+{
+  for (const auto& source : other.data_)
+  {
+    if (std::holds_alternative<std::monostate>(source.second))
+    {
       continue;
     }
-    destination->second = source.second;
+
+    const auto destination =
+        std::find_if(data_.begin(), data_.end(), [&source](const std::pair<std::string, _rtde_type_variant>& element) {
+          return element.first == source.first;
+        });
+    if (destination != data_.end())
+    {
+      destination->second = source.second;
+    }
   }
-  return all_copied;
+  return true;
 }
 }  // namespace rtde_interface
 }  // namespace urcl
