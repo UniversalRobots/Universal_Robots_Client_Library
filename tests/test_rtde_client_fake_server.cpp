@@ -235,6 +235,79 @@ TEST_F(RTDEClientFakeServerTest, init_fails_when_no_protocol_version_is_accepted
   EXPECT_EQ(requested.back(), 1) << "the client should have tried every version down to the lowest";
 }
 
+// A thrown init() used to leave the client INITIALIZING, so a later call returned true without
+// talking to the robot. After the handshake is allowed to succeed, the second init() has to
+// actually finish it.
+TEST_F(RTDEClientFakeServerTest, init_can_be_retried_after_a_failed_handshake)
+{
+  server_->setHighestAcceptedProtocolVersion(0);
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+
+  server_->setHighestAcceptedProtocolVersion(2);
+  ASSERT_TRUE(client_->init());
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
+}
+
+// isRobotBooted() reads packages until the reported uptime is 40 seconds or two seconds of data
+// have arrived. Every other test skips that wait; this one leaves the fake server's clock at now
+// and uses a low frequency so the loop body actually runs.
+TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period)
+{
+  client_.reset();
+  server_.reset();
+  server_ = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  const double bootup_frequency = 2.0;
+  client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, bootup_frequency);
+
+  ASSERT_TRUE(client_->init());
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
+}
+
+// A robot that refuses to start RTDE must not leave the client believing it is streaming.
+TEST_F(RTDEClientFakeServerTest, start_is_refused_when_the_robot_rejects_it)
+{
+  ASSERT_TRUE(client_->init());
+  server_->setAcceptStart(false);
+
+  EXPECT_FALSE(client_->start());
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
+}
+
+TEST_F(RTDEClientFakeServerTest, pause_is_refused_when_the_robot_rejects_it)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start());
+  server_->setAcceptPause(false);
+
+  EXPECT_FALSE(client_->pause());
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::RUNNING);
+}
+
+// setupOutputs() retries on unexpected replies and then gives up, rather than treating a text
+// message as an acknowledgement.
+TEST_F(RTDEClientFakeServerTest, init_fails_when_setup_outputs_never_gets_an_acknowledgement)
+{
+  for (unsigned i = 0; i < rtde_interface::MAX_REQUEST_RETRIES; ++i)
+  {
+    server_->queueTextMessageBeforeSetupOutputs("not a setup-outputs reply");
+  }
+
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+}
+
+TEST_F(RTDEClientFakeServerTest, init_fails_when_setup_inputs_never_gets_an_acknowledgement)
+{
+  for (unsigned i = 0; i < rtde_interface::MAX_REQUEST_RETRIES; ++i)
+  {
+    server_->queueTextMessageBeforeSetupInputs("not a setup-inputs reply");
+  }
+
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+}
+
 TEST_F(RTDEClientFakeServerTest, target_frequency_defaults_to_the_maximum)
 {
   auto client = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, 0.0);

@@ -47,6 +47,29 @@ public:
    */
   std::vector<uint16_t> requestedProtocolVersions();
 
+  /*!
+   * \brief Whether the next RTDE start request is accepted. A refused start must not leave the
+   * client believing it is streaming.
+   */
+  void setAcceptStart(const bool accept);
+
+  /*!
+   * \brief Whether the next RTDE pause request is accepted.
+   */
+  void setAcceptPause(const bool accept);
+
+  /*!
+   * \brief Answers the next output-recipe setup with a text message instead of the acknowledgement.
+   *
+   * Queue more messages than the client is willing to retry and setupOutputs() gives up.
+   */
+  void queueTextMessageBeforeSetupOutputs(const std::string& message);
+
+  /*!
+   * \brief Answers the next input-recipe setup with a text message instead of the acknowledgement.
+   */
+  void queueTextMessageBeforeSetupInputs(const std::string& message);
+
 private:
   std::vector<std::string> input_recipe_;
   std::vector<std::string> output_recipe_;
@@ -81,8 +104,12 @@ private:
 
   std::mutex negotiation_mutex_;
   std::deque<std::string> pending_text_messages_;
+  std::deque<std::string> pending_setup_outputs_text_messages_;
+  std::deque<std::string> pending_setup_inputs_text_messages_;
   uint16_t highest_accepted_protocol_version_ = 2;
   std::vector<uint16_t> requested_protocol_versions_;
+  bool accept_start_ = true;
+  bool accept_pause_ = true;
 };
 
 }  // namespace urcl

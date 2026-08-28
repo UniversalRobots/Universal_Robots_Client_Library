@@ -237,6 +237,7 @@ set_tests_properties(RTDEClientReconnectTest.destructor_not_blocked_by_stuck_rec
                      RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_background_read
                      RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_blocking_read
                      RTDEClientReconnectTest.destroying_the_client_while_the_server_is_silent
+                     RTDEClientReconnectTest.reconnect_gives_up_when_the_handshake_keeps_failing
                      PROPERTIES TIMEOUT 60)
 
 add_executable(tcp_server_tests test_tcp_server.cpp)

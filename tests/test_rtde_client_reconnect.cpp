@@ -280,3 +280,44 @@ TEST_F(RTDEClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_thread
       << "RTDEClient destructor blocked for " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
       << " ms — reconnect thread was not aborted by disconnect()";
 }
+
+// A server that accepts the TCP connection but never finishes the handshake must not be retried
+// forever. After max_initialization_attempts_ the client gives up and stays uninitialized.
+TEST_F(RTDEClientReconnectTest, reconnect_gives_up_when_the_handshake_keeps_failing)
+{
+  startServer();
+  makeClient();
+  ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(50), 2, std::chrono::milliseconds(50)));
+  client_->start();
+
+  std::atomic<bool> keep_running{ true };
+  std::thread data_consumer([this, &keep_running]() {
+    rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+    while (keep_running)
+    {
+      if (!client_->getDataPackage(data_pkg, std::chrono::milliseconds(100)))
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      }
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  server_.reset();
+  EXPECT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED));
+
+  // A listener is back, so reconnect counts each failed handshake instead of waiting on connect.
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(0);
+
+  // Two failed handshakes plus the short sleep between them, then give up.
+  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  keep_running = false;
+  data_consumer.join();
+
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED) << "the client kept retrying after "
+                                                                                      "exhausting its initialization "
+                                                                                      "attempts";
+}
