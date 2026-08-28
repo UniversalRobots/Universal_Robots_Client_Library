@@ -131,14 +131,16 @@ void operator delete[](void* memory, std::size_t) noexcept
 #endif
 
 // Guards the tests below: if the counter stopped seeing allocations, they would pass vacuously.
+// Allocate with new, not a container: on some libstdc++ / musl builds std::allocator uses malloc
+// and would never hit the replaced operator new that the RTDE tests count.
 TEST(AllocationCounterTest, counts_allocations)
 {
   std::size_t allocations = 0;
-  std::vector<double> values;
   {
     AllocationCounter counter;
-    values.resize(1024);
+    int* value = new int{ 1 };
     allocations = counter.count();
+    delete value;
   }
   EXPECT_GT(allocations, 0);
 }

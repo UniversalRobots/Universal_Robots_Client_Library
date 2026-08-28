@@ -17,7 +17,7 @@ public:
   RTDEServer() = delete;
   explicit RTDEServer(const int port);
 
-  ~RTDEServer();
+  virtual ~RTDEServer();
 
   void startSendingDataPackages();
   void stopSendingDataPackages();
