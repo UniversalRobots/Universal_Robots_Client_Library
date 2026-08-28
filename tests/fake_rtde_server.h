@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,29 @@ public:
   void stopSendingDataPackages();
 
   void setStartTime(const std::chrono::steady_clock::time_point& start_time);
+
+  /*!
+   * \brief Makes the server send \p message ahead of its answer to the URControl version query.
+   *
+   * Real controllers do this: a PolyScope X simulator reports "SafetySetup has not been confirmed
+   * yet" on every connect until it has been switched on. Queue more messages than the client is
+   * willing to retry and it will give up on the query.
+   */
+  void queueTextMessageBeforeVersionReply(const std::string& message);
+
+  /*!
+   * \brief Makes the server refuse every protocol version above \p highest_accepted.
+   *
+   * Lets a test drive the client's fallback to an older protocol version, the way a controller too
+   * old for the newest version would.
+   */
+  void setHighestAcceptedProtocolVersion(const uint16_t highest_accepted);
+
+  /*!
+   * \brief The protocol versions the client asked for, in the order it asked, so a test can see it
+   * work its way down.
+   */
+  std::vector<uint16_t> requestedProtocolVersions();
 
 private:
   std::vector<std::string> input_recipe_;
@@ -50,8 +74,15 @@ private:
 
   void actOnInput();
 
+  void sendTextMessage(const socket_t filedescriptor, const std::string& message);
+
   std::mutex output_data_mutex_;
   std::mutex thread_control_mutex_;
+
+  std::mutex negotiation_mutex_;
+  std::deque<std::string> pending_text_messages_;
+  uint16_t highest_accepted_protocol_version_ = 2;
+  std::vector<uint16_t> requested_protocol_versions_;
 };
 
 }  // namespace urcl

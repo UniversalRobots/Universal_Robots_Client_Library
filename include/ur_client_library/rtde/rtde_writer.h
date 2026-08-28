@@ -208,10 +208,11 @@ protected:
    * passed to sendPackage() are checked.
    *
    * \param types The data types of the input recipe's fields, in the same order as the recipe
+   * \param protocol_version The RTDE protocol version negotiated with the robot
    *
    * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
    */
-  void setRecipeTypes(const std::vector<std::string>& types);
+  void setRecipeTypes(const std::vector<std::string>& types, uint16_t protocol_version = 2);
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);

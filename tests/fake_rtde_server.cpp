@@ -506,6 +506,44 @@ RTDEServer::~RTDEServer()
   stopSendingDataPackages();
 }
 
+void RTDEServer::queueTextMessageBeforeVersionReply(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_text_messages_.push_back(message);
+}
+
+void RTDEServer::setHighestAcceptedProtocolVersion(const uint16_t highest_accepted)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  highest_accepted_protocol_version_ = highest_accepted;
+}
+
+std::vector<uint16_t> RTDEServer::requestedProtocolVersions()
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  return requested_protocol_versions_;
+}
+
+void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
+{
+  const std::string source = "fake_rtde_server";
+  const uint8_t warning_level = 1;
+
+  comm::PackageSerializer serializer;
+  uint8_t send_buffer[4096];
+  const size_t payload_size = 2 * sizeof(uint8_t) + message.size() + source.size() + sizeof(warning_level);
+  size_t send_size = rtde_interface::PackageHeader::serializeHeader(
+      send_buffer, rtde_interface::PackageType::RTDE_TEXT_MESSAGE, static_cast<uint16_t>(payload_size));
+  send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(message.size()));
+  send_size += serializer.serialize(send_buffer + send_size, message);
+  send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(source.size()));
+  send_size += serializer.serialize(send_buffer + send_size, source);
+  send_size += serializer.serialize(send_buffer + send_size, warning_level);
+
+  size_t written = 0;
+  server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
+}
+
 void RTDEServer::connectionCallback(const socket_t filedescriptor)
 {
   client_socket_ = filedescriptor;
@@ -528,7 +566,14 @@ void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor,
   {
     case rtde_interface::PackageType::RTDE_REQUEST_PROTOCOL_VERSION:
     {
-      bool accepted = true;
+      uint16_t requested_version = 0;
+      bp.parse(requested_version);
+      bool accepted;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        requested_protocol_versions_.push_back(requested_version);
+        accepted = requested_version <= highest_accepted_protocol_version_;
+      }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
       size_t send_size = 0;
@@ -542,6 +587,17 @@ void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor,
     }
     case rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION:
     {
+      // The client only asks once, so every queued message has to go out now for it to see them all
+      std::deque<std::string> text_messages;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        text_messages.swap(pending_text_messages_);
+      }
+      for (const std::string& text_message : text_messages)
+      {
+        sendTextMessage(filedescriptor, text_message);
+      }
+
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
       size_t send_size = 0;

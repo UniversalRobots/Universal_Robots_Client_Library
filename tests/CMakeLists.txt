@@ -41,9 +41,6 @@ if (INTEGRATION_TESTS)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
-  # Bound this teardown regression test so a hang fails CI fast instead of timing out the job.
-  set_tests_properties(RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread
-                       PROPERTIES TIMEOUT 60)
   if (CHECK_RTDE_DOCS_RECIPE)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
@@ -226,6 +223,21 @@ target_link_libraries(rtde_client_fake_server_tests PRIVATE ur_client_library::u
 gtest_add_tests(TARGET      rtde_client_fake_server_tests
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# Covers RTDEClient::reconnect() by taking the fake RTDE server away and giving it back, so it runs
+# without a robot. Kept apart from the tests above because these wait on retry timing and are
+# therefore slower.
+add_executable(rtde_client_reconnect_tests test_rtde_client_reconnect.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_client_reconnect_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+# Bound these so a hang fails CI fast instead of timing out the job.
+set_tests_properties(RTDEClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_background_read
+                     RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_blocking_read
+                     RTDEClientReconnectTest.destroying_the_client_while_the_server_is_silent
+                     PROPERTIES TIMEOUT 60)
 
 add_executable(tcp_server_tests test_tcp_server.cpp)
 if (MSVC)

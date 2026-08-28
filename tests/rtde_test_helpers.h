@@ -50,6 +50,7 @@ class TestableDataPackage : public rtde_interface::DataPackage
 public:
   using rtde_interface::DataPackage::DataPackage;
   using rtde_interface::DataPackage::initEmpty;
+  using rtde_interface::DataPackage::setProtocolVersion;
 };
 
 class TestableRTDEParser : public rtde_interface::RTDEParser

@@ -166,6 +166,75 @@ TEST_F(RTDEClientFakeServerTest, version_is_taken_from_the_robot)
   EXPECT_EQ(version.minor, 10);
 }
 
+// A PolyScope X simulator answers the version query with "SafetySetup has not been confirmed yet"
+// on every connect until it has been switched on, so the client retries instead of giving up.
+TEST_F(RTDEClientFakeServerTest, version_query_retries_past_a_safety_setup_text_message)
+{
+  server_->queueTextMessageBeforeVersionReply("SafetySetup has not been confirmed yet");
+
+  ASSERT_TRUE(client_->init());
+
+  const VersionInformation version = client_->getVersion();
+  EXPECT_EQ(version.major, 10);
+}
+
+// Any other text message is worth reporting, but is still only a reason to retry.
+TEST_F(RTDEClientFakeServerTest, version_query_retries_past_an_unexpected_text_message)
+{
+  server_->queueTextMessageBeforeVersionReply("Something else entirely");
+  server_->queueTextMessageBeforeVersionReply("And again");
+
+  ASSERT_TRUE(client_->init());
+
+  EXPECT_EQ(client_->getVersion().major, 10);
+}
+
+// Retrying is bounded: MAX_REQUEST_RETRIES text messages in a row and the handshake fails rather
+// than looping forever.
+TEST_F(RTDEClientFakeServerTest, version_query_gives_up_after_too_many_text_messages)
+{
+  for (int i = 0; i < 10; ++i)
+  {
+    server_->queueTextMessageBeforeVersionReply("SafetySetup has not been confirmed yet");
+  }
+
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+}
+
+// A controller that does not know the newest protocol version refuses it, and the client works its
+// way down instead of failing.
+TEST_F(RTDEClientFakeServerTest, protocol_version_is_lowered_when_the_robot_refuses_it)
+{
+  server_->setHighestAcceptedProtocolVersion(1);
+
+  // Whether the rest of the handshake completes over version 1 is beside the point here; what
+  // matters is that being refused made the client ask for a lower version.
+  try
+  {
+    client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10));
+  }
+  catch (const UrException&)
+  {
+  }
+
+  const std::vector<uint16_t> requested = server_->requestedProtocolVersions();
+  ASSERT_GE(requested.size(), 2u) << "the client never asked for a second protocol version";
+  EXPECT_EQ(requested[0], 2) << "the client should try the newest version first";
+  EXPECT_EQ(requested[1], 1) << "the client should fall back to the next version down";
+}
+
+// If no version is acceptable the handshake has to fail, not spin.
+TEST_F(RTDEClientFakeServerTest, init_fails_when_no_protocol_version_is_accepted)
+{
+  server_->setHighestAcceptedProtocolVersion(0);
+
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+
+  const std::vector<uint16_t> requested = server_->requestedProtocolVersions();
+  EXPECT_FALSE(requested.empty());
+  EXPECT_EQ(requested.back(), 1) << "the client should have tried every version down to the lowest";
+}
+
 TEST_F(RTDEClientFakeServerTest, target_frequency_defaults_to_the_maximum)
 {
   auto client = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, 0.0);
@@ -189,9 +258,13 @@ TEST_F(RTDEClientFakeServerTest, target_frequency_outside_the_robots_range_throw
 {
   auto too_low = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, -1.0);
   EXPECT_THROW(too_low->init(), UrException);
+  EXPECT_EQ(too_low->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  // The fake server allows only one client; drop the first connection before opening another.
+  too_low.reset();
 
   auto too_high = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_MAX_FREQUENCY + 1.0);
   EXPECT_THROW(too_high->init(), UrException);
+  EXPECT_EQ(too_high->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
 }
 
 TEST_F(RTDEClientFakeServerTest, receive_with_background_read)
@@ -320,6 +393,8 @@ TEST_F(RTDEClientFakeServerTest, unknown_output_field_throws)
   auto client = makeClient({ "timestamp", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
 
   EXPECT_THROW(client->init(), RTDEInvalidKeyException);
+  EXPECT_EQ(client->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  EXPECT_THROW(client->init(), RTDEInvalidKeyException);
 }
 
 TEST_F(RTDEClientFakeServerTest, unknown_output_field_can_be_ignored)
@@ -343,6 +418,8 @@ TEST_F(RTDEClientFakeServerTest, unknown_input_field_throws)
 {
   auto client = makeClient(g_OUTPUT_RECIPE, { "not_a_field_the_robot_knows" }, g_RTDE_FREQUENCY);
 
+  EXPECT_THROW(client->init(), RTDEInvalidKeyException);
+  EXPECT_EQ(client->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
   EXPECT_THROW(client->init(), RTDEInvalidKeyException);
 }
 

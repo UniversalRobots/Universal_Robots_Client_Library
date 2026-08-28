@@ -85,9 +85,11 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   current_send_buffer_ = data_buffer1_;
 }
 
-void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
+void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types, uint16_t protocol_version)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  data_buffer0_->setProtocolVersion(protocol_version);
+  data_buffer1_->setProtocolVersion(protocol_version);
   data_buffer0_->initEmpty(types);
   data_buffer1_->initEmpty(types);
 }
@@ -163,13 +165,17 @@ bool RTDEWriter::sendPackage(const DataPackage& package)
     return false;
   }
 
-  // Fields the caller didn't write are sent as zeros rather than as whatever the previous package
-  // left in the buffer, so that a package means the same thing no matter what was sent before it.
-  current_store_buffer_->initEmpty();
-  if (!current_store_buffer_->copySetFieldsFrom(package))
+  // Validate before touching the store buffer, so a rejected package cannot wipe or partially
+  // overwrite input that is already queued.
+  if (!current_store_buffer_->canCopySetFieldsFrom(package))
   {
     return false;
   }
+
+  // Fields the caller didn't write are sent as zeros rather than as whatever the previous package
+  // left in the buffer, so that a package means the same thing no matter what was sent before it.
+  current_store_buffer_->initEmpty();
+  current_store_buffer_->copySetFieldsFrom(package);
   markStorageToBeSent();
   return true;
 }

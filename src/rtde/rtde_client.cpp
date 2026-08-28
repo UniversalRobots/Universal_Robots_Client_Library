@@ -120,18 +120,29 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   unsigned int attempts = 0;
   std::stringstream ss;
 
-  while (!setupCommunication(max_connection_attempts, reconnection_timeout))
+  try
   {
-    if (++attempts >= max_initialization_attempts)
+    while (!setupCommunication(max_connection_attempts, reconnection_timeout))
     {
+      if (++attempts >= max_initialization_attempts)
+      {
+        disconnect();
+        ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
+        throw UrException(ss.str());
+      }
+      // disconnect to start on a clean slate when trying to set up communication again
       disconnect();
-      ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
-      throw UrException(ss.str());
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
+      std::this_thread::sleep_for(initialization_timeout);
     }
-    // disconnect to start on a clean slate when trying to set up communication again
+  }
+  catch (...)
+  {
+    // setupCommunication() can throw after setting INITIALIZING (invalid recipe, target frequency
+    // out of range). Leave the client disconnected and uninitialized so a later init() retries
+    // instead of returning true on a half-finished handshake.
     disconnect();
-    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
-    std::this_thread::sleep_for(initialization_timeout);
+    throw;
   }
   client_state_ = ClientState::INITIALIZED;
   // Set reconnection callback after we are initialized to ensure that a disconnect during initialization doesn't
@@ -298,10 +309,9 @@ bool RTDEClient::queryURControlVersion()
       URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
-  std::stringstream ss;
-  ss << "Could not query urcontrol version after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
+  URCL_LOG_ERROR("Could not query urcontrol version after %u tries. Please check the output of the negotiation "
+                 "attempts above to get a hint what could be wrong.",
+                 MAX_REQUEST_RETRIES);
   return false;
 }
 
@@ -439,6 +449,7 @@ bool RTDEClient::setupOutputs()
         // storage itself already exists, so this doesn't allocate and neither does the receive path
         // from here on.
         parser_.setRecipeTypes(variable_types);
+        preallocated_data_pkg_.setProtocolVersion(protocol_version_);
         preallocated_data_pkg_.initEmpty(variable_types);
         return true;
       }
@@ -507,7 +518,7 @@ bool RTDEClient::setupInputs()
           throw RTDEInputConflictException(input_recipe_[i]);
         }
       }
-      writer_.setRecipeTypes(variable_types);
+      writer_.setRecipeTypes(variable_types, protocol_version_);
       writer_.init(tmp_input->input_recipe_id_);
 
       return true;

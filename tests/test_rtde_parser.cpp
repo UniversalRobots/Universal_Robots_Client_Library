@@ -263,6 +263,29 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
   EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
+TEST(rtde_parser, untyped_pre_allocated_data_package_takes_protocol_version_1)
+{
+  // Same payload as data_package, but without the recipe-id byte that only version 2 uses.
+  unsigned char raw_data[] = { 0x00, 0x13, 0x55, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a, 0x9f,
+                               0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  test::TestableRTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(1);
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+
+  ASSERT_TRUE(parser.parse(bp, product));
+
+  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+}
+
 TEST(rtde_parser, test_to_string)
 {
   // Non-existent type
@@ -336,6 +359,47 @@ TEST(rtde_parser, test_deprecated_parse_method)
     std::cout << "Failed to get data package data" << std::endl;
     GTEST_FAIL();
   }
+}
+
+// The robot reports problems with the connection as text messages, and RTDEClient acts on their
+// content while negotiating, so the fields have to come out of the wire intact.
+TEST(rtde_parser, text_message_protocol_v2)
+{
+  // size 0x000f, type 'M', message "hello", source "urcl", warning level 1
+  unsigned char raw_data[] = { 0x00, 0x0f, 0x4d, 0x05, 'h', 'e', 'l', 'l', 'o', 0x04, 'u', 'r', 'c', 'l', 0x01 };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  test::TestableRTDEParser parser({ "" });
+  parser.setProtocolVersion(2);
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product;
+  ASSERT_TRUE(parser.parse(bp, product));
+
+  auto* message = dynamic_cast<rtde_interface::TextMessage*>(product.get());
+  ASSERT_NE(message, nullptr) << "the parser did not produce a TextMessage";
+  EXPECT_EQ(message->message_, "hello");
+  EXPECT_EQ(message->source_, "urcl");
+  EXPECT_EQ(message->warning_level_, 1);
+  EXPECT_EQ(message->toString(), "message: hello\nsource: urcl\nwarning level: 1");
+}
+
+// Protocol version 1 puts a message type where version 2 has the lengths, and takes the rest of the
+// package as the message.
+TEST(rtde_parser, text_message_protocol_v1)
+{
+  // size 0x000a, type 'M', message type 3, message "legacy"
+  unsigned char raw_data[] = { 0x00, 0x0a, 0x4d, 0x03, 'l', 'e', 'g', 'a', 'c', 'y' };
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  test::TestableRTDEParser parser({ "" });
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product;
+  ASSERT_TRUE(parser.parse(bp, product));
+
+  auto* message = dynamic_cast<rtde_interface::TextMessage*>(product.get());
+  ASSERT_NE(message, nullptr) << "the parser did not produce a TextMessage";
+  EXPECT_EQ(message->message_type_, 3);
+  EXPECT_EQ(message->message_, "legacy");
 }
 
 int main(int argc, char* argv[])

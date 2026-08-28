@@ -576,6 +576,23 @@ TEST_F(RTDEWriterTest, send_data_package_with_wrong_field_type_fails)
   EXPECT_FALSE(writer_->sendPackage(data_package));
 }
 
+// A rejected package must not write the fields that did match into the store buffer, or a later
+// specialized send would transmit those leftover values.
+TEST_F(RTDEWriterTest, failed_send_package_does_not_overwrite_the_store_buffer)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.9));
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+
+  ASSERT_TRUE(writer_->sendStandardDigitalOutput(2, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
 TEST_F(RTDEWriterTest, send_data_package_with_unknown_field_fails)
 {
   rtde_interface::DataPackage data_package({ "not_a_field_the_robot_knows" });
