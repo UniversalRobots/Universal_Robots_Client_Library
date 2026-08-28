@@ -34,6 +34,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -116,12 +117,18 @@ public:
   /*!
    * \brief The type a data field can hold.
    *
-   * std::monostate is the state of a field whose type isn't decided yet, which is how a package
-   * constructed from a recipe alone starts out. It is also what distinguishes the fields an
-   * application has written from the ones it left alone.
+   * The typed alternatives are exactly the members of DataType. std::monostate is the state of a
+   * field whose type isn't decided yet, which is how a package constructed from a recipe alone
+   * starts out. It is also what distinguishes the fields an application has written from the ones
+   * it left alone.
    */
   using _rtde_type_variant = std::variant<std::monostate, bool, uint8_t, uint32_t, uint64_t, int32_t, double,
-                                          vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t, std::string>;
+                                          vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
+
+  // A data package is created before the connection exists and then retyped in place from the
+  // robot's acknowledgement, so no alternative may own heap memory: retyping has to stay a
+  // write into the variant's inline storage.
+  static_assert(std::is_trivially_copyable_v<_rtde_type_variant>, "An RTDE data field must not own heap memory.");
 
   DataPackage() = delete;
 
