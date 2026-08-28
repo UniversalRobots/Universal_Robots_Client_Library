@@ -153,6 +153,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
       }
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
+      data_package->setProtocolVersion(protocol_version_);
       if (!data_package->isTyped())
       {
         // A package built from a recipe alone doesn't know its field types yet. Applying the ones

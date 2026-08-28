@@ -126,6 +126,49 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
   EXPECT_NEAR(expected_timestamp, actual_timestamp, abs);
 }
 
+// A package constructed before the handshake defaults to protocol version 2. Applying the
+// negotiated version afterwards must make a version-1 payload parse without a recipe-id byte.
+TEST(rtde_data_package, applying_types_also_applies_the_protocol_version)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  test::TestableDataPackage package(recipe);
+  package.setProtocolVersion(1);
+  package.initEmpty({ "DOUBLE", "VECTOR6D" });
+
+  uint8_t data_package[] = { 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
+                             0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe,
+                             0x68, 0x88, 0x5a, 0x30, 0xbf, 0xe9, 0xdb, 0x22, 0xa2, 0x21, 0x68, 0xc0, 0x3f, 0xf9,
+                             0x85, 0x87, 0xa0, 0x00, 0x00, 0x00, 0xbf, 0x9f, 0xbe, 0x74, 0x44, 0x2d, 0x18, 0x00 };
+  comm::BinParser bp(data_package, sizeof(data_package));
+
+  ASSERT_TRUE(package.parseWith(bp));
+  double timestamp = 0.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_NEAR(timestamp, 16854.1919, 1e-4);
+}
+
+TEST(rtde_data_package, serialize_pkg_protocolv1)
+{
+  std::vector<std::string> recipe{ "speed_slider_mask" };
+  std::vector<std::string> types{ "UINT32" };
+  auto package = typedPackage(recipe, types, 1);
+
+  uint32_t value = 1;
+  package.setData("speed_slider_mask", value);
+
+  uint8_t buffer[4096];
+  size_t size = package.serializePackage(buffer);
+
+  EXPECT_EQ(size, 7);
+
+  uint8_t expected[] = { 0x0, 0x07, 0x55, 0x00, 0x00, 0x00, 0x01 };
+
+  for (size_t i = 0; i < size; ++i)
+  {
+    EXPECT_EQ(buffer[i], expected[i]);
+  }
+}
+
 TEST(rtde_data_package, get_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
@@ -252,6 +295,103 @@ TEST(rtde_data_package, every_rtde_data_type_can_be_applied)
   EXPECT_FALSE(package.getData("f_vector6d", vector3d_value));
   EXPECT_FALSE(package.getData("f_v6int32", v6uint32_value));
   EXPECT_FALSE(package.getData("f_v6uint32", v6int32_value));
+}
+
+// The wire format of the rarer data types is otherwise only exercised against a real robot, so a
+// serializer or parser that got one of them wrong would pass every other test here. Values are
+// chosen to be asymmetric, so a byte-order mistake cannot round-trip by accident.
+TEST(rtde_data_package, every_rtde_data_type_survives_a_serialize_parse_round_trip)
+{
+  const std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
+                                         "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
+  const std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
+                                        "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+
+  const bool bool_value = true;
+  const uint8_t uint8_value = 0xa5;
+  const uint32_t uint32_value = 0x12345678;
+  const uint64_t uint64_value = 0x0123456789abcdef;
+  const int32_t int32_value = -123456789;
+  const double double_value = -1234.5678;
+  const vector3d_t vector3d_value{ 1.5, -2.5, 3.5 };
+  const vector6d_t vector6d_value{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 };
+  const vector6int32_t v6int32_value{ -1, 2, -3, 4, -5, 6 };
+  const vector6uint32_t v6uint32_value{ 1u, 2u, 3u, 4u, 5u, 0xffffffffu };
+
+  auto sent = typedPackage(recipe, types);
+  sent.setRecipeID(1);
+  ASSERT_TRUE(sent.setData("f_bool", bool_value));
+  ASSERT_TRUE(sent.setData("f_uint8", uint8_value));
+  ASSERT_TRUE(sent.setData("f_uint32", uint32_value));
+  ASSERT_TRUE(sent.setData("f_uint64", uint64_value));
+  ASSERT_TRUE(sent.setData("f_int32", int32_value));
+  ASSERT_TRUE(sent.setData("f_double", double_value));
+  ASSERT_TRUE(sent.setData("f_vector3d", vector3d_value));
+  ASSERT_TRUE(sent.setData("f_vector6d", vector6d_value));
+  ASSERT_TRUE(sent.setData("f_v6int32", v6int32_value));
+  ASSERT_TRUE(sent.setData("f_v6uint32", v6uint32_value));
+
+  uint8_t buffer[4096];
+  const size_t size = sent.serializePackage(buffer);
+
+  // A two byte size and a one byte package type, then the recipe id and one entry per field
+  const size_t header_size = 3;
+  const size_t expected_payload = sizeof(uint8_t) + sizeof(bool) + sizeof(uint8_t) + sizeof(uint32_t) +
+                                  sizeof(uint64_t) + sizeof(int32_t) + sizeof(double) + sizeof(vector3d_t) +
+                                  sizeof(vector6d_t) + sizeof(vector6int32_t) + sizeof(vector6uint32_t);
+  EXPECT_EQ(size, header_size + expected_payload);
+
+  // Round-tripping on its own would still pass if both directions agreed on the wrong byte order,
+  // so pin the integers to the network order the protocol uses. -123456789 is 0xf8a432eb.
+  const uint8_t expected_integers[] = { 0x01,                                            // recipe id
+                                        0x01,                                            // f_bool
+                                        0xa5,                                            // f_uint8
+                                        0x12, 0x34, 0x56, 0x78,                          // f_uint32
+                                        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,  // f_uint64
+                                        0xf8, 0xa4, 0x32, 0xeb };                        // f_int32
+  for (size_t i = 0; i < sizeof(expected_integers); ++i)
+  {
+    EXPECT_EQ(buffer[header_size + i], expected_integers[i]) << "at payload byte " << i;
+  }
+
+  // parseWith() starts at the recipe id, which is where serializePackage() put it after the header
+  comm::BinParser bp(buffer + header_size, size - header_size);
+  auto received = typedPackage(recipe, types);
+  ASSERT_TRUE(received.parseWith(bp));
+  EXPECT_TRUE(bp.empty()) << "the parser did not consume exactly what was serialized";
+
+  bool bool_read;
+  uint8_t uint8_read;
+  uint32_t uint32_read;
+  uint64_t uint64_read;
+  int32_t int32_read;
+  double double_read;
+  vector3d_t vector3d_read;
+  vector6d_t vector6d_read;
+  vector6int32_t v6int32_read;
+  vector6uint32_t v6uint32_read;
+
+  ASSERT_TRUE(received.getData("f_bool", bool_read));
+  ASSERT_TRUE(received.getData("f_uint8", uint8_read));
+  ASSERT_TRUE(received.getData("f_uint32", uint32_read));
+  ASSERT_TRUE(received.getData("f_uint64", uint64_read));
+  ASSERT_TRUE(received.getData("f_int32", int32_read));
+  ASSERT_TRUE(received.getData("f_double", double_read));
+  ASSERT_TRUE(received.getData("f_vector3d", vector3d_read));
+  ASSERT_TRUE(received.getData("f_vector6d", vector6d_read));
+  ASSERT_TRUE(received.getData("f_v6int32", v6int32_read));
+  ASSERT_TRUE(received.getData("f_v6uint32", v6uint32_read));
+
+  EXPECT_EQ(bool_read, bool_value);
+  EXPECT_EQ(uint8_read, uint8_value);
+  EXPECT_EQ(uint32_read, uint32_value);
+  EXPECT_EQ(uint64_read, uint64_value);
+  EXPECT_EQ(int32_read, int32_value);
+  EXPECT_EQ(double_read, double_value);
+  EXPECT_EQ(vector3d_read, vector3d_value);
+  EXPECT_EQ(vector6d_read, vector6d_value);
+  EXPECT_EQ(v6int32_read, v6int32_value);
+  EXPECT_EQ(v6uint32_read, v6uint32_value);
 }
 
 TEST(rtde_data_package, unknown_data_types_are_rejected)
