@@ -28,14 +28,19 @@
 
 #include <gtest/gtest.h>
 
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/rtde/data_package.h>
 
+#include "rtde_test_helpers.h"
+
 using namespace urcl;
+using urcl::test::typedPackage;
 
 TEST(rtde_data_package, serialize_pkg)
 {
   std::vector<std::string> recipe{ "speed_slider_mask" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "UINT32" };
+  auto package = typedPackage(recipe, types);
 
   uint32_t value = 1;
   package.setData("speed_slider_mask", value);
@@ -57,7 +62,8 @@ TEST(rtde_data_package, serialize_pkg)
 TEST(rtde_data_package, parse_pkg_protocolv2)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types);
 
   uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
                              0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe, 0x68,
@@ -90,7 +96,8 @@ TEST(rtde_data_package, parse_pkg_protocolv2)
 TEST(rtde_data_package, parse_pkg_protocolv1)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  rtde_interface::DataPackage package(recipe, 1);
+  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types, 1);
 
   uint8_t data_package[] = { 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
                              0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe,
@@ -122,7 +129,8 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
 TEST(rtde_data_package, get_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types);
 
   uint32_t speed_slider_mask;
   EXPECT_FALSE(package.getData("speed_slider_mask", speed_slider_mask));
@@ -131,7 +139,8 @@ TEST(rtde_data_package, get_data_not_part_of_recipe)
 TEST(rtde_data_package, set_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types);
 
   uint32_t speed_slider_mask = 1;
   EXPECT_FALSE(package.setData("speed_slider_mask", speed_slider_mask));
@@ -140,7 +149,8 @@ TEST(rtde_data_package, set_data_not_part_of_recipe)
 TEST(rtde_data_package, parse_and_get_bitset_data)
 {
   std::vector<std::string> recipe{ "robot_status_bits" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "UINT32" };
+  auto package = typedPackage(recipe, types);
 
   uint8_t data_package[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x40, 0xb2, 0x3d, 0xa9, 0xfb, 0xe7, 0x6c, 0x8b };
   comm::BinParser bp(data_package, sizeof(data_package));
@@ -157,7 +167,8 @@ TEST(rtde_data_package, parse_and_get_bitset_data)
 TEST(rtde_data_package, parse_incorrect_data_size)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types);
 
   // Data package with incorrect size (should be 56 bytes for the given recipe)
   uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf };
@@ -171,7 +182,8 @@ TEST(rtde_data_package, data_package_to_string)
 {
   std::vector<std::string> recipe{ "speed_slider_mask", "speed_slider_fraction", "external_force_torque",
                                    "standard_digital_output_mask", "actual_digital_output_bits" };
-  rtde_interface::DataPackage package(recipe);
+  std::vector<std::string> types{ "UINT32", "DOUBLE", "VECTOR6D", "UINT8", "UINT64" };
+  auto package = typedPackage(recipe, types);
   ASSERT_TRUE(package.setData<uint32_t>("speed_slider_mask", 1));
   ASSERT_TRUE(package.setData<double>("speed_slider_fraction", 0.5));
   ASSERT_TRUE(package.setData("external_force_torque", vector6d_t{ -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 }));
@@ -187,6 +199,238 @@ TEST(rtde_data_package, data_package_to_string)
                              "actual_digital_output_bits: 128\n";
   std::cout << "Package string:\n" << pkg_str << std::endl;
   EXPECT_EQ(expected_str, pkg_str);
+}
+
+TEST(rtde_data_package, every_rtde_data_type_can_be_applied)
+{
+  // The set of type names the robot may report is the only type knowledge the library still
+  // carries, so check that each one maps onto the C++ type an application expects to read.
+  std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
+                                   "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
+  std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
+                                  "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+  auto package = typedPackage(recipe, types);
+
+  // Every field reports back the type the robot named for it
+  for (size_t i = 0; i < recipe.size(); ++i)
+  {
+    const auto type = package.getDataType(recipe[i]);
+    ASSERT_TRUE(type.has_value()) << "for field " << recipe[i];
+    EXPECT_EQ(rtde_interface::toString(*type), types[i]) << "for field " << recipe[i];
+  }
+
+  bool bool_value;
+  uint8_t uint8_value;
+  uint32_t uint32_value;
+  uint64_t uint64_value;
+  int32_t int32_value;
+  double double_value;
+  vector3d_t vector3d_value;
+  vector6d_t vector6d_value;
+  vector6int32_t v6int32_value;
+  vector6uint32_t v6uint32_value;
+
+  EXPECT_TRUE(package.getData("f_bool", bool_value));
+  EXPECT_TRUE(package.getData("f_uint8", uint8_value));
+  EXPECT_TRUE(package.getData("f_uint32", uint32_value));
+  EXPECT_TRUE(package.getData("f_uint64", uint64_value));
+  EXPECT_TRUE(package.getData("f_int32", int32_value));
+  EXPECT_TRUE(package.getData("f_double", double_value));
+  EXPECT_TRUE(package.getData("f_vector3d", vector3d_value));
+  EXPECT_TRUE(package.getData("f_vector6d", vector6d_value));
+  EXPECT_TRUE(package.getData("f_v6int32", v6int32_value));
+  EXPECT_TRUE(package.getData("f_v6uint32", v6uint32_value));
+
+  // Each field holds exactly the type the robot named for it, and nothing else
+  EXPECT_FALSE(package.getData("f_bool", double_value));
+  EXPECT_FALSE(package.getData("f_uint8", uint32_value));
+  EXPECT_FALSE(package.getData("f_uint32", int32_value));
+  EXPECT_FALSE(package.getData("f_uint64", uint32_value));
+  EXPECT_FALSE(package.getData("f_int32", uint32_value));
+  EXPECT_FALSE(package.getData("f_double", uint64_value));
+  EXPECT_FALSE(package.getData("f_vector3d", vector6d_value));
+  EXPECT_FALSE(package.getData("f_vector6d", vector3d_value));
+  EXPECT_FALSE(package.getData("f_v6int32", v6uint32_value));
+  EXPECT_FALSE(package.getData("f_v6uint32", v6int32_value));
+}
+
+TEST(rtde_data_package, unknown_data_types_are_rejected)
+{
+  std::vector<std::string> recipe{ "timestamp" };
+  test::TestableDataPackage package(recipe);
+
+  // A field the robot doesn't know about is reported as NOT_FOUND, one that is already used by
+  // another recipe as IN_USE. Neither is a data type.
+  EXPECT_THROW(package.initEmpty({ "NOT_FOUND" }), UrException);
+  EXPECT_THROW(package.initEmpty({ "IN_USE" }), UrException);
+  EXPECT_THROW(package.initEmpty({ "double" }), UrException);
+}
+
+TEST(rtde_data_package, type_count_has_to_match_recipe)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  test::TestableDataPackage package(recipe);
+  EXPECT_THROW(package.initEmpty({ "DOUBLE" }), UrException);
+  EXPECT_THROW(package.initEmpty({ "DOUBLE", "VECTOR6D", "DOUBLE" }), UrException);
+}
+
+TEST(rtde_data_package, untyped_package_cannot_be_parsed_or_serialized)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  rtde_interface::DataPackage package(recipe);
+
+  EXPECT_FALSE(package.getDataType("timestamp").has_value());
+
+  double timestamp = 0.0;
+  EXPECT_FALSE(package.getData("timestamp", timestamp));
+
+  uint8_t buffer[4096];
+  EXPECT_EQ(package.serializePackage(buffer), 0);
+
+  uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35 };
+  comm::BinParser bp(data_package, sizeof(data_package));
+  EXPECT_FALSE(package.parseWith(bp));
+}
+
+TEST(rtde_data_package, untyped_package_gets_typed_by_assignment)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  rtde_interface::DataPackage untyped_package(recipe);
+  auto typed_package = typedPackage(recipe, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(typed_package.setData("timestamp", 42.0));
+
+  untyped_package = typed_package;
+
+  EXPECT_EQ(untyped_package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 0.0;
+  ASSERT_TRUE(untyped_package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+// Applying the robot's answer to a package an application is already holding is what lets that
+// application allocate the package wherever it likes, including before the connection exists.
+TEST(rtde_data_package, applying_types_does_not_reallocate)
+{
+  std::vector<std::string> recipe{ "timestamp", "actual_q" };
+  test::TestableDataPackage package(recipe);
+
+  double timestamp = 0.0;
+  ASSERT_FALSE(package.getData("timestamp", timestamp));
+
+  package.initEmpty({ "DOUBLE", "VECTOR6D" });
+
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+// An input package is written before the recipe has been acknowledged, so setData() has to be able
+// to decide a field's type itself. Whether it matches the robot is checked when the package is sent.
+TEST(rtde_data_package, set_data_establishes_the_type_of_an_untyped_field)
+{
+  rtde_interface::DataPackage package({ "speed_slider_mask", "speed_slider_fraction" });
+
+  ASSERT_TRUE(package.setData("speed_slider_fraction", 0.5));
+
+  double speed_slider_fraction = 0.0;
+  ASSERT_TRUE(package.getData("speed_slider_fraction", speed_slider_fraction));
+  EXPECT_DOUBLE_EQ(speed_slider_fraction, 0.5);
+
+  EXPECT_EQ(package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+
+  // The field that was never written keeps no type at all
+  uint32_t speed_slider_mask = 1;
+  EXPECT_FALSE(package.getData("speed_slider_mask", speed_slider_mask));
+  EXPECT_FALSE(package.getDataType("speed_slider_mask").has_value());
+}
+
+TEST(rtde_data_package, get_data_type_reports_unknown_fields_and_untyped_fields)
+{
+  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+
+  EXPECT_FALSE(package.getDataType("not_in_the_recipe").has_value());
+
+  // Asking about a field of a package the robot hasn't acknowledged yet is the other way to get a
+  // negative answer, and it is what tells an application the package isn't usable yet.
+  rtde_interface::DataPackage untyped_package({ "timestamp" });
+  EXPECT_FALSE(untyped_package.getDataType("timestamp").has_value());
+}
+
+// Once a field has a type, whether from the robot or from an earlier write, a differently typed
+// write is a mistake rather than a retype.
+TEST(rtde_data_package, set_data_checks_against_an_established_type)
+{
+  rtde_interface::DataPackage package({ "speed_slider_fraction" });
+  ASSERT_TRUE(package.setData("speed_slider_fraction", 0.5));
+
+  EXPECT_FALSE(package.setData("speed_slider_fraction", static_cast<uint32_t>(1)));
+
+  auto typed_package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  EXPECT_FALSE(typed_package.setData("timestamp", static_cast<uint32_t>(1)));
+}
+
+// Whether a package knows its types is answered by the fields themselves rather than by a flag
+// recording that the robot answered, so writing every field of an untyped package is enough to make
+// it serializable. Values written this way are still checked against the robot when the package is
+// handed to RTDEWriter::sendPackage().
+TEST(rtde_data_package, writing_every_field_makes_a_package_serializable)
+{
+  rtde_interface::DataPackage package({ "speed_slider_mask", "speed_slider_fraction" });
+  package.setRecipeID(1);
+
+  uint8_t buffer[4096];
+  ASSERT_EQ(package.serializePackage(buffer), 0) << "no field has a type yet";
+
+  ASSERT_TRUE(package.setData("speed_slider_mask", static_cast<uint32_t>(1)));
+  EXPECT_EQ(package.serializePackage(buffer), 0) << "speed_slider_fraction still has no type";
+
+  ASSERT_TRUE(package.setData("speed_slider_fraction", 0.5));
+  // A two byte size, a one byte package type and the one byte recipe id, then the two fields
+  const size_t header_size = 4;
+  EXPECT_EQ(package.serializePackage(buffer), header_size + sizeof(uint32_t) + sizeof(double));
+}
+
+// Merging a partially written package into the send buffer belongs to RTDEWriter, so it is covered
+// by the sendPackage() tests in test_rtde_writer.cpp.
+
+// Zeroing a package has to keep the types intact, otherwise the next serialization would use the
+// wrong field sizes.
+TEST(rtde_data_package, init_empty_keeps_types)
+{
+  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+
+  package.initEmpty();
+
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 1.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 0.0);
+}
+
+TEST(rtde_data_package, copy_keeps_types_and_values)
+{
+  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+
+  rtde_interface::DataPackage copy(package);
+
+  EXPECT_EQ(copy.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 0.0;
+  ASSERT_TRUE(copy.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+TEST(rtde_data_package, get_data_with_wrong_type_fails)
+{
+  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+
+  // The robot dictates the types, so asking for the wrong one has to fail gracefully instead of
+  // throwing std::bad_variant_access.
+  uint32_t timestamp = 0;
+  EXPECT_FALSE(package.getData("timestamp", timestamp));
 }
 
 int main(int argc, char* argv[])

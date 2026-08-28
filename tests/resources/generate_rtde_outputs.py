@@ -33,7 +33,10 @@ import pandas as pd
 import re
 URCL_PATH = pathlib.Path(__file__).parent.parent.parent.resolve()
 
-PKG_PATH = [i for i in pathlib.Path(URCL_PATH.as_posix()).glob("**/data_package.cpp")]
+# The client library takes the data types of the RTDE fields from the robot's answer to the recipe
+# setup, so the list of all known fields only exists in the test double that has to emulate that
+# answer.
+PKG_PATH = [i for i in pathlib.Path(URCL_PATH.as_posix()).glob("**/fake_rtde_server.cpp")]
 
 assert len(PKG_PATH) == 1
 

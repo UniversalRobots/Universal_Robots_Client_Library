@@ -40,6 +40,8 @@
 #include <ur_client_library/rtde/rtde_package.h>
 #include <ur_client_library/rtde/rtde_parser.h>
 
+#include "rtde_test_helpers.h"
+
 using namespace urcl;
 
 class PipelineTest : public ::testing::Test
@@ -53,7 +55,8 @@ protected:
     // Setup pipeline
     stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60002));
     std::vector<std::string> recipe = { "timestamp" };
-    parser_.reset(new rtde_interface::RTDEParser(recipe));
+    parser_.reset(new test::TestableRTDEParser(recipe));
+    parser_->setRecipeTypes({ "DOUBLE" });
     parser_->setProtocolVersion(2);
     producer_.reset(new comm::URProducer<rtde_interface::RTDEPackage>(*stream_.get(), *parser_.get()));
 
@@ -72,7 +75,7 @@ protected:
   std::unique_ptr<TestableTcpServer> server_;
 
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
-  std::unique_ptr<rtde_interface::RTDEParser> parser_;
+  std::unique_ptr<test::TestableRTDEParser> parser_;
   std::unique_ptr<comm::URProducer<rtde_interface::RTDEPackage>> producer_;
   std::unique_ptr<comm::Pipeline<rtde_interface::RTDEPackage>> pipeline_;
   comm::INotifier notifier_;
