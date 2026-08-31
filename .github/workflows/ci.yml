@@ -79,7 +79,7 @@ jobs:
             POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
             CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB'
           - ROBOT_MODEL: 'ur7e'
-            URSIM_VERSION: '10.14.0-0.10.703-preview-1'
+            URSIM_VERSION: '10.14.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.14.0/ur7e'
             POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
             CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB'
