@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "ur_client_library/comm/bin_parser.h"
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
@@ -86,6 +87,8 @@ private:
 
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
+  void handlePackage(const socket_t filedescriptor, rtde_interface::PackageType type, comm::BinParser& bp);
+
   void sendDataLoop();
   std::atomic<bool> send_loop_running_;
 
@@ -94,6 +97,7 @@ private:
   std::chrono::steady_clock::time_point start_time_;
 
   socket_t client_socket_;
+  std::vector<uint8_t> receive_buffer_;
 
   void actOnInput();
 
