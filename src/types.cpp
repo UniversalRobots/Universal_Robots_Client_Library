@@ -151,6 +151,22 @@ std::string Pose::toString() const
   std::stringstream ss;
   ss << "Pose(x = " << x << ", y = " << y << ", z = " << z << ", rx = " << rx << ", ry = " << ry << ", rz = " << rz
      << ")";
+
+  if (q_near_.has_value())
+  {
+    ss << "\n";
+    ss << "With Q_near([";
+    auto q_values = q_near_.value().getValues();
+    for (size_t i = 0; i < q_values.size(); ++i)
+    {
+      ss << q_values[i];
+      if (i < q_values.size() - 1)
+      {
+        ss << ", ";
+      }
+    }
+    ss << "])";
+  }
   return ss.str();
 }
 
