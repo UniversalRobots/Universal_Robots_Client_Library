@@ -209,13 +209,6 @@ timeval DashboardClientImplX::getConfiguredSendTimeout() const
   return send_timeout_;
 }
 
-VersionInformation DashboardClientImplX::queryPolyScopeVersion()
-{
-  DashboardResponse response = commandPolyscopeVersion();
-  std::string version_string = std::get<std::string>(response.data["polyscope_version"]);
-  return VersionInformation::fromString(version_string);
-}
-
 void DashboardClientImplX::assertHasCommand(const std::string& command)
 {
   if (is_connected_ == false)

@@ -193,7 +193,6 @@ protected:
 
   DashboardResponse del(const std::string& endpoint, const bool debug = true);
 
-  virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) override;
 
   const std::string base_url_ = "/universal-robots/robot-api";
