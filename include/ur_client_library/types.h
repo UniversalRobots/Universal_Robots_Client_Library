@@ -29,6 +29,7 @@
 #include <optional>
 #include <variant>
 #include <vector>
+#include <string>
 
 namespace urcl
 {
