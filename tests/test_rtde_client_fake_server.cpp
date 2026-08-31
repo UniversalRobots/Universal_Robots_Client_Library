@@ -34,9 +34,14 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
+#include <ur_client_library/comm/stream.h>
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/rtde/rtde_client.h>
+#include <ur_client_library/rtde/request_protocol_version.h>
 
 #include "fake_rtde_server.h"
 
@@ -221,6 +226,38 @@ TEST_F(RTDEClientFakeServerTest, protocol_version_is_lowered_when_the_robot_refu
   ASSERT_GE(requested.size(), 2u) << "the client never asked for a second protocol version";
   EXPECT_EQ(requested[0], 2) << "the client should try the newest version first";
   EXPECT_EQ(requested[1], 1) << "the client should fall back to the next version down";
+}
+
+// TCP can deliver several RTDE packages in one recv(). The fake server used to handle only the
+// first and drop the rest, which is what made a pause request vanish after a burst of input data.
+TEST_F(RTDEClientFakeServerTest, two_requests_in_one_write_are_both_recorded)
+{
+  comm::URStream<rtde_interface::RTDEPackage> stream("localhost", g_FAKE_RTDE_PORT);
+  ASSERT_TRUE(stream.connect(1, std::chrono::milliseconds(100)));
+
+  uint8_t buffer[16];
+  const size_t first = rtde_interface::RequestProtocolVersionRequest::generateSerializedRequest(buffer, 2);
+  const size_t second = rtde_interface::RequestProtocolVersionRequest::generateSerializedRequest(buffer + first, 1);
+  const size_t total = first + second;
+  size_t written = 0;
+  ASSERT_TRUE(stream.write(buffer, total, written));
+  ASSERT_EQ(written, total);
+
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  std::vector<uint16_t> requested;
+  while (std::chrono::steady_clock::now() < deadline)
+  {
+    requested = server_->requestedProtocolVersions();
+    if (requested.size() >= 2)
+    {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  ASSERT_EQ(requested.size(), 2u);
+  EXPECT_EQ(requested[0], 2);
+  EXPECT_EQ(requested[1], 1);
 }
 
 // If no version is acceptable the handshake has to fail, not spin.
