@@ -571,21 +571,54 @@ void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::strin
 void RTDEServer::connectionCallback(const socket_t filedescriptor)
 {
   client_socket_ = filedescriptor;
+  receive_buffer_.clear();
   URCL_LOG_INFO("Client connected to RTDE server on FD %d", filedescriptor);
 }
 void RTDEServer::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Client disconnected from RTDE server on FD %d", filedescriptor);
+  receive_buffer_.clear();
   stopSendingDataPackages();
 }
-void RTDEServer::messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer, int nbytesrecv)
+void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
 {
-  comm::BinParser bp(reinterpret_cast<uint8_t*>(buffer), nbytesrecv);
-  rtde_interface::PackageHeader::_package_size_type size;
-  rtde_interface::PackageType type;
-  bp.parse(size);
-  bp.parse(type);
+  // TCPServer hands over whatever one recv() returned. That can be several RTDE packages, or
+  // only the start of one. Keep leftovers so a later read can finish a package, and dispatch
+  // each complete package on its own rather than dropping everything after the first header.
+  receive_buffer_.insert(receive_buffer_.end(), reinterpret_cast<uint8_t*>(buffer),
+                         reinterpret_cast<uint8_t*>(buffer) + nbytesrecv);
 
+  constexpr size_t header_size =
+      sizeof(rtde_interface::PackageHeader::_package_size_type) + sizeof(rtde_interface::PackageType);
+  size_t offset = 0;
+  while (receive_buffer_.size() - offset >= sizeof(rtde_interface::PackageHeader::_package_size_type))
+  {
+    const size_t package_size = rtde_interface::PackageHeader::getPackageLength(receive_buffer_.data() + offset);
+    if (package_size < header_size)
+    {
+      URCL_LOG_ERROR("Received an RTDE package shorter than the 3-byte header (%zu bytes). Dropping the buffer.",
+                     package_size);
+      receive_buffer_.clear();
+      return;
+    }
+    if (receive_buffer_.size() - offset < package_size)
+    {
+      break;
+    }
+
+    comm::BinParser bp(receive_buffer_.data() + offset, package_size);
+    rtde_interface::PackageHeader::_package_size_type size;
+    rtde_interface::PackageType type;
+    bp.parse(size);
+    bp.parse(type);
+    handlePackage(filedescriptor, type, bp);
+    offset += package_size;
+  }
+  receive_buffer_.erase(receive_buffer_.begin(), receive_buffer_.begin() + static_cast<std::ptrdiff_t>(offset));
+}
+
+void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::PackageType type, comm::BinParser& bp)
+{
   switch (type)
   {
     case rtde_interface::PackageType::RTDE_REQUEST_PROTOCOL_VERSION:
