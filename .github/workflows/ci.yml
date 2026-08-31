@@ -77,12 +77,12 @@ jobs:
             URSIM_VERSION: '10.13.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.13.0/ur7e'
             POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
-            CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB'
+            CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB/10.13.0'
           - ROBOT_MODEL: 'ur7e'
             URSIM_VERSION: '10.14.0'
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.14.0/ur7e'
             POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
-            CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB'
+            CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB/10.14.0'
 
     steps:
       - uses: actions/checkout@v7
