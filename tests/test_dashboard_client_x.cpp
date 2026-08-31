@@ -724,6 +724,17 @@ static constexpr const char* MOCK_OPENAPI_RESPONSE = R"({"info":{"version":"5.0.
 static constexpr const char* MOCK_SUPPORTFILES_ENDPOINT = "/universal-robots/robot-api/supportfiles/v1";
 static constexpr const char* MOCK_OPENAPI_ENDPOINT = "/universal-robots/robot-api/openapi.json";
 
+// Thin subclass used only in tests to expose the protected is_connected_ field.
+class TestableDashboardClientMock : public DashboardClientImplX
+{
+public:
+  using DashboardClientImplX::DashboardClientImplX;
+  bool isConnected() const
+  {
+    return is_connected_;
+  }
+};
+
 class DashboardClientImplXMockTest : public ::testing::Test
 {
 protected:
@@ -794,6 +805,18 @@ TEST_F(DashboardClientImplXMockTest, shutdown_forbidden)
   auto response = impl_->commandShutdown();
   EXPECT_FALSE(response.ok);
   EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, shutdown_endpoint_not_found)
+{
+  // The server is reachable but no handler is registered for the shutdown
+  // endpoint, so httplib returns 404 by default. The client must treat this as
+  // a failed (non-ok) response without throwing an exception.
+  // Note: no server_.Put(MOCK_SHUTDOWN_ENDPOINT, ...) registration here.
+
+  auto response = impl_->commandShutdown();
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(std::get<int>(response.data.at("status_code")), 404);
 }
 
 // --- commandGenerateFlightReport ---
@@ -975,6 +998,157 @@ TEST_F(DashboardClientImplXMockTest, download_support_files_invalid_path)
 
   EXPECT_FALSE(response.ok);
   EXPECT_NE(response.message.find("Failed to create temporary file"), std::string::npos);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_connection_error)
+{
+  // The server is stopped after connect() so the streaming GET has no server to talk to.
+  // The httplib::Result is falsy (error != Success) and the client must surface this as a
+  // non-ok response containing "HTTP request failed". The final file must not be created.
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_conn_err.zip";
+  std::filesystem::remove(out);
+
+  server_.stop();
+  if (server_thread_.joinable())
+  {
+    server_thread_.join();
+  }
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("HTTP request failed"), std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on connection error";
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_rename_failure)
+{
+  // When the destination path already exists as a directory, std::filesystem::rename
+  // fails (EISDIR on POSIX). The implementation must return a non-ok response
+  // containing "Failed to rename" and must clean up the temporary file.
+  const std::string fake_zip = "fake_zip_data";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&fake_zip](const httplib::Request&, httplib::Response& res) {
+    res.set_content(fake_zip, "application/zip");
+  });
+
+  // Create a directory at the save_path so that rename() cannot replace it with a file.
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_rename_fail_dir";
+  std::filesystem::remove_all(out);
+  std::filesystem::create_directory(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("Failed to rename"), std::string::npos);
+
+  // The directory itself must be untouched; no temp file should be left behind.
+  EXPECT_TRUE(std::filesystem::is_directory(out));
+  EXPECT_TRUE(std::filesystem::is_empty(out)) << "Temp file must be cleaned up after rename failure";
+
+  std::filesystem::remove_all(out);
+}
+
+// ---------------------------------------------------------------------------
+// Connection-state tests
+//
+// These tests use TestableDashboardClientMock so that is_connected_ can be
+// observed directly. Unlike DashboardClientImplXMockTest, SetUp() does NOT
+// call connect() — each test controls the connection lifecycle explicitly.
+// ---------------------------------------------------------------------------
+
+class DashboardClientImplXConnectionStateTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    port_ = server_.bind_to_any_port("127.0.0.1");
+    server_thread_ = std::thread([this]() { server_.listen_after_bind(); });
+    while (!server_.is_running())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    impl_ = std::make_unique<TestableDashboardClientMock>("127.0.0.1:" + std::to_string(port_));
+  }
+
+  void TearDown() override
+  {
+    server_.stop();
+    if (server_thread_.joinable())
+    {
+      server_thread_.join();
+    }
+  }
+
+  void registerOpenApiEndpoint()
+  {
+    server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+      res.set_content(MOCK_OPENAPI_RESPONSE, "application/json");
+    });
+  }
+
+  httplib::Server server_;
+  int port_ = 0;
+  std::thread server_thread_;
+  std::unique_ptr<TestableDashboardClientMock> impl_;
+};
+
+TEST_F(DashboardClientImplXConnectionStateTest, initially_not_connected)
+{
+  // A freshly constructed client must report disconnected before connect() is called.
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_success_sets_connected)
+{
+  registerOpenApiEndpoint();
+  EXPECT_TRUE(impl_->connect());
+  EXPECT_TRUE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_failure_leaves_not_connected)
+{
+  // The server is reachable but openapi.json returns 404, so connect() must fail
+  // and leave the client in the disconnected state.
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 404; });
+
+  EXPECT_FALSE(impl_->connect());
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, assert_has_command_reconnects_when_not_connected)
+{
+  // When assertHasCommand() is called while disconnected it must trigger connect().
+  // commandShutdown() calls assertHasCommand("shutdown") internally, so a successful
+  // commandShutdown() proves that reconnection happened.
+  registerOpenApiEndpoint();
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.status = 202;
+    res.set_content(R"({"message":null})", "application/json");
+  });
+
+  ASSERT_FALSE(impl_->isConnected());
+  impl_->commandShutdown();
+  EXPECT_TRUE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, assert_has_command_throws_when_reconnect_fails)
+{
+  // assertHasCommand() is called while disconnected and the reconnect attempt fails
+  // (openapi.json returns 404). A UrException must be thrown.
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 404; });
+
+  ASSERT_FALSE(impl_->isConnected());
+  EXPECT_THROW(impl_->commandShutdown(), UrException);
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, disconnect_clears_connected)
+{
+  registerOpenApiEndpoint();
+  ASSERT_TRUE(impl_->connect());
+  ASSERT_TRUE(impl_->isConnected());
+
+  impl_->disconnect();
+  EXPECT_FALSE(impl_->isConnected());
 }
 
 class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener
