@@ -351,7 +351,7 @@ void TrajectoryPointInterface::setVelAccMultiplier(const int32_t multiplier)
 {
   if (multiplier <= 0)
   {
-    throw std::invalid_argument("Spline vel/acc multiplier has to be positive, got " + std::to_string(multiplier));
+    throw std::invalid_argument("Velocity/acceleration multiplier must be positive.");
   }
   mult_vel_acc_ = multiplier;
 }
