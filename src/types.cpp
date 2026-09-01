@@ -31,6 +31,7 @@
 #include <ur_client_library/types.h>
 
 #include <algorithm>
+#include <sstream>
 
 namespace urcl
 {
@@ -69,6 +70,22 @@ bool operator==(const Q& lhs, const Q& rhs)
 {
   return lhs.getValues().size() == rhs.getValues().size() &&
          std::equal(lhs.getValues().begin(), lhs.getValues().end(), rhs.getValues().begin());
+}
+
+std::string Q::toString() const
+{
+  std::stringstream ss;
+  ss << "Q([";
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    ss << values_[i];
+    if (i < values_.size() - 1)
+    {
+      ss << ", ";
+    }
+  }
+  ss << "])";
+  return ss.str();
 }
 
 Pose::Pose() : x(0.0), y(0.0), z(0.0), rx(0.0), ry(0.0), rz(0.0), q_near_(std::nullopt)
@@ -127,6 +144,30 @@ void Pose::setPose(const double x, const double y, const double z, const double 
   this->rx = rx;
   this->ry = ry;
   this->rz = rz;
+}
+
+std::string Pose::toString() const
+{
+  std::stringstream ss;
+  ss << "Pose(x = " << x << ", y = " << y << ", z = " << z << ", rx = " << rx << ", ry = " << ry << ", rz = " << rz
+     << ")";
+
+  if (q_near_.has_value())
+  {
+    ss << "\n";
+    ss << "With Q_near([";
+    auto q_values = q_near_.value().getValues();
+    for (size_t i = 0; i < q_values.size(); ++i)
+    {
+      ss << q_values[i];
+      if (i < q_values.size() - 1)
+      {
+        ss << ", ";
+      }
+    }
+    ss << "])";
+  }
+  return ss.str();
 }
 
 }  // namespace urcl
