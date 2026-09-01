@@ -34,6 +34,8 @@
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
 #include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <thread>
 #include "test_utils.h"
 
@@ -491,6 +493,52 @@ TEST(UrDriverInitTest, both_recipe_file_and_vector_select_vector)
   auto input_recipe = driver.getRTDEInputRecipe();
   EXPECT_TRUE(std::find(input_recipe.begin(), input_recipe.end(), INPUT_RECIPE_VECTOR_EXCLUDED_VALUE) ==
               input_recipe.end());
+}
+
+TEST(UrDriverInitTest, script_with_vel_acc_placeholder_uses_fine_multiplier)
+{
+  UrDriverConfiguration config;
+  config.robot_ip = g_ROBOT_IP;
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  UrDriver ur_driver(config);
+  EXPECT_EQ(ur_driver.getVelAccMultiplier(), control::TrajectoryPointInterface::MULT_VEL_ACC);
+}
+
+TEST(UrDriverInitTest, legacy_script_falls_back_to_joint_state_multiplier)
+{
+  // Legacy scripts define no dedicated spline vel/acc multiplier.
+  std::ifstream ifs(SCRIPT_FILE);
+  ASSERT_TRUE(ifs.is_open());
+  std::string script((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  const std::string placeholder = "{{VEL_ACC_REPLACE}}";
+  ASSERT_NE(script.find(placeholder), std::string::npos);
+  while (script.find(placeholder) != std::string::npos)
+  {
+    script.replace(script.find(placeholder), placeholder.size(), "{{JOINT_STATE_REPLACE}}");
+  }
+
+  const char legacy_script_file[] = "legacy_urscript.HRRW";
+  std::ofstream ofs(legacy_script_file);
+  ASSERT_TRUE(ofs.is_open());
+  ofs << script;
+  ofs.close();
+
+  UrDriverConfiguration config;
+  config.robot_ip = g_ROBOT_IP;
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = legacy_script_file;
+
+  UrDriver ur_driver(config);
+  const int32_t legacy_multiplier = control::ReverseInterface::MULT_JOINTSTATE;
+  EXPECT_EQ(ur_driver.getVelAccMultiplier(), legacy_multiplier);
+
+  std::remove(legacy_script_file);
 }
 // TODO we should add more tests for the UrDriver class.
 

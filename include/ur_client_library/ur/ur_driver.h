@@ -976,6 +976,18 @@ public:
   }
 
   /*!
+   * \brief Returns the multiplier used to encode spline point velocities and accelerations.
+   *
+   * This is selected based on the loaded control script: Scripts containing the
+   * `{{VEL_ACC_REPLACE}}` placeholder use the finer `MULT_VEL_ACC` encoding, while
+   * legacy scripts fall back to `MULT_JOINTSTATE`.
+   */
+  int32_t getVelAccMultiplier() const
+  {
+    return trajectory_interface_->getVelAccMultiplier();
+  }
+
+  /*!
    * \brief Register a callback for the robot-based tool contact execution completion.
    *
    * If a tool contact is detected or tool contact is canceled, this callback function will be triggered mode of robot

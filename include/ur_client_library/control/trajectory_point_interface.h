@@ -64,7 +64,7 @@ class TrajectoryPointInterface : public ReverseInterface
 {
 public:
   // Spline vel/acc need finer resolution: quantising near-zero values at 1e-6 causes controller faults.
-  static const int32_t MULT_VEL_ACC = 100000000;
+  static constexpr int32_t MULT_VEL_ACC = 100000000;
   static const int MESSAGE_LENGTH = 21;
 
   TrajectoryPointInterface() = delete;
@@ -144,8 +144,18 @@ public:
    *
    * \param multiplier The multiplier the running control script uses to decode spline velocities
    * and accelerations.
+   *
+   * \throws std::invalid_argument if the multiplier is not positive.
    */
   void setVelAccMultiplier(const int32_t multiplier);
+
+  /*!
+   * \brief Returns the multiplier used to encode spline point velocities and accelerations.
+   */
+  int32_t getVelAccMultiplier() const
+  {
+    return mult_vel_acc_;
+  }
 
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback);
 

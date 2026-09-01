@@ -103,16 +103,21 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   {
     const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) / mult_vel_acc_;
     auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
-    auto within_range = [max_vel_acc](const vector6d_t& values) {
-      return std::all_of(values.begin(), values.end(),
-                         [max_vel_acc](const double value) { return std::abs(value) <= max_vel_acc; });
+    auto max_magnitude = [](const vector6d_t& values) {
+      return std::abs(*std::max_element(values.begin(), values.end(), [](const double lhs, const double rhs) {
+        return std::abs(lhs) < std::abs(rhs);
+      }));
     };
-    if (!within_range(spline_primitive->target_velocities) ||
-        (spline_primitive->target_accelerations.has_value() &&
-         !within_range(spline_primitive->target_accelerations.value())))
+    double largest_vel_acc = max_magnitude(spline_primitive->target_velocities);
+    if (spline_primitive->target_accelerations.has_value())
     {
-      URCL_LOG_ERROR("Spline point velocity or acceleration out of range. Maximum allowed magnitude is %f.",
-                     max_vel_acc);
+      largest_vel_acc = std::max(largest_vel_acc, max_magnitude(spline_primitive->target_accelerations.value()));
+    }
+    if (largest_vel_acc > max_vel_acc)
+    {
+      URCL_LOG_ERROR("Spline point velocity or acceleration out of range. Got %f, but the maximum allowed magnitude "
+                     "is %f.",
+                     largest_vel_acc, max_vel_acc);
       return false;
     }
   }
@@ -344,6 +349,10 @@ void TrajectoryPointInterface::messageCallback([[maybe_unused]] const socket_t f
 
 void TrajectoryPointInterface::setVelAccMultiplier(const int32_t multiplier)
 {
+  if (multiplier <= 0)
+  {
+    throw std::invalid_argument("Spline vel/acc multiplier has to be positive, got " + std::to_string(multiplier));
+  }
   mult_vel_acc_ = multiplier;
 }
 

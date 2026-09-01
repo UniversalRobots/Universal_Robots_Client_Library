@@ -654,6 +654,14 @@ TEST_F(TrajectoryPointInterfaceTest, write_splines_legacy_vel_acc)
   }
 }
 
+// Check validity of multipliers.
+TEST_F(TrajectoryPointInterfaceTest, set_vel_acc_multiplier_rejects_non_positive_values)
+{
+  EXPECT_THROW(traj_point_interface_->setVelAccMultiplier(0), std::invalid_argument);
+  EXPECT_THROW(traj_point_interface_->setVelAccMultiplier(-1), std::invalid_argument);
+  EXPECT_EQ(traj_point_interface_->getVelAccMultiplier(), control::TrajectoryPointInterface::MULT_VEL_ACC);
+}
+
 TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
