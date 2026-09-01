@@ -270,22 +270,12 @@ public:
   bool getData(const std::string_view name, std::bitset<N>& val) const
   {
     static_assert(sizeof(T) * 8 >= N, "Bitset is too large for underlying variable");
-
-    const auto it =
-        std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
-          return element.first == name;
-        });
-    if (it == data_.end())
+    T recipe_type;
+    if (!getData(name, recipe_type))
     {
       return false;
     }
-    const T* value = std::get_if<T>(&it->second);
-    if (value == nullptr)
-    {
-      reportReadFailure(name, it->second);
-      return false;
-    }
-    val = std::bitset<N>(*value);
+    val = std::bitset<N>(recipe_type);
     return true;
   }
 
