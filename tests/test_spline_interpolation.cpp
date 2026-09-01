@@ -257,7 +257,7 @@ protected:
   void waitForTrajectoryStarted()
   {
     bool trajectory_started = false;
-    double timeout = 1;
+    double timeout = 5;
     double cur_time = 0.0;
     rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
     while (trajectory_started == false && g_my_robot->getUrDriver()->getDataPackage(data_pkg))
