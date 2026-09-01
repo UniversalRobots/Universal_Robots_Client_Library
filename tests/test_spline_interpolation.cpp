@@ -57,7 +57,7 @@ bool g_HEADLESS = true;
 
 std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 
-bool g_trajectory_running;
+std::atomic<bool> g_trajectory_running;
 std::condition_variable g_trajectory_result_cv;
 std::mutex g_trajectory_result_mutex;
 control::TrajectoryResult g_trajectory_result;
@@ -211,6 +211,7 @@ protected:
       return false;
     }
 
+    std::unique_lock<std::mutex> result_lk(g_trajectory_result_mutex);
     // Send trajectory
     sendTrajectory(s_pos, s_vel, s_acc, s_time);
 
