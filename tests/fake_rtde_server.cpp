@@ -485,7 +485,7 @@ std::unique_ptr<rtde_interface::DataPackage> makeTypedDataPackage(const std::vec
                                                                   const std::vector<std::string>& types,
                                                                   const uint16_t protocol_version = 2)
 {
-  auto package = std::make_unique<test::TestableDataPackage>(recipe);
+  auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
   package->setTypes(types);
   package->setProtocolVersion(protocol_version);
   return package;

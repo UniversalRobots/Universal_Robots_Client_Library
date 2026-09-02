@@ -56,7 +56,7 @@ protected:
     stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60004));
     stream_->connect();
 
-    writer_.reset(new test::TestableRTDEWriter(stream_.get(), input_recipe_));
+    writer_.reset(new rtde_interface::RTDEWriter(stream_.get(), input_recipe_));
     writer_->setRecipeTypes(input_recipe_types_);
     writer_->init(1);
   }
@@ -132,7 +132,7 @@ protected:
   std::vector<std::string> input_recipe_types_ = { "UINT32", "DOUBLE", "UINT8",  "UINT8",   "UINT8",  "UINT8",
                                                    "UINT8",  "UINT8",  "UINT8",  "UINT8",   "DOUBLE", "DOUBLE",
                                                    "BOOL",   "INT32",  "DOUBLE", "VECTOR6D" };
-  std::unique_ptr<test::TestableRTDEWriter> writer_;
+  std::unique_ptr<rtde_interface::RTDEWriter> writer_;
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
   std::unordered_map<std::string, input_types> parsed_data_;
