@@ -197,7 +197,7 @@ TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    package.initEmpty(types);
+    package.setTypes(types);
     allocations = counter.count();
   }
 
@@ -210,10 +210,14 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  const std::vector<std::string> types = { "DOUBLE", "DOUBLE" };
   test::TestableRTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setRecipeTypes(types);
   parser.setProtocolVersion(2);
-  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+  // Same as after the handshake: the package already has the negotiated layout, so parse must not
+  // allocate a replacement.
+  std::unique_ptr<rtde_interface::RTDEPackage> product =
+      std::make_unique<rtde_interface::DataPackage>(test::typedPackage(recipe, types));
 
   std::size_t allocations = 0;
   bool parsed = false;

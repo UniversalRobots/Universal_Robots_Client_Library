@@ -30,9 +30,8 @@
 
 #pragma once
 
-// Applying the data types from an RTDE setup acknowledgement is the library's own job, so the data
-// package, the parser and the writer all keep those entry points out of their public interface.
-// Tests, and the fake server standing in for the robot, reach them through these subclasses.
+// The parser and the writer keep setRecipeTypes() out of their public interface. Tests, and the
+// fake server standing in for the robot, reach it through these subclasses.
 
 #include <string>
 #include <vector>
@@ -49,8 +48,6 @@ class TestableDataPackage : public rtde_interface::DataPackage
 {
 public:
   using rtde_interface::DataPackage::DataPackage;
-  using rtde_interface::DataPackage::initEmpty;
-  using rtde_interface::DataPackage::setProtocolVersion;
 };
 
 class TestableRTDEParser : public rtde_interface::RTDEParser
@@ -78,11 +75,10 @@ public:
  * \brief Builds a data package the way the library does: allocate from the recipe, then apply the
  * data types the robot reported for it.
  */
-inline TestableDataPackage typedPackage(const std::vector<std::string>& recipe, const std::vector<std::string>& types,
-                                        const uint16_t protocol_version = 2)
+inline TestableDataPackage typedPackage(const std::vector<std::string>& recipe, const std::vector<std::string>& types)
 {
-  TestableDataPackage package(recipe, protocol_version);
-  package.initEmpty(types);
+  TestableDataPackage package(recipe);
+  package.setTypes(types);
   return package;
 }
 }  // namespace test

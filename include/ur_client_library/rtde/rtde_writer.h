@@ -95,10 +95,9 @@ public:
    * Use this if multiple values need to be sent at once. When using the other provided functions,
    * an RTDE data package will be sent each time.
    *
-   * Only the fields \p package has values for are taken over; the rest of the input recipe is sent
-   * as zeros. The values are checked against the data types the robot reported for the input
-   * recipe, so a field written with the wrong type is reported here rather than silently corrupting
-   * the package.
+   * Every field of \p package is copied into the send buffer. The package has to carry the same
+   * field names and types as the input recipe the robot acknowledged, so a field written with the
+   * wrong type is reported here rather than silently corrupting the package.
    *
    * \param package The package to send, constructed from the client's input recipe
    *
@@ -198,7 +197,7 @@ public:
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
 
 protected:
-  // Relays the data types from the robot's setup acknowledgement, which only the client receives.
+  // Relays the data types and the protocol version from the handshake, which only the client sees.
   friend class RTDEClient;
 
   /*!
@@ -208,11 +207,18 @@ protected:
    * passed to sendPackage() are checked.
    *
    * \param types The data types of the input recipe's fields, in the same order as the recipe
-   * \param protocol_version The RTDE protocol version negotiated with the robot
    *
    * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
    */
-  void setRecipeTypes(const std::vector<std::string>& types, uint16_t protocol_version = 2);
+  void setRecipeTypes(const std::vector<std::string>& types);
+
+  /*!
+   * \brief Records the RTDE protocol version negotiated with the robot.
+   *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. Defaults to
+   * version 2. The client sets this after protocol negotiation.
+   */
+  void setProtocolVersion(uint16_t protocol_version);
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
@@ -222,6 +228,7 @@ private:
   comm::URStream<RTDEPackage>* stream_;
   std::vector<std::string> recipe_;
   uint8_t recipe_id_;
+  uint16_t protocol_version_ = 2;
   std::shared_ptr<DataPackage> data_buffer0_;
   std::shared_ptr<DataPackage> data_buffer1_;
   std::shared_ptr<DataPackage> current_store_buffer_;

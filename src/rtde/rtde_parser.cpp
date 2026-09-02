@@ -30,12 +30,22 @@ namespace rtde_interface
 // A package allocates its storage from the recipe and learns its field types from the robot's
 // acknowledgement afterwards, which costs no memory.
 std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage(const std::vector<std::string>& recipe,
-                                                              const std::vector<std::string>& types,
-                                                              const uint16_t protocol_version)
+                                                              const std::vector<std::string>& types)
 {
-  auto package = std::make_unique<DataPackage>(recipe, protocol_version);
-  package->initEmpty(types);
+  auto package = std::make_unique<DataPackage>(recipe);
+  package->setTypes(types);
   return package;
+}
+
+bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
+{
+  if (protocol_version_ == 2)
+  {
+    uint8_t recipe_id = 0;
+    bp.parse(recipe_id);
+    package.setRecipeID(recipe_id);
+  }
+  return package.parseWith(bp);
 }
 
 bool RTDEParser::recipeTypesKnown() const
@@ -80,9 +90,9 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       {
         return false;
       }
-      std::unique_ptr<RTDEPackage> package = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
+      std::unique_ptr<DataPackage> package = makeTypedDataPackage(recipe_, recipe_types_);
 
-      if (!package->parseWith(bp))
+      if (!parseDataPackagePayload(bp, *package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;
@@ -149,38 +159,19 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
                         "a DataPackage would be sent.",
                         result->getType());
         }
-        result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
+        result = makeTypedDataPackage(recipe_, recipe_types_);
       }
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
-      data_package->setProtocolVersion(protocol_version_);
-      // Always apply the types the robot reported. isTyped() is also true after setData() on every
-      // field, which does not mean those types came from the robot, and parseWith() would then
-      // interpret the payload as the wrong layout. Applying types does not allocate.
-      if (!data_package->matchesRecipe(recipe_))
+      if (data_package->layoutHash() != typed_layout_hash_)
       {
-        URCL_LOG_ERROR("The passed pre-allocated DataPackage does not fit the negotiated output recipe. A new "
-                       "DataPackage will have to be allocated.");
-        result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
+        URCL_LOG_WARN("The passed pre-allocated DataPackage does not have the negotiated output layout. A new "
+                      "DataPackage will have to be allocated.");
+        result = makeTypedDataPackage(recipe_, recipe_types_);
         data_package = dynamic_cast<DataPackage*>(result.get());
       }
-      else
-      {
-        try
-        {
-          data_package->initEmpty(recipe_types_);
-        }
-        catch (const UrException& e)
-        {
-          URCL_LOG_ERROR("The passed pre-allocated DataPackage does not fit the negotiated output recipe (%s). A new "
-                         "DataPackage will have to be allocated.",
-                         e.what());
-          result = makeTypedDataPackage(recipe_, recipe_types_, protocol_version_);
-          data_package = dynamic_cast<DataPackage*>(result.get());
-        }
-      }
 
-      if (!data_package->parseWith(bp))
+      if (!parseDataPackagePayload(bp, *data_package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;

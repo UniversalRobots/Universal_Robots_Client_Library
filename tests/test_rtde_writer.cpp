@@ -519,6 +519,7 @@ TEST_F(RTDEWriterTest, send_data_package)
   const uint8_t standard_digital_output_mask = 0b00000001;  // pin 1
 
   rtde_interface::DataPackage data_package(input_recipe_);
+  data_package.setTypes(input_recipe_types_);
   ASSERT_TRUE(data_package.setData("speed_slider_fraction", send_speed_slider_fraction));
   ASSERT_TRUE(data_package.setData("speed_slider_mask", send_speed_slider_mask));
   ASSERT_TRUE(
@@ -545,9 +546,9 @@ TEST_F(RTDEWriterTest, send_data_package)
   EXPECT_EQ(standard_digital_output_mask, received_standard_digital_output_mask);
 }
 
-// The fields an application leaves alone are sent as zeros, so a package means the same thing no
-// matter which values happened to be sent before it.
-TEST_F(RTDEWriterTest, unset_fields_are_sent_as_zeros)
+// A complete package overwrites the send buffer, so fields the application did not set this time
+// go out as zeros rather than as whatever was sent before.
+TEST_F(RTDEWriterTest, send_data_package_overwrites_every_field)
 {
   ASSERT_TRUE(writer_->sendSpeedSlider(0.7));
   ASSERT_TRUE(waitForMessageCallback(1000));
@@ -555,6 +556,7 @@ TEST_F(RTDEWriterTest, unset_fields_are_sent_as_zeros)
   ASSERT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.7);
 
   rtde_interface::DataPackage data_package(input_recipe_);
+  data_package.setTypes(input_recipe_types_);
   ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
   ASSERT_TRUE(writer_->sendPackage(data_package));
   ASSERT_TRUE(waitForMessageCallback(1000));
@@ -563,6 +565,25 @@ TEST_F(RTDEWriterTest, unset_fields_are_sent_as_zeros)
   EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
   ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
   EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+// A package that still has untyped fields is not the same layout the robot acknowledged.
+TEST_F(RTDEWriterTest, send_data_package_with_untyped_fields_fails)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+// A package has to be built from the recipe that was registered, since that is what decides which
+// field is which.
+TEST_F(RTDEWriterTest, send_data_package_built_from_a_partial_recipe_fails)
+{
+  rtde_interface::DataPackage data_package({ "speed_slider_mask", "speed_slider_fraction" });
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.7));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
 }
 
 // The robot is the authority on a field's type, so writing one with the wrong type has to be
