@@ -7,6 +7,7 @@ steptime = get_steptime()
 textmsg("ExternalControl: steptime=", steptime)
 MULT_jointstate = {{JOINT_STATE_REPLACE}}
 MULT_time = {{TIME_REPLACE}}
+MULT_velacc = {{VEL_ACC_REPLACE}}
 
 DEBUG = False
 
@@ -668,7 +669,7 @@ thread trajectoryThread():
 
         # Cubic spline
         if raw_point[INDEX_SPLINE_TYPE] == SPLINE_CUBIC:
-          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
+          qd = [ raw_point[7] / MULT_velacc, raw_point[8] / MULT_velacc, raw_point[9] / MULT_velacc, raw_point[10] / MULT_velacc, raw_point[11] / MULT_velacc, raw_point[12] / MULT_velacc]
           is_robot_moving = cubicSplineRun(q, qd, tmptime, is_last_point, is_first_point)
 
           # reset old acceleration
@@ -676,8 +677,8 @@ thread trajectoryThread():
 
           # Quintic spline
         elif raw_point[INDEX_SPLINE_TYPE] == SPLINE_QUINTIC:
-          qd = [ raw_point[7] / MULT_jointstate, raw_point[8] / MULT_jointstate, raw_point[9] / MULT_jointstate, raw_point[10] / MULT_jointstate, raw_point[11] / MULT_jointstate, raw_point[12] / MULT_jointstate]
-          qdd = [ raw_point[13]/ MULT_jointstate, raw_point[14]/ MULT_jointstate, raw_point[15]/ MULT_jointstate, raw_point[16]/ MULT_jointstate, raw_point[17]/ MULT_jointstate, raw_point[18]/ MULT_jointstate]
+          qd = [ raw_point[7] / MULT_velacc, raw_point[8] / MULT_velacc, raw_point[9] / MULT_velacc, raw_point[10] / MULT_velacc, raw_point[11] / MULT_velacc, raw_point[12] / MULT_velacc]
+          qdd = [ raw_point[13]/ MULT_velacc, raw_point[14]/ MULT_velacc, raw_point[15]/ MULT_velacc, raw_point[16]/ MULT_velacc, raw_point[17]/ MULT_velacc, raw_point[18]/ MULT_velacc]
           is_robot_moving = quinticSplineRun(q, qd, qdd, tmptime, is_last_point, is_first_point)
         else:
           textmsg("Unknown spline type given:", raw_point[INDEX_POINT_TYPE])

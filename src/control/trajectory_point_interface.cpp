@@ -29,6 +29,8 @@
 #include <ur_client_library/control/trajectory_point_interface.h>
 #include <ur_client_library/exceptions.h>
 #include <urcl_3rdparty/portable_endian.h>
+#include <algorithm>
+#include <cmath>
 #include <math.h>
 #include <cstdint>
 #include <stdexcept>
@@ -95,6 +97,29 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   {
     URCL_LOG_ERROR("Motion primitive duration is too long. Maximum allowed duration is %f seconds.", MAX_GOAL_TIME_);
     return false;
+  }
+
+  if (primitive->type == MotionType::SPLINE)
+  {
+    const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) / mult_vel_acc_;
+    auto spline_primitive = std::static_pointer_cast<control::SplinePrimitive>(primitive);
+    auto max_magnitude = [](const vector6d_t& values) {
+      return std::abs(*std::max_element(values.begin(), values.end(), [](const double lhs, const double rhs) {
+        return std::abs(lhs) < std::abs(rhs);
+      }));
+    };
+    double largest_vel_acc = max_magnitude(spline_primitive->target_velocities);
+    if (spline_primitive->target_accelerations.has_value())
+    {
+      largest_vel_acc = std::max(largest_vel_acc, max_magnitude(spline_primitive->target_accelerations.value()));
+    }
+    if (largest_vel_acc > max_vel_acc)
+    {
+      URCL_LOG_ERROR("Spline point velocity or acceleration out of range. Got %f, but the maximum allowed magnitude "
+                     "is %f.",
+                     largest_vel_acc, max_vel_acc);
+      return false;
+    }
   }
 
   if (client_fd_ == -1)
@@ -180,24 +205,18 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   }
 
   size_t index = 0;
-  for (auto const& pos : first_block)
-  {
-    int32_t val = static_cast<int32_t>(round(pos * MULT_JOINTSTATE));
-    buffer[index] = htobe32(val);
-    index++;
-  }
-  for (auto const& item : second_block)
-  {
-    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
-    buffer[index] = htobe32(val);
-    index++;
-  }
-  for (auto const& item : third_block)
-  {
-    int32_t val = static_cast<int32_t>(round(item * MULT_JOINTSTATE));
-    buffer[index] = htobe32(val);
-    index++;
-  }
+  auto write_block = [&buffer, &index](const vector6d_t& block, const int32_t mult) {
+    for (auto const& item : block)
+    {
+      buffer[index++] = htobe32(static_cast<int32_t>(round(item * mult)));
+    }
+  };
+
+  // Only spline points carry per-sample vel/acc in the second and third block.
+  const int32_t vel_acc_mult = primitive->type == MotionType::SPLINE ? mult_vel_acc_ : MULT_JOINTSTATE;
+  write_block(first_block, MULT_JOINTSTATE);
+  write_block(second_block, vel_acc_mult);
+  write_block(third_block, vel_acc_mult);
 
   int32_t val = static_cast<int32_t>(round(primitive->duration.count() * MULT_TIME));
   buffer[index] = htobe32(val);
@@ -326,6 +345,15 @@ void TrajectoryPointInterface::messageCallback([[maybe_unused]] const socket_t f
     URCL_LOG_WARN("Received %d bytes on TrajectoryPointInterface. Expecting 4 bytes, so ignoring this message",
                   nbytesrecv);
   }
+}
+
+void TrajectoryPointInterface::setVelAccMultiplier(const int32_t multiplier)
+{
+  if (multiplier <= 0)
+  {
+    throw std::invalid_argument("Velocity/acceleration multiplier must be positive.");
+  }
+  mult_vel_acc_ = multiplier;
 }
 
 void TrajectoryPointInterface::setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback)

@@ -429,20 +429,20 @@ TEST_F(TrajectoryPointInterfaceTest, write_quintic_joint_spline)
   EXPECT_EQ(send_pos[5], ((double)received_data.pos[5]) / traj_point_interface_->MULT_JOINTSTATE);
 
   // Velocities
-  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_VEL_ACC);
 
   // Velocities
-  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_VEL_ACC);
 
   // Goal time (segment duration, ``MULT_TIME`` on the wire)
   EXPECT_EQ(send_goal_time, ((double)received_data.goal_time / traj_point_interface_->MULT_TIME));
@@ -473,20 +473,20 @@ TEST_F(TrajectoryPointInterfaceTest, write_cubic_joint_spline)
   EXPECT_EQ(send_pos[5], ((double)received_data.pos[5]) / traj_point_interface_->MULT_JOINTSTATE);
 
   // Velocities
-  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[0], ((double)received_data.vel[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[1], ((double)received_data.vel[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[2], ((double)received_data.vel[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[3], ((double)received_data.vel[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[4], ((double)received_data.vel[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[5], ((double)received_data.vel[5]) / traj_point_interface_->MULT_VEL_ACC);
 
   // Velocities
-  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[0], ((double)received_data.acc[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[1], ((double)received_data.acc[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[2], ((double)received_data.acc[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[3], ((double)received_data.acc[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[4], ((double)received_data.acc[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[5], ((double)received_data.acc[5]) / traj_point_interface_->MULT_VEL_ACC);
 
   // Goal time
   EXPECT_EQ(send_goal_time, ((double)received_data.goal_time) / traj_point_interface_->MULT_TIME);
@@ -508,12 +508,12 @@ TEST_F(TrajectoryPointInterfaceTest, write_splines_velocities)
   traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, send_goal_time);
   vector6int32_t received_velocities = client_->getVelocity();
 
-  EXPECT_EQ(send_vel[0], ((double)received_velocities[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[1], ((double)received_velocities[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[2], ((double)received_velocities[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[3], ((double)received_velocities[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[4], ((double)received_velocities[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[5], ((double)received_velocities[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_vel[0], ((double)received_velocities[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[1], ((double)received_velocities[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[2], ((double)received_velocities[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[3], ((double)received_velocities[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[4], ((double)received_velocities[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_vel[5], ((double)received_velocities[5]) / traj_point_interface_->MULT_VEL_ACC);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_splines_accelerations)
@@ -523,14 +523,14 @@ TEST_F(TrajectoryPointInterfaceTest, write_splines_accelerations)
   urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
   float send_goal_time = 0.5;
   traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, send_goal_time);
-  vector6int32_t received_velocities = client_->getVelocity();
+  vector6int32_t received_accelerations = client_->getAcceleration();
 
-  EXPECT_EQ(send_vel[0], ((double)received_velocities[0]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[1], ((double)received_velocities[1]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[2], ((double)received_velocities[2]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[3], ((double)received_velocities[3]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[4], ((double)received_velocities[4]) / traj_point_interface_->MULT_JOINTSTATE);
-  EXPECT_EQ(send_vel[5], ((double)received_velocities[5]) / traj_point_interface_->MULT_JOINTSTATE);
+  EXPECT_EQ(send_acc[0], ((double)received_accelerations[0]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[1], ((double)received_accelerations[1]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[2], ((double)received_accelerations[2]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[3], ((double)received_accelerations[3]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[4], ((double)received_accelerations[4]) / traj_point_interface_->MULT_VEL_ACC);
+  EXPECT_EQ(send_acc[5], ((double)received_accelerations[5]) / traj_point_interface_->MULT_VEL_ACC);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_goal_time)
@@ -596,6 +596,70 @@ TEST_F(TrajectoryPointInterfaceTest, write_rejects_goal_time_above_max_encodable
       traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc, too_long_goal_time));
   EXPECT_TRUE(traj_point_interface_->writeTrajectorySplinePoint(&send_positions, &send_vel, &send_acc,
                                                                 almost_too_long_goal_time));
+}
+
+// Near-zero spline vel/acc must survive the int32 roundtrip instead of collapsing to zero.
+TEST_F(TrajectoryPointInterfaceTest, write_spline_near_zero_vel_acc)
+{
+  urcl::vector6d_t send_pos = { 0, 0, 0, 0, 0, 0 };
+  urcl::vector6d_t send_vel = { 1e-5, -1e-5, 3.4e-6, -3.4e-6, 9.9e-5, -9.9e-5 };
+  urcl::vector6d_t send_acc = { 2.3e-5, -2.3e-5, 7e-6, -7e-6, 5.5e-5, -5.5e-5 };
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, 0.02f);
+  Client::TrajData received_data = client_->getData();
+
+  const double resolution = 1.0 / control::TrajectoryPointInterface::MULT_VEL_ACC;
+  for (size_t i = 0; i < 6; ++i)
+  {
+    EXPECT_NE(0, received_data.vel[i]);
+    EXPECT_NE(0, received_data.acc[i]);
+    EXPECT_NEAR(send_vel[i],
+                static_cast<double>(received_data.vel[i]) / control::TrajectoryPointInterface::MULT_VEL_ACC,
+                resolution / 2);
+    EXPECT_NEAR(send_acc[i],
+                static_cast<double>(received_data.acc[i]) / control::TrajectoryPointInterface::MULT_VEL_ACC,
+                resolution / 2);
+  }
+}
+
+// Spline velocities and accelerations are capped by int32 range at MULT_VEL_ACC resolution.
+TEST_F(TrajectoryPointInterfaceTest, write_spline_vel_acc_out_of_range)
+{
+  const double max_vel_acc = static_cast<double>(std::numeric_limits<int32_t>::max()) /
+                             static_cast<double>(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
+
+  urcl::vector6d_t send_pos = { 0, 0, 0, 0, 0, 0 };
+  urcl::vector6d_t in_range = { 0, 0, 0, 0, 0, max_vel_acc - 1.0 };
+  urcl::vector6d_t out_of_range = { 0, 0, 0, 0, 0, -(max_vel_acc + 1.0) };
+
+  EXPECT_FALSE(traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &out_of_range, &in_range, 0.02f));
+  EXPECT_FALSE(traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &in_range, &out_of_range, 0.02f));
+  EXPECT_TRUE(traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &in_range, &in_range, 0.02f));
+  client_->getData();
+}
+
+// Legacy scripts decode spline vel/acc with the coarser multiplier; the encoding must follow suit.
+TEST_F(TrajectoryPointInterfaceTest, write_splines_legacy_vel_acc)
+{
+  traj_point_interface_->setVelAccMultiplier(control::TrajectoryPointInterface::MULT_JOINTSTATE);
+  urcl::vector6d_t send_pos = { 1.2, 3.1, 2.2, -1.4, -2.1, -3.2 };
+  urcl::vector6d_t send_vel = { 2.2, 2.1, 3.2, -2.4, -3.1, -2.2 };
+  urcl::vector6d_t send_acc = { 3.2, 1.1, 1.2, -3.4, -1.1, -1.2 };
+  traj_point_interface_->writeTrajectorySplinePoint(&send_pos, &send_vel, &send_acc, 0.5f);
+  Client::TrajData received_data = client_->getData();
+
+  for (size_t i = 0; i < send_vel.size(); ++i)
+  {
+    EXPECT_EQ(send_vel[i], static_cast<double>(received_data.vel[i]) / traj_point_interface_->MULT_JOINTSTATE);
+    EXPECT_EQ(send_acc[i], static_cast<double>(received_data.acc[i]) / traj_point_interface_->MULT_JOINTSTATE);
+  }
+}
+
+// Check validity of multipliers.
+TEST_F(TrajectoryPointInterfaceTest, set_vel_acc_multiplier_rejects_non_positive_values)
+{
+  EXPECT_THROW(traj_point_interface_->setVelAccMultiplier(0), std::invalid_argument);
+  EXPECT_THROW(traj_point_interface_->setVelAccMultiplier(-1), std::invalid_argument);
+  EXPECT_EQ(traj_point_interface_->getVelAccMultiplier(), control::TrajectoryPointInterface::MULT_VEL_ACC);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_acceleration_velocity)

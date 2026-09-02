@@ -57,11 +57,11 @@ representations in 21 datafields. The data fields have the following meaning:
           - For all MOVEC variants this field contains the via point (same
             joint-vs-pose interpretation as the target at indices 0-5, see the motion type at
             index 20).
-          - trajectory point velocities (multiplied by ``MULT_JOINTSTATE``) for spline joint types
+          - trajectory point velocities (multiplied by ``MULT_VEL_ACC``) for spline joint types
 
    12-17  Depending on the motion type, this represents either
 
-          - trajectory point accelerations (multiplied by ``MULT_JOINTSTATE``) for spline joint
+          - trajectory point accelerations (multiplied by ``MULT_VEL_ACC``) for spline joint
             types.
 
           - for all other motion types
@@ -112,11 +112,22 @@ where
 
 - ``MULT_JOINTSTATE``: 1000000
 - ``MULT_TIME``: 1000000
+- ``MULT_VEL_ACC``: 100000000
 
 .. note::
    With ``MULT_TIME`` being 1000000, the maximum duration that can be sent is 2147 seconds, while
    precision is cut off at 1 microsecond. (The same applies to the blend radius, respectively being
    max 2147 m and 1 μm precision.)
+
+.. note::
+   Spline point velocities and accelerations use the finer ``MULT_VEL_ACC`` scaling, giving 1e-8
+   resolution with a maximum magnitude of ~21.47 rad/s (rad/s²). The coarser ``MULT_JOINTSTATE``
+   scaling quantizes near-zero accelerations, causing reconstructed acceleration
+   profile to become jagged, which can trigger controller faults. Values exceeding the maximum magnitude are rejected by the library.
+
+   Finer scaling is only used when the control script defines the matching multiplier through
+   the ``{{VEL_ACC_REPLACE}}`` placeholder. For user-supplied scripts without that placeholder the
+   library falls back to encoding spline velocities and accelerations with ``MULT_JOINTSTATE``.
 
 .. note::
    The ``*_POSE`` / ``*_JOINT`` motion-type variants let callers mix joint-space and Cartesian

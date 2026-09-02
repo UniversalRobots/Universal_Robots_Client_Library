@@ -63,6 +63,8 @@ std::string trajectoryResultToString(const TrajectoryResult result);
 class TrajectoryPointInterface : public ReverseInterface
 {
 public:
+  // Spline vel/acc need finer resolution: quantising near-zero values at 1e-6 causes controller faults.
+  static constexpr int32_t MULT_VEL_ACC = 100000000;
   static const int MESSAGE_LENGTH = 21;
 
   TrajectoryPointInterface() = delete;
@@ -133,6 +135,28 @@ public:
    */
   bool writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive);
 
+  /*!
+   * \brief Sets the multiplier used to encode spline point velocities and accelerations.
+   *
+   * Spline velocities and accelerations in legacy scripts have a coarser multiplier
+   * so the encoding has to match the running script. Defaults to the modern
+   * multiplier.
+   *
+   * \param multiplier The multiplier the running control script uses to decode spline velocities
+   * and accelerations.
+   *
+   * \throws std::invalid_argument if the multiplier is not positive.
+   */
+  void setVelAccMultiplier(const int32_t multiplier);
+
+  /*!
+   * \brief Returns the multiplier used to encode spline point velocities and accelerations.
+   */
+  int32_t getVelAccMultiplier() const
+  {
+    return mult_vel_acc_;
+  }
+
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback);
 
   uint32_t addTrajectoryEndCallback(const std::function<void(TrajectoryResult)>& callback);
@@ -148,6 +172,8 @@ protected:
 
 private:
   const double MAX_GOAL_TIME_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_TIME;
+
+  int32_t mult_vel_acc_ = MULT_VEL_ACC;
 
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;

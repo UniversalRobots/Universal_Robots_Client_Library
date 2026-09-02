@@ -976,6 +976,14 @@ public:
   }
 
   /*!
+   * \brief Returns the multiplier used to encode spline point velocities and accelerations.
+   */
+  int32_t getVelAccMultiplier() const
+  {
+    return trajectory_interface_->getVelAccMultiplier();
+  }
+
+  /*!
    * \brief Register a callback for the robot-based tool contact execution completion.
    *
    * If a tool contact is detected or tool contact is canceled, this callback function will be triggered mode of robot
