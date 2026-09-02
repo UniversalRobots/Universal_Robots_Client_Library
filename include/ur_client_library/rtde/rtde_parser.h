@@ -97,10 +97,6 @@ public:
     return protocol_version_;
   }
 
-protected:
-  // Relays the data types from the robot's setup acknowledgement, which only the client receives.
-  friend class RTDEClient;
-
   /*!
    * \brief Registers the data types belonging to the recipe, as reported by the robot in the RTDE
    * setup acknowledgement.

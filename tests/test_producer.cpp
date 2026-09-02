@@ -64,7 +64,7 @@ TEST_F(ProducerTest, get_data_package)
 {
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
   std::vector<std::string> recipe = { "timestamp" };
-  test::TestableRTDEParser parser(recipe);
+  rtde_interface::RTDEParser parser(recipe);
   parser.setRecipeTypes({ "DOUBLE" });
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
@@ -100,7 +100,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
 {
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
   std::vector<std::string> recipe = { "timestamp" };
-  test::TestableRTDEParser parser(recipe);
+  rtde_interface::RTDEParser parser(recipe);
   parser.setRecipeTypes({ "DOUBLE" });
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);

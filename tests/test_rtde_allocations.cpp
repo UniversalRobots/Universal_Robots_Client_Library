@@ -191,7 +191,7 @@ TEST(AllocationCounterTest, counts_allocations)
 
 TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
 {
-  test::TestableDataPackage package({ "timestamp", "actual_q" });
+  rtde_interface::DataPackage package({ "timestamp", "actual_q" });
   const std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
 
   std::size_t allocations = 0;
@@ -211,7 +211,7 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   const std::vector<std::string> types = { "DOUBLE", "DOUBLE" };
-  test::TestableRTDEParser parser(recipe);
+  rtde_interface::RTDEParser parser(recipe);
   parser.setRecipeTypes(types);
   parser.setProtocolVersion(2);
   // Same as after the handshake: the package already has the negotiated layout, so parse must not

@@ -196,10 +196,6 @@ public:
    */
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
 
-protected:
-  // Relays the data types and the protocol version from the handshake, which only the client sees.
-  friend class RTDEClient;
-
   /*!
    * \brief Applies the data types the robot reported for the input recipe.
    *

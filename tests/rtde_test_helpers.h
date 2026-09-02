@@ -30,54 +30,23 @@
 
 #pragma once
 
-// The parser and the writer keep setRecipeTypes() out of their public interface. Tests, and the
-// fake server standing in for the robot, reach it through these subclasses.
-
 #include <string>
 #include <vector>
 
 #include <ur_client_library/rtde/data_package.h>
-#include <ur_client_library/rtde/rtde_parser.h>
-#include <ur_client_library/rtde/rtde_writer.h>
 
 namespace urcl
 {
 namespace test
 {
-class TestableDataPackage : public rtde_interface::DataPackage
-{
-public:
-  using rtde_interface::DataPackage::DataPackage;
-};
-
-class TestableRTDEParser : public rtde_interface::RTDEParser
-{
-public:
-  explicit TestableRTDEParser(const std::vector<std::string>& recipe) : rtde_interface::RTDEParser(recipe)
-  {
-  }
-
-  using rtde_interface::RTDEParser::setRecipeTypes;
-};
-
-class TestableRTDEWriter : public rtde_interface::RTDEWriter
-{
-public:
-  TestableRTDEWriter(comm::URStream<rtde_interface::RTDEPackage>* stream, const std::vector<std::string>& recipe)
-    : rtde_interface::RTDEWriter(stream, recipe)
-  {
-  }
-
-  using rtde_interface::RTDEWriter::setRecipeTypes;
-};
-
 /*!
  * \brief Builds a data package the way the library does: allocate from the recipe, then apply the
  * data types the robot reported for it.
  */
-inline TestableDataPackage typedPackage(const std::vector<std::string>& recipe, const std::vector<std::string>& types)
+inline rtde_interface::DataPackage typedPackage(const std::vector<std::string>& recipe,
+                                                const std::vector<std::string>& types)
 {
-  TestableDataPackage package(recipe);
+  rtde_interface::DataPackage package(recipe);
   package.setTypes(types);
   return package;
 }
