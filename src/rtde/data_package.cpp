@@ -28,7 +28,8 @@
 
 #include "ur_client_library/rtde/data_package.h"
 
-#include <functional>
+#include <algorithm>
+#include <cstring>
 
 #include "ur_client_library/exceptions.h"
 
@@ -69,6 +70,50 @@ constexpr struct
   { DataType::VECTOR6INT32, "VECTOR6INT32" },
   { DataType::VECTOR6UINT32, "VECTOR6UINT32" },
 };
+
+constexpr uint64_t g_FNV_OFFSET_BASIS = 14695981039346656037ULL;
+constexpr uint64_t g_FNV_PRIME = 1099511628211ULL;
+
+uint64_t fnv1a(uint64_t hash, const uint8_t* data, const size_t length)
+{
+  for (size_t i = 0; i < length; ++i)
+  {
+    hash ^= data[i];
+    hash *= g_FNV_PRIME;
+  }
+  return hash;
+}
+
+uint64_t fnv1aByte(uint64_t hash, const uint8_t value)
+{
+  hash ^= value;
+  hash *= g_FNV_PRIME;
+  return hash;
+}
+
+uint64_t hashRecipe(const std::vector<std::string>& recipe)
+{
+  uint64_t hash = g_FNV_OFFSET_BASIS;
+  const uint64_t count = recipe.size();
+  hash = fnv1a(hash, reinterpret_cast<const uint8_t*>(&count), sizeof(count));
+  for (const auto& name : recipe)
+  {
+    hash = fnv1a(hash, reinterpret_cast<const uint8_t*>(name.data()), name.size());
+    // A separator so that "ab"+"c" and "a"+"bc" cannot produce the same digest.
+    hash = fnv1aByte(hash, 0);
+  }
+  return hash;
+}
+
+uint64_t hashLayout(const uint64_t recipe_hash, const std::vector<DataPackage::_rtde_type_variant>& values)
+{
+  uint64_t hash = recipe_hash;
+  for (const auto& value : values)
+  {
+    hash = fnv1aByte(hash, static_cast<uint8_t>(value.index()));
+  }
+  return hash;
+}
 
 /*!
  * \brief The data type a field holds, or an empty optional if it has none yet.
@@ -185,6 +230,16 @@ DataPackage::_rtde_type_variant variantFromTypeName(const std::string_view type_
         "DOUBLE, VECTOR3D, VECTOR6D, VECTOR6INT32 or VECTOR6UINT32.";
   throw UrException(ss.str());
 }
+
+void copyValues(std::vector<DataPackage::_rtde_type_variant>& destination,
+                const std::vector<DataPackage::_rtde_type_variant>& source)
+{
+  if (destination.empty())
+  {
+    return;
+  }
+  std::memcpy(destination.data(), source.data(), destination.size() * sizeof(DataPackage::_rtde_type_variant));
+}
 }  // namespace
 
 std::string toString(const DataType type)
@@ -199,17 +254,34 @@ std::string toString(const DataType type)
   throw UrException("Unhandled RTDE data type.");
 }
 
-std::optional<rtde_interface::DataType> rtde_interface::DataPackage::getDataType(const std::string_view name) const
+void rtde_interface::DataPackage::rebuildFieldIndex()
 {
-  const auto it =
-      std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
-        return element.first == name;
-      });
-  if (it == data_.end())
+  field_index_.clear();
+  field_index_.reserve(recipe_.size());
+  for (size_t i = 0; i < recipe_.size(); ++i)
+  {
+    field_index_.emplace(recipe_[i], i);
+  }
+}
+
+std::optional<size_t> rtde_interface::DataPackage::fieldIndex(const std::string_view name) const
+{
+  const auto it = field_index_.find(name);
+  if (it == field_index_.end())
   {
     return std::nullopt;
   }
-  return typeOf(it->second);
+  return it->second;
+}
+
+std::optional<rtde_interface::DataType> rtde_interface::DataPackage::getDataType(const std::string_view name) const
+{
+  const std::optional<size_t> index = fieldIndex(name);
+  if (!index.has_value())
+  {
+    return std::nullopt;
+  }
+  return typeOf(values_[*index]);
 }
 
 void rtde_interface::DataPackage::reportReadFailure(const std::string_view name, const _rtde_type_variant& field)
@@ -229,43 +301,79 @@ void rtde_interface::DataPackage::reportReadFailure(const std::string_view name,
 
 void rtde_interface::DataPackage::initStorage()
 {
-  data_.resize(recipe_.size());
-  for (size_t i = 0; i < recipe_.size(); ++i)
-  {
-    data_[i].first = recipe_[i];
-    data_[i].second = std::monostate();
-  }
+  values_.assign(recipe_.size(), std::monostate());
+  zeros_.assign(recipe_.size(), std::monostate());
+  rebuildFieldIndex();
+  recipe_hash_ = hashRecipe(recipe_);
+  updateLayoutHash();
 }
 
-void rtde_interface::DataPackage::initEmpty(const std::vector<std::string>& types)
+void rtde_interface::DataPackage::updateLayoutHash()
+{
+  layout_hash_ = hashLayout(recipe_hash_, values_);
+  fully_typed_ = std::none_of(values_.begin(), values_.end(), [](const _rtde_type_variant& field) {
+    return std::holds_alternative<std::monostate>(field);
+  });
+}
+
+uint64_t rtde_interface::DataPackage::layoutHashFor(const std::vector<std::string>& recipe,
+                                                    const std::vector<std::string>& types)
+{
+  if (types.size() != recipe.size())
+  {
+    std::stringstream ss;
+    ss << "Cannot compute the layout hash of an RTDE data package: got " << types.size()
+       << " data types for a recipe with " << recipe.size() << " fields.";
+    throw UrException(ss.str());
+  }
+
+  uint64_t hash = hashRecipe(recipe);
+  for (const auto& type_name : types)
+  {
+    hash = fnv1aByte(hash, static_cast<uint8_t>(variantFromTypeName(type_name).index()));
+  }
+  return hash;
+}
+
+void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types)
 {
   if (types.size() != recipe_.size())
   {
     std::stringstream ss;
-    ss << "Cannot initialize an RTDE data package: got " << types.size() << " data types for a recipe with "
+    ss << "Cannot set the data types of an RTDE data package: got " << types.size() << " data types for a recipe with "
        << recipe_.size() << " fields.";
     throw UrException(ss.str());
   }
 
-  // The storage was allocated by the constructor and every RTDE type lives inline in the variant,
-  // so deciding the types here cannot allocate. That is what makes it safe to type a package that
-  // an application is already holding, in the middle of a real-time loop.
-  if (data_.size() != recipe_.size())
-  {
-    initStorage();
-  }
   for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    data_[i].second = variantFromTypeName(types[i]);
+    values_[i] = variantFromTypeName(types[i]);
+    zeros_[i] = values_[i];
   }
+  updateLayoutHash();
 }
 
 void rtde_interface::DataPackage::initEmpty()
 {
-  for (auto& item : data_)
+  copyValues(values_, zeros_);
+}
+
+bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
+{
+  if (!isTyped())
   {
-    std::visit([](auto&& arg) { arg = std::decay_t<decltype(arg)>(); }, item.second);
+    URCL_LOG_ERROR("Cannot copy into an RTDE data package before the data types of its recipe are known. Those are "
+                   "reported by the robot during the RTDE handshake.");
+    return false;
   }
+  if (layout_hash_ != other.layout_hash_ || values_.size() != other.values_.size())
+  {
+    URCL_LOG_ERROR("Cannot copy from an RTDE data package whose layout does not match this one.");
+    return false;
+  }
+
+  copyValues(values_, other.values_);
+  return true;
 }
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
@@ -277,10 +385,6 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
     return false;
   }
 
-  if (protocol_version_ == 2)
-  {
-    bp.parse(recipe_id_);
-  }
   for (size_t i = 0; i < recipe_.size(); ++i)
   {
     std::visit(
@@ -290,7 +394,7 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
             bp.parse(arg);
           }
         },
-        data_[i].second);
+        values_[i]);
   }
   return true;
 }
@@ -298,12 +402,12 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 std::string rtde_interface::DataPackage::toString() const
 {
   std::stringstream ss;
-  for (auto& item : data_)
+  for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    ss << item.first << ": ";
-    if (std::holds_alternative<uint8_t>(item.second))
+    ss << recipe_[i] << ": ";
+    if (std::holds_alternative<uint8_t>(values_[i]))
     {
-      ss << int(std::get<uint8_t>(item.second));
+      ss << int(std::get<uint8_t>(values_[i]));
     }
     else
     {
@@ -318,7 +422,7 @@ std::string rtde_interface::DataPackage::toString() const
               ss << arg;
             }
           },
-          item.second);
+          values_[i]);
     }
     ss << std::endl;
   }
@@ -340,7 +444,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
     payload_size += sizeof(recipe_id_);
   }
 
-  for (auto& item : data_)
+  for (const auto& value : values_)
   {
     payload_size += std::visit(
         [](auto&& arg) -> uint16_t {
@@ -353,7 +457,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
             return sizeof(arg);
           }
         },
-        item.second);
+        value);
   }
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
@@ -361,7 +465,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   {
     size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
   }
-  for (size_t i = 0; i < data_.size(); ++i)
+  for (size_t i = 0; i < values_.size(); ++i)
   {
     size += std::visit(
         [&buffer, &size](auto&& arg) -> size_t {
@@ -374,7 +478,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
             return comm::PackageSerializer::serialize(buffer + size, arg);
           }
         },
-        data_[i].second);
+        values_[i]);
   }
 
   return size;
@@ -382,67 +486,14 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
 
 bool rtde_interface::DataPackage::resetData(const std::string_view name)
 {
-  const auto it =
-      std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
-        return element.first == name;
-      });
-  if (it == data_.end())
+  const std::optional<size_t> index = fieldIndex(name);
+  if (!index.has_value())
   {
     return false;
   }
-  std::visit([](auto&& arg) { arg = std::decay_t<decltype(arg)>(); }, it->second);
+  values_[*index] = zeros_[*index];
   return true;
 }
 
-bool rtde_interface::DataPackage::canCopySetFieldsFrom(const DataPackage& other) const
-{
-  bool all_compatible = true;
-  for (const auto& source : other.data_)
-  {
-    if (std::holds_alternative<std::monostate>(source.second))
-    {
-      continue;
-    }
-
-    const auto destination =
-        std::find_if(data_.begin(), data_.end(), [&source](const std::pair<std::string, _rtde_type_variant>& element) {
-          return element.first == source.first;
-        });
-    if (destination == data_.end())
-    {
-      URCL_LOG_ERROR("The data field '%s' is not part of the recipe the robot acknowledged.", source.first.c_str());
-      all_compatible = false;
-      continue;
-    }
-    if (source.second.index() != destination->second.index())
-    {
-      URCL_LOG_ERROR("The value passed for the data field '%s' is of type %s, but the robot reports that field as %s.",
-                     source.first.c_str(), typeNameOf(source.second).c_str(), typeNameOf(destination->second).c_str());
-      all_compatible = false;
-    }
-  }
-  return all_compatible;
-}
-
-bool rtde_interface::DataPackage::copySetFieldsFrom(const DataPackage& other)
-{
-  for (const auto& source : other.data_)
-  {
-    if (std::holds_alternative<std::monostate>(source.second))
-    {
-      continue;
-    }
-
-    const auto destination =
-        std::find_if(data_.begin(), data_.end(), [&source](const std::pair<std::string, _rtde_type_variant>& element) {
-          return element.first == source.first;
-        });
-    if (destination != data_.end())
-    {
-      destination->second = source.second;
-    }
-  }
-  return true;
-}
 }  // namespace rtde_interface
 }  // namespace urcl

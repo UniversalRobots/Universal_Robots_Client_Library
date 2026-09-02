@@ -28,7 +28,6 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 #include <mutex>
-#include "ur_client_library/helpers.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -70,7 +69,7 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   used_masks_.clear();
   for (const auto& field : recipe)
   {
-    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
+    if (field.size() >= 5 && field.compare(field.size() - 5, 5, "_mask") == 0)
     {
       used_masks_.push_back(field);
     }
@@ -80,18 +79,32 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   // allocating again.
   data_buffer0_ = std::make_shared<DataPackage>(recipe_);
   data_buffer1_ = std::make_shared<DataPackage>(recipe_);
+  data_buffer0_->setProtocolVersion(protocol_version_);
+  data_buffer1_->setProtocolVersion(protocol_version_);
 
   current_store_buffer_ = data_buffer0_;
   current_send_buffer_ = data_buffer1_;
 }
 
-void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types, uint16_t protocol_version)
+void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
-  data_buffer0_->setProtocolVersion(protocol_version);
-  data_buffer1_->setProtocolVersion(protocol_version);
-  data_buffer0_->initEmpty(types);
-  data_buffer1_->initEmpty(types);
+  protocol_version_ = protocol_version;
+  if (data_buffer0_ != nullptr)
+  {
+    data_buffer0_->setProtocolVersion(protocol_version);
+  }
+  if (data_buffer1_ != nullptr)
+  {
+    data_buffer1_->setProtocolVersion(protocol_version);
+  }
+}
+
+void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  data_buffer0_->setTypes(types);
+  data_buffer1_->setTypes(types);
 }
 
 void RTDEWriter::init(uint8_t recipe_id)
@@ -158,24 +171,10 @@ void RTDEWriter::stop()
 bool RTDEWriter::sendPackage(const DataPackage& package)
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  if (!current_store_buffer_->isTyped())
-  {
-    URCL_LOG_ERROR("Cannot send RTDE input data before the RTDE communication has been set up, as the data types of "
-                   "the input recipe are reported by the robot.");
-    return false;
-  }
-
-  // Validate before touching the store buffer, so a rejected package cannot wipe or partially
-  // overwrite input that is already queued.
-  if (!current_store_buffer_->canCopySetFieldsFrom(package))
+  if (!current_store_buffer_->copyFrom(package))
   {
     return false;
   }
-
-  // Fields the caller didn't write are sent as zeros rather than as whatever the previous package
-  // left in the buffer, so that a package means the same thing no matter what was sent before it.
-  current_store_buffer_->initEmpty();
-  current_store_buffer_->copySetFieldsFrom(package);
   markStorageToBeSent();
   return true;
 }
