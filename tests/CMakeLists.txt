@@ -23,7 +23,6 @@ target_link_libraries(fake_primary_server PRIVATE ur_client_library::urcl)
 include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
-option(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL "Run Polyscope X tests that require remote control" OFF)
 option(CHECK_RTDE_DOCS_RECIPE "Fetch the RTDE documentation to auto-generate a recipe containing all output fields and check that with the RTDE client. Requires python3 and pandas and an internet connection." OFF)
 set(INTEGRATION_TESTS_ROBOT_IP "" CACHE STRING "If set, override the default robot IP (192.168.56.101) compiled into each integration test main() by passing --robot_ip <ip> to every ctest-registered integration test.")
 # Build Tests
@@ -34,10 +33,6 @@ if (INTEGRATION_TESTS)
   set(INTEGRATION_TESTS_ROBOT_IP_ARG "")
   if(INTEGRATION_TESTS_ROBOT_IP)
     set(INTEGRATION_TESTS_ROBOT_IP_ARG --robot_ip ${INTEGRATION_TESTS_ROBOT_IP})
-  endif()
-
-  if(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL)
-    add_compile_definitions(POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL=1 )
   endif()
 
   add_executable(rtde_tests test_rtde_client.cpp fake_rtde_server.cpp)
@@ -138,6 +133,22 @@ if (INTEGRATION_TESTS)
   add_executable(instruction_executor_test_headless test_instruction_executor.cpp)
   target_link_libraries(instruction_executor_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET instruction_executor_test_headless
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
+                  TEST_SUFFIX _headless
+  )
+
+  # InstructionExecutor standalone tests
+  add_executable(instruction_executor_standalone_test_urcap test_instruction_executor_standalone.cpp)
+  target_link_libraries(instruction_executor_standalone_test_urcap PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_standalone_test_urcap
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  EXTRA_ARGS --headless false ${INTEGRATION_TESTS_ROBOT_IP_ARG}
+                  TEST_SUFFIX _urcap
+  )
+  add_executable(instruction_executor_standalone_test_headless test_instruction_executor_standalone.cpp)
+  target_link_libraries(instruction_executor_standalone_test_headless PRIVATE ur_client_library::urcl GTest::gtest_main)
+  gtest_add_tests(TARGET instruction_executor_standalone_test_headless
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS --headless true ${INTEGRATION_TESTS_ROBOT_IP_ARG}
                   TEST_SUFFIX _headless

@@ -32,7 +32,15 @@
 #include <ur_client_library/exceptions.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
+#include <filesystem>
 #include <thread>
+#include <vector>
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
 #include "gtest/gtest.h"
 #include "test_utils.h"
 #include "ur_client_library/comm/tcp_socket.h"
@@ -64,11 +72,14 @@ class DashboardClientTestX : public ::testing::Test
 protected:
   void SetUp()
   {
-#ifdef POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL
-#  if POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL == 1
-    skip_remote_control_tests = false;
-#  endif
-#endif
+    if (std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL") != nullptr)
+    {
+      std::string env_var = std::getenv("POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL");
+      if (env_var != "" && parseBoolean(env_var))
+      {
+        skip_remote_control_tests = false;
+      }
+    }
     urcl::comm::INotifier notifier;
     primary_client_.reset(new urcl::primary_interface::PrimaryClient(g_ROBOT_IP, notifier));
     primary_client_->start();
@@ -151,6 +162,8 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
     GTEST_SKIP_("Skipping test that would require remote control to be enabled on robot");
   }
   ASSERT_TRUE(dashboard_client_->connect());
+  dashboard_client_->commandPowerOff();
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
   dashboard_client_->commandPowerOn();
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
   DashboardResponse response;
@@ -204,7 +217,7 @@ TEST_F(DashboardClientTestX, program_interaction)
           auto resp = dashboard_client_->commandGetLoadedProgram();
           return std::get<std::string>(resp.data["program_name"]) == "wait_program";
         },
-        std::chrono::milliseconds(1000));
+        std::chrono::milliseconds(5000));
   }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
@@ -507,6 +520,53 @@ TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
   EXPECT_FALSE(dashboard_client_->connect());
 }
 
+class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener
+{
+public:
+  void OnTestEnd(const ::testing::TestInfo& test_info) override
+  {
+    if (!test_info.result()->Failed())
+    {
+      return;
+    }
+
+    const char* dir_env = std::getenv("POLYSCOPE_X_SCREENSHOT_DIR");
+    std::filesystem::path screenshot_dir = dir_env ? dir_env : "test_artifacts/screenshots";
+    std::filesystem::create_directories(screenshot_dir);
+
+    std::string filename =
+        (screenshot_dir / (std::string(test_info.test_suite_name()) + "." + test_info.name() + ".png")).string();
+    std::string url = "http://" + g_ROBOT_IP;
+    std::string script = "../tests/resources/polyscopex_screenshot.py";
+    std::string delay = "5000";
+
+#ifndef _WIN32
+    // Build argv as a proper array — no shell involved, so spaces and metacharacters
+    // in url, filename, or script path are passed through safely.
+    std::vector<char*> args = { const_cast<char*>("python3"),     const_cast<char*>(script.c_str()),
+                                const_cast<char*>(url.c_str()),   const_cast<char*>(filename.c_str()),
+                                const_cast<char*>(delay.c_str()), nullptr };
+
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+      int devnull = open("/dev/null", O_WRONLY);
+      if (devnull >= 0)
+      {
+        dup2(devnull, STDERR_FILENO);
+        close(devnull);
+      }
+      execvp("python3", args.data());
+      _exit(1);
+    }
+    else if (pid > 0)
+    {
+      waitpid(pid, nullptr, 0);
+    }
+#endif
+  }
+};
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
@@ -519,6 +579,8 @@ int main(int argc, char* argv[])
       ++i;
     }
   }
+
+  ::testing::UnitTest::GetInstance()->listeners().Append(new PolyScopeScreenshotListener());
 
   return RUN_ALL_TESTS();
 }

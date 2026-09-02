@@ -225,4 +225,9 @@ RobotType robotTypeFromString(const std::string& robot_type_str)
   return it->second;
 }
 
+std::string stringFromMotionTarget(const MotionTarget& target)
+{
+  return std::visit([](const auto& target) { return target.toString(); }, target);
+}
+
 }  // namespace urcl

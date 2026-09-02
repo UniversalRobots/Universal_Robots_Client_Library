@@ -23,7 +23,7 @@ jobs:
           - NAME: kilted
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#kilted"
           - NAME: lyrical
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#lyrical"
           - NAME: rolling
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
             CLANG_TIDY: pedantic
@@ -58,7 +58,7 @@ jobs:
         env:
           IMMEDIATE_TEST_OUTPUT: true
           DOWNSTREAM_CMAKE_ARGS: -DUR_ROBOT_DRIVER_BUILD_INTEGRATION_TESTS=ON
-          ADDITIONAL_DEBS: docker.io netcat-openbsd  # Needed for integration tests
+          ADDITIONAL_DEBS: docker.io netcat-openbsd curl # Needed for integration tests
           DOWNSTREAM_WORKSPACE: ${{matrix.ROS_DISTRO.DOWNSTREAM_WORKSPACE}}
           ROS_DISTRO: ${{matrix.ROS_DISTRO.NAME}}
           ROS_REPO: ${{matrix.ROS_REPO}}

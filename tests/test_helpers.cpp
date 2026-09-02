@@ -145,3 +145,16 @@ TEST(TestHelpers, robotSeriesString)
   EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UNDEFINED), "UNDEFINED");
 }
+
+TEST(TestHelpers, stringFromMotionTarget)
+{
+  const auto q = Q{ 0.0, 0.1, 0.2, 0.3, 0.4, 0.5 };
+  const MotionTarget joint_target = q;
+  EXPECT_EQ(stringFromMotionTarget(joint_target), "Q([0, 0.1, 0.2, 0.3, 0.4, 0.5])");
+
+  const MotionTarget pose_target = Pose{ 1.0, 2.0, 3.0, 0.1, 0.2, 0.3 };
+  EXPECT_EQ(stringFromMotionTarget(pose_target), "Pose(x = 1, y = 2, z = 3, rx = 0.1, ry = 0.2, rz = 0.3)");
+  const MotionTarget pose_with_q_near = Pose{ 1.0, 2.0, 3.0, 0.1, 0.2, 0.3, q };
+  EXPECT_EQ(stringFromMotionTarget(pose_with_q_near), "Pose(x = 1, y = 2, z = 3, rx = 0.1, ry = 0.2, rz = 0.3)\nWith "
+                                                      "Q_near([0, 0.1, 0.2, 0.3, 0.4, 0.5])");
+}

@@ -87,6 +87,14 @@ public:
    */
   static bool evaluateExpression(const std::string& expression, const DataDict& data);
 
+  /*!
+   * \brief Checks whether a variable placeholder was substituted during the last script read.
+   * This allows detecting which features a user-supplied script supports.
+   * \param key The variable name to check.
+   * \return True if the last read script, including its includes, contained the placeholder.
+   */
+  bool isVariableRegistered(const std::string& key) const;
+
 private:
   enum BlockType
   {
@@ -108,11 +116,13 @@ private:
   std::filesystem::path current_dir_;
   std::unordered_set<std::string> include_stack_;
   std::size_t include_depth_ = 0;
+  std::unordered_set<std::string> variable_registry_;
 
   std::string readScriptFileImpl(const std::filesystem::path& canonical_path, const DataDict& data);
   static std::string readFileContent(const std::string& file_path);
   void replaceIncludes(std::string& script_code, const DataDict& data);
-  static void replaceVariables(std::string& script_code, const DataDict& data);
+  static void replaceVariables(std::string& script_code, const DataDict& data,
+                               std::unordered_set<std::string>& variable_registry);
   static void replaceConditionals(std::string& script_code, const DataDict& data);
 };
 
