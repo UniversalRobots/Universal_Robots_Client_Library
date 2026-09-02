@@ -28,6 +28,9 @@
 
 #pragma once
 
+#include <atomic>
+#include <unordered_map>
+
 #include <ur_client_library/ur/dashboard_client_implementation.h>
 #include "ur_client_library/ur/version_information.h"
 
@@ -41,6 +44,13 @@ class Result;
 
 namespace urcl
 {
+
+struct RobotAPICommand
+{
+  std::string endpoint;
+  VersionInformation robotAPIVersion;
+  VersionInformation marketingVersion;
+};
 
 class DashboardClientImplX : public DashboardClientImpl
 {
@@ -126,7 +136,8 @@ public:
   DashboardResponse commandClearOperationalMode() override;
   DashboardResponse commandClosePopup() override;
   DashboardResponse commandCloseSafetyPopup() override;
-  DashboardResponse commandGenerateFlightReport(const std::string& report_type) override;
+  DashboardResponse commandGenerateFlightReport(const std::string& report_type = "") override;
+  DashboardResponse commandDownloadSupportFiles(const std::string& save_path) override;
   DashboardResponse commandGenerateSupportFile(const std::string& dir_path) override;
   DashboardResponse commandGetLoadedProgram() override;
   DashboardResponse commandGetOperationalMode() override;
@@ -141,7 +152,7 @@ public:
   DashboardResponse commandResume() override;
   DashboardResponse commandPlay() override;
   DashboardResponse commandPolyscopeVersion() override;
-  DashboardResponse commandPopup(const std::string& popup_text) override;
+  DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") override;
   DashboardResponse commandPowerOff() override;
   DashboardResponse commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300)) override;
   DashboardResponse commandProgramState() override;
@@ -179,15 +190,21 @@ protected:
   DashboardResponse put(const std::string& endpoint, const httplib::UploadFormDataItems& form_data,
                         const bool debug = true);
   DashboardResponse get(const std::string& endpoint, const bool debug = true);
-  virtual VersionInformation queryPolyScopeVersion();
-  void assertHasCommand(const std::string& command) const override;
+
+  DashboardResponse del(const std::string& endpoint, const bool debug = true);
+
+  void assertHasCommand(const std::string& command) override;
 
   const std::string base_url_ = "/universal-robots/robot-api";
 
   std::unique_ptr<httplib::Client> cli_;
   VersionInformation robot_api_version_;
+
   timeval recv_timeout_ = { 10, 0 };
   timeval send_timeout_ = { 10, 0 };
+
+  static std::unordered_map<std::string, RobotAPICommand> g_command_list;
+  std::atomic<bool> is_connected_{ false };
 };
 
 }  // namespace urcl

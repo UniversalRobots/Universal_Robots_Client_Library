@@ -61,8 +61,7 @@ struct ProgramInformation
 
 inline std::ostream& operator<<(std::ostream& os, const ProgramInformation& pi)
 {
-  os << "Program Information: { "
-     << "\nCreated Date: " << pi.createdDate << "\nDescription: " << pi.description
+  os << "Program Information: { " << "\nCreated Date: " << pi.createdDate << "\nDescription: " << pi.description
      << "\nLast Modified Date: " << pi.lastModifiedDate << "\nLast Saved Date: " << pi.lastSavedDate
      << "\nName: " << pi.name << "\nProgram State: " << pi.programState << "\n} \n";
   return os;
@@ -250,14 +249,14 @@ public:
   /*!
    * \brief Send Close popup command
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with version lower than 10.14.0
    */
   virtual DashboardResponse commandClosePopup() = 0;
 
   /*!
    * \brief Send Close safety popup command
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with version lower than 10.14.0
    */
   virtual DashboardResponse commandCloseSafetyPopup() = 0;
 
@@ -274,7 +273,7 @@ public:
   /*!
    * \brief Send Shutdown command
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with version lower than 10.14.0
    */
   virtual DashboardResponse commandShutdown() = 0;
 
@@ -320,17 +319,19 @@ public:
    * \brief Send popup command
    *
    * \param popup_text The text to be shown in the popup
+   * \param popup_title The title of the popup. This is optional and only used on PolyScope X
+   * robots.
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
-  virtual DashboardResponse commandPopup(const std::string& popup_text) = 0;
+  virtual DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") = 0;
 
   /*!
    * \brief Send text to log
    *
    * \param log_text The text to be sent to the log
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
   virtual DashboardResponse commandAddToLog(const std::string& log_text) = 0;
 
@@ -341,7 +342,7 @@ public:
    *
    *   - 'polyscope_version': std::string
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
   virtual DashboardResponse commandPolyscopeVersion() = 0;
 
@@ -352,7 +353,7 @@ public:
    *
    *   - 'robot_model': std::string
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
   virtual DashboardResponse commandGetRobotModel() = 0;
 
@@ -363,7 +364,7 @@ public:
    *
    *   - 'serial_number': std::string
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version lower than 10.14.0
    */
   virtual DashboardResponse commandGetSerialNumber() = 0;
 
@@ -470,9 +471,10 @@ public:
    *
    * \param report_type The report type to set for the flight report
    *
-   * \throws an NotImplementedException when called on PolyScope X robots
+   * \throws an NotImplementedException when called on PolyScope X robots with software version
+   * lower than 10.14.0
    */
-  virtual DashboardResponse commandGenerateFlightReport(const std::string& report_type) = 0;
+  virtual DashboardResponse commandGenerateFlightReport(const std::string& report_type = "") = 0;
 
   /*!
    * \brief Send Generate support file command
@@ -483,6 +485,18 @@ public:
    * \throws an NotImplementedException when called on PolyScope X robots
    */
   virtual DashboardResponse commandGenerateSupportFile(const std::string& dir_path) = 0;
+
+  /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the user's computer
+   *
+   * \throws an NotImplementedException when called on G5 robots
+   */
+  virtual DashboardResponse commandDownloadSupportFiles([[maybe_unused]] const std::string& save_path)
+  {
+    throw NotImplementedException("commandDownloadSupportFiles is not implemented for this dashboard client.");
+  }
 
   /*!
    * \brief Flush the polyscope log to the log_history.txt file
@@ -544,7 +558,7 @@ public:
   }
 
 protected:
-  virtual void assertHasCommand(const std::string& command) const = 0;
+  virtual void assertHasCommand(const std::string& command) = 0;
 
   VersionInformation polyscope_version_;
   std::string host_;

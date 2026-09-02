@@ -42,10 +42,47 @@ table below or checkout the latest tag before the breaking changes were introduc
    |polyscope| X doesn't support all features supported by this library for |polyscope| 5.
    Currently, the following components are known not to be supported:
 
-     - Dashboard client -- |polyscope| X received the first implementation of the Robot API
-       replacing the Dashboard Server in version 10.11.0. It covers robot state control and loading
-       and playing programs.
-       From version 10.12, it also supports uploading programs to the robot and downloading programs from the robot, as well as listing existing programs on the robot.
+     - Dashboard client -- |polyscope| X does not have a Dashboard server, but in version 10.11.0 introduced the Robot API, that fulfills some of the same purposes. The robot API has not yet reached feature parity with the Dashboard server.
+
+      - Implemented features, and their version requirements:
+
+        .. list-table::
+          :header-rows: 1
+
+          * - Introduced in |polyscope| version
+            - Functionality group
+            - examples
+          * - 10.11.0
+            - Robot state control
+            - power on, power off, brake release, etc
+          * - 10.11.0
+            - Load and play programs
+            - load program, play, pause, etc
+          * - 10.12.0
+            - Robot Program interactions
+            - Upload/update program, download program, list programs, etc
+          * - 10.12.0
+            - Get robot modes
+            - Robot mode, safety mode, operational mode, remote control
+          * - 10.14.0
+            - Popup interactions
+            - open, close, close safety popup
+          * - 10.14.0
+            - Get robot information
+            - Polyscope version, robot model, serial number
+          * - 10.14.0
+            - System control
+            - Shut down robot
+          * - 10.14.0
+            - Logging
+            - Add entry to system log
+          * - 10.14.0
+            - Flight reports
+            - Generating and downloading flight reports
+
+     - Using external control on |polyscope| X requires another URCapX for making external control
+       work. This is currently in the process of being created.
+       See `Universal Robots External Control URCapX <https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCapX>`_
 
 .. |polyscope| replace:: PolyScope
 

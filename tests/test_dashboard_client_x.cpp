@@ -34,8 +34,10 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <thread>
 #include <vector>
+#include <urcl_3rdparty/httplib/httplib.h>
 #ifndef _WIN32
 #  include <fcntl.h>
 #  include <sys/wait.h>
@@ -107,7 +109,8 @@ protected:
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::shared_ptr<VersionInformation> polyscope_version_;
   bool skip_remote_control_tests = true;
-  int error_code_exists = 400;
+  static constexpr int ERROR_CODE_EXISTS = 400;
+  static constexpr int ERROR_CODE_CONFLICT = 409;
 };
 
 TEST_F(DashboardClientTestX, connect)
@@ -128,6 +131,10 @@ TEST_F(DashboardClientTestX, get_loaded_program)
   }
   else
   {
+    if (!skip_remote_control_tests)
+    {
+      dashboard_client_->commandLoadProgram("Default program");
+    }
     auto response = dashboard_client_->commandGetLoadedProgram();
     ASSERT_TRUE(response.ok);
     ASSERT_EQ(std::get<std::string>(response.data["program_name"]), "Default program");
@@ -397,7 +404,9 @@ TEST_F(DashboardClientTestX, upload_program_from_file)
     if (!response.ok)
     {
       URCL_LOG_INFO("status code: %d", std::get<int>(response.data["status_code"]));
-      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+      bool is_exists_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_EXISTS;
+      bool is_conflict_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_CONFLICT;
+      ASSERT_TRUE(is_exists_error || is_conflict_error);
     }
 
     response = dashboard_client_->commandUploadProgram("non_existent_file.urpx");
@@ -418,7 +427,9 @@ TEST_F(DashboardClientTestX, upload_and_update_program_from_file)
     auto response = dashboard_client_->commandUploadProgram("resources/update_prog.urpx");
     if (!response.ok)
     {
-      ASSERT_EQ(std::get<int>(response.data["status_code"]), error_code_exists);
+      bool is_exists_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_EXISTS;
+      bool is_conflict_error = std::get<int>(response.data["status_code"]) == ERROR_CODE_CONFLICT;
+      ASSERT_TRUE(is_exists_error || is_conflict_error);
     }
 
     response = dashboard_client_->commandUpdateProgram("resources/update_prog.urpx");
@@ -518,6 +529,626 @@ TEST_F(DashboardClientTestX, microsecond_receive_timeout_makes_connect_fail)
   tiny_tv.tv_usec = 1;
   dashboard_client_->setReceiveTimeout(tiny_tv);
   EXPECT_FALSE(dashboard_client_->connect());
+}
+
+TEST_F(DashboardClientTestX, open_and_close_popups)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandPopup(""), NotImplementedException);
+    ASSERT_THROW(dashboard_client_->commandClosePopup(), NotImplementedException);
+    ASSERT_THROW(dashboard_client_->commandCloseSafetyPopup(), NotImplementedException);
+  }
+  else
+  {
+    // Can only be tested in remote mode, so just check that we get the correct error message
+    // Then we know the endpoint exists and the client is sending the correct message
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandPopup("Test popup", "Test");
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+      response = dashboard_client_->commandCloseSafetyPopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandClosePopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("\"closed\":false") != response.message.npos);
+      response = dashboard_client_->commandPopup("Test popup", "Test");
+      ASSERT_TRUE(response.ok);
+      ASSERT_TRUE(response.message.find("Popup opened successfully") != response.message.npos);
+      response = dashboard_client_->commandClosePopup();
+      ASSERT_TRUE(response.ok);
+      response = dashboard_client_->commandCloseSafetyPopup();
+      ASSERT_FALSE(response.ok);
+      ASSERT_TRUE(response.message.find("\"closed\":false") != response.message.npos);
+    }
+  }
+}
+
+TEST_F(DashboardClientTestX, get_polyscope_version)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandPolyscopeVersion(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandPolyscopeVersion();
+    ASSERT_TRUE(response.ok);
+    std::string version_string = std::get<std::string>(response.data["polyscope_version"]);
+    EXPECT_EQ(*polyscope_version_, VersionInformation::fromString(version_string));
+  }
+}
+
+TEST_F(DashboardClientTestX, get_robot_model)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetRobotModel(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetRobotModel();
+    ASSERT_TRUE(response.ok);
+    std::string model_string = std::get<std::string>(response.data["robot_model"]);
+
+    waitFor([this]() { return primary_client_->getRobotType() != urcl::RobotType::UNDEFINED; },
+            std::chrono::milliseconds(1000));
+
+    const std::string primary_client_version = robotTypeString(primary_client_->getRobotType());
+
+    // On the primary interface UR7 and UR12 show as UR5 and UR10, so we need to adjust the
+    // expected value accordingly.
+    if (model_string == "UR7")
+    {
+      model_string = "UR5";
+    }
+    else if (model_string == "UR12")
+    {
+      model_string = "UR10";
+    }
+    EXPECT_EQ(model_string, primary_client_version);
+  }
+}
+
+TEST_F(DashboardClientTestX, get_serial_number)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGetSerialNumber(), NotImplementedException);
+  }
+  else
+  {
+    auto response = dashboard_client_->commandGetSerialNumber();
+    ASSERT_TRUE(response.ok);
+    const std::string serial_number = std::get<std::string>(response.data["serial_number"]);
+    EXPECT_FALSE(serial_number.empty());  // Don't know what to check for here otherwise
+  }
+}
+
+TEST_F(DashboardClientTestX, add_to_log)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandAddToLog(""), NotImplementedException);
+  }
+  else
+  {
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandAddToLog("Test log");
+      ASSERT_FALSE(response.ok);
+      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      auto response = dashboard_client_->commandAddToLog("Test log");
+      ASSERT_TRUE(response.ok);
+      EXPECT_TRUE(response.message.find("Log entry added") != response.message.npos);
+    }
+  }
+}
+
+TEST_F(DashboardClientTestX, generate_flight_report)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandGenerateFlightReport(), NotImplementedException);
+  }
+  else
+  {
+    if (skip_remote_control_tests)
+    {
+      auto response = dashboard_client_->commandGenerateFlightReport();
+      ASSERT_FALSE(response.ok);
+      EXPECT_TRUE(response.message.find("Forbidden") != response.message.npos);
+    }
+    else
+    {
+      dashboard_client_->commandGenerateFlightReport();
+      // On URSim this can't be used
+      // ASSERT_TRUE(response.ok);
+      // EXPECT_TRUE(response.message.find("Flight report generated") != response.message.npos);
+    }
+  }
+}
+
+TEST_F(DashboardClientTestX, download_support_files)
+{
+  ASSERT_TRUE(dashboard_client_->connect());
+  if (dashboard_client_->getRobotApiVersion() < VersionInformation::fromString("5.0.107"))
+  {
+    ASSERT_THROW(dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip"), NotImplementedException);
+  }
+  else
+  {
+    dashboard_client_->commandDownloadSupportFiles("/tmp/support_files.zip");
+    // On URSim this can't be used
+    // ASSERT_TRUE(response.ok);
+    //// Check that the file was created and has some content
+    // std::ifstream file("/tmp/support_files.zip", std::ios::binary | std::ios::ate);
+    // ASSERT_TRUE(file.is_open());
+    // std::streamsize size = file.tellg();
+    // ASSERT_GT(size, 0);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mock tests: httplib::Server replaces a real robot so the actual
+// DashboardClientImplX code (endpoint routing, streaming download,
+// response parsing, temp-file lifecycle) is exercised without hardware.
+// Response bodies follow the OpenAPI spec at /universal-robots/robot-api/openapi.json.
+// ---------------------------------------------------------------------------
+
+// Minimal OpenAPI response: version 5.0.107 satisfies the minimum required by
+// both generate_flight_report and download_support_files.
+static constexpr const char* MOCK_OPENAPI_RESPONSE = R"({"info":{"version":"5.0.107"}})";
+// POST /supportfiles/v1  → Generate Flight Report
+// GET  /supportfiles/v1/ → Download Support Files (zip)
+static constexpr const char* MOCK_SUPPORTFILES_ENDPOINT = "/universal-robots/robot-api/supportfiles/v1";
+static constexpr const char* MOCK_OPENAPI_ENDPOINT = "/universal-robots/robot-api/openapi.json";
+
+// Thin subclass used only in tests to expose the protected is_connected_ field.
+class TestableDashboardClientMock : public DashboardClientImplX
+{
+public:
+  using DashboardClientImplX::DashboardClientImplX;
+  bool isConnected() const
+  {
+    return is_connected_;
+  }
+};
+
+class DashboardClientImplXMockTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+      res.set_content(MOCK_OPENAPI_RESPONSE, "application/json");
+    });
+
+    port_ = server_.bind_to_any_port("127.0.0.1");
+    server_thread_ = std::thread([this]() { server_.listen_after_bind(); });
+
+    while (!server_.is_running())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    impl_ = std::make_unique<DashboardClientImplX>("127.0.0.1:" + std::to_string(port_));
+    impl_->connect();
+  }
+
+  void TearDown() override
+  {
+    server_.stop();
+    if (server_thread_.joinable())
+    {
+      server_thread_.join();
+    }
+  }
+
+  httplib::Server server_;
+  int port_ = 0;
+  std::thread server_thread_;
+  std::unique_ptr<DashboardClientImplX> impl_;
+};
+
+static constexpr const char* MOCK_SHUTDOWN_ENDPOINT = "/universal-robots/robot-api/system/v1/shutdown";
+
+// --- commandShutdown ---
+// Spec: PUT /system/v1/shutdown
+//   202 → APIResponse  {"message": string|null}
+//   403 → APIError     {"message": string, "details": string}  (not in remote-control mode)
+
+TEST_F(DashboardClientImplXMockTest, shutdown_success)
+{
+  // 202 Accepted
+  const std::string body = R"({"message":null})";
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 202;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandShutdown();
+  EXPECT_TRUE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, shutdown_forbidden)
+{
+  // 403 Forbidden — robot is not in remote-control mode
+  const std::string body =
+      R"({"message":"Forbidden","details":"Not authorized to perform this operation under the current robot control mode."})";
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 403;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandShutdown();
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, shutdown_endpoint_not_found)
+{
+  // The server is reachable but no handler is registered for the shutdown
+  // endpoint, so httplib returns 404 by default. The client must treat this as
+  // a failed (non-ok) response without throwing an exception.
+  // Note: no server_.Put(MOCK_SHUTDOWN_ENDPOINT, ...) registration here.
+
+  auto response = impl_->commandShutdown();
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(std::get<int>(response.data.at("status_code")), 404);
+}
+
+// --- commandGenerateFlightReport ---
+// Spec: POST /supportfiles/v1
+//   200 → GenerateFlightReportResponse  {"message": string|null, "details": string|null}
+//   408 → APIError                      {"message": string, "details": string}
+//   429 → APIError
+//   507 → APIError
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_success)
+{
+  // 200 OK with GenerateFlightReportResponse body
+  const std::string body = R"({"message":"Flight report generated successfully.","details":null})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT,
+               [&body](const httplib::Request&, httplib::Response& res) { res.set_content(body, "application/json"); });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_TRUE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_timeout)
+{
+  // 408 Request Timeout — flight recorder took too long
+  const std::string body =
+      R"({"message":"Flight recorder service took longer time to generate the report than expected.","details":""})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 408;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_insufficient_storage)
+{
+  // 507 Insufficient Storage
+  const std::string body = R"({"message":"Insufficient storage to generate flight report.","details":""})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 507;
+    res.set_content(body, "application/json");
+  });
+
+  auto response = impl_->commandGenerateFlightReport("");
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+}
+
+TEST_F(DashboardClientImplXMockTest, generate_flight_report_report_type_ignored)
+{
+  // PolyScope X ignores the report_type argument (logs a warning). A non-empty
+  // value must not prevent a successful call.
+  const std::string body = R"({"message":"Flight report generated successfully.","details":null})";
+  server_.Post(MOCK_SUPPORTFILES_ENDPOINT,
+               [&body](const httplib::Request&, httplib::Response& res) { res.set_content(body, "application/json"); });
+
+  auto response = impl_->commandGenerateFlightReport("blackbox");
+  EXPECT_TRUE(response.ok);
+}
+
+// --- commandDownloadSupportFiles ---
+// Spec: GET /supportfiles/v1
+//   200 → application/zip binary
+//   204 → No Content (no flight reports available yet)
+//   404 → APIError  {"message": string, "details": string}
+//   500 → APIError
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_success)
+{
+  // 200 OK with zip binary body
+  const std::string fake_zip(R"(PK)"
+                             "\x03\x04"
+                             "fake_zip_data",
+                             18);
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&fake_zip](const httplib::Request&, httplib::Response& res) {
+    res.set_content(fake_zip, "application/zip");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+  EXPECT_TRUE(response.ok);
+
+  std::ifstream file(out, std::ios::binary);
+  ASSERT_TRUE(file.is_open());
+  const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(written, fake_zip);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_no_content)
+{
+  // 204 No Content — no flight reports are available yet.
+  // The implementation treats any 2xx as success, so ok=true and an empty file is created.
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 204; });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_empty.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+  EXPECT_TRUE(response.ok);
+  EXPECT_TRUE(std::filesystem::exists(out));
+  EXPECT_EQ(std::filesystem::file_size(out), 0u);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_overwrites_existing)
+{
+  // A second download to the same destination path must overwrite the previous file.
+  std::string server_content = "version1_data";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&server_content](const httplib::Request&, httplib::Response& res) {
+    res.set_content(server_content, "application/zip");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_overwrite.zip";
+  std::filesystem::remove(out);
+
+  EXPECT_TRUE(impl_->commandDownloadSupportFiles(out.string()).ok);
+
+  server_content = "version2_longer_data";
+  EXPECT_TRUE(impl_->commandDownloadSupportFiles(out.string()).ok);
+
+  std::ifstream file(out, std::ios::binary);
+  ASSERT_TRUE(file.is_open());
+  const std::string result((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(result, server_content);
+
+  std::filesystem::remove(out);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_not_found)
+{
+  // 404 Not Found — flight recorder service not found
+  const std::string body = R"({"message":"Flight recorder service not found.","details":""})";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 404;
+    res.set_content(body, "application/json");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_notfound.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on server error";
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_server_error)
+{
+  // 500 Internal Server Error
+  const std::string body = R"({"message":"Internal server error.","details":""})";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&body](const httplib::Request&, httplib::Response& res) {
+    res.status = 500;
+    res.set_content(body, "application/json");
+  });
+
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_err.zip";
+  std::filesystem::remove(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_EQ(response.message, body);
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on server error";
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_invalid_path)
+{
+  // A non-writable path must produce an error before any HTTP request is sent (mkstemp
+  // fails because the parent directory does not exist).
+  auto response = impl_->commandDownloadSupportFiles("/nonexistent_directory/support.zip");
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("Failed to create temporary file"), std::string::npos);
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_connection_error)
+{
+  // The server is stopped after connect() so the streaming GET has no server to talk to.
+  // The httplib::Result is falsy (error != Success) and the client must surface this as a
+  // non-ok response containing "HTTP request failed". The final file must not be created.
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_support_conn_err.zip";
+  std::filesystem::remove(out);
+
+  server_.stop();
+  if (server_thread_.joinable())
+  {
+    server_thread_.join();
+  }
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("HTTP request failed"), std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists(out)) << "Final file must not be created on connection error";
+}
+
+TEST_F(DashboardClientImplXMockTest, download_support_files_rename_failure)
+{
+  // When the destination path already exists as a directory, std::filesystem::rename
+  // fails (EISDIR on POSIX). The implementation must return a non-ok response
+  // containing "Failed to rename" and must clean up the temporary file.
+  const std::string fake_zip = "fake_zip_data";
+  server_.Get(MOCK_SUPPORTFILES_ENDPOINT, [&fake_zip](const httplib::Request&, httplib::Response& res) {
+    res.set_content(fake_zip, "application/zip");
+  });
+
+  // Create a directory at the save_path so that rename() cannot replace it with a file.
+  const std::filesystem::path out = std::filesystem::temp_directory_path() / "urcl_test_rename_fail_dir";
+  std::filesystem::remove_all(out);
+  std::filesystem::create_directory(out);
+
+  auto response = impl_->commandDownloadSupportFiles(out.string());
+
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("Failed to rename"), std::string::npos);
+
+  // The directory itself must be untouched; no temp file should be left behind.
+  EXPECT_TRUE(std::filesystem::is_directory(out));
+  EXPECT_TRUE(std::filesystem::is_empty(out)) << "Temp file must be cleaned up after rename failure";
+
+  std::filesystem::remove_all(out);
+}
+
+// ---------------------------------------------------------------------------
+// Connection-state tests
+//
+// These tests use TestableDashboardClientMock so that is_connected_ can be
+// observed directly. Unlike DashboardClientImplXMockTest, SetUp() does NOT
+// call connect() — each test controls the connection lifecycle explicitly.
+// ---------------------------------------------------------------------------
+
+class DashboardClientImplXConnectionStateTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    port_ = server_.bind_to_any_port("127.0.0.1");
+    server_thread_ = std::thread([this]() { server_.listen_after_bind(); });
+    while (!server_.is_running())
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    impl_ = std::make_unique<TestableDashboardClientMock>("127.0.0.1:" + std::to_string(port_));
+  }
+
+  void TearDown() override
+  {
+    server_.stop();
+    if (server_thread_.joinable())
+    {
+      server_thread_.join();
+    }
+  }
+
+  void registerOpenApiEndpoint()
+  {
+    server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+      res.set_content(MOCK_OPENAPI_RESPONSE, "application/json");
+    });
+  }
+
+  httplib::Server server_;
+  int port_ = 0;
+  std::thread server_thread_;
+  std::unique_ptr<TestableDashboardClientMock> impl_;
+};
+
+TEST_F(DashboardClientImplXConnectionStateTest, initially_not_connected)
+{
+  // A freshly constructed client must report disconnected before connect() is called.
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_success_sets_connected)
+{
+  registerOpenApiEndpoint();
+  EXPECT_TRUE(impl_->connect());
+  EXPECT_TRUE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_failure_leaves_not_connected)
+{
+  // The server is reachable but openapi.json returns 404, so connect() must fail
+  // and leave the client in the disconnected state.
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 404; });
+
+  EXPECT_FALSE(impl_->connect());
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, assert_has_command_reconnects_when_not_connected)
+{
+  // When assertHasCommand() is called while disconnected it must trigger connect().
+  // commandShutdown() calls assertHasCommand("shutdown") internally, so a successful
+  // commandShutdown() proves that reconnection happened.
+  registerOpenApiEndpoint();
+  server_.Put(MOCK_SHUTDOWN_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.status = 202;
+    res.set_content(R"({"message":null})", "application/json");
+  });
+
+  ASSERT_FALSE(impl_->isConnected());
+  impl_->commandShutdown();
+  EXPECT_TRUE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, assert_has_command_throws_when_reconnect_fails)
+{
+  // assertHasCommand() is called while disconnected and the reconnect attempt fails
+  // (openapi.json returns 404). A UrException must be thrown.
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 404; });
+
+  ASSERT_FALSE(impl_->isConnected());
+  EXPECT_THROW(impl_->commandShutdown(), UrException);
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, disconnect_clears_connected)
+{
+  registerOpenApiEndpoint();
+  ASSERT_TRUE(impl_->connect());
+  ASSERT_TRUE(impl_->isConnected());
+
+  impl_->disconnect();
+  EXPECT_FALSE(impl_->isConnected());
 }
 
 class PolyScopeScreenshotListener : public ::testing::EmptyTestEventListener
