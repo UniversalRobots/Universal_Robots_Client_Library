@@ -31,6 +31,7 @@
 
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/rtde/data_package.h>
+#include <ur_client_library/rtde/rtde_parser.h>
 
 #include "rtde_test_helpers.h"
 
@@ -107,7 +108,7 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
                              0x85, 0x87, 0xa0, 0x00, 0x00, 0x00, 0xbf, 0x9f, 0xbe, 0x74, 0x44, 0x2d, 0x18, 0x00 };
   comm::BinParser bp(data_package, sizeof(data_package));
 
-  test::TestableRTDEParser parser(recipe);
+  rtde_interface::RTDEParser parser(recipe);
   parser.setRecipeTypes(types);
   parser.setProtocolVersion(1);
 
@@ -388,7 +389,7 @@ TEST(rtde_data_package, every_rtde_data_type_survives_a_serialize_parse_round_tr
 TEST(rtde_data_package, unknown_data_types_are_rejected)
 {
   std::vector<std::string> recipe{ "timestamp" };
-  test::TestableDataPackage package(recipe);
+  rtde_interface::DataPackage package(recipe);
 
   // A field the robot doesn't know about is reported as NOT_FOUND, one that is already used by
   // another recipe as IN_USE. Neither is a data type.
@@ -400,7 +401,7 @@ TEST(rtde_data_package, unknown_data_types_are_rejected)
 TEST(rtde_data_package, type_count_has_to_match_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  test::TestableDataPackage package(recipe);
+  rtde_interface::DataPackage package(recipe);
   EXPECT_THROW(package.setTypes({ "DOUBLE" }), UrException);
   EXPECT_THROW(package.setTypes({ "DOUBLE", "VECTOR6D", "DOUBLE" }), UrException);
 }
@@ -443,7 +444,7 @@ TEST(rtde_data_package, untyped_package_gets_typed_by_assignment)
 TEST(rtde_data_package, applying_types_makes_the_package_usable)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  test::TestableDataPackage package(recipe);
+  rtde_interface::DataPackage package(recipe);
 
   double timestamp = 0.0;
   ASSERT_FALSE(package.getData("timestamp", timestamp));
