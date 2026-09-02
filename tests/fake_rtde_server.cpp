@@ -482,10 +482,12 @@ bool allVariablesFound(const std::vector<std::string>& types)
 // Unlike a client, the server side knows the data types up front, so it applies them itself right
 // after allocating the package.
 std::unique_ptr<rtde_interface::DataPackage> makeTypedDataPackage(const std::vector<std::string>& recipe,
-                                                                  const std::vector<std::string>& types)
+                                                                  const std::vector<std::string>& types,
+                                                                  const uint16_t protocol_version = 2)
 {
   auto package = std::make_unique<test::TestableDataPackage>(recipe);
-  package->initEmpty(types);
+  package->setTypes(types);
+  package->setProtocolVersion(protocol_version);
   return package;
 }
 }  // namespace
@@ -630,6 +632,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         requested_protocol_versions_.push_back(requested_version);
         accepted = requested_version <= highest_accepted_protocol_version_;
+        if (accepted)
+        {
+          negotiated_protocol_version_ = requested_version;
+        }
       }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
@@ -700,7 +706,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         output_data_package_.reset();
         if (allVariablesFound(variable_types))
         {
-          output_data_package_ = makeTypedDataPackage(output_recipe_, variable_types);
+          output_data_package_ = makeTypedDataPackage(output_recipe_, variable_types, negotiated_protocol_version_);
         }
       }
 
@@ -814,6 +820,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       {
         throw std::runtime_error("Fake RTDE Server received a data package before input recipe was setup. This should "
                                  "not happen.");
+      }
+      if (negotiated_protocol_version_ == 2)
+      {
+        uint8_t recipe_id = 0;
+        bp.parse(recipe_id);
       }
       input_data_package_->parseWith(bp);
       actOnInput();

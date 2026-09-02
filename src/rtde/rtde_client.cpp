@@ -233,6 +233,7 @@ uint16_t RTDEClient::negotiateProtocolVersion()
         {
           URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
           parser_.setProtocolVersion(protocol_version);
+          writer_.setProtocolVersion(protocol_version);
           return protocol_version;
         }
         break;
@@ -342,9 +343,10 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
   // The data types of the new recipe are unknown until the robot acknowledges it again, at which
   // point setupOutputs() applies them to this package without allocating.
-  preallocated_data_pkg_ = DataPackage(output_recipe_, protocol_version_);
+  preallocated_data_pkg_ = DataPackage(output_recipe_);
 
   parser_ = RTDEParser(output_recipe_);
+  parser_.setProtocolVersion(protocol_version_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
 }
 
@@ -449,8 +451,7 @@ bool RTDEClient::setupOutputs()
         // storage itself already exists, so this doesn't allocate and neither does the receive path
         // from here on.
         parser_.setRecipeTypes(variable_types);
-        preallocated_data_pkg_.setProtocolVersion(protocol_version_);
-        preallocated_data_pkg_.initEmpty(variable_types);
+        preallocated_data_pkg_.setTypes(variable_types);
         return true;
       }
     }
@@ -518,7 +519,7 @@ bool RTDEClient::setupInputs()
           throw RTDEInputConflictException(input_recipe_[i]);
         }
       }
-      writer_.setRecipeTypes(variable_types, protocol_version_);
+      writer_.setRecipeTypes(variable_types);
       writer_.init(tmp_input->input_recipe_id_);
 
       return true;

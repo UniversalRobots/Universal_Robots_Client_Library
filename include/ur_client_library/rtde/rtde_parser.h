@@ -113,15 +113,17 @@ protected:
   void setRecipeTypes(const std::vector<std::string>& types)
   {
     recipe_types_ = types;
+    typed_layout_hash_ = DataPackage::layoutHashFor(recipe_, recipe_types_);
   }
 
 private:
   static std::unique_ptr<DataPackage> makeTypedDataPackage(const std::vector<std::string>& recipe,
-                                                           const std::vector<std::string>& types,
-                                                           const uint16_t protocol_version);
+                                                           const std::vector<std::string>& types);
+  bool parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const;
 
   std::vector<std::string> recipe_;
   std::vector<std::string> recipe_types_;
+  uint64_t typed_layout_hash_ = 0;
   bool recipeTypesKnown() const;
   PackageType getPackageTypeFromHeader(comm::BinParser& bp) const;
   RTDEPackage* createNewPackageFromType(PackageType type) const;

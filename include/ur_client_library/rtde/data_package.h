@@ -29,12 +29,14 @@
 #ifndef UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 #define UR_CLIENT_LIBRARY_DATA_PACKAGE_H_INCLUDED
 
-#include <algorithm>
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -46,8 +48,6 @@ namespace urcl
 {
 namespace rtde_interface
 {
-class RTDEWriter;
-
 /*!
  * \brief Possible values for the runtime state
  */
@@ -119,8 +119,7 @@ public:
    *
    * The typed alternatives are exactly the members of DataType. std::monostate is the state of a
    * field whose type isn't decided yet, which is how a package constructed from a recipe alone
-   * starts out. It is also what distinguishes the fields an application has written from the ones
-   * it left alone.
+   * starts out.
    */
   using _rtde_type_variant = std::variant<std::monostate, bool, uint8_t, uint32_t, uint64_t, int32_t, double,
                                           vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
@@ -135,10 +134,15 @@ public:
   DataPackage(const DataPackage& other)
     : RTDEPackage(PackageType::RTDE_DATA_PACKAGE)
     , recipe_id_(other.recipe_id_)
-    , data_(other.data_)
     , recipe_(other.recipe_)
+    , values_(other.values_)
+    , zeros_(other.zeros_)
     , protocol_version_(other.protocol_version_)
+    , recipe_hash_(other.recipe_hash_)
+    , layout_hash_(other.layout_hash_)
+    , fully_typed_(other.fully_typed_)
   {
+    rebuildFieldIndex();
   }
 
   /*!
@@ -149,9 +153,19 @@ public:
    */
   DataPackage& operator=(const DataPackage& other)
   {
-    this->data_ = other.data_;
-    this->recipe_ = other.recipe_;
+    // The name-to-index map holds string_views into recipe_. Replacing recipe_ would dangle those
+    // views and would allocate, so a same-recipe assignment (the receive path) leaves both alone.
+    if (recipe_hash_ != other.recipe_hash_ || recipe_.size() != other.recipe_.size())
+    {
+      this->recipe_ = other.recipe_;
+      this->recipe_hash_ = other.recipe_hash_;
+      rebuildFieldIndex();
+    }
+    this->values_ = other.values_;
+    this->zeros_ = other.zeros_;
     this->protocol_version_ = other.protocol_version_;
+    this->layout_hash_ = other.layout_hash_;
+    this->fully_typed_ = other.fully_typed_;
     return *this;
   }
 
@@ -217,6 +231,9 @@ public:
   /*!
    * \brief Serializes the package.
    *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The writer
+   * records the negotiated version with setProtocolVersion() before serializing.
+   *
    * \param buffer Buffer to fill with the serialization
    *
    * \returns The total size of the serialized package
@@ -237,18 +254,15 @@ public:
   template <typename T>
   bool getData(const std::string_view name, T& val) const
   {
-    const auto it =
-        std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
-          return element.first == name;
-        });
-    if (it == data_.end())
+    const std::optional<size_t> index = fieldIndex(name);
+    if (!index.has_value())
     {
       return false;
     }
-    const T* value = std::get_if<T>(&it->second);
+    const T* value = std::get_if<T>(&values_[*index]);
     if (value == nullptr)
     {
-      reportReadFailure(name, it->second);
+      reportReadFailure(recipe_[*index], values_[*index]);
       return false;
     }
     val = *value;
@@ -297,15 +311,13 @@ public:
   template <typename T>
   bool setData(const std::string_view name, const T& val)
   {
-    const auto it =
-        std::find_if(data_.begin(), data_.end(), [&name](const std::pair<std::string, _rtde_type_variant>& element) {
-          return element.first == name;
-        });
-    if (it == data_.end())
+    const std::optional<size_t> index = fieldIndex(name);
+    if (!index.has_value())
     {
       return false;
     }
-    if (!std::holds_alternative<T>(it->second) && !std::holds_alternative<std::monostate>(it->second))
+    _rtde_type_variant& field = values_[*index];
+    if (!std::holds_alternative<T>(field) && !std::holds_alternative<std::monostate>(field))
     {
       // TODO: It might be better to replace the return type by void and use exceptions for the
       // error case.
@@ -313,7 +325,13 @@ public:
                      static_cast<int>(name.size()), name.data());
       return false;
     }
-    it->second = val;
+    const bool type_changed = std::holds_alternative<std::monostate>(field);
+    field = val;
+    if (type_changed)
+    {
+      zeros_[*index] = T();
+      updateLayoutHash();
+    }
     return true;
   }
 
@@ -327,13 +345,16 @@ public:
     recipe_id_ = recipe_id;
   }
 
-protected:
-  // Applying the robot's setup acknowledgement to a package is the library's job: the parser does
-  // it on the way in, the writer when the input recipe is acknowledged, and the client for the
-  // package it reads into. An application never has the types to pass here.
-  friend class RTDEWriter;
-  friend class RTDEClient;
-  friend class RTDEParser;
+  /*!
+   * \brief Records the RTDE protocol version this package will serialize.
+   *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The
+   * constructor defaults to version 2.
+   */
+  void setProtocolVersion(const uint16_t protocol_version)
+  {
+    protocol_version_ = protocol_version;
+  }
 
   /*!
    * \brief Applies the data types reported by the robot, resetting all values to zero.
@@ -346,51 +367,25 @@ protected:
    *
    * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
    */
-  void initEmpty(const std::vector<std::string>& types);
+  void setTypes(const std::vector<std::string>& types);
 
   /*!
-   * \brief Records the RTDE protocol version this package will parse and serialize.
+   * \brief Overwrites every field of this package with the corresponding field of \p other.
    *
-   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The
-   * constructor defaults to version 2, so this has to be called when the handshake falls back
-   * to version 1. Assignment of a uint16_t does not allocate.
+   * This package must already be typed. \p other has to carry the same field names and the same
+   * type on every field, which is what a package has after the robot's acknowledgement or after
+   * every subscribed field has been written. Recipe id and protocol version are left untouched.
+   *
+   * The success path is a layout-hash compare and a memcpy of the value array. The hashes are a
+   * 64-bit identity of the field names and each field's variant index; a collision would skip a
+   * validation that should have failed, which is accepted for this path.
+   *
+   * \param other The package to copy from
+   *
+   * \returns True on success, false if this package is untyped, if \p other was built from a
+   * different recipe or if a field in \p other has a different type
    */
-  void setProtocolVersion(const uint16_t protocol_version)
-  {
-    protocol_version_ = protocol_version;
-  }
-
-private:
-  /*!
-   * \brief Whether every field of this package has a data type.
-   *
-   * A package constructed from a recipe alone is untyped until either the robot's setup
-   * acknowledgement has been applied to it or setData() has been used to write to every field. An
-   * untyped package cannot be parsed into or serialized, and getData() fails on it.
-   *
-   * There is no separate flag for this: a field whose type is undecided holds a std::monostate, so
-   * the fields themselves are the answer. The scan is over recipe-many variant tags and costs far
-   * less than the parse it guards.
-   *
-   * \returns True if the package carries type information for all of its fields
-   */
-  bool isTyped() const
-  {
-    return std::none_of(data_.begin(), data_.end(), [](const std::pair<std::string, _rtde_type_variant>& field) {
-      return std::holds_alternative<std::monostate>(field.second);
-    });
-  }
-
-  /*!
-   * \brief Whether this package was constructed from the same field names, in the same order.
-   *
-   * Used by the parser to tell a same-length but different recipe from the one the robot
-   * acknowledged, so it can replace the package rather than applying types onto the wrong names.
-   */
-  bool matchesRecipe(const std::vector<std::string>& recipe) const
-  {
-    return recipe_ == recipe;
-  }
+  bool copyFrom(const DataPackage& other);
 
   /*!
    * \brief Resets a data field to a default-constructed value of its own type.
@@ -402,24 +397,76 @@ private:
   bool resetData(const std::string_view name);
 
   /*!
-   * \brief Whether every set field in \p other can be copied into this package.
+   * \brief Whether every field of this package has a data type.
    *
-   * Does not modify this package. Used to validate a source before clearing the destination.
+   * A package constructed from a recipe alone is untyped until either the robot's setup
+   * acknowledgement has been applied to it or setData() has been used to write to every field. An
+   * untyped package cannot be parsed into or serialized, and getData() fails on it.
+   *
+   * \returns True if the package carries type information for all of its fields
    */
-  bool canCopySetFieldsFrom(const DataPackage& other) const;
+  bool isTyped() const
+  {
+    return fully_typed_;
+  }
 
   /*!
-   * \brief Copies the fields that \p other has values for into this package.
+   * \brief FNV-1a identity of this package's field names, in order.
    *
-   * Fields \p other hasn't written are left untouched. The source must already have been checked
-   * with canCopySetFieldsFrom(); this only writes the matching values.
+   * Not sent on the wire. Used together with layoutHash() to identify a recipe without comparing
+   * field-name strings.
    */
-  bool copySetFieldsFrom(const DataPackage& other);
+  uint64_t recipeHash() const
+  {
+    return recipe_hash_;
+  }
 
+  /*!
+   * \brief FNV-1a identity of this package's field names and each field's current variant index.
+   *
+   * Not sent on the wire. Combined from the recipe hash and the type of every field, so it changes
+   * when a field first acquires a type and when setTypes() is applied, and does not change when a
+   * value is overwritten, reset or parsed.
+   */
+  uint64_t layoutHash() const
+  {
+    return layout_hash_;
+  }
+
+  /*!
+   * \brief The layout hash a package would have after applying \p types to \p recipe.
+   *
+   * Used by the parser to recognise a package that already carries the negotiated output layout.
+   *
+   * \param recipe Field names, in order
+   * \param types Data type names as reported by the robot, in the same order as \p recipe
+   *
+   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
+   */
+  static uint64_t layoutHashFor(const std::vector<std::string>& recipe, const std::vector<std::string>& types);
+
+private:
   /*!
    * \brief Allocates one slot per recipe field, with the type left undecided.
    */
   void initStorage();
+
+  /*!
+   * \brief Recomputes layout_hash_ and fully_typed_ from the current values.
+   */
+  void updateLayoutHash();
+
+  /*!
+   * \brief Rebuilds the name-to-index map from recipe_.
+   *
+   * The keys are string_views into recipe_, so this must run after recipe_ is in its final place.
+   */
+  void rebuildFieldIndex();
+
+  /*!
+   * \brief The recipe index of \p name, or empty if the name is not in this package.
+   */
+  std::optional<size_t> fieldIndex(const std::string_view name) const;
 
   /*!
    * \brief Logs why reading \p field didn't produce the requested type.
@@ -427,9 +474,14 @@ private:
   static void reportReadFailure(const std::string_view name, const _rtde_type_variant& field);
 
   uint8_t recipe_id_ = 0;
-  std::vector<std::pair<std::string, _rtde_type_variant>> data_;
   std::vector<std::string> recipe_;
-  uint16_t protocol_version_;
+  std::unordered_map<std::string_view, size_t> field_index_;
+  std::vector<_rtde_type_variant> values_;
+  std::vector<_rtde_type_variant> zeros_;
+  uint16_t protocol_version_ = 2;
+  uint64_t recipe_hash_ = 0;
+  uint64_t layout_hash_ = 0;
+  bool fully_typed_ = false;
 };
 
 }  // namespace rtde_interface

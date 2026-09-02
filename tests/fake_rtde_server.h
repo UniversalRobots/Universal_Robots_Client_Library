@@ -111,6 +111,7 @@ private:
   std::deque<std::string> pending_setup_outputs_text_messages_;
   std::deque<std::string> pending_setup_inputs_text_messages_;
   uint16_t highest_accepted_protocol_version_ = 2;
+  uint16_t negotiated_protocol_version_ = 2;
   std::vector<uint16_t> requested_protocol_versions_;
   bool accept_start_ = true;
   bool accept_pause_ = true;
