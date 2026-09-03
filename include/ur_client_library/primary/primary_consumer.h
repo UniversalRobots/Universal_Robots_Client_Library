@@ -132,7 +132,7 @@ public:
     code.timestamp = pkg.timestamp_;
     code.to_string = pkg.toString();
 
-    const auto log_contents = "Logging an ErrorCodeMessage from the UR Controller Box: " + pkg.toString();
+    const auto log_contents = pkg.toString();
 
     switch (code.report_level)
     {
