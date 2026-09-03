@@ -652,13 +652,24 @@ TEST(rtde_data_package, copy_from_rejects_a_source_whose_types_changed)
   EXPECT_DOUBLE_EQ(fraction, 0.5);
 }
 
-TEST(rtde_data_package, copy_from_rejects_an_untyped_source_field)
+// An application may write only the fields it cares about, which leaves the rest of its package
+// untyped. Those fields are taken over as zeros rather than making the copy fail.
+TEST(rtde_data_package, copy_from_zeros_the_fields_the_source_did_not_write)
 {
   auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  ASSERT_TRUE(destination.setData("speed_slider_mask", static_cast<uint32_t>(7)));
+
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
 
-  EXPECT_FALSE(destination.copyFrom(source));
+  ASSERT_TRUE(destination.copyFrom(source));
+
+  double fraction = 0.0;
+  uint32_t mask = 0;
+  ASSERT_TRUE(destination.getData("speed_slider_fraction", fraction));
+  ASSERT_TRUE(destination.getData("speed_slider_mask", mask));
+  EXPECT_DOUBLE_EQ(fraction, 0.5);
+  EXPECT_EQ(mask, 0u);
 }
 
 TEST(rtde_data_package, copy_from_rejects_when_the_destination_is_retyped)
