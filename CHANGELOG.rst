@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.15.0 (2026-09-03)
+-------------------
 * Robot api 10.14 (`#549 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/549>`_)
 * Fix spline point velocity and acceleration precision (`#559 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/559>`_)
 * MotionTarget helpers (`#558 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/558>`_)
