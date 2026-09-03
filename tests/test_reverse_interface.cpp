@@ -43,6 +43,8 @@ std::condition_variable g_connection_condition;
 class TestableReverseInterface : public control::ReverseInterface
 {
 public:
+  using control::ReverseInterface::MAX_MESSAGE_LENGTH;
+
   TestableReverseInterface(const control::ReverseInterfaceConfig& config) : control::ReverseInterface(config)
   {
   }
@@ -85,11 +87,13 @@ protected:
 
     void readMessage(int32_t& read_timeout, vector6int32_t& pos, int32_t& control_mode)
     {
+      constexpr size_t MAX_MESSAGE_LENGTH = TestableReverseInterface::MAX_MESSAGE_LENGTH;
+
       // Read message
-      uint8_t buf[sizeof(int32_t) * 8];
+      uint8_t buf[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * 8;
+      size_t remainder = sizeof(int32_t) * MAX_MESSAGE_LENGTH;
       while (remainder > 0)
       {
         if (!TCPSocket::read(b_pos, remainder, read))
@@ -115,6 +119,8 @@ protected:
         pos[i] = be32toh(val);
         b_pos += sizeof(int32_t);
       }
+
+      b_pos = buf + (sizeof(int32_t) * (MAX_MESSAGE_LENGTH - 1));
 
       // Decode control mode
       std::memcpy(&val, b_pos, sizeof(int32_t));
@@ -475,6 +481,22 @@ TEST_F(ReverseInterfaceTest, write_freedrive_control_message)
   reverse_interface_->writeFreedriveControlMessage(written_freedrive_message);
   received_freedrive_message = client_->getFreedriveControlMode();
 
+  EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
+}
+
+TEST_F(ReverseInterfaceTest, write_constrained_freedrive_message)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+  control::FreedriveControlMessage written_freedrive_message = control::FreedriveControlMessage::FREEDRIVE_START;
+
+  std::array<int32_t, 6> free_axes = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> feature_pos = { 0.1, -0.2, 0.5, 1.1, 0.0, 3.14 };
+
+  reverse_interface_->writeFreedriveControlMessage(written_freedrive_message, RobotReceiveTimeout::millisec(200),
+                                                   free_axes, feature_pos);
+
+  int32_t received_freedrive_message = client_->getFreedriveControlMode();
   EXPECT_EQ(toUnderlying(written_freedrive_message), received_freedrive_message);
 }
 
