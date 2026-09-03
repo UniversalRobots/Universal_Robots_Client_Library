@@ -370,20 +370,23 @@ public:
   void setTypes(const std::vector<std::string>& types);
 
   /*!
-   * \brief Overwrites every field of this package with the corresponding field of \p other.
+   * \brief Takes over the values of \p other, sending fields it has not written as zeros.
    *
-   * This package must already be typed. \p other has to carry the same field names and the same
-   * type on every field, which is what a package has after the robot's acknowledgement or after
-   * every subscribed field has been written. Recipe id and protocol version are left untouched.
+   * This package must already be typed. \p other has to be built from the same recipe, and every
+   * field it has a value for has to carry the type this package has for it. Recipe id and protocol
+   * version are left untouched.
    *
-   * The success path is a layout-hash compare and a memcpy of the value array. The hashes are a
-   * 64-bit identity of the field names and each field's variant index; a collision would skip a
-   * validation that should have failed, which is accepted for this path.
+   * When \p other has the same field names and the same type on every one of them, which is what a
+   * package has after the robot's acknowledgement, the copy is a layout-hash compare and a memcpy
+   * of the value array. The hashes are a 64-bit identity of the field names and each field's
+   * variant index; a collision would skip a validation that should have failed, which is accepted
+   * for this path. A package an application typed by writing only the fields it cares about is
+   * instead merged position by position, with unwritten fields sent as zeros.
    *
    * \param other The package to copy from
    *
    * \returns True on success, false if this package is untyped, if \p other was built from a
-   * different recipe or if a field in \p other has a different type
+   * different recipe, or if a field \p other has written has a different type
    */
   bool copyFrom(const DataPackage& other);
 
@@ -447,6 +450,11 @@ public:
 
 private:
   /*!
+   * \brief Logs once that a copy walked fields instead of memcpy'ing the value array.
+   */
+  void reportSlowCopyOnce();
+
+  /*!
    * \brief Allocates one slot per recipe field, with the type left undecided.
    */
   void initStorage();
@@ -482,6 +490,7 @@ private:
   uint64_t recipe_hash_ = 0;
   uint64_t layout_hash_ = 0;
   bool fully_typed_ = false;
+  bool slow_copy_reported_ = false;
 };
 
 }  // namespace rtde_interface

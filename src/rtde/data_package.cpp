@@ -358,6 +358,20 @@ void rtde_interface::DataPackage::initEmpty()
   copyValues(values_, zeros_);
 }
 
+void rtde_interface::DataPackage::reportSlowCopyOnce()
+{
+  if (slow_copy_reported_)
+  {
+    return;
+  }
+  slow_copy_reported_ = true;
+  URCL_LOG_WARN("Copying an RTDE data package that is not fully typed walks each field instead of "
+                "copying the value array in one step. That is the path a package takes when it is "
+                "constructed from a recipe and only some of its fields are written. A package that "
+                "already carries the same field names and types as this one can be copied in one "
+                "memcpy.");
+}
+
 bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
 {
   if (!isTyped())
@@ -366,13 +380,40 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
                    "reported by the robot during the RTDE handshake.");
     return false;
   }
-  if (layout_hash_ != other.layout_hash_ || values_.size() != other.values_.size())
+
+  // Same field names and the same type on every field, so the whole value array can go across at
+  // once. This is the path a real-time loop takes.
+  if (layout_hash_ == other.layout_hash_ && values_.size() == other.values_.size())
   {
-    URCL_LOG_ERROR("Cannot copy from an RTDE data package whose layout does not match this one.");
+    copyValues(values_, other.values_);
+    return true;
+  }
+
+  if (recipe_hash_ != other.recipe_hash_ || values_.size() != other.values_.size())
+  {
+    URCL_LOG_ERROR("Cannot copy from an RTDE data package built from a different recipe.");
     return false;
   }
 
-  copyValues(values_, other.values_);
+  // Same recipe, so field i here is field i there. Validate before writing anything, so a package
+  // that is rejected leaves the values already in here alone.
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    if (!std::holds_alternative<std::monostate>(other.values_[i]) && other.values_[i].index() != values_[i].index())
+    {
+      URCL_LOG_ERROR("The value passed for the data field '%s' is of type %s, but the robot reports that field as "
+                     "%s.",
+                     recipe_[i].c_str(), typeNameOf(other.values_[i]).c_str(), typeNameOf(values_[i]).c_str());
+      return false;
+    }
+  }
+
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    values_[i] = std::holds_alternative<std::monostate>(other.values_[i]) ? zeros_[i] : other.values_[i];
+  }
+
+  reportSlowCopyOnce();
   return true;
 }
 
