@@ -1,0 +1,103 @@
+name: Check UR ErrorCodes version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'   # Every night at 06:00 UTC
+
+jobs:
+  check_error_codes:
+    name: Check UR ErrorCodes JSON version
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write   # needed to open the notification issue
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check error codes version
+        id: check
+        # continue-on-error so subsequent steps can still run and open an issue
+        continue-on-error: true
+        run: |
+          python3 scripts/generate_error_codes.py \
+            --check \
+            --header include/ur_client_library/ur/error_code_texts.h
+
+      - name: Extract versions
+        if: steps.check.outcome == 'failure'
+        id: versions
+        run: |
+          COMMITTED=$(python3 -c "
+          import re, sys
+          m = re.search(r'ERROR_CODE_JSON_VERSION\s*=\s*\"([^\"]+)\"',
+                        open('include/ur_client_library/ur/error_code_texts.h').read())
+          print(m.group(1) if m else 'unknown')
+          ")
+          UPSTREAM=$(python3 -c "
+          import urllib.request, json
+          data = json.loads(urllib.request.urlopen(
+            'https://www.universal-robots.com/manuals/EN/PDF/Shared/ErrorCodes/ErrorCodes.json'
+          ).read())
+          print(data.get('version', 'unknown'))
+          ")
+          echo "committed=$COMMITTED" >> "$GITHUB_OUTPUT"
+          echo "upstream=$UPSTREAM"   >> "$GITHUB_OUTPUT"
+
+      - name: Ensure label exists
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "error-codes-outdated" \
+            --description "Upstream UR ErrorCodes JSON has a newer version than the committed header" \
+            --color "e4e669" \
+            --force
+
+      - name: Open issue if none already open
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITTED: ${{ steps.versions.outputs.committed }}
+          UPSTREAM: ${{ steps.versions.outputs.upstream }}
+        run: |
+          OPEN=$(gh issue list \
+            --label "error-codes-outdated" \
+            --state open \
+            --json number \
+            --jq length)
+
+          if [ "$OPEN" -eq 0 ]; then
+            gh issue create \
+              --title "UR ErrorCodes JSON updated: v${COMMITTED} → v${UPSTREAM}" \
+              --label "error-codes-outdated" \
+              --body "The upstream UR ErrorCodes JSON has been updated and \`error_code_texts.h\` is out of date.
+
+| | Version |
+|---|---|
+| Committed header (\`kErrorCodeJsonVersion\`) | \`${COMMITTED}\` |
+| Upstream JSON | \`${UPSTREAM}\` |
+
+**Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+### How to update
+
+Run from the repository root:
+\`\`\`bash
+python3 scripts/generate_error_codes.py \\
+  --overlay scripts/error_code_overrides.json \\
+  --output  include/ur_client_library/ur/error_code_texts.h
+\`\`\`
+or via CMake:
+\`\`\`bash
+cmake --build <build-dir> --target generate_error_codes
+\`\`\`
+Then commit the updated \`error_code_texts.h\`."
+          else
+            echo "An open issue already exists — skipping duplicate."
+          fi
+
+      # Fail the workflow so the run shows red in the Actions tab
+      - name: Fail if version mismatch
+        if: steps.check.outcome == 'failure'
+        run: exit 1
