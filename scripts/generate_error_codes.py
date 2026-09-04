@@ -83,12 +83,19 @@ def load_json(source: str) -> dict:
 
 def escape_c_string(text: str) -> str:
     """Escape a string so it is safe to embed as a C string literal."""
-    text = text.replace("\\", "\\\\")
-    text = text.replace('"', '\\"')
-    text = text.replace("\n", "\\n")
-    text = text.replace("\r", "\\r")
-    text = text.replace("\t", "\\t")
-    return text
+    escapes = {
+        "\\": "\\\\",
+        '"': '\\"',
+        "\n": "\\n",
+        "\r": "\\r",
+        "\t": "\\t",
+        "\b": "\\b",
+        "\f": "\\f",
+    }
+    return "".join(
+        escapes.get(char, f"\\{ord(char):03o}" if ord(char) < 32 or ord(char) == 127 else char)
+        for char in text
+    )
 
 
 def build_map(ur_data: dict, overlay_data: Optional[dict]) -> dict:
