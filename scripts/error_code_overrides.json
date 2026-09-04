@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Static error code text overrides / additions for the ur_client_library.",
+    "This file is merged with the upstream UR ErrorCodes JSON by",
+    "scripts/generate_error_codes.py when generating error_code_texts.h.",
+    "Entries in this file take precedence over the upstream JSON on collision.",
+    "",
+    "Format: same as the UR ErrorCodes JSON — each entry must have 'code' and",
+    "'text'; 'arg' is optional (omit for a code-only / wildcard entry).",
+    "",
+    "NOTE: For error codes whose text must be computed dynamically at runtime",
+    "(e.g. C100 where the robot mode name is derived from the argument value),",
+    "add a case to src/ur/error_code_overrides.cpp instead."
+  ],
+  "codes": []
+}

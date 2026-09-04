@@ -1,0 +1,129 @@
+name: Check UR ErrorCodes version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'   # Every night at 06:00 UTC
+
+jobs:
+  check_error_codes:
+    name: Check UR ErrorCodes JSON version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push update branch
+      issues: write          # open notification issue
+      pull-requests: write   # open PR with the regenerated header
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check error codes version
+        id: check
+        # continue-on-error so subsequent steps can still run and open a PR/issue
+        continue-on-error: true
+        run: |
+          python3 scripts/generate_error_codes.py \
+            --check \
+            --header include/ur_client_library/ur/error_code_texts.h
+
+      - name: Extract versions
+        if: steps.check.outcome == 'failure'
+        id: versions
+        run: |
+          COMMITTED=$(python3 -c "
+          import re
+          m = re.search(r'ERROR_CODE_JSON_VERSION\s*=\s*\"([^\"]+)\"',
+                        open('include/ur_client_library/ur/error_code_texts.h').read())
+          print(m.group(1) if m else 'unknown')
+          ")
+          UPSTREAM=$(python3 -c "
+          import urllib.request, json
+          data = json.loads(urllib.request.urlopen(
+            'https://www.universal-robots.com/manuals/EN/PDF/Shared/ErrorCodes/ErrorCodes.json'
+          ).read())
+          print(data.get('version', 'unknown'))
+          ")
+          # Validate both versions match N.N.N before using them in branch
+          # names, PR titles, and commit messages.  An unexpected format
+          # (e.g. containing '/', '"', or newlines) would otherwise allow
+          # injection into those fields.
+          VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! echo "$COMMITTED" | grep -qE "$VERSION_RE"; then
+            echo "ERROR: committed version '$COMMITTED' does not match expected N.N.N format" >&2
+            exit 1
+          fi
+          if ! echo "$UPSTREAM" | grep -qE "$VERSION_RE"; then
+            echo "ERROR: upstream version '$UPSTREAM' does not match expected N.N.N format" >&2
+            exit 1
+          fi
+
+          echo "committed=$COMMITTED" >> "$GITHUB_OUTPUT"
+          echo "upstream=$UPSTREAM"   >> "$GITHUB_OUTPUT"
+
+      - name: Ensure label exists
+        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "error-codes-outdated" \
+            --description "Upstream UR ErrorCodes JSON has a newer version than the committed header" \
+            --color "e4e669" \
+            --force
+
+      - name: Regenerate header and open PR
+        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITTED: ${{ steps.versions.outputs.committed }}
+          UPSTREAM: ${{ steps.versions.outputs.upstream }}
+        run: |
+          BRANCH="auto/update-error-codes-v${UPSTREAM}"
+
+          # Skip if a PR for exactly this branch is already open
+          OPEN_PR=$(gh pr list \
+            --label "error-codes-outdated" \
+            --state open \
+            --json headRefName \
+            --jq "[.[] | select(.headRefName == \"$BRANCH\")] | length")
+
+          if [ "$OPEN_PR" -gt 0 ]; then
+            echo "PR for branch $BRANCH already open — skipping."
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+
+            python3 scripts/generate_error_codes.py \
+              --overlay scripts/error_code_overrides.json \
+              --output include/ur_client_library/ur/error_code_texts.h
+
+            git add include/ur_client_library/ur/error_code_texts.h
+            git commit -m "chore: update error_code_texts.h to UR ErrorCodes JSON v${UPSTREAM}"
+            git push origin "$BRANCH"
+
+            PR_URL=$(gh pr create \
+              --title "chore: update error_code_texts.h to UR ErrorCodes JSON v${UPSTREAM}" \
+              --label "error-codes-outdated" \
+              --base "${{ github.event.repository.default_branch }}" \
+              --head "$BRANCH" \
+              --body "The upstream UR ErrorCodes JSON has been updated. This PR regenerates \`error_code_texts.h\` automatically.
+
+| | Version |
+|---|---|
+| Previous header (\`ERROR_CODE_JSON_VERSION\`) | \`${COMMITTED}\` |
+| Upstream JSON | \`${UPSTREAM}\` |
+
+**Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+> [!NOTE]
+> Only \`include/ur_client_library/ur/error_code_texts.h\` is updated here.
+> If you have pending entries in \`scripts/error_code_overrides.json\`, verify
+> they are still correct against the new JSON before merging.")
+
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Fail if version mismatch
+        if: steps.check.outcome == 'failure'
+        run: exit 1
