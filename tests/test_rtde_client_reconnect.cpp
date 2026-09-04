@@ -263,7 +263,7 @@ TEST_F(RTDEClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_thread
   // completes in well under 2 s. Without the fix this would block for >= large_reconnect_timeout
   // (5 s), or forever with unlimited attempts. Run it on a worker with a watchdog so a regression
   // fails fast with a clear message instead of hanging the test binary.
-  std::packaged_task<void()> teardown([this]() { client_.reset(); });
+  std::packaged_task<void()> teardown([client = std::move(client_)]() mutable { client.reset(); });
   auto teardown_future = teardown.get_future();
   std::thread teardown_thread(std::move(teardown));
 
