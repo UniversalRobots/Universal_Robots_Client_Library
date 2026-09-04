@@ -76,7 +76,7 @@ NO_ARG_SENTINEL = 0xFFFFFFFF
 # (all-numeric components, e.g. "40.121.0").  Rejecting anything outside this
 # pattern prevents a crafted version string from injecting content into the
 # generated block comment ( */ ) or the C++ string literal ( " or newline ).
-_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+_VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\Z")
 
 
 def validate_version(version: str, label: str = "version") -> None:
