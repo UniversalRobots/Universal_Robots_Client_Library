@@ -90,16 +90,17 @@ Field data types
 
 ``getData()`` has to be given a variable of the field's own type, and returns ``false`` if it isn't.
 Rather than hardcoding which type a field has, ask the package: ``getDataType()`` reports the
-``DataType`` the robot gave a field, or nothing at all if the recipe hasn't been acknowledged yet.
-This is useful for code that has to handle whatever recipe it is configured with, such as a bridge
-to another middleware:
+``DataType`` a field currently holds. After acknowledgement that is the type the robot reported;
+on an input package written with ``setData()`` before then, it is the type of that write. An
+untouched field has no type. This is useful for code that has to handle whatever recipe it is
+configured with, such as a bridge to another middleware:
 
 .. code-block:: c++
 
    const std::optional<rtde_interface::DataType> type = data_pkg.getDataType(field_name);
    if (!type)
    {
-     // Not part of the recipe, or the recipe hasn't been acknowledged yet
+     // Not part of the recipe, or the field has no type yet
      return;
    }
 
