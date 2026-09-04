@@ -75,7 +75,7 @@ jobs:
 
 | | Version |
 |---|---|
-| Committed header (\`kErrorCodeJsonVersion\`) | \`${COMMITTED}\` |
+| Committed header (\`ERROR_CODE_JSON_VERSION\`) | \`${COMMITTED}\` |
 | Upstream JSON | \`${UPSTREAM}\` |
 
 **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

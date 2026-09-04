@@ -104,7 +104,7 @@ TEST(ErrorCodeTextsTest, version_constant_looks_like_semver)
 // getErrorCodeTexts() – static lookup map
 // ---------------------------------------------------------------------------
 
-TEST(ErrorCodeTextsTest, code_wth_no_arg_is_present)
+TEST(ErrorCodeTextsTest, code_with_no_arg_is_present)
 {
   // Code 0 has no "arg" in the JSON; its key uses the no-arg sentinel 0xFFFFFFFF.
   const auto& map = getErrorCodeTexts();

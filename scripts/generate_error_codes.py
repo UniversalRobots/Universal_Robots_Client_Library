@@ -177,7 +177,7 @@ def generate(args: argparse.Namespace) -> int:
     lines.append(" * Re-generate with:")
     lines.append(" *   cmake --build <build-dir> --target generate_error_codes")
     lines.append(" * or directly:")
-    lines.append(" *   scripts/generate_error_codes.py --output <this-file>")
+    lines.append(" *   scripts/generate_error_codes.py --overlay scripts/error_code_overrides.json --output <this-file>")
     lines.append(f" *")
     lines.append(f" * Source: UR ErrorCodes JSON v{version}")
     lines.append(" */")
@@ -242,7 +242,7 @@ def check(args: argparse.Namespace) -> int:
     committed_version = read_version_from_header(header_path)
     if committed_version is None:
         print(
-            f"ERROR: Could not extract kErrorCodeJsonVersion from {header_path}",
+            f"ERROR: Could not extract ERROR_CODE_JSON_VERSION from {header_path}",
             file=sys.stderr,
         )
         return 1
