@@ -72,6 +72,22 @@ UPSTREAM_URL = (
 NO_ARG_SENTINEL = 0xFFFFFFFF
 
 
+# Compiled once; matches the documented UR version format "MAJOR.MINOR.PATCH"
+# (all-numeric components, e.g. "40.121.0").  Rejecting anything outside this
+# pattern prevents a crafted version string from injecting content into the
+# generated block comment ( */ ) or the C++ string literal ( " or newline ).
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def validate_version(version: str, label: str = "version") -> None:
+    """Raise ValueError if *version* does not match the expected N.N.N format."""
+    if not _VERSION_RE.match(version):
+        raise ValueError(
+            f"Unexpected {label} format: {version!r}. "
+            "Expected 'MAJOR.MINOR.PATCH' (e.g. '40.121.0')."
+        )
+
+
 def load_json(source: str) -> dict:
     """Load JSON from a URL or a local file path."""
     if source.startswith("http://") or source.startswith("https://"):
@@ -162,7 +178,8 @@ def generate(args: argparse.Namespace) -> int:
         print(f"Loading overlay JSON from: {args.overlay}")
         overlay_data = load_json(args.overlay)
 
-    version = ur_data.get("version", "unknown")
+    version = ur_data.get("version", "")
+    validate_version(version, label="UR JSON 'version' field")
     entries = build_map(ur_data, overlay_data)
 
     output_path = Path(args.output)
@@ -280,7 +297,9 @@ def check(args: argparse.Namespace) -> int:
     source = args.input or UPSTREAM_URL
     print(f"Loading UR ErrorCodes JSON from: {source}")
     ur_data = load_json(source)
-    upstream_version = ur_data.get("version", "unknown")
+    upstream_version = ur_data.get("version", "")
+    validate_version(upstream_version, label="upstream JSON 'version' field")
+    validate_version(committed_version, label="committed header ERROR_CODE_JSON_VERSION")
 
     if committed_version == upstream_version:
         print(
