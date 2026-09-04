@@ -42,8 +42,7 @@
  */
 //----------------------------------------------------------------------
 
-#ifndef UR_CLIENT_LIBRARY_PRIMARY_ERROR_CODE_OVERRIDES_H_INCLUDED
-#define UR_CLIENT_LIBRARY_PRIMARY_ERROR_CODE_OVERRIDES_H_INCLUDED
+#pragma once
 
 #include <cstdint>
 #include <optional>
@@ -61,7 +60,7 @@ namespace primary_interface
  * std::nullopt to fall through to the generated table.
  *
  * Implement additional cases in
- * src/primary/robot_message/error_code_overrides.cpp.
+ * src/ur/error_code_overrides.cpp.
  *
  * \param code    The error code (message_code_)
  * \param arg     The error argument (message_argument_)
@@ -71,5 +70,3 @@ std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg);
 
 }  // namespace primary_interface
 }  // namespace urcl
-
-#endif  // UR_CLIENT_LIBRARY_PRIMARY_ERROR_CODE_OVERRIDES_H_INCLUDED
