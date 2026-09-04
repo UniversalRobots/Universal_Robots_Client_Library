@@ -505,7 +505,11 @@ RTDEServer::RTDEServer(const int port) : server_(port)
 
 RTDEServer::~RTDEServer()
 {
+  // The TCP worker calls handlePackage() and the disconnect callback, both of which lock
+  // mutexes declared after server_. Join that thread here so those mutexes are still alive.
+  // ~TCPServer would otherwise do it too late, after the mutexes have already been destroyed.
   stopSendingDataPackages();
+  server_.shutdown();
 }
 
 void RTDEServer::queueTextMessageBeforeVersionReply(const std::string& message)
