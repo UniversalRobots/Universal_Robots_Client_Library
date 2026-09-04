@@ -369,6 +369,10 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
 
   // Same field names and the same type on every field, so the whole value array can go across at
   // once. This is the path a real-time loop takes.
+  if (this == &other)
+  {
+    return true;
+  }
   if (layout_hash_ == other.layout_hash_ && values_.size() == other.values_.size())
   {
     copyValues(values_, other.values_);
