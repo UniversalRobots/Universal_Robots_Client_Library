@@ -316,25 +316,6 @@ void rtde_interface::DataPackage::updateLayoutHash()
   });
 }
 
-uint64_t rtde_interface::DataPackage::layoutHashFor(const std::vector<std::string>& recipe,
-                                                    const std::vector<std::string>& types)
-{
-  if (types.size() != recipe.size())
-  {
-    std::stringstream ss;
-    ss << "Cannot compute the layout hash of an RTDE data package: got " << types.size()
-       << " data types for a recipe with " << recipe.size() << " fields.";
-    throw UrException(ss.str());
-  }
-
-  uint64_t hash = hashRecipe(recipe);
-  for (const auto& type_name : types)
-  {
-    hash = fnv1aByte(hash, static_cast<uint8_t>(variantFromTypeName(type_name).index()));
-  }
-  return hash;
-}
-
 void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types)
 {
   if (types.size() != recipe_.size())

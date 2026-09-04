@@ -446,18 +446,6 @@ public:
     return layout_hash_;
   }
 
-  /*!
-   * \brief The layout hash a package would have after applying \p types to \p recipe.
-   *
-   * Used by the parser to recognise a package that already carries the negotiated output layout.
-   *
-   * \param recipe Field names, in order
-   * \param types Data type names as reported by the robot, in the same order as \p recipe
-   *
-   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
-   */
-  static uint64_t layoutHashFor(const std::vector<std::string>& recipe, const std::vector<std::string>& types);
-
 private:
   /*!
    * \brief Logs once that a copy walked fields instead of memcpy'ing the value array.
