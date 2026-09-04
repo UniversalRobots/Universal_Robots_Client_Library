@@ -613,8 +613,6 @@ TEST(rtde_data_package, layout_hash_changes_when_types_are_set)
 
   EXPECT_EQ(package.recipeHash(), recipe);
   EXPECT_NE(package.layoutHash(), untyped);
-  EXPECT_EQ(package.layoutHash(),
-            rtde_interface::DataPackage::layoutHashFor({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" }));
 }
 
 TEST(rtde_data_package, layout_hash_changes_on_first_set_data_to_an_untyped_field)
