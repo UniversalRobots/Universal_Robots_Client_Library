@@ -189,7 +189,7 @@ public:
     initStorage();
   }
 
-  virtual ~DataPackage() = default;
+  virtual ~DataPackage();
 
   /*!
    * \brief Resets every data field to a default-constructed value of its own type.
@@ -225,6 +225,10 @@ public:
   /*!
    * \brief Sets the attributes of the package by parsing a serialized representation of the
    * package.
+   *
+   * The payload is the bytes after the package header. Version 2 data packages start with a
+   * recipe-id byte; version 1 packages do not. That is the same layout serializePackage() writes
+   * after the header.
    *
    * \param bp A parser containing a serialized version of the package
    *
@@ -375,7 +379,8 @@ public:
    *
    * \param types The data types of the recipe's fields, in the same order as the recipe
    *
-   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
+   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown.
+   * Every name is checked before any field is written, so a failure leaves the package unchanged.
    */
   void setTypes(const std::vector<std::string>& types);
 
@@ -391,7 +396,8 @@ public:
    * of the value array. The hashes are a 64-bit identity of the field names and each field's
    * variant index; a collision would skip a validation that should have failed, which is accepted
    * for this path. A package an application typed by writing only the fields it cares about is
-   * instead merged position by position, with unwritten fields sent as zeros.
+   * instead merged position by position, with unwritten fields sent as zeros. That slower path is
+   * noted when this package is destroyed, so the real-time copy itself does not log.
    *
    * \param other The package to copy from
    *
@@ -448,11 +454,6 @@ public:
 
 private:
   /*!
-   * \brief Logs once that a copy walked fields instead of memcpy'ing the value array.
-   */
-  void reportSlowCopyOnce();
-
-  /*!
    * \brief Allocates one slot per recipe field, with the type left undecided.
    */
   void initStorage();
@@ -488,7 +489,7 @@ private:
   uint64_t recipe_hash_ = 0;
   uint64_t layout_hash_ = 0;
   bool fully_typed_ = false;
-  bool slow_copy_reported_ = false;
+  bool used_slow_copy_ = false;
 };
 
 }  // namespace rtde_interface

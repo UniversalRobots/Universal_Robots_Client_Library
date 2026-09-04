@@ -36,12 +36,10 @@ std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage() const
 
 bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
 {
-  if (protocol_version_ == 2)
-  {
-    uint8_t recipe_id = 0;
-    bp.parse(recipe_id);
-    package.setRecipeID(recipe_id);
-  }
+  // A package an application built from the recipe alone defaults to protocol version 2. The
+  // negotiated version lives on the parser, so apply it before parseWith() decides whether the
+  // payload starts with a recipe-id byte.
+  package.setProtocolVersion(protocol_version_);
   return package.parseWith(bp);
 }
 

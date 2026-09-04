@@ -27,11 +27,8 @@
 //----------------------------------------------------------------------
 
 #include <gtest/gtest.h>
-#include <memory>
 
-#include <ur_client_library/helpers.h>
 #include <ur_client_library/rtde/data_package.h>
-#include <ur_client_library/rtde/rtde_parser.h>
 
 #include "rtde_test_helpers.h"
 
@@ -67,11 +64,11 @@ TEST(rtde_data_package, parse_pkg_protocolv2)
   std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
   auto package = typedPackage(recipe, types);
 
-  // Field payload only. The parser consumes the v2 recipe-id byte before parseWith().
-  uint8_t data_package[] = { 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
-                             0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe,
-                             0x68, 0x88, 0x5a, 0x30, 0xbf, 0xe9, 0xdb, 0x22, 0xa2, 0x21, 0x68, 0xc0, 0x3f, 0xf9,
-                             0x85, 0x87, 0xa0, 0x00, 0x00, 0x00, 0xbf, 0x9f, 0xbe, 0x74, 0x44, 0x2d, 0x18, 0x00 };
+  // Payload after the package header: recipe-id byte, then the fields.
+  uint8_t data_package[] = { 0x01, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
+                             0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe, 0x68,
+                             0x88, 0x5a, 0x30, 0xbf, 0xe9, 0xdb, 0x22, 0xa2, 0x21, 0x68, 0xc0, 0x3f, 0xf9, 0x85, 0x87,
+                             0xa0, 0x00, 0x00, 0x00, 0xbf, 0x9f, 0xbe, 0x74, 0x44, 0x2d, 0x18, 0x00 };
 
   comm::BinParser bp(data_package, sizeof(data_package));
 
@@ -100,27 +97,21 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  auto package = typedPackage(recipe, types);
+  package.setProtocolVersion(1);
 
-  // Full v1 package: header then fields, no recipe-id. The parser owns that distinction.
-  uint8_t data_package[] = { 0x00, 0x3b, 0x55, 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77,
-                             0xd1, 0x10, 0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f,
-                             0xbe, 0x68, 0x88, 0x5a, 0x30, 0xbf, 0xe9, 0xdb, 0x22, 0xa2, 0x21, 0x68, 0xc0, 0x3f, 0xf9,
+  // Payload after the package header: fields only, no recipe-id.
+  uint8_t data_package[] = { 0x40, 0xd0, 0x75, 0x8c, 0x49, 0xba, 0x5e, 0x35, 0xbf, 0xf9, 0x9c, 0x77, 0xd1, 0x10,
+                             0xb4, 0x60, 0xbf, 0xfb, 0xa2, 0x33, 0xd1, 0x10, 0xb4, 0x60, 0xc0, 0x01, 0x9f, 0xbe,
+                             0x68, 0x88, 0x5a, 0x30, 0xbf, 0xe9, 0xdb, 0x22, 0xa2, 0x21, 0x68, 0xc0, 0x3f, 0xf9,
                              0x85, 0x87, 0xa0, 0x00, 0x00, 0x00, 0xbf, 0x9f, 0xbe, 0x74, 0x44, 0x2d, 0x18, 0x00 };
   comm::BinParser bp(data_package, sizeof(data_package));
 
-  rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes(types);
-  parser.setProtocolVersion(1);
-
-  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
-  ASSERT_TRUE(parser.parse(bp, product));
-
-  rtde_interface::DataPackage* package = dynamic_cast<rtde_interface::DataPackage*>(product.get());
-  ASSERT_NE(package, nullptr);
+  EXPECT_TRUE(package.parseWith(bp));
 
   vector6d_t expected_q = { -1.6007, -1.7271, -2.203, -0.808, 1.5951, -0.031 };
   vector6d_t actual_q;
-  package->getData("actual_q", actual_q);
+  package.getData("actual_q", actual_q);
 
   double abs = 1e-4;
   EXPECT_NEAR(expected_q[0], actual_q[0], abs);
@@ -132,7 +123,7 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
 
   double expected_timestamp = 16854.1919;
   double actual_timestamp;
-  package->getData("timestamp", actual_timestamp);
+  package.getData("timestamp", actual_timestamp);
 
   EXPECT_NEAR(expected_timestamp, actual_timestamp, abs);
 }
@@ -345,9 +336,8 @@ TEST(rtde_data_package, every_rtde_data_type_survives_a_serialize_parse_round_tr
     EXPECT_EQ(buffer[header_size + i], expected_integers[i]) << "at payload byte " << i;
   }
 
-  // serializePackage() writes the v2 recipe-id after the header; parseWith() starts at the fields.
-  const size_t recipe_id_size = sizeof(uint8_t);
-  comm::BinParser bp(buffer + header_size + recipe_id_size, size - header_size - recipe_id_size);
+  // serializePackage() writes the v2 recipe-id after the header; parseWith() consumes it too.
+  comm::BinParser bp(buffer + header_size, size - header_size);
   auto received = typedPackage(recipe, types);
   ASSERT_TRUE(received.parseWith(bp));
   EXPECT_TRUE(bp.empty()) << "the parser did not consume exactly what was serialized";
@@ -396,6 +386,28 @@ TEST(rtde_data_package, unknown_data_types_are_rejected)
   EXPECT_THROW(package.setTypes({ "NOT_FOUND" }), UrException);
   EXPECT_THROW(package.setTypes({ "IN_USE" }), UrException);
   EXPECT_THROW(package.setTypes({ "double" }), UrException);
+}
+
+TEST(rtde_data_package, failed_set_types_leaves_the_package_unchanged)
+{
+  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  const uint64_t layout = package.layoutHash();
+
+  EXPECT_THROW(package.setTypes({ "UINT64", "NOT_A_TYPE" }), UrException);
+
+  EXPECT_EQ(package.layoutHash(), layout);
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  EXPECT_EQ(package.getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  double timestamp = 0.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+
+  auto other = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(other.setData("timestamp", 1.0));
+  ASSERT_TRUE(package.copyFrom(other));
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 1.0);
 }
 
 TEST(rtde_data_package, type_count_has_to_match_recipe)
@@ -640,7 +652,8 @@ TEST(rtde_data_package, layout_hash_does_not_change_on_reset_init_empty_or_parse
   package.initEmpty();
   EXPECT_EQ(package.layoutHash(), hash);
 
-  uint8_t data[] = { 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a, 0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  uint8_t data[] = { 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a, 0x9f, 0xbe,
+                     0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   comm::BinParser bp(data, sizeof(data));
   ASSERT_TRUE(package.parseWith(bp));
   EXPECT_EQ(package.layoutHash(), hash);

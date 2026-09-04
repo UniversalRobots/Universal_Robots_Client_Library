@@ -825,11 +825,6 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         throw std::runtime_error("Fake RTDE Server received a data package before input recipe was setup. This should "
                                  "not happen.");
       }
-      if (negotiated_protocol_version_ == 2)
-      {
-        uint8_t recipe_id = 0;
-        bp.parse(recipe_id);
-      }
       input_data_package_->parseWith(bp);
       actOnInput();
       break;

@@ -207,20 +207,20 @@ DataPackage::_rtde_type_variant variantFor(const DataType type)
 }
 
 /*!
- * \brief Creates an empty value of the RTDE data type with the given name.
+ * \brief The protocol data type with the given name.
  *
  * \param type_name One of the RTDE data type names as reported by the robot in a setup
  * acknowledgement
  *
  * \throws UrException if the name is not a known RTDE data type
  */
-DataPackage::_rtde_type_variant variantFromTypeName(const std::string_view type_name)
+DataType typeFromName(const std::string_view type_name)
 {
   for (const auto& entry : g_type_names)
   {
     if (entry.name == type_name)
     {
-      return variantFor(entry.type);
+      return entry.type;
     }
   }
 
@@ -326,9 +326,17 @@ void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types
     throw UrException(ss.str());
   }
 
+  // Confirm every name before writing any field. variantFor cannot fail once the name is known, so
+  // a later unknown type cannot leave earlier fields retyped while layout_hash_ still describes
+  // the old layout.
+  for (const auto& type_name : types)
+  {
+    typeFromName(type_name);
+  }
+
   for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    values_[i] = variantFromTypeName(types[i]);
+    values_[i] = variantFor(typeFromName(types[i]));
     zeros_[i] = values_[i];
   }
   updateLayoutHash();
@@ -348,20 +356,6 @@ rtde_interface::DataPackage rtde_interface::DataPackage::emptyCopy() const
   package.zeros_ = zeros_;
   package.updateLayoutHash();
   return package;
-}
-
-void rtde_interface::DataPackage::reportSlowCopyOnce()
-{
-  if (slow_copy_reported_)
-  {
-    return;
-  }
-  slow_copy_reported_ = true;
-  URCL_LOG_WARN("Copying an RTDE data package that is not fully typed walks each field instead of "
-                "copying the value array in one step. That is the path a package takes when it is "
-                "constructed from a recipe and only some of its fields are written. A package that "
-                "already carries the same field names and types as this one can be copied in one "
-                "memcpy.");
 }
 
 bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
@@ -405,8 +399,20 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
     values_[i] = std::holds_alternative<std::monostate>(other.values_[i]) ? zeros_[i] : other.values_[i];
   }
 
-  reportSlowCopyOnce();
+  used_slow_copy_ = true;
   return true;
+}
+
+rtde_interface::DataPackage::~DataPackage()
+{
+  if (used_slow_copy_)
+  {
+    URCL_LOG_WARN("Copied an RTDE data package that was not fully typed by walking each field "
+                  "instead of copying the value array in one step. That is the path a package takes "
+                  "when it is constructed from a recipe and only some of its fields are written. A "
+                  "package that already carries the same field names and types as this one can be "
+                  "copied in one memcpy.");
+  }
 }
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
@@ -416,6 +422,13 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
     URCL_LOG_ERROR("Cannot parse into an RTDE data package before the data types of its recipe are known. Those are "
                    "reported by the robot during the RTDE handshake.");
     return false;
+  }
+
+  // Same contract as serializePackage(): the bytes after the package header, so a version 2
+  // payload starts with the recipe-id byte.
+  if (protocol_version_ == 2)
+  {
+    bp.parse(recipe_id_);
   }
 
   for (size_t i = 0; i < recipe_.size(); ++i)
