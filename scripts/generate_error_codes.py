@@ -56,6 +56,7 @@ of -1 matches those entries directly in the first lookup step.
 """
 
 import argparse
+import datetime
 import json
 import re
 import sys
@@ -169,7 +170,7 @@ def generate(args: argparse.Namespace) -> int:
 
     lines = []
     lines.append("// -- BEGIN LICENSE BLOCK " + "-" * 46)
-    lines.append("// Copyright 2026 Universal Robots A/S")
+    lines.append(f"// Copyright {datetime.date.today().year} Universal Robots A/S")
     lines.append("//")
     lines.append("// Redistribution and use in source and binary forms, with or without")
     lines.append("// modification, are permitted provided that the following conditions are met:")
