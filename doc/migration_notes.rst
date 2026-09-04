@@ -23,7 +23,10 @@ Four consequences are worth knowing about:
 - **A wrongly typed input field is reported when the package is sent.** ``DataPackage::setData()``
   decides a field's type from the value passed to it, so it can no longer tell on its own that the
   robot expects something else. ``RTDEWriter::sendPackage()`` checks the package against the robot's
-  answer and names the field and both types if they disagree.
+  answer and names the field and both types if they disagree. A typed input package is now also
+  available from ``RTDEClient::createInputDataPackage()`` after ``init()``, so filling several
+  input fields no longer depends on guessing the field types correctly; ``setData()`` then rejects
+  a mismatch immediately.
 - **Reading a field as the wrong type no longer throws.** ``DataPackage::getData()`` used to let a
   ``std::bad_variant_access`` escape when the passed variable didn't match the field's type. It now
   returns ``false`` and logs which type the robot reported for that field, matching what its

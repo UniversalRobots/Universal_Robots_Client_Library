@@ -28,6 +28,7 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 #include <mutex>
+#include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -177,6 +178,17 @@ bool RTDEWriter::sendPackage(const DataPackage& package)
   }
   markStorageToBeSent();
   return true;
+}
+
+DataPackage RTDEWriter::createDataPackage()
+{
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  if (current_store_buffer_ == nullptr || !current_store_buffer_->isTyped())
+  {
+    throw UrException("Cannot create an RTDE input data package before the robot has acknowledged the input recipe. "
+                      "That happens during the RTDE handshake, so call this after RTDEClient::init().");
+  }
+  return current_store_buffer_->emptyCopy();
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)

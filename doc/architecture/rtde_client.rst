@@ -46,9 +46,9 @@ the :ref:`rtde_client_example` for an example of the blocking read method.
    allocate.
 
    A recipe only lists field names. The data types belonging to them are reported by the robot when
-   it acknowledges the recipe, and the first package received applies them to your ``DataPackage``,
-   which costs no memory. Until that has happened ``getData()`` on the package fails. See `Field
-   data types`_ for how to ask a package what type it gave a field.
+   it acknowledges the recipe, and the first read applies them to your ``DataPackage``, which costs
+   no memory. Until that has happened ``getData()`` on the package fails. See `Field data types`_
+   for how to ask a package what type it gave a field.
 
 Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
 outputs. Please refer to the `RTDE
@@ -79,9 +79,11 @@ After calling ``my_client.start()``, data can be read from the
 Remember that, when not using a background thread, data has to be polled regularly, as the robot
 will shutdown RTDE communication if the receiving side doesn't empty its buffer.
 
-Both methods parse into a ``DataPackage`` that the caller owns, which is what keeps the read path
-free of memory allocations. The deprecated ``getDataPackage(timeout)`` overload, which returns a new
-package instead, allocates on every call by design and is therefore not suited for real-time use.
+Both methods deliver their data into a ``DataPackage`` that the caller owns, which is what keeps the
+read path free of memory allocations: ``getDataPackage()`` copies the background reader's latest
+package into it, ``getDataPackageBlocking()`` parses the next package straight into it. The
+deprecated ``getDataPackage(timeout)`` overload, which returns a new package instead, allocates on
+every call by design and is therefore not suited for real-time use.
 
 Field data types
 ~~~~~~~~~~~~~~~~
@@ -182,17 +184,21 @@ The class offers specific methods for every RTDE input possible to write.
 
 Data is sent asynchronously to the RTDE interface.
 
-To write several fields at once, construct a ``DataPackage`` from ``RTDEClient::getInputRecipe()``,
-fill the fields you care about and pass it to ``sendPackage()``. Fields you leave alone are sent as
-zeros. Since the robot decides what type each field has, ``sendPackage()`` is where a value written
-with the wrong type is reported:
+To write several fields at once, ask the client for a package that already carries the data types
+the robot reported for the input recipe, fill the fields you care about and pass it to
+``sendPackage()``. Fields you leave alone are sent as zeros. Because the package is already typed,
+``setData()`` reports a value written with the wrong type immediately:
 
 .. code-block:: c++
 
-   rtde_interface::DataPackage input_pkg(my_client.getInputRecipe());
-   input_pkg.setData<uint32_t>("speed_slider_mask", 1);
+   rtde_interface::DataPackage input_pkg = my_client.createInputDataPackage();
+   input_pkg.setData("speed_slider_mask", uint32_t{ 1 });
    input_pkg.setData("speed_slider_fraction", 0.5);
    my_client.getWriter().sendPackage(input_pkg);
+
+A package constructed from ``getInputRecipe()`` still works. Its types are taken from the values
+written to it and are checked when the package is sent. See the :ref:`rtde_writer_example` for a
+complete example.
 
 .. note::
 

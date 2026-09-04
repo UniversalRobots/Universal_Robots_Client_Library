@@ -582,6 +582,47 @@ TEST_F(RTDEWriterTest, send_data_package_typed_by_the_robot)
   EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
 }
 
+// Values sitting in the store buffer must not leak into a newly created package; emptyCopy()
+// builds from zeros_, not from the live values.
+TEST_F(RTDEWriterTest, create_data_package_is_typed_and_zeroed)
+{
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.7));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_TRUE(data_package.isTyped());
+  double speed_slider_fraction = 1.0;
+  ASSERT_TRUE(data_package.getData("speed_slider_fraction", speed_slider_fraction));
+  EXPECT_DOUBLE_EQ(speed_slider_fraction, 0.0);
+}
+
+// Once the package carries the robot's types, a mismatch is reported by setData() itself.
+TEST_F(RTDEWriterTest, create_data_package_rejects_a_wrong_type_immediately)
+{
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_FALSE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+}
+
+TEST_F(RTDEWriterTest, send_data_package_created_by_the_writer)
+{
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+
+  EXPECT_TRUE(writer_->sendPackage(data_package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
+  EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+TEST_F(RTDEWriterTest, create_data_package_before_types_are_known_throws)
+{
+  rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
+  EXPECT_THROW(writer.createDataPackage(), UrException);
+}
+
 // A package has to be built from the recipe that was registered, since the fallback copies
 // position by position and cannot map a subset onto a larger recipe.
 TEST_F(RTDEWriterTest, send_data_package_built_from_a_partial_recipe_fails)
