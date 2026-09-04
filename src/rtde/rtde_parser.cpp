@@ -27,14 +27,11 @@ namespace urcl
 {
 namespace rtde_interface
 {
-// A package allocates its storage from the recipe and learns its field types from the robot's
-// acknowledgement afterwards, which costs no memory.
-std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage(const std::vector<std::string>& recipe,
-                                                              const std::vector<std::string>& types)
+// Only reached when the caller didn't hand in a package we can use. Copying the template gives the
+// negotiated recipe and data types without having to reapply them.
+std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage() const
 {
-  auto package = std::make_unique<DataPackage>(recipe);
-  package->setTypes(types);
-  return package;
+  return std::make_unique<DataPackage>(*typed_template_);
 }
 
 bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
@@ -50,7 +47,7 @@ bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& packa
 
 bool RTDEParser::recipeTypesKnown() const
 {
-  if (recipe_types_.size() == recipe_.size())
+  if (typed_template_.has_value())
   {
     return true;
   }
@@ -90,7 +87,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       {
         return false;
       }
-      std::unique_ptr<DataPackage> package = makeTypedDataPackage(recipe_, recipe_types_);
+      std::unique_ptr<DataPackage> package = makeTypedDataPackage();
 
       if (!parseDataPackagePayload(bp, *package))
       {
@@ -159,16 +156,26 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
                         "a DataPackage would be sent.",
                         result->getType());
         }
-        result = makeTypedDataPackage(recipe_, recipe_types_);
+        result = makeTypedDataPackage();
       }
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
-      if (data_package->layoutHash() != typed_layout_hash_)
+      if (data_package->layoutHash() != typed_template_->layoutHash())
       {
-        URCL_LOG_WARN("The passed pre-allocated DataPackage does not have the negotiated output layout. A new "
-                      "DataPackage will have to be allocated.");
-        result = makeTypedDataPackage(recipe_, recipe_types_);
-        data_package = dynamic_cast<DataPackage*>(result.get());
+        if (data_package->recipeHash() == typed_template_->recipeHash())
+        {
+          // Built from our recipe, so its storage is already the right shape and only the data
+          // types are missing or stale. Applying them writes into that storage without allocating,
+          // which is what lets an application hand in a package it built from the recipe alone.
+          data_package->setTypes(recipe_types_);
+        }
+        else
+        {
+          URCL_LOG_WARN("The passed pre-allocated DataPackage was built from a different recipe. A new DataPackage "
+                        "will have to be allocated.");
+          result = makeTypedDataPackage();
+          data_package = dynamic_cast<DataPackage*>(result.get());
+        }
       }
 
       if (!parseDataPackagePayload(bp, *data_package))

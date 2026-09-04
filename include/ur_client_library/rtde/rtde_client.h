@@ -209,9 +209,11 @@ public:
    *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
    * For optimal performance, the data package pointer should contain a pre-allocated data package
-   * that was initialized with the same output recipe as used in this RTDEClient. If it is not an
-   * initialized data package, a new one will be allocated internally which will have a negative
-   * performance impact and print a warning.
+   * that was built from the same output recipe as used in this RTDEClient. Such a package needs no
+   * data types of its own: the first read applies the ones the robot reported, which allocates
+   * nothing. If the package was built from a different recipe, or none is passed at all, a new one
+   * will be allocated internally which will have a negative performance impact and print a
+   * warning.
    *
    * \returns Whether a data package was received successfully
    */
@@ -280,6 +282,20 @@ public:
   std::vector<std::string> getInputRecipe()
   {
     return input_recipe_;
+  }
+
+  /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * during the RTDE handshake.
+   *
+   * Fill it with DataPackage::setData() and hand it to RTDEWriter::sendPackage() to write several
+   * inputs in a single package. Has to be called after init().
+   *
+   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   */
+  DataPackage createInputDataPackage()
+  {
+    return writer_.createDataPackage();
   }
 
   /// Reads output or input recipe from a file and parses it into a vector of strings where each

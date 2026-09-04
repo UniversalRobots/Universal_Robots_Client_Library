@@ -541,6 +541,44 @@ TEST(rtde_data_package, init_empty_keeps_types)
   EXPECT_DOUBLE_EQ(timestamp, 0.0);
 }
 
+// emptyCopy() is the layout of this package with every value taken from zeros_, so writing here
+// must not leak into the copy and the copy must keep the same hashes.
+TEST(rtde_data_package, empty_copy_keeps_the_layout_and_zeroes_the_values)
+{
+  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  const uint64_t recipe = package.recipeHash();
+  const uint64_t layout = package.layoutHash();
+
+  const rtde_interface::DataPackage copy = package.emptyCopy();
+
+  EXPECT_TRUE(copy.isTyped());
+  EXPECT_EQ(copy.recipeHash(), recipe);
+  EXPECT_EQ(copy.layoutHash(), layout);
+  EXPECT_EQ(copy.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  EXPECT_EQ(copy.getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  double timestamp = 1.0;
+  ASSERT_TRUE(copy.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 0.0);
+  vector6d_t actual_q{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+  ASSERT_TRUE(copy.getData("actual_q", actual_q));
+  EXPECT_EQ(actual_q, vector6d_t({ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }));
+
+  timestamp = 0.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+TEST(rtde_data_package, empty_copy_of_an_untyped_package_is_untyped)
+{
+  rtde_interface::DataPackage package({ "timestamp", "actual_q" });
+
+  const rtde_interface::DataPackage copy = package.emptyCopy();
+
+  EXPECT_FALSE(package.isTyped());
+  EXPECT_FALSE(copy.isTyped());
+}
+
 TEST(rtde_data_package, copy_keeps_types_and_values)
 {
   auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
