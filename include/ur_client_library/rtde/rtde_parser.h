@@ -93,6 +93,10 @@ public:
   void setProtocolVersion(uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
+    if (typed_template_.has_value())
+    {
+      typed_template_->setProtocolVersion(protocol_version);
+    }
   }
 
   uint16_t getProtocolVersion() const
@@ -116,6 +120,7 @@ public:
     // held against, and it is the blueprint for any package this parser has to allocate itself.
     typed_template_.emplace(recipe_);
     typed_template_->setTypes(recipe_types_);
+    typed_template_->setProtocolVersion(protocol_version_);
   }
 
 private:

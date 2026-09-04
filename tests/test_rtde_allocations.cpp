@@ -270,6 +270,29 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_does_not_allocat
   EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
+// The existing pattern of constructing an input package from the recipe and setting only the
+// fields that change. The copy itself must not log; the warning is deferred until the destination
+// is destroyed.
+TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
+{
+  auto destination = test::typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
+  ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
+
+  setLogLevel(LogLevel::INFO);
+  std::size_t allocations = 0;
+  bool copied = false;
+  {
+    AllocationCounter counter;
+    copied = destination.copyFrom(source);
+    allocations = counter.count();
+  }
+  setLogLevel(LogLevel::ERROR);
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_TRUE(copied);
+}
+
 TEST(DataPackageAllocationTest, serializing_a_typed_package_does_not_allocate)
 {
   auto package = test::typedPackage({ "speed_slider_mask" }, { "UINT32" });
