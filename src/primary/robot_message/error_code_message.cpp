@@ -54,34 +54,42 @@ bool ErrorCodeMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 
 std::string ErrorCodeMessage::toString() const
 {
+  std::stringstream ss;
+  ss << "C" << message_code_;
+  if (message_argument_ != -1)
+  {
+    ss << "A" << message_argument_;
+  }
+
   // 1. Dynamic C++ override (highest priority — can call arbitrary functions)
   if (auto text = getErrorCodeTextOverride(message_code_, message_argument_))
   {
-    return *text;
+    ss << ": " << *text;
   }
-
-  const auto& map = getErrorCodeTexts();
-
-  // 2. Exact match: (code, arg)
-  uint64_t key = (uint64_t(uint32_t(message_code_)) << 32) | uint32_t(message_argument_);
-  auto it = map.find(key);
-  if (it != map.end())
+  else
   {
-    return it->second;
+    const auto& map = getErrorCodeTexts();
+
+    // 2. Exact match: (code, arg)
+    uint64_t key = (uint64_t(uint32_t(message_code_)) << 32) | uint32_t(message_argument_);
+    auto it = map.find(key);
+    if (it != map.end())
+    {
+      ss << ": " << it->second;
+    }
+    else
+    {
+      // 3. Code-only match: entries with no arg in the JSON use 0xFFFFFFFF as sentinel.
+      //    Note: message_argument_ == -1 also maps to 0xFFFFFFFF, so it hits here directly.
+      key = (uint64_t(uint32_t(message_code_)) << 32) | 0xFFFFFFFFULL;
+      it = map.find(key);
+      if (it != map.end())
+      {
+        ss << ": " << it->second;
+      }
+    }
   }
 
-  // 3. Code-only match: entries with no arg in the JSON use 0xFFFFFFFF as sentinel.
-  //    Note: message_argument_ == -1 also maps to 0xFFFFFFFF, so it hits here directly.
-  key = (uint64_t(uint32_t(message_code_)) << 32) | 0xFFFFFFFFULL;
-  it = map.find(key);
-  if (it != map.end())
-  {
-    return it->second;
-  }
-
-  // 4. Fallback: raw code/argument notation
-  std::stringstream ss;
-  ss << "C" << message_code_ << "A" << message_argument_;
   return ss.str();
 }
 
