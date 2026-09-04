@@ -209,11 +209,12 @@ public:
   DataPackage emptyCopy() const;
 
   /*!
-   * \brief Get the data type the robot reported for a field.
+   * \brief Get the data type a field currently holds.
    *
-   * Which type a field holds is decided by the robot when it acknowledges the recipe, so this is
-   * the way to find out what to pass to getData() without hardcoding it. A package that hasn't
-   * been acknowledged yet has no answer to give.
+   * After the robot acknowledges the recipe this is the type it reported, which is how to find
+   * out what to pass to getData() without hardcoding it. On an input package, setData() can
+   * establish a type before that acknowledgement; this then reports that stored type, which
+   * sendPackage() still checks against the robot. An untouched field has no type yet.
    *
    * \param name The string identifier for the data field as used in the documentation.
    *
