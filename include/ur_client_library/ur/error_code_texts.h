@@ -36,7 +36,7 @@
  * Re-generate with:
  *   cmake --build <build-dir> --target generate_error_codes
  * or directly:
- *   scripts/generate_error_codes.py --output <this-file>
+ *   scripts/generate_error_codes.py --overlay scripts/error_code_overrides.json --output <this-file>
  *
  * Source: UR ErrorCodes JSON v40.121.0
  */
@@ -1382,8 +1382,8 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x000002E400000041), "Hardware monitoring: 3V3B voltage on the Power Control Board is outside of the allowed range: {float}" },  // C740 arg=65
     { UINT64_C(0x000002E400000042), "Hardware monitoring: 48V voltage on the Power Control Board is outside of the allowed range: {float}" },  // C740 arg=66
     { UINT64_C(0x000002E500000002), "Hardware general information: The hardware is not supported by this software version" },  // C741 arg=2
-    { UINT64_C(0x000002E600000001), "Control Box temperature: The temperature of {signed} °C is close to the limit" },  // C742 arg=1
-    { UINT64_C(0x000002E600000002), "Control Box temperature: The temperature of {signed} °C is above the limit" },  // C742 arg=2
+    { UINT64_C(0x000002E600000001), "Control Box temperature: The temperature of {signed} \302\260C is close to the limit" },  // C742 arg=1
+    { UINT64_C(0x000002E600000002), "Control Box temperature: The temperature of {signed} \302\260C is above the limit" },  // C742 arg=2
     { UINT64_C(0x000002E700000000), "External Axes: Velocity limit for the external axis at index {unsigned} was exceeded" },  // C743 arg=0
     { UINT64_C(0x000002E700000001), "External Axes: The servo drive for the external axis at index {unsigned} has entered a fault state" },  // C743 arg=1
     { UINT64_C(0x000002E700000002), "External Axes: Freedrive is incompatible with external axis motion" },  // C743 arg=2

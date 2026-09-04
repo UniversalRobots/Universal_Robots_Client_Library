@@ -198,7 +198,7 @@ TEST(ErrorCodeMessageTest, toString_uses_static_map_exact_match)
   EXPECT_FALSE(result.empty());
 }
 
-TEST(ErrorCodeMessageTest, toString_uses_static_map_code_only_when_arg_is_minus_one)
+TEST(ErrorCodeMessageTest, toString_uses_static_map_code_only_with_no_arg)
 {
   // Code 0 has no "arg" in the JSON (no-arg sentinel = 0xFFFFFFFF).
   // message_argument_ == -1 casts to uint32_t 0xFFFFFFFF, so it hits the

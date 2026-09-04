@@ -82,20 +82,42 @@ def load_json(source: str) -> dict:
 
 
 def escape_c_string(text: str) -> str:
-    """Escape a string so it is safe to embed as a C string literal."""
-    escapes = {
+    """Escape a string so it is safe to embed as a C string literal.
+
+    - Named escapes are used for common control characters.
+    - All remaining C0 control characters (< 0x20) and DEL (0x7F) are
+      emitted as three-digit octal sequences to avoid misinterpretation.
+    - Characters above U+007F are encoded as individual UTF-8 bytes, each
+      represented by a three-digit octal sequence.  This guarantees the
+      generated header is valid on compilers that do not default to UTF-8
+      (e.g. MSVC without /utf-8).
+    """
+    named = {
         "\\": "\\\\",
         '"': '\\"',
         "\n": "\\n",
         "\r": "\\r",
         "\t": "\\t",
+        "\a": "\\a",
         "\b": "\\b",
         "\f": "\\f",
+        "\v": "\\v",
     }
-    return "".join(
-        escapes.get(char, f"\\{ord(char):03o}" if ord(char) < 32 or ord(char) == 127 else char)
-        for char in text
-    )
+    result = []
+    for char in text:
+        if char in named:
+            result.append(named[char])
+        elif ord(char) < 0x20 or ord(char) == 0x7F:
+            # Remaining C0 control characters and DEL
+            result.append(f"\\{ord(char):03o}")
+        elif ord(char) > 0x7F:
+            # Non-ASCII: emit each UTF-8 byte as an octal escape so the
+            # literal is portable across compiler/platform encoding settings.
+            for byte in char.encode("utf-8"):
+                result.append(f"\\{byte:03o}")
+        else:
+            result.append(char)
+    return "".join(result)
 
 
 def build_map(ur_data: dict, overlay_data: Optional[dict]) -> dict:
