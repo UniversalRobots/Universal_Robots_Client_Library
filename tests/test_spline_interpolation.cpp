@@ -42,6 +42,7 @@
 #include <fstream>
 #include <ostream>
 #include <thread>
+#include <future>
 #include "test_utils.h"
 
 using namespace urcl;
@@ -170,8 +171,7 @@ protected:
 
     // Send trajectory to robot for execution
     ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
-        urcl::control::TrajectoryControlMessage::TRAJECTORY_START, s_pos.size()));
-
+        urcl::control::TrajectoryControlMessage::TRAJECTORY_START, s_pos.size(), RobotReceiveTimeout::off()));
     for (size_t i = 0; i < s_pos.size(); i++)
     {
       // QUINTIC
@@ -185,6 +185,48 @@ protected:
         g_my_robot->getUrDriver()->writeTrajectorySplinePoint(s_pos[i], s_vel[i], s_time[i]);
       }
     }
+  }
+
+  bool sendTrajectoryAndConfirmStart(const std::vector<urcl::vector6d_t>& s_pos,
+                                     const std::vector<urcl::vector6d_t>& s_vel,
+                                     const std::vector<urcl::vector6d_t>& s_acc, const std::vector<double>& s_time)
+  {
+    async_ready = false;
+    async_stop = false;
+    trajectory_sent = false;
+
+    g_trajectory_running = false;
+
+    // Launch async thread to check that trajectory resets spline_travel_time
+    auto confirm_future = std::async(std::launch::async, &SplineInterpolationTest::confirmTrajectoryStarted, this);
+
+    // Wait for the thread to be ready
+    std::unique_lock<std::mutex> lk(async_mutex);
+    if (!async_cv.wait_for(lk, std::chrono::milliseconds(1000),
+                           [this] { return async_ready; }))  // Setting up the thread might take some time
+    {
+      async_stop = true;
+      lk.unlock();
+      confirm_future.wait();
+      return false;
+    }
+
+    // Send trajectory
+    sendTrajectory(s_pos, s_vel, s_acc, s_time);
+
+    // Inform thread that trajectory is sent
+    trajectory_sent = true;
+    // Wait for trajectory to start (should be quick)
+    if (confirm_future.wait_for(std::chrono::milliseconds(1000)) != std::future_status::ready)
+    {
+      std::cout << "Trajectory could not be confirmed to have started." << std::endl;
+      async_stop = true;
+      confirm_future.wait();
+      return false;
+    }
+    bool trajectory_running = confirm_future.get();
+    g_trajectory_running = trajectory_running;
+    return trajectory_running;
   }
 
   void interpolate(const double& time, urcl::vector6d_t& positions, const std::vector<urcl::vector6d_t>& coefficients)
@@ -254,21 +296,115 @@ protected:
     return coefficients;
   }
 
+  bool confirmTrajectoryStarted()
+  {
+    // Timers
+    double trajectory_start_timeout = 1;
+    double trajectory_start_time = 0.0;
+    double travel_time_reset_timeout = 1;
+    double travel_time_reset_time = 0.0;
+
+    // Data package pre-allocation
+    rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+
+    // Spline travel times
+    double spline_travel_time = 0.0;
+    double start_spline_travel_time = 0.0;
+
+    // Check what the current spline_travel_time is
+    if (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
+    {
+      data_pkg.getData("output_double_register_1", start_spline_travel_time);
+    }
+    else
+    {
+      std::cout << "Could not get previous spline travel time" << std::endl;
+      return false;
+    }
+
+    // Allow new trajectory to be sent
+    {
+      std::lock_guard<std::mutex> lk(async_mutex);
+      async_ready = true;
+      async_cv.notify_one();
+    }
+
+    bool spline_travel_time_reset = start_spline_travel_time == 0.0;
+    while (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
+    {
+      // Caller wants the thread to stop for whatever reason
+      if (async_stop)
+      {
+        std::cout << "Async stop triggered, exiting confirm thread" << std::endl;
+        return false;
+      }
+
+      // Continuously check spline travel time
+      data_pkg.getData("output_double_register_1", spline_travel_time);
+
+      // Confirm that a new trajectory was transferred (Travel time = 0.0 or lower than it was before)
+      if (spline_travel_time < start_spline_travel_time || spline_travel_time == 0.0)
+      {
+        spline_travel_time_reset = true;
+        start_spline_travel_time = spline_travel_time;
+      }
+
+      if (spline_travel_time_reset)
+      {
+        // Keep script alive when the trajectory has been sent
+        if (trajectory_sent)
+        {
+          if (!g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
+                  urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP))
+          {
+            std::cout << "Failed to write trajectory NOOP control message, exiting confirm thread" << std::endl;
+            return false;
+          }
+        }
+
+        // Confirm that the new trajectory is running
+        if (std::abs(spline_travel_time) > start_spline_travel_time)
+        {
+          return true;
+        }
+        if (trajectory_start_time > trajectory_start_timeout)
+        {
+          std::cout << "Trajectory didn't start within timeout, is the spline travel time written to output float "
+                       "register 1?"
+                    << std::endl;
+          return false;
+        }
+        trajectory_start_time += step_time_;
+      }
+      else
+      {
+        if (travel_time_reset_time > travel_time_reset_timeout)
+        {
+          std::cout << "Spline travel time was not reset, was trajectory transferred to robot, and the spline travel "
+                       "time written to output float register 1?"
+                    << std::endl;
+          return false;
+        }
+        travel_time_reset_time += step_time_;
+      }
+    }
+    std::cout << "Failed to get data package from RTDE, exiting confirm thread" << std::endl;
+    return false;
+  }
+
   void waitForTrajectoryStarted()
   {
-    bool trajectory_started = false;
     double timeout = 1;
     double cur_time = 0.0;
     rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
-    while (trajectory_started == false && g_my_robot->getUrDriver()->getDataPackage(data_pkg))
+    while (g_my_robot->getUrDriver()->getDataPackage(data_pkg))
     {
       double spline_travel_time = 0.0;
       data_pkg.getData("output_double_register_1", spline_travel_time);
-
       // Keep connection alive
       ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
           urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP));
-      if (std::abs(spline_travel_time - 0.0) < 0.01)
+      if (std::abs(spline_travel_time) < 0.01)
       {
         return;
       }
@@ -348,6 +484,13 @@ protected:
   // Deceleration variables if changed in the script, they should be changed here as well
   double deceleration_time_ = 0.4189;
   double max_deceleration_ = 15;
+
+  // Async variables
+  bool async_ready = false;
+  std::mutex async_mutex;
+  std::condition_variable async_cv;
+  std::atomic<bool> async_stop = false;
+  std::atomic<bool> trajectory_sent = false;
 };
 
 TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
@@ -381,11 +524,8 @@ TEST_F(SplineInterpolationTest, cubic_spline_with_end_point_velocity)
   std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
-  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
-  g_trajectory_running = true;
-
   // Make sure that the trajectory has started before we start testing for trajectory execution
-  waitForTrajectoryStarted();
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
 
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
@@ -499,11 +639,8 @@ TEST_F(SplineInterpolationTest, quintic_spline_with_end_point_velocity_with_spee
   std::vector<double> time_vec, spline_time;
 
   // Send trajectory to the robot
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  g_trajectory_running = true;
-
   // Make sure that trajectory has started before we start testing for trajectory execution
-  waitForTrajectoryStarted();
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
 
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
@@ -663,11 +800,8 @@ TEST_F(SplineInterpolationTest, spline_interpolation_cubic)
   std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
-  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
-  g_trajectory_running = true;
-
   // Make sure that trajectory has started before we start testing for trajectory execution
-  waitForTrajectoryStarted();
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
 
   int segment_idx = 0;
   double old_spline_travel_time = 0.0;
@@ -774,16 +908,12 @@ TEST_F(SplineInterpolationTest, spline_interpolation_quintic)
   std::vector<double> time_vec, spline_time;
 
   // Send the trajectory to the robot
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  g_trajectory_running = true;
-
   // Make sure that trajectory has started before we start testing for trajectory execution
-  waitForTrajectoryStarted();
-
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
   int segment_idx = 0;
   double old_spline_travel_time = 0.0;
   double plot_time = 0.0;
-  g_trajectory_running = true;
+
   while (g_trajectory_running)
   {
     ASSERT_TRUE(g_my_robot->getUrDriver()->getDataPackage(data_pkg));
@@ -894,9 +1024,9 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_cubic_spline)
   s_pos = { first_point, second_point, third_point };
   s_vel = { zeros, zeros, zeros };
   s_time = { 0.0, 1.0, 2.0 };
-  sendTrajectory(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time);
-  g_trajectory_running = true;
-  waitForTrajectoryStarted();
+
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, std::vector<urcl::vector6d_t>(), s_time));
+
   urcl::vector6d_t joint_positions;
   while (g_trajectory_running)
   {
@@ -968,9 +1098,9 @@ TEST_F(SplineInterpolationTest, zero_time_trajectory_quintic_spline)
   s_vel = { zeros, zeros, zeros };
   s_acc = { zeros, zeros, zeros };
   s_time = { 0.0, 1.0, 2.0 };
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  g_trajectory_running = true;
-  waitForTrajectoryStarted();
+
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
+
   urcl::vector6d_t joint_positions;
   while (g_trajectory_running)
   {
@@ -1145,13 +1275,10 @@ TEST_F(SplineInterpolationTest, new_trajectory_received_without_cancelling_the_o
   }
 
   // Send the trajectory
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  waitForTrajectoryStarted();
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
 
   // Send the trajectory again without canceling the before one
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  g_trajectory_running = true;
-  waitForTrajectoryStarted();
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
 
   // Ensure that everything goes as expected and the robot reaches the target position
   urcl::vector6d_t joint_positions;
@@ -1203,9 +1330,7 @@ TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sendi
   }
 
   // Send the trajectory and cancel it right away
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  waitForTrajectoryStarted();
-
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
       urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
   EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
@@ -1214,9 +1339,7 @@ TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sendi
 
   // Do the same procesure again to ensure that a new trajectory can be send after canceling the before
   // one in the middle of its execution
-  sendTrajectory(s_pos, s_vel, s_acc, s_time);
-  waitForTrajectoryStarted();
-
+  ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
       urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
   EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
