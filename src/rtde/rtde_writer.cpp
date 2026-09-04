@@ -183,7 +183,7 @@ bool RTDEWriter::sendPackage(const DataPackage& package)
 DataPackage RTDEWriter::createDataPackage()
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  if (current_store_buffer_ == nullptr || !current_store_buffer_->isTyped())
+  if (current_store_buffer_ == nullptr || !running_ || !current_store_buffer_->isTyped())
   {
     throw UrException("Cannot create an RTDE input data package before the robot has acknowledged the input recipe. "
                       "That happens during the RTDE handshake, so call this after RTDEClient::init().");
