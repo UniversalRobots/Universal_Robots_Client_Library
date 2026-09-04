@@ -47,7 +47,7 @@ jobs:
           echo "upstream=$UPSTREAM"   >> "$GITHUB_OUTPUT"
 
       - name: Ensure label exists
-        if: steps.check.outcome == 'failure'
+        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,7 +57,7 @@ jobs:
             --force
 
       - name: Regenerate header and open PR
-        if: steps.check.outcome == 'failure'
+        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,43 +110,6 @@ jobs:
 
             echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Open issue if none already open
-        if: steps.check.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMITTED: ${{ steps.versions.outputs.committed }}
-          UPSTREAM: ${{ steps.versions.outputs.upstream }}
-          PR_URL: ${{ steps.pr.outputs.pr_url }}
-        run: |
-          OPEN=$(gh issue list \
-            --label "error-codes-outdated" \
-            --state open \
-            --json number \
-            --jq length)
-
-          if [ "$OPEN" -eq 0 ]; then
-            PR_LINE=""
-            if [ -n "$PR_URL" ]; then
-              PR_LINE=$'\n'"**Pull request:** ${PR_URL}"
-            fi
-
-            gh issue create \
-              --title "UR ErrorCodes JSON updated: v${COMMITTED} → v${UPSTREAM}" \
-              --label "error-codes-outdated" \
-              --body "The upstream UR ErrorCodes JSON has been updated and \`error_code_texts.h\` is out of date.
-
-| | Version |
-|---|---|
-| Committed header (\`ERROR_CODE_JSON_VERSION\`) | \`${COMMITTED}\` |
-| Upstream JSON | \`${UPSTREAM}\` |
-
-**Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}${PR_LINE}"
-          else
-            echo "An open issue already exists — skipping duplicate."
-          fi
-
-      # Fail the workflow so the run shows red in the Actions tab
       - name: Fail if version mismatch
         if: steps.check.outcome == 'failure'
         run: exit 1
