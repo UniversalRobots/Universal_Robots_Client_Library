@@ -199,6 +199,16 @@ public:
   void initEmpty();
 
   /*!
+   * \brief A package with this one's recipe, protocol version and data types, all values zero.
+   *
+   * Since it carries the same field names and types, it has this package's layout hash and can be
+   * copied into it with a single memcpy; see copyFrom().
+   *
+   * \returns A zeroed package with this package's layout
+   */
+  DataPackage emptyCopy() const;
+
+  /*!
    * \brief Get the data type the robot reported for a field.
    *
    * Which type a field holds is decided by the robot when it acknowledges the recipe, so this is

@@ -106,6 +106,21 @@ public:
   bool sendPackage(const DataPackage& package);
 
   /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * for it.
+   *
+   * The returned package has all values at zero and is ready to be filled with
+   * DataPackage::setData(). Since it already carries the robot's types, a value written with a wrong
+   * type is reported by setData() itself rather than only when the package is sent, and copying the
+   * package into the send buffer is a single memcpy.
+   *
+   * \returns A package built from the input recipe with the acknowledged data types applied
+   *
+   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   */
+  DataPackage createDataPackage();
+
+  /*!
    * \brief Creates a package to request setting a new value for the speed slider.
    *
    * \param speed_slider_fraction The new speed slider fraction as a value between 0.0 and 1.0

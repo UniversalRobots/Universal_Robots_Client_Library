@@ -57,8 +57,8 @@ fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
    :end-before: // Change the speed slider
 
 Creating the package we read into is the last allocation the read path makes; the loop below reuses
-the same package. The recipe only names the fields, so the first package received is also what tells
-this one what type each of its fields has, which needs no further memory.
+the same package. The recipe only names the fields, so the first read is also what tells this one
+what type each of its fields has, which needs no further memory.
 
 In our main loop, we wait for a new data package to arrive using the blocking read method. Once
 received, data from the received package can be accessed using the ``getData()`` method of the

@@ -237,7 +237,9 @@ TEST(rtde_parser, data_package_without_recipe_types_fails)
   EXPECT_FALSE(parser.parse(bp, product));
 }
 
-TEST(rtde_parser, untyped_pre_allocated_data_package_is_replaced)
+// A package built from the recipe alone carries the right storage and only lacks its types, so the
+// parser applies them to it rather than allocating a replacement.
+TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -249,18 +251,22 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_is_replaced)
   parser.setProtocolVersion(2);
 
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+  const rtde_interface::RTDEPackage* package_address = product.get();
 
   ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), package_address);
 
   rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
   ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
   double timestamp = 0.0;
   ASSERT_TRUE(data->getData("timestamp", timestamp));
   EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
-// setData() on every field makes isTyped() true, but those types did not come from the robot.
-TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_replaced)
+// setData() on every field makes isTyped() true, but those types did not come from the robot. The
+// recipe still matches, so the robot's types overwrite them in place.
+TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_retyped_in_place)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -276,8 +282,10 @@ TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_replaced)
   ASSERT_TRUE(package->setData("target_speed_fraction", static_cast<uint64_t>(2)));
 
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(package);
+  const rtde_interface::RTDEPackage* package_address = product.get();
 
   ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), package_address);
 
   rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
   ASSERT_NE(data, nullptr);
