@@ -55,11 +55,7 @@ bool ErrorCodeMessage::consumeWith(AbstractPrimaryConsumer& consumer)
 std::string ErrorCodeMessage::toString() const
 {
   std::stringstream ss;
-  ss << "C" << message_code_;
-  if (message_argument_ != -1)
-  {
-    ss << "A" << message_argument_;
-  }
+  ss << "C" << message_code_ << "A" << message_argument_;
 
   // 1. Dynamic C++ override (highest priority — can call arbitrary functions)
   if (auto text = getErrorCodeTextOverride(message_code_, message_argument_))

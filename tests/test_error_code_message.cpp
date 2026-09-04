@@ -76,11 +76,7 @@ std::unique_ptr<ErrorCodeMessage> makeMsg(int32_t code, int32_t arg)
 std::string fallback(int32_t code, int32_t arg)
 {
   std::stringstream ss;
-  ss << "C" << code;
-  if (arg != -1)
-  {
-    ss << "A" << arg;
-  }
+  ss << "C" << code << "A" << arg;
   return ss.str();
 }
 }  // namespace
@@ -203,9 +199,8 @@ TEST(ErrorCodeMessageTest, toString_uses_static_map_code_only_with_no_arg)
   // Code 0 has no "arg" in the JSON (no-arg sentinel = 0xFFFFFFFF).
   // message_argument_ == -1 casts to uint32_t 0xFFFFFFFF, so it hits the
   // exact-match path directly (step 2) rather than the code-only path (step 3).
-  // message_argument_ == -1 is not printed (it signals "no argument").
   auto msg = makeMsg(0, -1);
-  EXPECT_EQ(msg->toString(), "C0: No error");
+  EXPECT_EQ(msg->toString(), "C0A-1: No error");
 }
 
 TEST(ErrorCodeMessageTest, toString_uses_static_map_code_only_for_arbitrary_arg)
@@ -220,13 +215,6 @@ TEST(ErrorCodeMessageTest, toString_falls_back_for_unknown_code)
 {
   auto msg = makeMsg(99999, 0);
   EXPECT_EQ(msg->toString(), fallback(99999, 0));
-}
-
-TEST(ErrorCodeMessageTest, toString_omits_argument_when_minus_one)
-{
-  // A message_argument_ of -1 means "no argument"; the Axx suffix is suppressed.
-  auto msg = makeMsg(99999, -1);
-  EXPECT_EQ(msg->toString(), "C99999");
 }
 
 TEST(ErrorCodeMessageTest, toString_falls_back_for_unknown_code_and_arg)
