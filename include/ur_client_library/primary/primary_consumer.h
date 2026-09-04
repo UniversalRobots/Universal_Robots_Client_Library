@@ -143,18 +143,18 @@ public:
       case ReportLevel::DEVL_VIOLATION:
       case ReportLevel::DEVL_FAULT:
       case ReportLevel::DEVL_CRITICAL_FAULT:
-        URCL_LOG_DEBUG(log_contents.c_str());
+        URCL_LOG_DEBUG("%s", log_contents.c_str());
         break;
       case ReportLevel::INFO:
-        URCL_LOG_INFO(log_contents.c_str());
+        URCL_LOG_INFO("%s", log_contents.c_str());
         break;
       case ReportLevel::WARNING:
-        URCL_LOG_WARN(log_contents.c_str());
+        URCL_LOG_WARN("%s", log_contents.c_str());
         break;
       case ReportLevel::VIOLATION:
       case ReportLevel::FAULT:
       case ReportLevel::CRITICAL_FAULT:
-        URCL_LOG_ERROR(log_contents.c_str());
+        URCL_LOG_ERROR("%s", log_contents.c_str());
         break;
     }
 
