@@ -237,6 +237,12 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
   buffer[index] = htobe32(val);
   index++;
 
+  // Record the move that this point belongs to. The robot uses it to recognize the points which
+  // were left over from a move that has already ended, and discards them rather than executing them
+  // as though they were part of the move it is running now.
+  buffer[index] = htobe32(move_id_.load());
+  index++;
+
   size_t written;
 
   // We stored the data in a int32_t vector, but write needs a uint8_t buffer
@@ -371,6 +377,11 @@ void TrajectoryPointInterface::removeTrajectoryEndCallback(const uint32_t handle
 {
   trajectory_end_callbacks_.remove_if(
       [handler_id](const HandlerFunction<void(TrajectoryResult)>& h) { return h.id == handler_id; });
+}
+
+void TrajectoryPointInterface::setMoveId(const int move_id)
+{
+  move_id_.store(move_id);
 }
 
 }  // namespace control
