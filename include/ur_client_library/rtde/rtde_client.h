@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 
+#include <atomic>
 #include <memory>
 
 #include "ur_client_library/comm/producer.h"
@@ -304,7 +305,7 @@ public:
 
   ClientState getClientState() const
   {
-    return client_state_;
+    return client_state_.load();
   }
 
   /*! \brief Starts a background thread to read data packages from the robot.
@@ -354,7 +355,8 @@ protected:
 
   DataPackage preallocated_data_pkg_;
 
-  ClientState client_state_;
+  // Written by reconnect() on its own thread and read by getClientState() / start / pause.
+  std::atomic<ClientState> client_state_;
 
   uint16_t protocol_version_;
 

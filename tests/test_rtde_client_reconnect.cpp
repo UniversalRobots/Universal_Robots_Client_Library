@@ -316,8 +316,12 @@ TEST_F(RTDEClientReconnectTest, reconnect_gives_up_when_the_handshake_keeps_fail
   data_consumer.join();
 
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  // During a retry the client is UNINITIALIZED between attempts, so a later state check alone
+  // cannot prove it stopped. Another protocol-version request would mean it is still trying.
+  const auto requests_after_give_up = server_->requestedProtocolVersions().size();
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED) << "the client kept retrying after "
-                                                                                      "exhausting its initialization "
-                                                                                      "attempts";
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  EXPECT_EQ(server_->requestedProtocolVersions().size(), requests_after_give_up) << "the client kept retrying after "
+                                                                                    "exhausting its initialization "
+                                                                                    "attempts";
 }
