@@ -10,7 +10,7 @@
     "",
     "NOTE: For error codes whose text must be computed dynamically at runtime",
     "(e.g. C100 where the robot mode name is derived from the argument value),",
-    "add a case to src/primary/robot_message/error_code_overrides.cpp instead."
+    "add a case to src/ur/error_code_overrides.cpp instead."
   ],
   "codes": []
 }

@@ -35,7 +35,7 @@
  *
  * Declaration of the dynamic error-code text override hook.
  *
- * Edit src/primary/robot_message/error_code_overrides.cpp to add
+ * Edit src/ur/error_code_overrides.cpp to add
  * runtime-computed descriptions for specific error codes.  That file
  * is intentionally NOT touched by the code-generation script.
  *
