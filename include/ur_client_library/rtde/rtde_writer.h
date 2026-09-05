@@ -219,7 +219,8 @@ public:
    *
    * \param types The data types of the input recipe's fields, in the same order as the recipe
    *
-   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown
+   * \throws UrException if the number of types doesn't match the recipe, if a type is unknown, or
+   * if the writer is already running
    */
   void setRecipeTypes(const std::vector<std::string>& types);
 
@@ -228,6 +229,8 @@ public:
    *
    * Version 2 data packages start with a recipe-id byte; version 1 packages do not. Defaults to
    * version 2. The client sets this after protocol negotiation.
+   *
+   * \throws UrException if the writer is already running
    */
   void setProtocolVersion(uint16_t protocol_version);
 

@@ -90,6 +90,10 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
 void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the RTDE protocol version while the writer is running.");
+  }
   protocol_version_ = protocol_version;
   if (data_buffer0_ != nullptr)
   {
@@ -104,6 +108,10 @@ void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
 void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot apply RTDE recipe types while the writer is running.");
+  }
   data_buffer0_->setTypes(types);
   data_buffer1_->setTypes(types);
 }
@@ -117,14 +125,19 @@ void RTDEWriter::init(uint8_t recipe_id)
   }
   {
     std::lock_guard<std::mutex> lock_guard(store_mutex_);
+    if (running_)
+    {
+      throw UrException("Requesting to init a RTDEWriter while it is running. The writer has to be "
+                        "stopped before initializing it.");
+    }
     data_buffer0_->setRecipeID(recipe_id);
     data_buffer1_->setRecipeID(recipe_id);
     current_store_buffer_ = data_buffer0_;
     current_send_buffer_ = data_buffer1_;
+    running_ = true;
   }
   recipe_id_ = recipe_id;
   new_data_available_ = false;
-  running_ = true;
   writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
 

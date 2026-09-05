@@ -690,6 +690,17 @@ TEST_F(RTDEWriterTest, set_recipe_while_running_throws)
   EXPECT_THROW(writer_->setInputRecipe(input_recipe_), UrException);
 }
 
+TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
+{
+  EXPECT_THROW(writer_->setRecipeTypes(input_recipe_types_), UrException);
+  EXPECT_THROW(writer_->setProtocolVersion(1), UrException);
+
+  writer_->stop();
+
+  EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
+  EXPECT_NO_THROW(writer_->setProtocolVersion(1));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
