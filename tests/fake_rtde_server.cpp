@@ -556,19 +556,38 @@ void RTDEServer::queueTextMessageBeforeSetupInputs(const std::string& message)
 
 void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
 {
-  const std::string source = "fake_rtde_server";
-  const uint8_t warning_level = 1;
-
   comm::PackageSerializer serializer;
   uint8_t send_buffer[4096];
-  const size_t payload_size = 2 * sizeof(uint8_t) + message.size() + source.size() + sizeof(warning_level);
-  size_t send_size = rtde_interface::PackageHeader::serializeHeader(
-      send_buffer, rtde_interface::PackageType::RTDE_TEXT_MESSAGE, static_cast<uint16_t>(payload_size));
-  send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(message.size()));
-  send_size += serializer.serialize(send_buffer + send_size, message);
-  send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(source.size()));
-  send_size += serializer.serialize(send_buffer + send_size, source);
-  send_size += serializer.serialize(send_buffer + send_size, warning_level);
+  size_t send_size = 0;
+  uint16_t protocol_version = 2;
+  {
+    std::lock_guard<std::mutex> lock(negotiation_mutex_);
+    protocol_version = negotiated_protocol_version_;
+  }
+
+  if (protocol_version == 1)
+  {
+    const uint8_t message_type = 0;
+    const uint16_t payload_size = static_cast<uint16_t>(sizeof(message_type) + message.size());
+    send_size += rtde_interface::PackageHeader::serializeHeader(
+        send_buffer, rtde_interface::PackageType::RTDE_TEXT_MESSAGE, payload_size);
+    send_size += serializer.serialize(send_buffer + send_size, message_type);
+    send_size += serializer.serialize(send_buffer + send_size, message);
+  }
+  else
+  {
+    const std::string source = "fake_rtde_server";
+    const uint8_t warning_level = 1;
+    const uint16_t payload_size =
+        static_cast<uint16_t>(2 * sizeof(uint8_t) + message.size() + source.size() + sizeof(warning_level));
+    send_size += rtde_interface::PackageHeader::serializeHeader(
+        send_buffer, rtde_interface::PackageType::RTDE_TEXT_MESSAGE, payload_size);
+    send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(message.size()));
+    send_size += serializer.serialize(send_buffer + send_size, message);
+    send_size += serializer.serialize(send_buffer + send_size, static_cast<uint8_t>(source.size()));
+    send_size += serializer.serialize(send_buffer + send_size, source);
+    send_size += serializer.serialize(send_buffer + send_size, warning_level);
+  }
 
   size_t written = 0;
   server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
@@ -699,7 +718,19 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         break;
       }
 
-      bp.parse(output_frequency_);
+      uint16_t protocol_version = 2;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        protocol_version = negotiated_protocol_version_;
+      }
+      if (protocol_version == 2)
+      {
+        bp.parse(output_frequency_);
+      }
+      else
+      {
+        output_frequency_ = 125.0;
+      }
       URCL_LOG_DEBUG("Frequency is set to %f", output_frequency_);
       std::string variable_names_str;
       bp.parseRemainder(variable_names_str);
@@ -712,18 +743,25 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         output_data_package_.reset();
         if (allVariablesFound(variable_types))
         {
-          output_data_package_ = makeTypedDataPackage(output_recipe_, variable_types, negotiated_protocol_version_);
+          output_data_package_ = makeTypedDataPackage(output_recipe_, variable_types, protocol_version);
         }
       }
 
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
       size_t send_size = 0;
+      uint16_t payload_size = static_cast<uint16_t>(variable_types_str.length());
+      if (protocol_version == 2)
+      {
+        payload_size = static_cast<uint16_t>(variable_types_str.length() + sizeof(uint8_t));
+      }
       send_size += rtde_interface::PackageHeader::serializeHeader(
-          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS,
-          static_cast<uint16_t>(variable_types_str.length() + sizeof(uint8_t)));
-      uint8_t recipe_id = 1;
-      send_size += serializer.serialize(send_buffer + send_size, recipe_id);
+          send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS, payload_size);
+      if (protocol_version == 2)
+      {
+        uint8_t recipe_id = 1;
+        send_size += serializer.serialize(send_buffer + send_size, recipe_id);
+      }
       send_size += serializer.serialize(send_buffer + send_size, variable_types_str);
 
       size_t written = 0;
@@ -754,10 +792,15 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       const std::vector<std::string> variable_types = variableTypesFor(input_recipe_);
       const std::string variable_types_str = joinStrings(variable_types);
 
+      uint16_t protocol_version = 2;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        protocol_version = negotiated_protocol_version_;
+      }
       input_data_package_.reset();
       if (allVariablesFound(variable_types))
       {
-        input_data_package_ = makeTypedDataPackage(input_recipe_, variable_types);
+        input_data_package_ = makeTypedDataPackage(input_recipe_, variable_types, protocol_version);
       }
 
       comm::PackageSerializer serializer;

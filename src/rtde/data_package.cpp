@@ -367,12 +367,15 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
     return false;
   }
 
-  // Same field names and the same type on every field, so the whole value array can go across at
-  // once. This is the path a real-time loop takes.
+  // copyValues() uses memcpy. Overlapping source and destination are undefined, so a package
+  // copied onto itself has to return before that path.
   if (this == &other)
   {
     return true;
   }
+
+  // Same field names and the same type on every field, so the whole value array can go across at
+  // once. This is the path a real-time loop takes.
   if (layout_hash_ == other.layout_hash_ && values_.size() == other.values_.size())
   {
     copyValues(values_, other.values_);
@@ -415,7 +418,7 @@ rtde_interface::DataPackage::~DataPackage()
                   "instead of copying the value array in one step. That is the path a package takes "
                   "when it is constructed from a recipe and only some of its fields are written. A "
                   "package that already carries the same field names and types as this one can be "
-                  "copied in one memcpy.");
+                  "copied in one memcpy. For an example, see the example/rtde_writer.cpp.");
   }
 }
 

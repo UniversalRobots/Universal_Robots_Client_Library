@@ -27,6 +27,7 @@
 //----------------------------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <cstring>
 
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/rtde/rtde_parser.h>
@@ -379,6 +380,28 @@ TEST(rtde_parser, test_buffer_too_long)
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
   rtde_interface::RTDEParser parser({ "" });
+  EXPECT_FALSE(parser.parse(bp, product));
+}
+
+// The single-pointer parse consumes one package. Two concatenated data packages therefore leave
+// leftover bytes, which the parser reports as a failure rather than silently dropping the second.
+TEST(rtde_parser, two_data_packages_in_one_buffer_leave_leftover_bytes)
+{
+  unsigned char first[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
+                            0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char second[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xc3, 0x88, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x3f, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char raw_data[sizeof(first) + sizeof(second)];
+  std::memcpy(raw_data, first, sizeof(first));
+  std::memcpy(raw_data + sizeof(first), second, sizeof(second));
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  rtde_interface::RTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setProtocolVersion(2);
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product;
   EXPECT_FALSE(parser.parse(bp, product));
 }
 

@@ -27,7 +27,11 @@
 //----------------------------------------------------------------------
 
 #include <gtest/gtest.h>
+#include <memory>
+#include <string>
+#include <vector>
 
+#include <ur_client_library/log.h>
 #include <ur_client_library/rtde/data_package.h>
 
 #include "rtde_test_helpers.h"
@@ -788,6 +792,217 @@ TEST(rtde_data_package, assignment_from_a_different_recipe_rebuilds_name_lookup)
   ASSERT_TRUE(destination.getData("actual_q", actual_q));
   EXPECT_DOUBLE_EQ(actual_q[0], 1.0);
   EXPECT_FALSE(destination.getDataType("timestamp").has_value());
+}
+
+// memcpy of overlapping source and destination is undefined; a package copied onto itself has to
+// succeed without taking that path.
+TEST(rtde_data_package, copy_from_the_same_package_succeeds)
+{
+  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  ASSERT_TRUE(package.setData("actual_q", vector6d_t{ 1, 2, 3, 4, 5, 6 }));
+
+  ASSERT_TRUE(package.copyFrom(package));
+
+  double timestamp = 0.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+  vector6d_t actual_q{};
+  ASSERT_TRUE(package.getData("actual_q", actual_q));
+  EXPECT_EQ(actual_q, vector6d_t({ 1, 2, 3, 4, 5, 6 }));
+}
+
+TEST(rtde_data_package, reset_data_unknown_name_fails)
+{
+  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  EXPECT_FALSE(package.resetData("not_in_the_recipe"));
+}
+
+TEST(rtde_data_package, reset_data_on_an_untyped_field_keeps_it_untyped)
+{
+  rtde_interface::DataPackage package({ "timestamp" });
+  ASSERT_TRUE(package.resetData("timestamp"));
+  EXPECT_FALSE(package.getDataType("timestamp").has_value());
+}
+
+TEST(rtde_data_package, reset_data_on_a_typed_field_keeps_the_type)
+{
+  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+
+  ASSERT_TRUE(package.resetData("timestamp"));
+
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 1.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 0.0);
+}
+
+// An empty recipe has no monostate fields, so isTyped() is vacuously true. Parse and serialize
+// then write only the header (and the v2 recipe-id).
+TEST(rtde_data_package, empty_recipe_package_is_typed_and_serializable)
+{
+  rtde_interface::DataPackage package(std::vector<std::string>{});
+  EXPECT_TRUE(package.isTyped());
+
+  package.setRecipeID(1);
+  uint8_t buffer[4096];
+  const size_t size = package.serializePackage(buffer);
+  EXPECT_EQ(size, 4);
+
+  comm::BinParser bp(buffer + 3, size - 3);
+  EXPECT_TRUE(package.parseWith(bp));
+  EXPECT_TRUE(bp.empty());
+}
+
+TEST(rtde_data_package, bitset_get_data_fails_on_an_untyped_field)
+{
+  rtde_interface::DataPackage package({ "robot_status_bits" });
+  std::bitset<4> bits;
+  EXPECT_FALSE(package.getData<uint32_t>("robot_status_bits", bits));
+}
+
+TEST(rtde_data_package, bitset_get_data_fails_when_the_underlying_type_is_wrong)
+{
+  auto package = typedPackage({ "robot_status_bits" }, { "UINT32" });
+  ASSERT_TRUE(package.setData("robot_status_bits", static_cast<uint32_t>(0x5)));
+
+  std::bitset<8> bits;
+  EXPECT_FALSE(package.getData<uint8_t>("robot_status_bits", bits));
+}
+
+TEST(rtde_data_package, to_string_covers_every_data_type)
+{
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::BOOL), "BOOL");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::UINT8), "UINT8");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::UINT32), "UINT32");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::UINT64), "UINT64");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::INT32), "INT32");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::DOUBLE), "DOUBLE");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR3D), "VECTOR3D");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6D), "VECTOR6D");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6INT32), "VECTOR6INT32");
+  EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6UINT32), "VECTOR6UINT32");
+}
+
+// emplace() keeps the first index when a recipe repeats a name. Looking a field up by name
+// therefore addresses the first occurrence.
+TEST(rtde_data_package, duplicate_field_name_keeps_the_first_index)
+{
+  rtde_interface::DataPackage package({ "timestamp", "timestamp" });
+  package.setTypes({ "DOUBLE", "UINT32" });
+
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  double timestamp = 0.0;
+  ASSERT_TRUE(package.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+  EXPECT_FALSE(package.setData("timestamp", static_cast<uint32_t>(1)));
+}
+
+TEST(rtde_data_package, get_data_type_reports_the_stored_type_after_set_data)
+{
+  rtde_interface::DataPackage package({ "speed_slider_mask", "speed_slider_fraction" });
+  ASSERT_TRUE(package.setData("speed_slider_fraction", 0.5));
+
+  EXPECT_EQ(package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+  EXPECT_FALSE(package.getDataType("speed_slider_mask").has_value());
+  EXPECT_FALSE(package.getDataType("not_in_the_recipe").has_value());
+
+  package.setTypes({ "UINT32", "DOUBLE" });
+  EXPECT_EQ(package.getDataType("speed_slider_mask"), rtde_interface::DataType::UINT32);
+  EXPECT_EQ(package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+}
+
+namespace
+{
+class CapturingLogHandler : public LogHandler
+{
+public:
+  void log(const char*, int, LogLevel loglevel, const char* log) override
+  {
+    if (loglevel == LogLevel::WARN)
+    {
+      warnings_.emplace_back(log);
+    }
+  }
+
+  std::vector<std::string> warnings_;
+};
+
+bool warningMentionsSlowCopy(const std::vector<std::string>& warnings)
+{
+  for (const auto& warning : warnings)
+  {
+    if (warning.find("walking each field") != std::string::npos)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
+TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
+{
+  auto handler = std::make_unique<CapturingLogHandler>();
+  auto* captured = handler.get();
+  registerLogHandler(std::move(handler));
+  setLogLevel(LogLevel::WARN);
+
+  {
+    auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+    auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+    ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
+    ASSERT_TRUE(destination.copyFrom(source));
+  }
+
+  EXPECT_FALSE(warningMentionsSlowCopy(captured->warnings_));
+  unregisterLogHandler();
+  setLogLevel(LogLevel::ERROR);
+}
+
+TEST(rtde_data_package, copy_from_a_partial_package_warns_when_destroyed)
+{
+  auto handler = std::make_unique<CapturingLogHandler>();
+  auto* captured = handler.get();
+  registerLogHandler(std::move(handler));
+  setLogLevel(LogLevel::WARN);
+
+  {
+    auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+    rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
+    ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
+    ASSERT_TRUE(destination.copyFrom(source));
+  }
+
+  EXPECT_TRUE(warningMentionsSlowCopy(captured->warnings_));
+  unregisterLogHandler();
+  setLogLevel(LogLevel::ERROR);
+}
+
+// The documented wire size of each protocol type, so a serializer that pads or truncates one of
+// them fails here rather than only against a robot.
+TEST(rtde_data_package, each_data_type_has_the_documented_wire_size)
+{
+  const std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
+                                         "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
+  const std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
+                                        "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+  auto package = typedPackage(recipe, types);
+  package.setRecipeID(1);
+
+  uint8_t buffer[4096];
+  const size_t size = package.serializePackage(buffer);
+  const size_t header_and_recipe_id = 4;
+  const size_t payload = sizeof(bool) + sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(int32_t) +
+                         sizeof(double) + sizeof(vector3d_t) + sizeof(vector6d_t) + sizeof(vector6int32_t) +
+                         sizeof(vector6uint32_t);
+  EXPECT_EQ(size, header_and_recipe_id + payload);
+  EXPECT_EQ(sizeof(vector3d_t), 3 * sizeof(double));
+  EXPECT_EQ(sizeof(vector6d_t), 6 * sizeof(double));
+  EXPECT_EQ(sizeof(vector6int32_t), 6 * sizeof(int32_t));
+  EXPECT_EQ(sizeof(vector6uint32_t), 6 * sizeof(uint32_t));
 }
 
 int main(int argc, char* argv[])

@@ -683,6 +683,27 @@ TEST_F(TCPServerTest, message_not_lost_when_client_connects_concurrently)
   }
 }
 
+// The previous implementation read `written` before assigning it, so the fake RTDE server
+// silently sent nothing. writeUnchecked must report the number of bytes it actually wrote.
+TEST_F(TCPServerTest, write_unchecked_reports_bytes_written)
+{
+  TestableTcpServer server(port_);
+  server.start();
+
+  Client client(port_);
+  ASSERT_TRUE(server.waitForConnectionCallback());
+
+  const std::vector<socket_t> fds = server.getClientFDs();
+  ASSERT_EQ(fds.size(), 1u);
+
+  const uint8_t message[] = { 'h', 'e', 'l', 'l', 'o', '\n' };
+  size_t written = 0xdeadbeef;
+  ASSERT_TRUE(server.writeUnchecked(fds.front(), message, sizeof(message), written));
+  EXPECT_EQ(written, sizeof(message));
+
+  EXPECT_EQ(client.recv(), "hello\n");
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

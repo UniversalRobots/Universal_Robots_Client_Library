@@ -228,6 +228,31 @@ TEST_F(RTDEClientFakeServerTest, protocol_version_is_lowered_when_the_robot_refu
   EXPECT_EQ(requested[1], 1) << "the client should fall back to the next version down";
 }
 
+TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
+{
+  server_->setHighestAcceptedProtocolVersion(1);
+
+  ASSERT_TRUE(client_->init());
+  const std::vector<uint16_t> requested = server_->requestedProtocolVersions();
+  ASSERT_GE(requested.size(), 2u);
+  EXPECT_EQ(requested[0], 2);
+  EXPECT_EQ(requested[1], 1);
+
+  ASSERT_TRUE(client_->start(true));
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  double timestamp = 0.0;
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
+  EXPECT_GT(timestamp, 0.0);
+
+  rtde_interface::DataPackage input_pkg = client_->createInputDataPackage();
+  ASSERT_TRUE(input_pkg.setData("speed_slider_mask", static_cast<uint32_t>(1)));
+  ASSERT_TRUE(input_pkg.setData("speed_slider_fraction", 0.25));
+  EXPECT_TRUE(client_->getWriter().sendPackage(input_pkg));
+
+  client_->pause();
+}
+
 // TCP can deliver several RTDE packages in one recv(). The fake server used to handle only the
 // first and drop the rest, which is what made a pause request vanish after a burst of input data.
 TEST_F(RTDEClientFakeServerTest, two_requests_in_one_write_are_both_recorded)
@@ -369,12 +394,20 @@ TEST_F(RTDEClientFakeServerTest, target_frequency_outside_the_robots_range_throw
   auto too_low = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, -1.0);
   EXPECT_THROW(too_low->init(), UrException);
   EXPECT_EQ(too_low->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  // A thrown init() must leave the client usable for another attempt, not stuck INITIALIZING.
+  EXPECT_THROW(too_low->init(), UrException);
+  EXPECT_EQ(too_low->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
   // The fake server allows only one client; drop the first connection before opening another.
   too_low.reset();
 
   auto too_high = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_MAX_FREQUENCY + 1.0);
   EXPECT_THROW(too_high->init(), UrException);
   EXPECT_EQ(too_high->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+}
+
+TEST_F(RTDEClientFakeServerTest, unknown_field_is_accepted_by_the_constructor)
+{
+  EXPECT_NO_THROW(makeClient({ "timestamp", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY));
 }
 
 TEST_F(RTDEClientFakeServerTest, receive_with_background_read)
@@ -474,6 +507,46 @@ TEST_F(RTDEClientFakeServerTest, deprecated_get_data_package_returns_a_usable_pa
 
 // The fake server echoes the speed slider fraction back as target_speed_fraction, which is enough to
 // see a value travel all the way through the writer and back.
+TEST_F(RTDEClientFakeServerTest, received_package_rejects_a_wrong_get_data_type)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+
+  uint32_t timestamp_as_int = 0;
+  EXPECT_FALSE(data_pkg.getData("timestamp", timestamp_as_int));
+  double timestamp = 0.0;
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
+
+  client_->pause();
+}
+
+TEST_F(RTDEClientFakeServerTest, create_input_data_package_matches_the_robot_types)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  rtde_interface::DataPackage typed = client_->createInputDataPackage();
+  EXPECT_EQ(typed.getDataType("speed_slider_mask"), rtde_interface::DataType::UINT32);
+  EXPECT_EQ(typed.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+  ASSERT_TRUE(typed.setData("speed_slider_mask", static_cast<uint32_t>(1)));
+  ASSERT_TRUE(typed.setData("speed_slider_fraction", 0.3));
+  EXPECT_TRUE(client_->getWriter().sendPackage(typed));
+
+  rtde_interface::DataPackage recipe_built(client_->getInputRecipe());
+  ASSERT_TRUE(recipe_built.setData("speed_slider_mask", static_cast<uint32_t>(1)));
+  ASSERT_TRUE(recipe_built.setData("speed_slider_fraction", 0.4));
+  EXPECT_TRUE(client_->getWriter().sendPackage(recipe_built));
+
+  rtde_interface::DataPackage wrong(client_->getInputRecipe());
+  ASSERT_TRUE(wrong.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+  EXPECT_FALSE(client_->getWriter().sendPackage(wrong));
+
+  client_->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, write_and_read_back_input_data)
 {
   ASSERT_TRUE(client_->init());
@@ -524,6 +597,19 @@ TEST_F(RTDEClientFakeServerTest, unknown_output_field_can_be_ignored)
   client->pause();
 }
 
+// Without a library-owned field table a typo and a field of a newer robot look the same. Both are
+// stripped when ignore_unavailable_outputs is set.
+TEST_F(RTDEClientFakeServerTest, ignore_unavailable_outputs_strips_a_typo_and_an_unknown_newer_field)
+{
+  auto client = makeClient({ "timestamp", "actual_q", "typo_output", "field_of_a_newer_robot" }, g_INPUT_RECIPE,
+                           g_RTDE_FREQUENCY, true);
+
+  ASSERT_TRUE(client->init());
+
+  const std::vector<std::string> expected_recipe{ "timestamp", "actual_q" };
+  EXPECT_EQ(client->getOutputRecipe(), expected_recipe);
+}
+
 TEST_F(RTDEClientFakeServerTest, unknown_input_field_throws)
 {
   auto client = makeClient(g_OUTPUT_RECIPE, { "not_a_field_the_robot_knows" }, g_RTDE_FREQUENCY);
@@ -535,6 +621,27 @@ TEST_F(RTDEClientFakeServerTest, unknown_input_field_throws)
 
 // The other constructor takes recipe files, and a missing or empty output recipe is rejected right
 // away rather than at handshake time.
+TEST_F(RTDEClientFakeServerTest, create_input_data_package_before_init_throws)
+{
+  EXPECT_THROW(client_->createInputDataPackage(), UrException);
+}
+
+TEST_F(RTDEClientFakeServerTest, empty_input_recipe_does_not_start_the_writer)
+{
+  auto client = makeClient(g_OUTPUT_RECIPE, {}, g_RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+  EXPECT_THROW(client->createInputDataPackage(), UrException);
+
+  ASSERT_TRUE(client->start(true));
+  rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
+  EXPECT_TRUE(client->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  double timestamp = 0.0;
+  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
+
+  client->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, recipe_files)
 {
   EXPECT_NO_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
