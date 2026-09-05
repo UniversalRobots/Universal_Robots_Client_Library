@@ -682,6 +682,8 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     }
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS:
     {
+      // The client re-sends the output recipe on every retry, so one queued unexpected reply is
+      // consumed per request.
       std::string unexpected_message;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
