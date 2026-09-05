@@ -30,6 +30,8 @@
 
 #include <gtest/gtest.h>
 #include <condition_variable>
+#include <mutex>
+#include <vector>
 
 #include <ur_client_library/rtde/rtde_writer.h>
 #include <ur_client_library/comm/tcp_server.h>
@@ -699,6 +701,74 @@ TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
 
   EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
   EXPECT_NO_THROW(writer_->setProtocolVersion(1));
+}
+
+TEST_F(RTDEWriterTest, create_data_package_after_stop_throws)
+{
+  writer_->stop();
+  EXPECT_THROW(writer_->createDataPackage(), UrException);
+}
+
+TEST_F(RTDEWriterTest, set_input_recipe_after_stop_succeeds)
+{
+  writer_->stop();
+
+  const std::vector<std::string> new_recipe{ "speed_slider_mask", "speed_slider_fraction" };
+  const std::vector<std::string> new_types{ "UINT32", "DOUBLE" };
+  EXPECT_NO_THROW(writer_->setInputRecipe(new_recipe));
+  EXPECT_NO_THROW(writer_->setRecipeTypes(new_types));
+  EXPECT_NO_THROW(writer_->init(1));
+
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_TRUE(data_package.isTyped());
+  EXPECT_EQ(data_package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.4));
+  EXPECT_FALSE(data_package.getDataType("standard_digital_output").has_value());
+}
+
+TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
+{
+  comm::TCPServer server(60014);
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool received = false;
+  std::vector<uint8_t> payload;
+  server.setMessageCallback([&](const socket_t, char* buffer, int nbytesrecv) {
+    std::lock_guard<std::mutex> lock(mutex);
+    payload.assign(reinterpret_cast<uint8_t*>(buffer), reinterpret_cast<uint8_t*>(buffer) + nbytesrecv);
+    received = true;
+    cv.notify_one();
+  });
+  server.start();
+
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60014);
+  ASSERT_TRUE(stream.connect());
+
+  const std::vector<std::string> recipe{ "speed_slider_mask" };
+  const std::vector<std::string> types{ "UINT32" };
+  rtde_interface::RTDEWriter writer(&stream, recipe);
+  writer.setRecipeTypes(types);
+  writer.setProtocolVersion(1);
+  writer.init(1);
+
+  rtde_interface::DataPackage package = writer.createDataPackage();
+  ASSERT_TRUE(package.setData("speed_slider_mask", static_cast<uint32_t>(0x12345678)));
+  ASSERT_TRUE(writer.sendPackage(package));
+
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(1), [&] { return received; }));
+  }
+  writer.stop();
+
+  ASSERT_GE(payload.size(), 7u);
+  EXPECT_EQ(payload[0], 0x00);
+  EXPECT_EQ(payload[1], 0x07);
+  EXPECT_EQ(payload[2], 0x55);
+  EXPECT_EQ(payload[3], 0x12);
+  EXPECT_EQ(payload[4], 0x34);
+  EXPECT_EQ(payload[5], 0x56);
+  EXPECT_EQ(payload[6], 0x78);
 }
 
 int main(int argc, char* argv[])

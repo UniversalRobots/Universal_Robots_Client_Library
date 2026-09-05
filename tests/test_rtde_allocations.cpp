@@ -385,7 +385,7 @@ TEST_F(RTDEAllocationTest, blocking_receive_does_not_allocate)
   EXPECT_GT(timestamp, 0.0);
 }
 
-TEST_F(RTDEAllocationTest, background_receive_does_not_allocate)
+TEST_F(RTDEAllocationTest, copying_the_latest_background_package_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
@@ -425,7 +425,7 @@ TEST_F(RTDEAllocationTest, background_receive_does_not_allocate)
   client_->pause();
 }
 
-TEST_F(RTDEAllocationTest, sending_input_data_does_not_allocate)
+TEST_F(RTDEAllocationTest, copying_input_data_into_the_store_buffer_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage input_pkg = client_->createInputDataPackage();
@@ -446,6 +446,37 @@ TEST_F(RTDEAllocationTest, sending_input_data_does_not_allocate)
     for (int i = 0; i < g_MEASURED_CYCLES; ++i)
     {
       all_sent &= input_pkg.setData("speed_slider_fraction", 0.5);
+      all_sent &= client_->getWriter().sendPackage(input_pkg);
+    }
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_TRUE(all_sent);
+
+  client_->pause();
+}
+
+// The documented application pattern: construct from the recipe and write only some fields. The
+// slow copy itself must not allocate; the destructor warning is deferred and is not suppressed
+// here, so a log on the send path would fail the count.
+TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
+{
+  ASSERT_TRUE(client_->start(true));
+  rtde_interface::DataPackage input_pkg(client_->getInputRecipe());
+  ASSERT_TRUE(input_pkg.setData("speed_slider_fraction", 0.5));
+
+  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  {
+    ASSERT_TRUE(client_->getWriter().sendPackage(input_pkg));
+  }
+
+  bool all_sent = true;
+  std::size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    for (int i = 0; i < g_MEASURED_CYCLES; ++i)
+    {
       all_sent &= client_->getWriter().sendPackage(input_pkg);
     }
     allocations = counter.count();
