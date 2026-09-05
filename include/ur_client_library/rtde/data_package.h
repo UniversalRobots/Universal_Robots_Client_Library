@@ -403,7 +403,8 @@ public:
    * \param other The package to copy from
    *
    * \returns True on success, false if this package is untyped, if \p other was built from a
-   * different recipe, or if a field \p other has written has a different type
+   * different recipe, or if a field \p other has written has a different type. Copying a package
+   * onto itself succeeds without writing.
    */
   bool copyFrom(const DataPackage& other);
 
