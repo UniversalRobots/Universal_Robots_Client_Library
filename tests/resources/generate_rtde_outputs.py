@@ -33,7 +33,10 @@ import pandas as pd
 import re
 URCL_PATH = pathlib.Path(__file__).parent.parent.parent.resolve()
 
-PKG_PATH = [i for i in pathlib.Path(URCL_PATH.as_posix()).glob("**/data_package.cpp")]
+# The client library takes the data types of the RTDE fields from the robot's answer to the recipe
+# setup, so the list of all known fields only exists in the test double that has to emulate that
+# answer.
+PKG_PATH = [i for i in pathlib.Path(URCL_PATH.as_posix()).glob("**/fake_rtde_server.cpp")]
 
 assert len(PKG_PATH) == 1
 
@@ -60,9 +63,19 @@ with open(PKG_PATH) as pkg_file:
     with open(OUTPUT_PATH, "w") as output_file:
         output_file.writelines(outputs)
 
-# Get outputs from official docs
+# Get outputs from official docs. The page currently has the input table first and the output
+# table second; if that layout changes, fail here rather than writing a recipe of the wrong names.
 page = pd.read_html("https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html")
+if len(page) < 2:
+    raise RuntimeError(f"Expected at least two tables on the RTDE docs page, found {len(page)}.")
 table = page[1]
+required_columns = {"Name", "Type", "Comment"}
+missing = required_columns - set(table.columns)
+if missing:
+    raise RuntimeError(
+        f"The RTDE docs table at index 1 is missing columns {sorted(missing)}; "
+        f"got {list(table.columns)}. The page layout may have changed."
+    )
 outputs = []
 for _, row in table.iterrows():
     name = row["Name"]
@@ -74,6 +87,12 @@ for _, row in table.iterrows():
             outputs.append(name[:-1]+str(base_addr+i) + "\n")
     else:
         outputs.append(name + "\n")
+
+if len(outputs) <= 100:
+    raise RuntimeError(
+        f"The RTDE docs output scrape produced only {len(outputs)} field names; expected more than "
+        "100. The scrape likely picked the wrong table."
+    )
 
 with open(WEB_OUTPUT_PATH, "w") as web_output_file:
     web_output_file.writelines(outputs)

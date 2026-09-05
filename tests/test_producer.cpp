@@ -38,6 +38,8 @@
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/rtde/rtde_parser.h>
 
+#include "rtde_test_helpers.h"
+
 using namespace urcl;
 
 class ProducerTest : public ::testing::Test
@@ -63,6 +65,7 @@ TEST_F(ProducerTest, get_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE" });
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
@@ -98,6 +101,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
+  parser.setRecipeTypes({ "DOUBLE" });
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 

@@ -45,7 +45,8 @@ using namespace urcl;
 // producer thread is stuck in its reconnect loop at teardown time.
 //
 // This is the PrimaryClient counterpart of
-// RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread (test_rtde_client.cpp).
+// RTDEClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+// (test_rtde_client_reconnect.cpp).
 //
 // Root cause: when the robot drops the primary connection, TCPSocket::read()
 // returns false and leaves the socket in SocketState::LostConnection. URProducer's

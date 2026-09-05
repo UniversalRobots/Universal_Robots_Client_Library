@@ -456,6 +456,7 @@ bool TCPServer::write(const socket_t fd, const uint8_t* buf, const size_t buf_le
 
 bool TCPServer::writeUnchecked(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written)
 {
+  written = 0;
   size_t remaining = buf_len;
 
   // handle partial sends

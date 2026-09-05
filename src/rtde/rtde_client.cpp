@@ -40,6 +40,8 @@ namespace urcl
 {
 namespace rtde_interface
 {
+// The pre-allocated package gets its storage here, but the field types are only known once the
+// robot has acknowledged the output recipe, which is when setupOutputs() applies them.
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
                        const std::string& input_recipe_file, double target_frequency, bool ignore_unavailable_outputs,
                        const uint32_t port)
@@ -118,18 +120,29 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   unsigned int attempts = 0;
   std::stringstream ss;
 
-  while (!setupCommunication(max_connection_attempts, reconnection_timeout))
+  try
   {
-    if (++attempts >= max_initialization_attempts)
+    while (!setupCommunication(max_connection_attempts, reconnection_timeout))
     {
+      if (++attempts >= max_initialization_attempts)
+      {
+        disconnect();
+        ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
+        throw UrException(ss.str());
+      }
+      // disconnect to start on a clean slate when trying to set up communication again
       disconnect();
-      ss << "Failed to initialize RTDE client after " << max_initialization_attempts << " attempts";
-      throw UrException(ss.str());
+      URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
+      std::this_thread::sleep_for(initialization_timeout);
     }
-    // disconnect to start on a clean slate when trying to set up communication again
+  }
+  catch (...)
+  {
+    // setupCommunication() can throw after setting INITIALIZING (invalid recipe, target frequency
+    // out of range). Leave the client disconnected and uninitialized so a later init() retries
+    // instead of returning true on a half-finished handshake.
     disconnect();
-    URCL_LOG_ERROR("Failed to initialize RTDE client, retrying in %d seconds", initialization_timeout.count() / 1000);
-    std::this_thread::sleep_for(initialization_timeout);
+    throw;
   }
   client_state_ = ClientState::INITIALIZED;
   // Set reconnection callback after we are initialized to ensure that a disconnect during initialization doesn't
@@ -220,6 +233,7 @@ uint16_t RTDEClient::negotiateProtocolVersion()
         {
           URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
           parser_.setProtocolVersion(protocol_version);
+          writer_.setProtocolVersion(protocol_version);
           return protocol_version;
         }
         break;
@@ -296,10 +310,9 @@ bool RTDEClient::queryURControlVersion()
       URCL_LOG_WARN("%s", ss.str().c_str());
     }
   }
-  std::stringstream ss;
-  ss << "Could not query urcontrol version after " << MAX_REQUEST_RETRIES
-     << " tries. Please check the output of the "
-        "negotiation attempts above to get a hint what could be wrong.";
+  URCL_LOG_ERROR("Could not query urcontrol version after %u tries. Please check the output of the negotiation "
+                 "attempts above to get a hint what could be wrong.",
+                 MAX_REQUEST_RETRIES);
   return false;
 }
 
@@ -328,9 +341,12 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   disconnect();
 
   output_recipe_.assign(new_recipe.begin(), new_recipe.end());
-  preallocated_data_pkg_ = DataPackage(output_recipe_, protocol_version_);
+  // The data types of the new recipe are unknown until the robot acknowledges it again, at which
+  // point setupOutputs() applies them to this package without allocating.
+  preallocated_data_pkg_ = DataPackage(output_recipe_);
 
   parser_ = RTDEParser(output_recipe_);
+  parser_.setProtocolVersion(protocol_version_);
   prod_ = std::make_unique<comm::URProducer<RTDEPackage>>(stream_, parser_);
 }
 
@@ -380,7 +396,13 @@ bool RTDEClient::setupOutputs()
       std::vector<std::string> variable_types = splitString(tmp_output->variable_types_, ",");
       std::vector<std::string> available_variables;
       std::vector<std::string> unavailable_variables;
-      assert(output_recipe_.size() == variable_types.size());
+      if (output_recipe_.size() != variable_types.size())
+      {
+        URCL_LOG_ERROR("The robot acknowledged the output recipe with %zu data types while the recipe contains %zu "
+                       "fields. Cannot set up the RTDE outputs.",
+                       variable_types.size(), output_recipe_.size());
+        return false;
+      }
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
         const std::string variable_name = output_recipe_[i];
@@ -424,7 +446,12 @@ bool RTDEClient::setupOutputs()
       }
       else
       {
-        // All variables are accounted for in the RTDE package
+        // All variables are accounted for in the RTDE package. The robot told us their data types,
+        // so this is the point where everything holding received data learns what it holds. The
+        // storage itself already exists, so this doesn't allocate and neither does the receive path
+        // from here on.
+        parser_.setRecipeTypes(variable_types);
+        preallocated_data_pkg_.setTypes(variable_types);
         return true;
       }
     }
@@ -471,7 +498,13 @@ bool RTDEClient::setupInputs()
 
     {
       std::vector<std::string> variable_types = splitString(tmp_input->variable_types_, ",");
-      assert(input_recipe_.size() == variable_types.size());
+      if (input_recipe_.size() != variable_types.size())
+      {
+        URCL_LOG_ERROR("The robot acknowledged the input recipe with %zu data types while the recipe contains %zu "
+                       "fields. Cannot set up the RTDE inputs.",
+                       variable_types.size(), input_recipe_.size());
+        return false;
+      }
       for (std::size_t i = 0; i < variable_types.size(); ++i)
       {
         URCL_LOG_DEBUG("%s confirmed as datatype: %s", input_recipe_[i].c_str(), variable_types[i].c_str());
@@ -486,6 +519,7 @@ bool RTDEClient::setupInputs()
           throw RTDEInputConflictException(input_recipe_[i]);
         }
       }
+      writer_.setRecipeTypes(variable_types);
       writer_.init(tmp_input->input_recipe_id_);
 
       return true;
@@ -524,7 +558,8 @@ bool RTDEClient::isRobotBooted()
   if (!sendStart())
     return false;
 
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
+  // Shaped like the packages we are about to receive, so the parser doesn't have to allocate one
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(preallocated_data_pkg_);
 
   double timestamp = 0;
   int reading_count = 0;
@@ -619,7 +654,7 @@ bool RTDEClient::sendStart()
 
   // Worst case we get a data package as part of a race condition in the communication. If we
   // didn't preallocate that, it might print a warning.
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(preallocated_data_pkg_);
   unsigned int num_retries = 0;
   while (num_retries < MAX_REQUEST_RETRIES)
   {
@@ -669,7 +704,7 @@ bool RTDEClient::sendPause()
   }
   // Worst case we get a data package as part of a race condition in the communication. If we
   // didn't preallocate that, it might print a warning.
-  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(output_recipe_, protocol_version_);
+  std::unique_ptr<RTDEPackage> package = std::make_unique<DataPackage>(preallocated_data_pkg_);
   std::chrono::time_point start = std::chrono::steady_clock::now();
   int seconds = 5;
   while (std::chrono::steady_clock::now() - start < std::chrono::seconds(seconds))
@@ -943,9 +978,21 @@ void RTDEClient::startBackgroundRead()
     URCL_LOG_WARN("Requested to start RTDEClient's background read, while it is already running. Doing nothing.");
     return;
   }
+  if (!preallocated_data_pkg_.isTyped())
+  {
+    URCL_LOG_ERROR("Cannot start RTDEClient's background read before the RTDE communication has been set up, as the "
+                   "data types of the output recipe are reported by the robot. Please call init() first.");
+    return;
+  }
   background_read_running_ = true;
-  data_buffer0_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_, protocol_version_);
-  data_buffer1_ = std::make_unique<rtde_interface::DataPackage>(output_recipe_, protocol_version_);
+  // Copying the package the blocking read uses gives these the same recipe and data types without
+  // needing to know what those are. Its values could be from an earlier read, so drop them.
+  auto buffer0 = std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
+  auto buffer1 = std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
+  buffer0->initEmpty();
+  buffer1->initEmpty();
+  data_buffer0_ = std::move(buffer0);
+  data_buffer1_ = std::move(buffer1);
 
   background_read_thread_ = std::thread(&RTDEClient::backgroundReadThreadFunc, this);
 }

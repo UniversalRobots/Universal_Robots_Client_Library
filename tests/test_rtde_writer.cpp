@@ -30,10 +30,15 @@
 
 #include <gtest/gtest.h>
 #include <condition_variable>
+#include <mutex>
+#include <vector>
 
 #include <ur_client_library/rtde/rtde_writer.h>
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/bin_parser.h>
+#include <ur_client_library/helpers.h>
+
+#include "rtde_test_helpers.h"
 
 using namespace urcl;
 
@@ -54,6 +59,7 @@ protected:
     stream_->connect();
 
     writer_.reset(new rtde_interface::RTDEWriter(stream_.get(), input_recipe_));
+    writer_->setRecipeTypes(input_recipe_types_);
     writer_->init(1);
   }
 
@@ -124,6 +130,10 @@ protected:
                                              "input_int_register_25",
                                              "input_double_register_25",
                                              "external_force_torque" };
+  // The data types the robot would report for the recipe above when acknowledging it
+  std::vector<std::string> input_recipe_types_ = { "UINT32", "DOUBLE", "UINT8",  "UINT8",   "UINT8",  "UINT8",
+                                                   "UINT8",  "UINT8",  "UINT8",  "UINT8",   "DOUBLE", "DOUBLE",
+                                                   "BOOL",   "INT32",  "DOUBLE", "VECTOR6D" };
   std::unique_ptr<rtde_interface::RTDEWriter> writer_;
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
@@ -189,6 +199,23 @@ TEST_F(RTDEWriterTest, send_speed_slider)
   // Setting speed slider fraction below 0 or above 1, should return false
   EXPECT_FALSE(writer_->sendSpeedSlider(-1));
   EXPECT_FALSE(writer_->sendSpeedSlider(2));
+}
+
+TEST_F(RTDEWriterTest, masks_do_not_leak_into_the_following_package)
+{
+  // A mask tells the robot which of the fields in a package it should actually act on, so a mask
+  // left over from a previous send would make the robot re-apply a value the caller didn't ask for.
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.5));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  ASSERT_EQ(std::get<uint32_t>(parsed_data_["speed_slider_mask"]), 1);
+
+  ASSERT_TRUE(writer_->sendStandardDigitalOutput(2, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  // Parsing the second package at all only works if resetting the mask kept its data type, since
+  // the type decides how many bytes the field takes up on the wire.
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["speed_slider_mask"]), 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]), 4);
 }
 
 TEST_F(RTDEWriterTest, send_standard_digital_output)
@@ -520,6 +547,141 @@ TEST_F(RTDEWriterTest, send_data_package)
   EXPECT_EQ(standard_digital_output_mask, received_standard_digital_output_mask);
 }
 
+// The fields an application leaves alone are sent as zeros, so a package means the same thing no
+// matter which values happened to be sent before it.
+TEST_F(RTDEWriterTest, unset_fields_are_sent_as_zeros)
+{
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.7));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  ASSERT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.7);
+
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+  ASSERT_TRUE(writer_->sendPackage(data_package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
+  EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+// A package the robot's types have been applied to already has the send buffer's layout, which is
+// the path a real-time loop takes. It has to put the same thing on the wire as the partial flow.
+TEST_F(RTDEWriterTest, send_data_package_typed_by_the_robot)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  data_package.setTypes(input_recipe_types_);
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+
+  EXPECT_TRUE(writer_->sendPackage(data_package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
+  EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+// Values sitting in the store buffer must not leak into a newly created package; emptyCopy()
+// builds from zeros_, not from the live values.
+TEST_F(RTDEWriterTest, create_data_package_is_typed_and_zeroed)
+{
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.7));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_TRUE(data_package.isTyped());
+  double speed_slider_fraction = 1.0;
+  ASSERT_TRUE(data_package.getData("speed_slider_fraction", speed_slider_fraction));
+  EXPECT_DOUBLE_EQ(speed_slider_fraction, 0.0);
+}
+
+// Once the package carries the robot's types, a mismatch is reported by setData() itself.
+TEST_F(RTDEWriterTest, create_data_package_rejects_a_wrong_type_immediately)
+{
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_FALSE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+}
+
+TEST_F(RTDEWriterTest, send_data_package_created_by_the_writer)
+{
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  ASSERT_TRUE(data_package.setData("standard_analog_output_0", 0.4));
+
+  EXPECT_TRUE(writer_->sendPackage(data_package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("standard_analog_output_0"));
+  EXPECT_EQ(std::get<double>(parsed_data_["standard_analog_output_0"]), 0.4);
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+TEST_F(RTDEWriterTest, create_data_package_before_types_are_known_throws)
+{
+  rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
+  EXPECT_THROW(writer.createDataPackage(), UrException);
+}
+
+// A package has to be built from the recipe that was registered, since the fallback copies
+// position by position and cannot map a subset onto a larger recipe.
+TEST_F(RTDEWriterTest, send_data_package_built_from_a_partial_recipe_fails)
+{
+  rtde_interface::DataPackage data_package({ "speed_slider_mask", "speed_slider_fraction" });
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.7));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+// The robot is the authority on a field's type, so writing one with the wrong type has to be
+// reported rather than serialized into a package the robot would misread.
+TEST_F(RTDEWriterTest, send_data_package_with_wrong_field_type_fails)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  // The robot reports speed_slider_mask as UINT32
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+// A rejected package must not write the fields that did match into the store buffer, or a later
+// specialized send would transmit those leftover values.
+TEST_F(RTDEWriterTest, failed_send_package_does_not_overwrite_the_store_buffer)
+{
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.9));
+  ASSERT_TRUE(data_package.setData("speed_slider_mask", static_cast<uint8_t>(1)));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+
+  ASSERT_TRUE(writer_->sendStandardDigitalOutput(2, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+}
+
+TEST_F(RTDEWriterTest, send_data_package_with_unknown_field_fails)
+{
+  rtde_interface::DataPackage data_package({ "not_a_field_the_robot_knows" });
+  ASSERT_TRUE(data_package.setData("not_a_field_the_robot_knows", 1.0));
+
+  EXPECT_FALSE(writer_->sendPackage(data_package));
+}
+
+// Until the robot has reported the data types of the input recipe, there is nothing to serialize
+// against.
+TEST_F(RTDEWriterTest, send_data_package_before_types_are_known_fails)
+{
+  rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
+  rtde_interface::DataPackage data_package(input_recipe_);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.5));
+
+  EXPECT_FALSE(writer.sendPackage(data_package));
+}
+
 TEST_F(RTDEWriterTest, init_while_running_throws)
 {
   EXPECT_THROW(writer_->init(1), UrException);
@@ -528,6 +690,85 @@ TEST_F(RTDEWriterTest, init_while_running_throws)
 TEST_F(RTDEWriterTest, set_recipe_while_running_throws)
 {
   EXPECT_THROW(writer_->setInputRecipe(input_recipe_), UrException);
+}
+
+TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
+{
+  EXPECT_THROW(writer_->setRecipeTypes(input_recipe_types_), UrException);
+  EXPECT_THROW(writer_->setProtocolVersion(1), UrException);
+
+  writer_->stop();
+
+  EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
+  EXPECT_NO_THROW(writer_->setProtocolVersion(1));
+}
+
+TEST_F(RTDEWriterTest, create_data_package_after_stop_throws)
+{
+  writer_->stop();
+  EXPECT_THROW(writer_->createDataPackage(), UrException);
+}
+
+TEST_F(RTDEWriterTest, set_input_recipe_after_stop_succeeds)
+{
+  writer_->stop();
+
+  const std::vector<std::string> new_recipe{ "speed_slider_mask", "speed_slider_fraction" };
+  const std::vector<std::string> new_types{ "UINT32", "DOUBLE" };
+  EXPECT_NO_THROW(writer_->setInputRecipe(new_recipe));
+  EXPECT_NO_THROW(writer_->setRecipeTypes(new_types));
+  EXPECT_NO_THROW(writer_->init(1));
+
+  rtde_interface::DataPackage data_package = writer_->createDataPackage();
+  EXPECT_TRUE(data_package.isTyped());
+  EXPECT_EQ(data_package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+  ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.4));
+  EXPECT_FALSE(data_package.getDataType("standard_digital_output").has_value());
+}
+
+TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
+{
+  comm::TCPServer server(60014);
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool received = false;
+  std::vector<uint8_t> payload;
+  server.setMessageCallback([&](const socket_t, char* buffer, int nbytesrecv) {
+    std::lock_guard<std::mutex> lock(mutex);
+    payload.assign(reinterpret_cast<uint8_t*>(buffer), reinterpret_cast<uint8_t*>(buffer) + nbytesrecv);
+    received = true;
+    cv.notify_one();
+  });
+  server.start();
+
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60014);
+  ASSERT_TRUE(stream.connect());
+
+  const std::vector<std::string> recipe{ "speed_slider_mask" };
+  const std::vector<std::string> types{ "UINT32" };
+  rtde_interface::RTDEWriter writer(&stream, recipe);
+  writer.setRecipeTypes(types);
+  writer.setProtocolVersion(1);
+  writer.init(1);
+
+  rtde_interface::DataPackage package = writer.createDataPackage();
+  ASSERT_TRUE(package.setData("speed_slider_mask", static_cast<uint32_t>(0x12345678)));
+  ASSERT_TRUE(writer.sendPackage(package));
+
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(1), [&] { return received; }));
+  }
+  writer.stop();
+
+  ASSERT_GE(payload.size(), 7u);
+  EXPECT_EQ(payload[0], 0x00);
+  EXPECT_EQ(payload[1], 0x07);
+  EXPECT_EQ(payload[2], 0x55);
+  EXPECT_EQ(payload[3], 0x12);
+  EXPECT_EQ(payload[4], 0x34);
+  EXPECT_EQ(payload[5], 0x56);
+  EXPECT_EQ(payload[6], 0x78);
 }
 
 int main(int argc, char* argv[])

@@ -28,464 +28,426 @@
 
 #include "ur_client_library/rtde/data_package.h"
 
-#include <functional>
+#include <algorithm>
+#include <cstring>
+
+#include "ur_client_library/exceptions.h"
+
 namespace urcl
 {
 namespace rtde_interface
 {
-std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_type_list{
-  // INPUTS
-  { "speed_slider_mask", uint32_t() },
-  { "speed_slider_fraction", double() },
-  { "standard_digital_output_mask", uint8_t() },
-  { "standard_digital_output", uint8_t() },
-  { "configurable_digital_output_mask", uint8_t() },
-  { "configurable_digital_output", uint8_t() },
-  { "standard_analog_output_mask", uint8_t() },
-  { "standard_analog_output_type", uint8_t() },
-  { "standard_analog_output_0", double() },
-  { "standard_analog_output_1", double() },
-  { "external_force_torque", vector6d_t() },
+namespace
+{
+/*!
+ * \brief Whether the alternative a visitor was handed is the "type not decided yet" one.
+ *
+ * The visitors below are only reached on typed packages, but they still have to compile for every
+ * alternative of the variant.
+ */
+template <typename T>
+constexpr bool is_untyped_v = std::is_same_v<std::decay_t<T>, std::monostate>;
 
-  // INPUT / OUTPUT
-  { "input_bit_registers0_to_31", uint32_t() },
-  { "input_bit_registers32_to_63", uint32_t() },
-  { "input_bit_register_64", bool() },
-  { "input_bit_register_65", bool() },
-  { "input_bit_register_66", bool() },
-  { "input_bit_register_67", bool() },
-  { "input_bit_register_68", bool() },
-  { "input_bit_register_69", bool() },
-  { "input_bit_register_70", bool() },
-  { "input_bit_register_71", bool() },
-  { "input_bit_register_72", bool() },
-  { "input_bit_register_73", bool() },
-  { "input_bit_register_74", bool() },
-  { "input_bit_register_75", bool() },
-  { "input_bit_register_76", bool() },
-  { "input_bit_register_77", bool() },
-  { "input_bit_register_78", bool() },
-  { "input_bit_register_79", bool() },
-  { "input_bit_register_80", bool() },
-  { "input_bit_register_81", bool() },
-  { "input_bit_register_82", bool() },
-  { "input_bit_register_83", bool() },
-  { "input_bit_register_84", bool() },
-  { "input_bit_register_85", bool() },
-  { "input_bit_register_86", bool() },
-  { "input_bit_register_87", bool() },
-  { "input_bit_register_88", bool() },
-  { "input_bit_register_89", bool() },
-  { "input_bit_register_90", bool() },
-  { "input_bit_register_91", bool() },
-  { "input_bit_register_92", bool() },
-  { "input_bit_register_93", bool() },
-  { "input_bit_register_94", bool() },
-  { "input_bit_register_95", bool() },
-  { "input_bit_register_96", bool() },
-  { "input_bit_register_97", bool() },
-  { "input_bit_register_98", bool() },
-  { "input_bit_register_99", bool() },
-  { "input_bit_register_100", bool() },
-  { "input_bit_register_101", bool() },
-  { "input_bit_register_102", bool() },
-  { "input_bit_register_103", bool() },
-  { "input_bit_register_104", bool() },
-  { "input_bit_register_105", bool() },
-  { "input_bit_register_106", bool() },
-  { "input_bit_register_107", bool() },
-  { "input_bit_register_108", bool() },
-  { "input_bit_register_109", bool() },
-  { "input_bit_register_110", bool() },
-  { "input_bit_register_111", bool() },
-  { "input_bit_register_112", bool() },
-  { "input_bit_register_113", bool() },
-  { "input_bit_register_114", bool() },
-  { "input_bit_register_115", bool() },
-  { "input_bit_register_116", bool() },
-  { "input_bit_register_117", bool() },
-  { "input_bit_register_118", bool() },
-  { "input_bit_register_119", bool() },
-  { "input_bit_register_120", bool() },
-  { "input_bit_register_121", bool() },
-  { "input_bit_register_122", bool() },
-  { "input_bit_register_123", bool() },
-  { "input_bit_register_124", bool() },
-  { "input_bit_register_125", bool() },
-  { "input_bit_register_126", bool() },
-  { "input_bit_register_127", bool() },
-  { "input_int_register_0", int32_t() },
-  { "input_int_register_1", int32_t() },
-  { "input_int_register_2", int32_t() },
-  { "input_int_register_3", int32_t() },
-  { "input_int_register_4", int32_t() },
-  { "input_int_register_5", int32_t() },
-  { "input_int_register_6", int32_t() },
-  { "input_int_register_7", int32_t() },
-  { "input_int_register_8", int32_t() },
-  { "input_int_register_9", int32_t() },
-  { "input_int_register_10", int32_t() },
-  { "input_int_register_11", int32_t() },
-  { "input_int_register_12", int32_t() },
-  { "input_int_register_13", int32_t() },
-  { "input_int_register_14", int32_t() },
-  { "input_int_register_15", int32_t() },
-  { "input_int_register_16", int32_t() },
-  { "input_int_register_17", int32_t() },
-  { "input_int_register_18", int32_t() },
-  { "input_int_register_19", int32_t() },
-  { "input_int_register_20", int32_t() },
-  { "input_int_register_21", int32_t() },
-  { "input_int_register_22", int32_t() },
-  { "input_int_register_23", int32_t() },
-  { "input_int_register_24", int32_t() },
-  { "input_int_register_25", int32_t() },
-  { "input_int_register_26", int32_t() },
-  { "input_int_register_27", int32_t() },
-  { "input_int_register_28", int32_t() },
-  { "input_int_register_29", int32_t() },
-  { "input_int_register_30", int32_t() },
-  { "input_int_register_31", int32_t() },
-  { "input_int_register_32", int32_t() },
-  { "input_int_register_33", int32_t() },
-  { "input_int_register_34", int32_t() },
-  { "input_int_register_35", int32_t() },
-  { "input_int_register_36", int32_t() },
-  { "input_int_register_37", int32_t() },
-  { "input_int_register_38", int32_t() },
-  { "input_int_register_39", int32_t() },
-  { "input_int_register_40", int32_t() },
-  { "input_int_register_41", int32_t() },
-  { "input_int_register_42", int32_t() },
-  { "input_int_register_43", int32_t() },
-  { "input_int_register_44", int32_t() },
-  { "input_int_register_45", int32_t() },
-  { "input_int_register_46", int32_t() },
-  { "input_int_register_47", int32_t() },
-  { "input_double_register_0", double() },
-  { "input_double_register_1", double() },
-  { "input_double_register_2", double() },
-  { "input_double_register_3", double() },
-  { "input_double_register_4", double() },
-  { "input_double_register_5", double() },
-  { "input_double_register_6", double() },
-  { "input_double_register_7", double() },
-  { "input_double_register_8", double() },
-  { "input_double_register_9", double() },
-  { "input_double_register_10", double() },
-  { "input_double_register_11", double() },
-  { "input_double_register_12", double() },
-  { "input_double_register_13", double() },
-  { "input_double_register_14", double() },
-  { "input_double_register_15", double() },
-  { "input_double_register_16", double() },
-  { "input_double_register_17", double() },
-  { "input_double_register_18", double() },
-  { "input_double_register_19", double() },
-  { "input_double_register_20", double() },
-  { "input_double_register_21", double() },
-  { "input_double_register_22", double() },
-  { "input_double_register_23", double() },
-  { "input_double_register_24", double() },
-  { "input_double_register_25", double() },
-  { "input_double_register_26", double() },
-  { "input_double_register_27", double() },
-  { "input_double_register_28", double() },
-  { "input_double_register_29", double() },
-  { "input_double_register_30", double() },
-  { "input_double_register_31", double() },
-  { "input_double_register_32", double() },
-  { "input_double_register_33", double() },
-  { "input_double_register_34", double() },
-  { "input_double_register_35", double() },
-  { "input_double_register_36", double() },
-  { "input_double_register_37", double() },
-  { "input_double_register_38", double() },
-  { "input_double_register_39", double() },
-  { "input_double_register_40", double() },
-  { "input_double_register_41", double() },
-  { "input_double_register_42", double() },
-  { "input_double_register_43", double() },
-  { "input_double_register_44", double() },
-  { "input_double_register_45", double() },
-  { "input_double_register_46", double() },
-  { "input_double_register_47", double() },
-
-  // OUTPUTS
-  { "timestamp", double() },
-  { "target_q", vector6d_t() },
-  { "target_qd", vector6d_t() },
-  { "target_qdd", vector6d_t() },
-  { "target_current", vector6d_t() },
-  { "target_moment", vector6d_t() },
-  { "actual_q", vector6d_t() },
-  { "actual_qd", vector6d_t() },
-  { "actual_current", vector6d_t() },
-  { "actual_current_window", vector6d_t() },
-  { "actual_current_as_torque", vector6d_t() },
-  { "joint_control_output", vector6d_t() },
-  { "actual_TCP_pose", vector6d_t() },
-  { "actual_TCP_speed", vector6d_t() },
-  { "actual_TCP_force", vector6d_t() },
-  { "target_TCP_pose", vector6d_t() },
-  { "target_TCP_speed", vector6d_t() },
-  { "tcp_offset", vector6d_t() },
-  { "actual_TCP_acceleration", vector6d_t() },
-  { "target_TCP_acceleration", vector6d_t() },
-  { "actual_digital_input_bits", uint64_t() },
-  { "actual_configurable_digital_input_bits", uint64_t() },
-  { "joint_temperatures", vector6d_t() },
-  { "actual_execution_time", double() },
-  { "target_execution_time", double() },
-  { "robot_mode", int32_t() },
-  { "joint_mode", vector6int32_t() },
-  { "safety_mode", int32_t() },
-  { "safety_status", int32_t() },
-  { "actual_tool_accelerometer", vector3d_t() },
-  { "speed_scaling", double() },
-  { "target_speed_fraction", double() },
-  { "actual_momentum", double() },
-  { "actual_main_voltage", double() },
-  { "actual_robot_voltage", double() },
-  { "actual_robot_current", double() },
-  { "actual_joint_voltage", vector6d_t() },
-  { "actual_digital_output_bits", uint64_t() },
-  { "actual_configurable_digital_output_bits", uint64_t() },
-  { "runtime_state", uint32_t() },
-  { "elbow_position", vector3d_t() },
-  { "elbow_velocity", vector3d_t() },
-  { "robot_status_bits", uint32_t() },
-  { "safety_status_bits", uint32_t() },
-  { "analog_io_types", uint32_t() },
-  { "standard_analog_input0", double() },
-  { "standard_analog_input1", double() },
-  { "standard_analog_output0", double() },
-  { "standard_analog_output1", double() },
-  { "io_current", double() },
-  { "output_bit_registers0_to_31", uint32_t() },
-  { "output_bit_registers32_to_63", uint32_t() },
-  { "output_bit_register_64", bool() },
-  { "output_bit_register_65", bool() },
-  { "output_bit_register_66", bool() },
-  { "output_bit_register_67", bool() },
-  { "output_bit_register_68", bool() },
-  { "output_bit_register_69", bool() },
-  { "output_bit_register_70", bool() },
-  { "output_bit_register_71", bool() },
-  { "output_bit_register_72", bool() },
-  { "output_bit_register_73", bool() },
-  { "output_bit_register_74", bool() },
-  { "output_bit_register_75", bool() },
-  { "output_bit_register_76", bool() },
-  { "output_bit_register_77", bool() },
-  { "output_bit_register_78", bool() },
-  { "output_bit_register_79", bool() },
-  { "output_bit_register_80", bool() },
-  { "output_bit_register_81", bool() },
-  { "output_bit_register_82", bool() },
-  { "output_bit_register_83", bool() },
-  { "output_bit_register_84", bool() },
-  { "output_bit_register_85", bool() },
-  { "output_bit_register_86", bool() },
-  { "output_bit_register_87", bool() },
-  { "output_bit_register_88", bool() },
-  { "output_bit_register_89", bool() },
-  { "output_bit_register_90", bool() },
-  { "output_bit_register_91", bool() },
-  { "output_bit_register_92", bool() },
-  { "output_bit_register_93", bool() },
-  { "output_bit_register_94", bool() },
-  { "output_bit_register_95", bool() },
-  { "output_bit_register_96", bool() },
-  { "output_bit_register_97", bool() },
-  { "output_bit_register_98", bool() },
-  { "output_bit_register_99", bool() },
-  { "output_bit_register_100", bool() },
-  { "output_bit_register_101", bool() },
-  { "output_bit_register_102", bool() },
-  { "output_bit_register_103", bool() },
-  { "output_bit_register_104", bool() },
-  { "output_bit_register_105", bool() },
-  { "output_bit_register_106", bool() },
-  { "output_bit_register_107", bool() },
-  { "output_bit_register_108", bool() },
-  { "output_bit_register_109", bool() },
-  { "output_bit_register_110", bool() },
-  { "output_bit_register_111", bool() },
-  { "output_bit_register_112", bool() },
-  { "output_bit_register_113", bool() },
-  { "output_bit_register_114", bool() },
-  { "output_bit_register_115", bool() },
-  { "output_bit_register_116", bool() },
-  { "output_bit_register_117", bool() },
-  { "output_bit_register_118", bool() },
-  { "output_bit_register_119", bool() },
-  { "output_bit_register_120", bool() },
-  { "output_bit_register_121", bool() },
-  { "output_bit_register_122", bool() },
-  { "output_bit_register_123", bool() },
-  { "output_bit_register_124", bool() },
-  { "output_bit_register_125", bool() },
-  { "output_bit_register_126", bool() },
-  { "output_bit_register_127", bool() },
-  { "output_int_register_0", int32_t() },
-  { "output_int_register_1", int32_t() },
-  { "output_int_register_2", int32_t() },
-  { "output_int_register_3", int32_t() },
-  { "output_int_register_4", int32_t() },
-  { "output_int_register_5", int32_t() },
-  { "output_int_register_6", int32_t() },
-  { "output_int_register_7", int32_t() },
-  { "output_int_register_8", int32_t() },
-  { "output_int_register_9", int32_t() },
-  { "output_int_register_10", int32_t() },
-  { "output_int_register_11", int32_t() },
-  { "output_int_register_12", int32_t() },
-  { "output_int_register_13", int32_t() },
-  { "output_int_register_14", int32_t() },
-  { "output_int_register_15", int32_t() },
-  { "output_int_register_16", int32_t() },
-  { "output_int_register_17", int32_t() },
-  { "output_int_register_18", int32_t() },
-  { "output_int_register_19", int32_t() },
-  { "output_int_register_20", int32_t() },
-  { "output_int_register_21", int32_t() },
-  { "output_int_register_22", int32_t() },
-  { "output_int_register_23", int32_t() },
-  { "output_int_register_24", int32_t() },
-  { "output_int_register_25", int32_t() },
-  { "output_int_register_26", int32_t() },
-  { "output_int_register_27", int32_t() },
-  { "output_int_register_28", int32_t() },
-  { "output_int_register_29", int32_t() },
-  { "output_int_register_30", int32_t() },
-  { "output_int_register_31", int32_t() },
-  { "output_int_register_32", int32_t() },
-  { "output_int_register_33", int32_t() },
-  { "output_int_register_34", int32_t() },
-  { "output_int_register_35", int32_t() },
-  { "output_int_register_36", int32_t() },
-  { "output_int_register_37", int32_t() },
-  { "output_int_register_38", int32_t() },
-  { "output_int_register_39", int32_t() },
-  { "output_int_register_40", int32_t() },
-  { "output_int_register_41", int32_t() },
-  { "output_int_register_42", int32_t() },
-  { "output_int_register_43", int32_t() },
-  { "output_int_register_44", int32_t() },
-  { "output_int_register_45", int32_t() },
-  { "output_int_register_46", int32_t() },
-  { "output_int_register_47", int32_t() },
-  { "output_double_register_0", double() },
-  { "output_double_register_1", double() },
-  { "output_double_register_2", double() },
-  { "output_double_register_3", double() },
-  { "output_double_register_4", double() },
-  { "output_double_register_5", double() },
-  { "output_double_register_6", double() },
-  { "output_double_register_7", double() },
-  { "output_double_register_8", double() },
-  { "output_double_register_9", double() },
-  { "output_double_register_10", double() },
-  { "output_double_register_11", double() },
-  { "output_double_register_12", double() },
-  { "output_double_register_13", double() },
-  { "output_double_register_14", double() },
-  { "output_double_register_15", double() },
-  { "output_double_register_16", double() },
-  { "output_double_register_17", double() },
-  { "output_double_register_18", double() },
-  { "output_double_register_19", double() },
-  { "output_double_register_20", double() },
-  { "output_double_register_21", double() },
-  { "output_double_register_22", double() },
-  { "output_double_register_23", double() },
-  { "output_double_register_24", double() },
-  { "output_double_register_25", double() },
-  { "output_double_register_26", double() },
-  { "output_double_register_27", double() },
-  { "output_double_register_28", double() },
-  { "output_double_register_29", double() },
-  { "output_double_register_30", double() },
-  { "output_double_register_31", double() },
-  { "output_double_register_32", double() },
-  { "output_double_register_33", double() },
-  { "output_double_register_34", double() },
-  { "output_double_register_35", double() },
-  { "output_double_register_36", double() },
-  { "output_double_register_37", double() },
-  { "output_double_register_38", double() },
-  { "output_double_register_39", double() },
-  { "output_double_register_40", double() },
-  { "output_double_register_41", double() },
-  { "output_double_register_42", double() },
-  { "output_double_register_43", double() },
-  { "output_double_register_44", double() },
-  { "output_double_register_45", double() },
-  { "output_double_register_46", double() },
-  { "output_double_register_47", double() },
-  { "actual_robot_energy_consumed", double() },
-  { "actual_robot_braking_energy_dissipated", double() },
-  { "encoder0_raw", int32_t() },
-  { "encoder1_raw", int32_t() },
-  { "euromap67_input_bits", uint32_t() },
-  { "euromap67_output_bits", uint32_t() },
-  { "euromap67_24V_voltage", double() },
-  { "euromap67_24V_current", double() },
-  { "tool_mode", uint32_t() },
-  { "tool_analog_input_types", uint32_t() },
-  { "tool_analog_input0", double() },
-  { "tool_analog_input1", double() },
-  { "tool_output_voltage", int32_t() },
-  { "tool_output_current", double() },
-  { "tool_temperature", double() },
-  { "tool_output_mode", uint8_t() },
-  { "tool_digital_output0_mode", uint8_t() },
-  { "tool_digital_output1_mode", uint8_t() },
-  { "tcp_force_scalar", double() },
-  { "joint_position_deviation_ratio", double() },
-  { "collision_detection_ratio", double() },
-  { "ft_raw_wrench", vector6d_t() },
-  { "wrench_calc_from_currents", vector6d_t() },
-  { "payload", double() },
-  { "payload_cog", vector3d_t() },
-  { "payload_inertia", vector6d_t() },
-  { "script_control_line", uint32_t() },
-  { "time_scale_source", int32_t() },
-  { "target_gravity", vector3d_t() },
-  { "target_base_acceleration", vector6d_t() },
-  { "control_step", uint64_t() },
-  { "target_base_wrench", vector6d_t() },
-
-  // NOT IN OFFICIAL DOCS
-  { "tool_digital_output_mask", uint8_t() },
-  { "tool_digital_output", uint8_t() },
+/*!
+ * \brief The RTDE protocol's name for each data type.
+ *
+ * The single place the spellings live. Both directions of the name conversion read from it, so a
+ * name can never disagree with itself.
+ */
+constexpr struct
+{
+  DataType type;
+  std::string_view name;
+} g_type_names[] = {
+  { DataType::BOOL, "BOOL" },
+  { DataType::UINT8, "UINT8" },
+  { DataType::UINT32, "UINT32" },
+  { DataType::UINT64, "UINT64" },
+  { DataType::INT32, "INT32" },
+  { DataType::DOUBLE, "DOUBLE" },
+  { DataType::VECTOR3D, "VECTOR3D" },
+  { DataType::VECTOR6D, "VECTOR6D" },
+  { DataType::VECTOR6INT32, "VECTOR6INT32" },
+  { DataType::VECTOR6UINT32, "VECTOR6UINT32" },
 };
+
+constexpr uint64_t g_FNV_OFFSET_BASIS = 14695981039346656037ULL;
+constexpr uint64_t g_FNV_PRIME = 1099511628211ULL;
+
+uint64_t fnv1a(uint64_t hash, const uint8_t* data, const size_t length)
+{
+  for (size_t i = 0; i < length; ++i)
+  {
+    hash ^= data[i];
+    hash *= g_FNV_PRIME;
+  }
+  return hash;
+}
+
+uint64_t fnv1aByte(uint64_t hash, const uint8_t value)
+{
+  hash ^= value;
+  hash *= g_FNV_PRIME;
+  return hash;
+}
+
+uint64_t hashRecipe(const std::vector<std::string>& recipe)
+{
+  uint64_t hash = g_FNV_OFFSET_BASIS;
+  const uint64_t count = recipe.size();
+  hash = fnv1a(hash, reinterpret_cast<const uint8_t*>(&count), sizeof(count));
+  for (const auto& name : recipe)
+  {
+    hash = fnv1a(hash, reinterpret_cast<const uint8_t*>(name.data()), name.size());
+    // A separator so that "ab"+"c" and "a"+"bc" cannot produce the same digest.
+    hash = fnv1aByte(hash, 0);
+  }
+  return hash;
+}
+
+uint64_t hashLayout(const uint64_t recipe_hash, const std::vector<DataPackage::_rtde_type_variant>& values)
+{
+  uint64_t hash = recipe_hash;
+  for (const auto& value : values)
+  {
+    hash = fnv1aByte(hash, static_cast<uint8_t>(value.index()));
+  }
+  return hash;
+}
+
+/*!
+ * \brief The data type a field holds, or an empty optional if it has none yet.
+ */
+std::optional<DataType> typeOf(const DataPackage::_rtde_type_variant& field)
+{
+  if (std::holds_alternative<bool>(field))
+  {
+    return DataType::BOOL;
+  }
+  if (std::holds_alternative<uint8_t>(field))
+  {
+    return DataType::UINT8;
+  }
+  if (std::holds_alternative<uint32_t>(field))
+  {
+    return DataType::UINT32;
+  }
+  if (std::holds_alternative<uint64_t>(field))
+  {
+    return DataType::UINT64;
+  }
+  if (std::holds_alternative<int32_t>(field))
+  {
+    return DataType::INT32;
+  }
+  if (std::holds_alternative<double>(field))
+  {
+    return DataType::DOUBLE;
+  }
+  if (std::holds_alternative<vector3d_t>(field))
+  {
+    return DataType::VECTOR3D;
+  }
+  if (std::holds_alternative<vector6d_t>(field))
+  {
+    return DataType::VECTOR6D;
+  }
+  if (std::holds_alternative<vector6int32_t>(field))
+  {
+    return DataType::VECTOR6INT32;
+  }
+  if (std::holds_alternative<vector6uint32_t>(field))
+  {
+    return DataType::VECTOR6UINT32;
+  }
+  return std::nullopt;
+}
+
+/*!
+ * \brief Names the type a field holds for an error message, even if it has none.
+ */
+std::string typeNameOf(const DataPackage::_rtde_type_variant& field)
+{
+  const std::optional<DataType> type = typeOf(field);
+  return type.has_value() ? toString(*type) : "unknown";
+}
+
+/*!
+ * \brief Creates an empty value of the given data type.
+ *
+ * Switching over the enum rather than testing names in sequence means the compiler points at this
+ * function if a data type is ever added to the protocol.
+ */
+DataPackage::_rtde_type_variant variantFor(const DataType type)
+{
+  switch (type)
+  {
+    case DataType::BOOL:
+      return bool();
+    case DataType::UINT8:
+      return uint8_t();
+    case DataType::UINT32:
+      return uint32_t();
+    case DataType::UINT64:
+      return uint64_t();
+    case DataType::INT32:
+      return int32_t();
+    case DataType::DOUBLE:
+      return double();
+    case DataType::VECTOR3D:
+      return vector3d_t();
+    case DataType::VECTOR6D:
+      return vector6d_t();
+    case DataType::VECTOR6INT32:
+      return vector6int32_t();
+    case DataType::VECTOR6UINT32:
+      return vector6uint32_t();
+  }
+  throw UrException("Unhandled RTDE data type.");
+}
+
+/*!
+ * \brief The protocol data type with the given name.
+ *
+ * \param type_name One of the RTDE data type names as reported by the robot in a setup
+ * acknowledgement
+ *
+ * \throws UrException if the name is not a known RTDE data type
+ */
+DataType typeFromName(const std::string_view type_name)
+{
+  for (const auto& entry : g_type_names)
+  {
+    if (entry.name == type_name)
+    {
+      return entry.type;
+    }
+  }
+
+  std::stringstream ss;
+  ss << "'" << type_name
+     << "' is not a known RTDE data type. Expected one of BOOL, UINT8, UINT32, UINT64, INT32, "
+        "DOUBLE, VECTOR3D, VECTOR6D, VECTOR6INT32 or VECTOR6UINT32.";
+  throw UrException(ss.str());
+}
+
+void copyValues(std::vector<DataPackage::_rtde_type_variant>& destination,
+                const std::vector<DataPackage::_rtde_type_variant>& source)
+{
+  if (destination.empty())
+  {
+    return;
+  }
+  std::memcpy(destination.data(), source.data(), destination.size() * sizeof(DataPackage::_rtde_type_variant));
+}
+}  // namespace
+
+std::string toString(const DataType type)
+{
+  for (const auto& entry : g_type_names)
+  {
+    if (entry.type == type)
+    {
+      return std::string(entry.name);
+    }
+  }
+  throw UrException("Unhandled RTDE data type.");
+}
+
+void rtde_interface::DataPackage::rebuildFieldIndex()
+{
+  field_index_.clear();
+  field_index_.reserve(recipe_.size());
+  for (size_t i = 0; i < recipe_.size(); ++i)
+  {
+    field_index_.emplace(recipe_[i], i);
+  }
+}
+
+std::optional<size_t> rtde_interface::DataPackage::fieldIndex(const std::string_view name) const
+{
+  const auto it = field_index_.find(name);
+  if (it == field_index_.end())
+  {
+    return std::nullopt;
+  }
+  return it->second;
+}
+
+std::optional<rtde_interface::DataType> rtde_interface::DataPackage::getDataType(const std::string_view name) const
+{
+  const std::optional<size_t> index = fieldIndex(name);
+  if (!index.has_value())
+  {
+    return std::nullopt;
+  }
+  return typeOf(values_[*index]);
+}
+
+void rtde_interface::DataPackage::reportReadFailure(const std::string_view name, const _rtde_type_variant& field)
+{
+  if (std::holds_alternative<std::monostate>(field))
+  {
+    URCL_LOG_ERROR("Cannot read the data field '%.*s', as its data type isn't known yet. The data types of a recipe "
+                   "are reported by the robot during the RTDE handshake, so a data package can only be read from "
+                   "after it has received data at least once.",
+                   static_cast<int>(name.size()), name.data());
+    return;
+  }
+  URCL_LOG_ERROR("Type of requested data doesn't match type of existing field for index '%.*s'. The robot reports "
+                 "that field as %s.",
+                 static_cast<int>(name.size()), name.data(), typeNameOf(field).c_str());
+}
+
+void rtde_interface::DataPackage::initStorage()
+{
+  values_.assign(recipe_.size(), std::monostate());
+  zeros_.assign(recipe_.size(), std::monostate());
+  rebuildFieldIndex();
+  recipe_hash_ = hashRecipe(recipe_);
+  updateLayoutHash();
+}
+
+void rtde_interface::DataPackage::updateLayoutHash()
+{
+  layout_hash_ = hashLayout(recipe_hash_, values_);
+  fully_typed_ = std::none_of(values_.begin(), values_.end(), [](const _rtde_type_variant& field) {
+    return std::holds_alternative<std::monostate>(field);
+  });
+}
+
+void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types)
+{
+  if (types.size() != recipe_.size())
+  {
+    std::stringstream ss;
+    ss << "Cannot set the data types of an RTDE data package: got " << types.size() << " data types for a recipe with "
+       << recipe_.size() << " fields.";
+    throw UrException(ss.str());
+  }
+
+  // Confirm every name before writing any field. variantFor cannot fail once the name is known, so
+  // a later unknown type cannot leave earlier fields retyped while layout_hash_ still describes
+  // the old layout.
+  for (const auto& type_name : types)
+  {
+    typeFromName(type_name);
+  }
+
+  for (size_t i = 0; i < recipe_.size(); ++i)
+  {
+    values_[i] = variantFor(typeFromName(types[i]));
+    zeros_[i] = values_[i];
+  }
+  updateLayoutHash();
+}
 
 void rtde_interface::DataPackage::initEmpty()
 {
-  data_.clear();
-  data_.reserve(recipe_.size());
-  for (auto& item : recipe_)
+  copyValues(values_, zeros_);
+}
+
+rtde_interface::DataPackage rtde_interface::DataPackage::emptyCopy() const
+{
+  // The delegated constructor allocates the storage, builds the name-to-index map and computes the
+  // recipe hash; the field types and their zero values are what this package contributes.
+  DataPackage package(recipe_, protocol_version_);
+  package.values_ = zeros_;
+  package.zeros_ = zeros_;
+  package.updateLayoutHash();
+  return package;
+}
+
+bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
+{
+  if (!isTyped())
   {
-    if (g_type_list.find(item) == g_type_list.end())
+    URCL_LOG_ERROR("Cannot copy into an RTDE data package before the data types of its recipe are known. Those are "
+                   "reported by the robot during the RTDE handshake.");
+    return false;
+  }
+
+  // copyValues() uses memcpy. Overlapping source and destination are undefined, so a package
+  // copied onto itself has to return before that path.
+  if (this == &other)
+  {
+    return true;
+  }
+
+  // Same field names and the same type on every field, so the whole value array can go across at
+  // once. This is the path a real-time loop takes.
+  if (layout_hash_ == other.layout_hash_ && values_.size() == other.values_.size())
+  {
+    copyValues(values_, other.values_);
+    return true;
+  }
+
+  if (recipe_hash_ != other.recipe_hash_ || values_.size() != other.values_.size())
+  {
+    URCL_LOG_ERROR("Cannot copy from an RTDE data package built from a different recipe.");
+    return false;
+  }
+
+  // Same recipe, so field i here is field i there. Validate before writing anything, so a package
+  // that is rejected leaves the values already in here alone.
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    if (!std::holds_alternative<std::monostate>(other.values_[i]) && other.values_[i].index() != values_[i].index())
     {
-      throw RTDEInvalidKeyException("Unknown item in recipe: " + item);
+      URCL_LOG_ERROR("The value passed for the data field '%s' is of type %s, but the robot reports that field as "
+                     "%s.",
+                     recipe_[i].c_str(), typeNameOf(other.values_[i]).c_str(), typeNameOf(values_[i]).c_str());
+      return false;
     }
-    _rtde_type_variant entry = g_type_list[item];
-    data_.push_back({ item, entry });
+  }
+
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    values_[i] = std::holds_alternative<std::monostate>(other.values_[i]) ? zeros_[i] : other.values_[i];
+  }
+
+  used_slow_copy_ = true;
+  return true;
+}
+
+rtde_interface::DataPackage::~DataPackage()
+{
+  if (used_slow_copy_)
+  {
+    URCL_LOG_WARN("Copied an RTDE data package that was not fully typed by walking each field "
+                  "instead of copying the value array in one step. That is the path a package takes "
+                  "when it is constructed from a recipe and only some of its fields are written. A "
+                  "package that already carries the same field names and types as this one can be "
+                  "copied in one memcpy. For an example, see the example/rtde_writer.cpp.");
   }
 }
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 {
+  if (!isTyped())
+  {
+    URCL_LOG_ERROR("Cannot parse into an RTDE data package before the data types of its recipe are known. Those are "
+                   "reported by the robot during the RTDE handshake.");
+    return false;
+  }
+
+  // Same contract as serializePackage(): the bytes after the package header, so a version 2
+  // payload starts with the recipe-id byte.
   if (protocol_version_ == 2)
   {
     bp.parse(recipe_id_);
   }
+
   for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    std::visit([&bp](auto&& arg) { bp.parse(arg); }, data_[i].second);
+    std::visit(
+        [&bp](auto&& arg) {
+          if constexpr (!is_untyped_v<decltype(arg)>)
+          {
+            bp.parse(arg);
+          }
+        },
+        values_[i]);
   }
   return true;
 }
@@ -493,16 +455,27 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 std::string rtde_interface::DataPackage::toString() const
 {
   std::stringstream ss;
-  for (auto& item : data_)
+  for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    ss << item.first << ": ";
-    if (std::holds_alternative<uint8_t>(item.second))
+    ss << recipe_[i] << ": ";
+    if (std::holds_alternative<uint8_t>(values_[i]))
     {
-      ss << int(std::get<uint8_t>(item.second));
+      ss << int(std::get<uint8_t>(values_[i]));
     }
     else
     {
-      std::visit([&ss](auto&& arg) { ss << arg; }, item.second);
+      std::visit(
+          [&ss](auto&& arg) {
+            if constexpr (is_untyped_v<decltype(arg)>)
+            {
+              ss << "<type not known yet>";
+            }
+            else
+            {
+              ss << arg;
+            }
+          },
+          values_[i]);
     }
     ss << std::endl;
   }
@@ -511,23 +484,69 @@ std::string rtde_interface::DataPackage::toString() const
 
 size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
 {
-  uint16_t payload_size = sizeof(recipe_id_);
-
-  for (auto& item : data_)
+  if (!isTyped())
   {
-    payload_size += std::visit([](auto&& arg) -> uint16_t { return sizeof(arg); }, item.second);
+    URCL_LOG_ERROR("Cannot serialize an RTDE data package before the data types of its recipe are known. Those are "
+                   "reported by the robot during the RTDE handshake.");
+    return 0;
+  }
+
+  uint16_t payload_size = 0;
+  if (protocol_version_ == 2)
+  {
+    payload_size += sizeof(recipe_id_);
+  }
+
+  for (const auto& value : values_)
+  {
+    payload_size += std::visit(
+        [](auto&& arg) -> uint16_t {
+          if constexpr (is_untyped_v<decltype(arg)>)
+          {
+            return 0;
+          }
+          else
+          {
+            return sizeof(arg);
+          }
+        },
+        value);
   }
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
-  size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
-  for (size_t i = 0; i < data_.size(); ++i)
+  if (protocol_version_ == 2)
+  {
+    size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
+  }
+  for (size_t i = 0; i < values_.size(); ++i)
   {
     size += std::visit(
-        [&buffer, &size](auto&& arg) -> size_t { return comm::PackageSerializer::serialize(buffer + size, arg); },
-        data_[i].second);
+        [&buffer, &size](auto&& arg) -> size_t {
+          if constexpr (is_untyped_v<decltype(arg)>)
+          {
+            return 0;
+          }
+          else
+          {
+            return comm::PackageSerializer::serialize(buffer + size, arg);
+          }
+        },
+        values_[i]);
   }
 
   return size;
 }
+
+bool rtde_interface::DataPackage::resetData(const std::string_view name)
+{
+  const std::optional<size_t> index = fieldIndex(name);
+  if (!index.has_value())
+  {
+    return false;
+  }
+  values_[*index] = zeros_[*index];
+  return true;
+}
+
 }  // namespace rtde_interface
 }  // namespace urcl

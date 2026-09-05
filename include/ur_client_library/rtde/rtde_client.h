@@ -29,6 +29,7 @@
 #ifndef UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 
+#include <atomic>
 #include <memory>
 
 #include "ur_client_library/comm/producer.h"
@@ -209,9 +210,11 @@ public:
    *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
    * For optimal performance, the data package pointer should contain a pre-allocated data package
-   * that was initialized with the same output recipe as used in this RTDEClient. If it is not an
-   * initialized data package, a new one will be allocated internally which will have a negative
-   * performance impact and print a warning.
+   * that was built from the same output recipe as used in this RTDEClient. Such a package needs no
+   * data types of its own: the first read applies the ones the robot reported, which allocates
+   * nothing. If the package was built from a different recipe, or none is passed at all, a new one
+   * will be allocated internally which will have a negative performance impact and print a
+   * warning.
    *
    * \returns Whether a data package was received successfully
    */
@@ -282,13 +285,27 @@ public:
     return input_recipe_;
   }
 
+  /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * during the RTDE handshake.
+   *
+   * Fill it with DataPackage::setData() and hand it to RTDEWriter::sendPackage() to write several
+   * inputs in a single package. Has to be called after init().
+   *
+   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   */
+  DataPackage createInputDataPackage()
+  {
+    return writer_.createDataPackage();
+  }
+
   /// Reads output or input recipe from a file and parses it into a vector of strings where each
   /// string is a line from the file.
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 
   ClientState getClientState() const
   {
-    return client_state_;
+    return client_state_.load();
   }
 
   /*! \brief Starts a background thread to read data packages from the robot.
@@ -338,7 +355,8 @@ protected:
 
   DataPackage preallocated_data_pkg_;
 
-  ClientState client_state_;
+  // Written by reconnect() on its own thread and read by getClientState() / start / pause.
+  std::atomic<ClientState> client_state_;
 
   uint16_t protocol_version_;
 

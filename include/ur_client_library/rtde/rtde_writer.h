@@ -95,11 +95,30 @@ public:
    * Use this if multiple values need to be sent at once. When using the other provided functions,
    * an RTDE data package will be sent each time.
    *
-   * \param package The package to send
+   * Every field of \p package is copied into the send buffer. The package has to carry the same
+   * field names and types as the input recipe the robot acknowledged, so a field written with the
+   * wrong type is reported here rather than silently corrupting the package.
+   *
+   * \param package The package to send, constructed from the client's input recipe
    *
    * \returns Success of the package creation
    */
   bool sendPackage(const DataPackage& package);
+
+  /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * for it.
+   *
+   * The returned package has all values at zero and is ready to be filled with
+   * DataPackage::setData(). Since it already carries the robot's types, a value written with a wrong
+   * type is reported by setData() itself rather than only when the package is sent, and copying the
+   * package into the send buffer is a single memcpy.
+   *
+   * \returns A package built from the input recipe with the acknowledged data types applied
+   *
+   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   */
+  DataPackage createDataPackage();
 
   /*!
    * \brief Creates a package to request setting a new value for the speed slider.
@@ -192,6 +211,29 @@ public:
    */
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
 
+  /*!
+   * \brief Applies the data types the robot reported for the input recipe.
+   *
+   * This is what makes the send buffers usable, and it is also the reference against which values
+   * passed to sendPackage() are checked.
+   *
+   * \param types The data types of the input recipe's fields, in the same order as the recipe
+   *
+   * \throws UrException if the number of types doesn't match the recipe, if a type is unknown, or
+   * if the writer is already running
+   */
+  void setRecipeTypes(const std::vector<std::string>& types);
+
+  /*!
+   * \brief Records the RTDE protocol version negotiated with the robot.
+   *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. Defaults to
+   * version 2. The client sets this after protocol negotiation.
+   *
+   * \throws UrException if the writer is already running
+   */
+  void setProtocolVersion(uint16_t protocol_version);
+
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
   void markStorageToBeSent();
@@ -200,6 +242,7 @@ private:
   comm::URStream<RTDEPackage>* stream_;
   std::vector<std::string> recipe_;
   uint8_t recipe_id_;
+  uint16_t protocol_version_ = 2;
   std::shared_ptr<DataPackage> data_buffer0_;
   std::shared_ptr<DataPackage> data_buffer1_;
   std::shared_ptr<DataPackage> current_store_buffer_;

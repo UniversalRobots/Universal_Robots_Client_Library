@@ -27,6 +27,33 @@ namespace urcl
 {
 namespace rtde_interface
 {
+// Only reached when the caller didn't hand in a package we can use. Copying the template gives the
+// negotiated recipe and data types without having to reapply them.
+std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage() const
+{
+  return std::make_unique<DataPackage>(*typed_template_);
+}
+
+bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
+{
+  // A package an application built from the recipe alone defaults to protocol version 2. The
+  // negotiated version lives on the parser, so apply it before parseWith() decides whether the
+  // payload starts with a recipe-id byte.
+  package.setProtocolVersion(protocol_version_);
+  return package.parseWith(bp);
+}
+
+bool RTDEParser::recipeTypesKnown() const
+{
+  if (typed_template_.has_value())
+  {
+    return true;
+  }
+  URCL_LOG_ERROR("Received an RTDE data package while the data types of the output recipe are unknown. Those are "
+                 "reported by the robot when it acknowledges the recipe, so this means a data package arrived before "
+                 "the RTDE handshake was completed.");
+  return false;
+}
 
 bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
 {
@@ -54,9 +81,13 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
-      std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_, protocol_version_));
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
+      std::unique_ptr<DataPackage> package = makeTypedDataPackage();
 
-      if (!package->parseWith(bp))
+      if (!parseDataPackagePayload(bp, *package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;
@@ -104,6 +135,10 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
       if (result == nullptr || result->getType() != PackageType::RTDE_DATA_PACKAGE)
       {
         if (result == nullptr)
@@ -119,10 +154,29 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
                         "a DataPackage would be sent.",
                         result->getType());
         }
-        result = std::make_unique<DataPackage>(recipe_, protocol_version_);
+        result = makeTypedDataPackage();
       }
 
-      if (!dynamic_cast<DataPackage*>(result.get())->parseWith(bp))
+      DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
+      if (data_package->layoutHash() != typed_template_->layoutHash())
+      {
+        if (data_package->recipeHash() == typed_template_->recipeHash())
+        {
+          // Built from our recipe, so its storage is already the right shape and only the data
+          // types are missing or stale. Applying them writes into that storage without allocating,
+          // which is what lets an application hand in a package it built from the recipe alone.
+          data_package->setTypes(recipe_types_);
+        }
+        else
+        {
+          URCL_LOG_WARN("The passed pre-allocated DataPackage was built from a different recipe. A new DataPackage "
+                        "will have to be allocated.");
+          result = makeTypedDataPackage();
+          data_package = dynamic_cast<DataPackage*>(result.get());
+        }
+      }
+
+      if (!parseDataPackagePayload(bp, *data_package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;
