@@ -192,7 +192,7 @@ TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_unknown_arg)
   auto msg = makeMsg(100, 127);
   const std::string result = msg->toString();
   EXPECT_NE(result, fallback(100, 127));
-  EXPECT_NE(result.find("mode=127"), std::string::npos);
+  EXPECT_NE(result.find("Unknown robot mode: 127"), std::string::npos);
 }
 
 TEST(ErrorCodeMessageTest, toString_uses_static_map_exact_match)

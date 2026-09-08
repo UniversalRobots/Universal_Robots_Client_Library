@@ -48,6 +48,7 @@
 //----------------------------------------------------------------------
 
 #include "ur_client_library/ur/error_code_overrides.h"
+#include <limits>
 #include "ur_client_library/ur/datatypes.h"
 
 namespace urcl
@@ -65,11 +66,17 @@ std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg)
     {
       try
       {
+        // If arg is not in the range of an int8, throw an exception to trigger the fallback branch
+        // below.
+        if (arg < std::numeric_limits<int8_t>::min() || arg > std::numeric_limits<int8_t>::max())
+        {
+          throw std::invalid_argument("arg " + std::to_string(arg) + " out of range for RobotMode");
+        }
         return "Robot mode changed to: " + robotModeString(static_cast<RobotMode>(arg));
       }
-      catch (const std::invalid_argument&)
+      catch (const std::invalid_argument& ex)
       {
-        return "Robot mode changed to unknown mode: (mode=" + std::to_string(arg) + ")";
+        return ex.what();
       }
     }
 
