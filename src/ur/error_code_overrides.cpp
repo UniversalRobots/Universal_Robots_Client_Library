@@ -63,17 +63,13 @@ std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg)
     // text.
     case 100:
     {
-      if (arg < static_cast<int32_t>(RobotMode::UNKNOWN) || arg > static_cast<int32_t>(RobotMode::UPDATING_FIRMWARE))
-      {
-        return "Robot mode changed to: UNKNOWN (mode=" + std::to_string(arg) + ")";
-      }
       try
       {
         return "Robot mode changed to: " + robotModeString(static_cast<RobotMode>(arg));
       }
       catch (const std::invalid_argument&)
       {
-        return "Robot mode changed to: UNKNOWN (mode=" + std::to_string(arg) + ")";
+        return "Robot mode changed to unkown mode: (mode=" + std::to_string(arg) + ")";
       }
     }
 

@@ -185,6 +185,16 @@ TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100)
   EXPECT_NE(result, fallback(100, 7));
 }
 
+TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_unknown_arg)
+{
+  // The C++ override (step 1) takes priority over the static map.
+  // Code 100, arg 127 (unknown) must come from the override, not the fallback.
+  auto msg = makeMsg(100, 127);
+  const std::string result = msg->toString();
+  EXPECT_NE(result, fallback(100, 127));
+  EXPECT_NE(result.find("mode=127"), std::string::npos);
+}
+
 TEST(ErrorCodeMessageTest, toString_uses_static_map_exact_match)
 {
   // Code 4, arg 1 is in the generated map; override returns nullopt.
