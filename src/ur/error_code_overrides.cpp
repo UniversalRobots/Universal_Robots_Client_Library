@@ -69,7 +69,7 @@ std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg)
       }
       catch (const std::invalid_argument&)
       {
-        return "Robot mode changed to unkown mode: (mode=" + std::to_string(arg) + ")";
+        return "Robot mode changed to unknown mode: (mode=" + std::to_string(arg) + ")";
       }
     }
 
