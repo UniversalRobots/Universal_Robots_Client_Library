@@ -195,6 +195,16 @@ TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_unknown_arg)
   EXPECT_NE(result.find("Unknown robot mode: 127"), std::string::npos);
 }
 
+TEST(ErrorCodeMessageTest, to_sting_uses_cpp_override_for_code_100_out_of_range_arg)
+{
+  // The C++ override (step 1) takes priority over the static map.
+  // Code 100, arg 99999 (out of range) must come from the override, not the fallback.
+  auto msg = makeMsg(100, 99999);
+  const std::string result = msg->toString();
+  EXPECT_NE(result, fallback(100, 99999));
+  EXPECT_NE(result.find("arg 99999 out of range for RobotMode"), std::string::npos);
+}
+
 TEST(ErrorCodeMessageTest, toString_uses_static_map_exact_match)
 {
   // Code 4, arg 1 is in the generated map; override returns nullopt.
