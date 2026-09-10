@@ -50,8 +50,8 @@ public:
   /*!
    * \brief Creates a new RTDEParser object, registering the used recipe.
    *
-   * The data types belonging to the recipe are only known once the robot has acknowledged it, so
-   * setRecipeTypes() has to be called before data packages can be parsed.
+   * The expected data-package layout is registered after the robot has acknowledged the recipe,
+   * so setExpectedLayoutHash() has to be called before data packages can be parsed.
    *
    * \param recipe The recipe used in RTDE data communication
    */
@@ -67,10 +67,8 @@ public:
    * \param bp A BinParser holding a serialized RTDE package
    * \param result A pointer to the created RTDE package object. Ideally, the passed \p result is a pre-allocated
    * package of the type expected to be read. For example, when RTDE communication has been setup it enters the data
-   * communication phase, where the expected package is a DataPackage. If the package content inside the \p bp object
-   * being doesn't match the result package's type or if the \p result is a nullptr, a new package will be allocated.
-   * A DataPackage built from the registered recipe is not replaced even when it carries no data types yet: those are
-   * applied to it in place, which allocates nothing. Only a DataPackage built from a different recipe is replaced.
+   * communication phase, where the expected package is a DataPackage. A DataPackage passed for RTDE data must have
+   * the registered layout hash. Passing a package with a different layout throws UrException.
    *
    * \returns True, if the byte stream could successfully be parsed as an RTDE package, false
    * otherwise
@@ -93,10 +91,6 @@ public:
   void setProtocolVersion(uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
-    if (typed_template_.has_value())
-    {
-      typed_template_->setProtocolVersion(protocol_version);
-    }
   }
 
   uint16_t getProtocolVersion() const
@@ -105,31 +99,26 @@ public:
   }
 
   /*!
-   * \brief Registers the data types belonging to the recipe, as reported by the robot in the RTDE
-   * setup acknowledgement.
+   * \brief Registers the expected data-package layout reported by the robot in the RTDE setup
+   * acknowledgement.
    *
    * This has to be called before the robot starts sending data packages, i.e. before the
    * RTDE_CONTROL_PACKAGE_START request is sent.
    *
-   * \param types The data types, in the same order as the recipe
+   * \param layout_hash The layout hash of the acknowledged output recipe
    */
-  void setRecipeTypes(const std::vector<std::string>& types)
+  void setExpectedLayoutHash(uint64_t layout_hash)
   {
-    recipe_types_ = types;
-    // A package carrying the negotiated layout. Its hashes are the reference a passed-in package is
-    // held against, and it is the blueprint for any package this parser has to allocate itself.
-    typed_template_.emplace(recipe_);
-    typed_template_->setTypes(recipe_types_);
-    typed_template_->setProtocolVersion(protocol_version_);
+    layout_hash_ = layout_hash;
+    expected_layout_known_ = true;
   }
 
 private:
-  std::unique_ptr<DataPackage> makeTypedDataPackage() const;
   bool parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const;
 
   std::vector<std::string> recipe_;
-  std::vector<std::string> recipe_types_;
-  std::optional<DataPackage> typed_template_;
+  uint64_t layout_hash_ = 0;
+  bool expected_layout_known_ = false;
   bool recipeTypesKnown() const;
   PackageType getPackageTypeFromHeader(comm::BinParser& bp) const;
   RTDEPackage* createNewPackageFromType(PackageType type) const;

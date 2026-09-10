@@ -631,6 +631,16 @@ TEST(rtde_data_package, layout_hash_changes_when_types_are_set)
   EXPECT_NE(package.layoutHash(), untyped);
 }
 
+TEST(rtde_data_package, layout_hash_changes_when_protocol_version_changes)
+{
+  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  const uint64_t version_two = package.layoutHash();
+
+  package.setProtocolVersion(1);
+
+  EXPECT_NE(package.layoutHash(), version_two);
+}
+
 TEST(rtde_data_package, layout_hash_changes_on_first_set_data_to_an_untyped_field)
 {
   rtde_interface::DataPackage package({ "timestamp", "actual_q" });
@@ -705,9 +715,7 @@ TEST(rtde_data_package, copy_from_rejects_a_source_whose_types_changed)
   EXPECT_DOUBLE_EQ(fraction, 0.5);
 }
 
-// An application may write only the fields it cares about, which leaves the rest of its package
-// untyped. Those fields are taken over as zeros rather than making the copy fail.
-TEST(rtde_data_package, copy_from_zeros_the_fields_the_source_did_not_write)
+TEST(rtde_data_package, copy_from_rejects_a_source_with_an_incomplete_layout)
 {
   auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
   ASSERT_TRUE(destination.setData("speed_slider_mask", static_cast<uint32_t>(7)));
@@ -715,14 +723,14 @@ TEST(rtde_data_package, copy_from_zeros_the_fields_the_source_did_not_write)
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
 
-  ASSERT_TRUE(destination.copyFrom(source));
+  EXPECT_FALSE(destination.copyFrom(source));
 
   double fraction = 0.0;
   uint32_t mask = 0;
   ASSERT_TRUE(destination.getData("speed_slider_fraction", fraction));
   ASSERT_TRUE(destination.getData("speed_slider_mask", mask));
-  EXPECT_DOUBLE_EQ(fraction, 0.5);
-  EXPECT_EQ(mask, 0u);
+  EXPECT_DOUBLE_EQ(fraction, 0.0);
+  EXPECT_EQ(mask, 7u);
 }
 
 TEST(rtde_data_package, copy_from_rejects_when_the_destination_is_retyped)
@@ -930,17 +938,6 @@ public:
   std::vector<std::string> warnings_;
 };
 
-bool warningMentionsSlowCopy(const std::vector<std::string>& warnings)
-{
-  for (const auto& warning : warnings)
-  {
-    if (warning.find("walking each field") != std::string::npos)
-    {
-      return true;
-    }
-  }
-  return false;
-}
 }  // namespace
 
 TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
@@ -957,12 +954,12 @@ TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
     ASSERT_TRUE(destination.copyFrom(source));
   }
 
-  EXPECT_FALSE(warningMentionsSlowCopy(captured->warnings_));
+  EXPECT_TRUE(captured->warnings_.empty());
   unregisterLogHandler();
   setLogLevel(LogLevel::ERROR);
 }
 
-TEST(rtde_data_package, copy_from_a_partial_package_warns_when_destroyed)
+TEST(rtde_data_package, copy_from_a_partial_package_is_rejected_without_warning)
 {
   auto handler = std::make_unique<CapturingLogHandler>();
   auto* captured = handler.get();
@@ -973,10 +970,10 @@ TEST(rtde_data_package, copy_from_a_partial_package_warns_when_destroyed)
     auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
     rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
     ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
-    ASSERT_TRUE(destination.copyFrom(source));
+    EXPECT_FALSE(destination.copyFrom(source));
   }
 
-  EXPECT_TRUE(warningMentionsSlowCopy(captured->warnings_));
+  EXPECT_TRUE(captured->warnings_.empty());
   unregisterLogHandler();
   setLogLevel(LogLevel::ERROR);
 }

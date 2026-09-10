@@ -212,9 +212,12 @@ public:
    * For optimal performance, the data package pointer should contain a pre-allocated data package
    * that was built from the same output recipe as used in this RTDEClient. Such a package needs no
    * data types of its own: the first read applies the ones the robot reported, which allocates
-   * nothing. If the package was built from a different recipe, or none is passed at all, a new one
-   * will be allocated internally which will have a negative performance impact and print a
-   * warning.
+   * nothing. The package must be built from the same output recipe as this RTDEClient; use
+   * setInputRecipe() or setOutputRecipe() to set the recipe.
+   * Use RTDEClient::createInputDataPackage() to create a pre-allocated data package for the
+   * input recipe with the correct types after the connection is established.
+   * Passing a package built from a different recipe throws
+   * UrException. If none is passed, a package is allocated internally.
    *
    * \returns Whether a data package was received successfully
    */

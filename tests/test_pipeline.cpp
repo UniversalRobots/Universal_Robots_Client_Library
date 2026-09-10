@@ -56,7 +56,7 @@ protected:
     stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60002));
     std::vector<std::string> recipe = { "timestamp" };
     parser_.reset(new rtde_interface::RTDEParser(recipe));
-    parser_->setRecipeTypes({ "DOUBLE" });
+    parser_->setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
     parser_->setProtocolVersion(2);
     producer_.reset(new comm::URProducer<rtde_interface::RTDEPackage>(*stream_.get(), *parser_.get()));
 

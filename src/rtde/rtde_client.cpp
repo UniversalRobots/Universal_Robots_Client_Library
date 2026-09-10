@@ -233,6 +233,7 @@ uint16_t RTDEClient::negotiateProtocolVersion()
         {
           URCL_LOG_INFO("Negotiated RTDE protocol version to %hu.", protocol_version);
           parser_.setProtocolVersion(protocol_version);
+          preallocated_data_pkg_.setProtocolVersion(protocol_version);
           writer_.setProtocolVersion(protocol_version);
           return protocol_version;
         }
@@ -344,6 +345,7 @@ void RTDEClient::resetOutputRecipe(const std::vector<std::string> new_recipe)
   // The data types of the new recipe are unknown until the robot acknowledges it again, at which
   // point setupOutputs() applies them to this package without allocating.
   preallocated_data_pkg_ = DataPackage(output_recipe_);
+  preallocated_data_pkg_.setProtocolVersion(protocol_version_);
 
   parser_ = RTDEParser(output_recipe_);
   parser_.setProtocolVersion(protocol_version_);
@@ -450,8 +452,8 @@ bool RTDEClient::setupOutputs()
         // so this is the point where everything holding received data learns what it holds. The
         // storage itself already exists, so this doesn't allocate and neither does the receive path
         // from here on.
-        parser_.setRecipeTypes(variable_types);
         preallocated_data_pkg_.setTypes(variable_types);
+        parser_.setExpectedLayoutHash(preallocated_data_pkg_.layoutHash());
         return true;
       }
     }

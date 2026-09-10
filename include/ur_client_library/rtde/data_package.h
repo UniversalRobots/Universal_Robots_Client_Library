@@ -369,6 +369,10 @@ public:
   void setProtocolVersion(const uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
+    if (isTyped())
+    {
+      updateLayoutHash();
+    }
   }
 
   /*!
@@ -386,25 +390,23 @@ public:
   void setTypes(const std::vector<std::string>& types);
 
   /*!
-   * \brief Takes over the values of \p other, sending fields it has not written as zeros.
+   * \brief Takes over the values of \p other when both packages have the same layout.
    *
    * This package must already be typed. \p other has to be built from the same recipe, and every
-   * field it has a value for has to carry the type this package has for it. Recipe id and protocol
-   * version are left untouched.
+   * field has to carry the type this package has for it. Recipe id and protocol version are left
+   * untouched.
    *
    * When \p other has the same field names and the same type on every one of them, which is what a
    * package has after the robot's acknowledgement, the copy is a layout-hash compare and a memcpy
    * of the value array. The hashes are a 64-bit identity of the field names and each field's
    * variant index; a collision would skip a validation that should have failed, which is accepted
-   * for this path. A package an application typed by writing only the fields it cares about is
-   * instead merged position by position, with unwritten fields sent as zeros. That slower path is
-   * noted when this package is destroyed, so the real-time copy itself does not log.
+   * for this path. A different layout hash means that the package was not initialized consistently
+   * and the copy is rejected.
    *
    * \param other The package to copy from
    *
-   * \returns True on success, false if this package is untyped, if \p other was built from a
-   * different recipe, or if a field \p other has written has a different type. Copying a package
-   * onto itself succeeds without writing.
+   * \returns True on success, false if this package is untyped or if the package layouts differ.
+   * Copying a package onto itself succeeds without writing.
    */
   bool copyFrom(const DataPackage& other);
 
@@ -443,10 +445,10 @@ public:
   }
 
   /*!
-   * \brief FNV-1a identity of this package's field names and each field's current variant index.
+   * \brief FNV-1a identity of this package's protocol version, field names and current variant indices.
    *
-   * Not sent on the wire. Combined from the recipe hash and the type of every field, so it changes
-   * when a field first acquires a type and when setTypes() is applied, and does not change when a
+   * Not sent on the wire. Combined from the recipe hash, protocol version and type of every field,
+   * so it changes when the protocol version or a field's type changes, and does not change when a
    * value is overwritten, reset or parsed.
    */
   uint64_t layoutHash() const
@@ -491,7 +493,6 @@ private:
   uint64_t recipe_hash_ = 0;
   uint64_t layout_hash_ = 0;
   bool fully_typed_ = false;
-  bool used_slow_copy_ = false;
 };
 
 }  // namespace rtde_interface
