@@ -212,7 +212,7 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   const std::vector<std::string> types = { "DOUBLE", "DOUBLE" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes(types);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, types).layoutHash());
   parser.setProtocolVersion(2);
   // Same as after the handshake: the package already has the negotiated layout, so parse must not
   // allocate a replacement.
@@ -224,7 +224,14 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   {
     AllocationCounter counter;
     comm::BinParser bp(raw_data, sizeof(raw_data));
-    parsed = parser.parse(bp, product);
+    try
+    {
+      parsed = parser.parse(bp, product);
+    }
+    catch (const urcl::UrException&)
+    {
+      parsed = false;
+    }
     allocations = counter.count();
   }
 
@@ -237,16 +244,14 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
-// The very first parse into a package an application built from the recipe alone. Its types are
-// still missing, and applying them has to happen in place, or a real-time loop would take an
-// allocation on its first read.
-TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_does_not_allocate)
+// Parsing requires the client-owned package to already carry the negotiated layout.
+TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_is_rejected)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
   const rtde_interface::RTDEPackage* package_address = product.get();
@@ -261,19 +266,14 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_does_not_allocat
   }
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_TRUE(parsed);
+  EXPECT_FALSE(parsed);
   EXPECT_EQ(product.get(), package_address);
-  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
-  ASSERT_NE(data, nullptr);
-  double timestamp = 0.0;
-  ASSERT_TRUE(data->getData("timestamp", timestamp));
-  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
 // The existing pattern of constructing an input package from the recipe and setting only the
 // fields that change. The copy itself must not log; the warning is deferred until the destination
 // is destroyed.
-TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
+TEST(DataPackageAllocationTest, rejecting_a_partial_package_does_not_allocate)
 {
   auto destination = test::typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
@@ -290,7 +290,7 @@ TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
   setLogLevel(LogLevel::ERROR);
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_TRUE(copied);
+  EXPECT_FALSE(copied);
 }
 
 TEST(DataPackageAllocationTest, serializing_a_typed_package_does_not_allocate)
@@ -349,6 +349,8 @@ TEST_F(RTDEAllocationTest, blocking_receive_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(false));
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  data_pkg->setTypes(
+      { "DOUBLE", "VECTOR6D", "VECTOR6D", "UINT32", "UINT32", "UINT64", "INT32", "VECTOR3D", "UINT32", "INT32" });
 
   // The first cycles let every buffer along the way reach its final capacity
   for (int i = 0; i < g_WARMUP_CYCLES; ++i)
@@ -457,10 +459,7 @@ TEST_F(RTDEAllocationTest, copying_input_data_into_the_store_buffer_does_not_all
   client_->pause();
 }
 
-// The documented application pattern: construct from the recipe and write only some fields. The
-// slow copy itself must not allocate; the destructor warning is deferred and is not suppressed
-// here, so a log on the send path would fail the count.
-TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
+TEST_F(RTDEAllocationTest, rejecting_a_partial_package_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage input_pkg(client_->getInputRecipe());
@@ -483,7 +482,7 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   }
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_TRUE(all_sent);
+  EXPECT_FALSE(all_sent);
 
   client_->pause();
 }

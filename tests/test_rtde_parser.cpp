@@ -204,7 +204,7 @@ TEST(rtde_parser, data_package)
   std::unique_ptr<rtde_interface::RTDEPackage> product;
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
   parser.parse(bp, product);
 
@@ -238,9 +238,8 @@ TEST(rtde_parser, data_package_without_recipe_types_fails)
   EXPECT_FALSE(parser.parse(bp, product));
 }
 
-// A package built from the recipe alone carries the right storage and only lacks its types, so the
-// parser applies them to it rather than allocating a replacement.
-TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
+// DataPackage types are owned by the client and must be applied before parsing.
+TEST(rtde_parser, untyped_pre_allocated_data_package_is_rejected)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -248,26 +247,18 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_is_typed_in_place)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
   const rtde_interface::RTDEPackage* package_address = product.get();
 
-  ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_THROW(parser.parse(bp, product), urcl::UrException);
   EXPECT_EQ(product.get(), package_address);
-
-  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
-  ASSERT_NE(data, nullptr);
-  EXPECT_EQ(data->getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
-  double timestamp = 0.0;
-  ASSERT_TRUE(data->getData("timestamp", timestamp));
-  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
-// setData() on every field makes isTyped() true, but those types did not come from the robot. The
-// recipe still matches, so the robot's types overwrite them in place.
-TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_retyped_in_place)
+// A package with a different typed layout is rejected before payload parsing.
+TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_rejected)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -275,7 +266,7 @@ TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_retyped_in_place)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
   auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
@@ -285,18 +276,11 @@ TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_retyped_in_place)
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(package);
   const rtde_interface::RTDEPackage* package_address = product.get();
 
-  ASSERT_TRUE(parser.parse(bp, product));
+  EXPECT_THROW(parser.parse(bp, product), urcl::UrException);
   EXPECT_EQ(product.get(), package_address);
-
-  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
-  ASSERT_NE(data, nullptr);
-  EXPECT_EQ(data->getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
-  double timestamp = 0.0;
-  ASSERT_TRUE(data->getData("timestamp", timestamp));
-  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
 }
 
-TEST(rtde_parser, pre_allocated_package_with_a_different_recipe_is_replaced)
+TEST(rtde_parser, pre_allocated_package_with_a_different_recipe_throws)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -304,21 +288,15 @@ TEST(rtde_parser, pre_allocated_package_with_a_different_recipe_is_replaced)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
   std::unique_ptr<rtde_interface::RTDEPackage> product =
       std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "foo", "bar" });
   const rtde_interface::RTDEPackage* package_address = product.get();
 
-  ASSERT_TRUE(parser.parse(bp, product));
-  EXPECT_NE(product.get(), package_address);
-
-  rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
-  ASSERT_NE(data, nullptr);
-  double timestamp = 0.0;
-  ASSERT_TRUE(data->getData("timestamp", timestamp));
-  EXPECT_DOUBLE_EQ(timestamp, 16412.206);
+  EXPECT_THROW(parser.parse(bp, product), urcl::UrException);
+  EXPECT_EQ(product.get(), package_address);
 }
 
 TEST(rtde_parser, untyped_pre_allocated_data_package_takes_protocol_version_1)
@@ -330,10 +308,14 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_takes_protocol_version_1)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  auto expected_package = test::typedPackage(recipe, { "DOUBLE", "DOUBLE" });
+  expected_package.setProtocolVersion(1);
+  parser.setExpectedLayoutHash(expected_package.layoutHash());
   parser.setProtocolVersion(1);
 
-  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+  auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
+  package->setTypes({ "DOUBLE", "DOUBLE" });
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(package);
 
   ASSERT_TRUE(parser.parse(bp, product));
 
@@ -398,7 +380,7 @@ TEST(rtde_parser, two_data_packages_in_one_buffer_leave_leftover_bytes)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
   std::unique_ptr<rtde_interface::RTDEPackage> product;
@@ -412,7 +394,7 @@ TEST(rtde_parser, test_deprecated_parse_method)
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
@@ -472,10 +454,12 @@ TEST(rtde_parser, already_typed_package_is_parsed_in_place_without_being_replace
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setRecipeTypes({ "DOUBLE", "DOUBLE" });
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
 
-  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
+  auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
+  package->setTypes({ "DOUBLE", "DOUBLE" });
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(package);
   {
     comm::BinParser bp(raw_data, sizeof(raw_data));
     ASSERT_TRUE(parser.parse(bp, product));

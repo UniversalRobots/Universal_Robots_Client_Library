@@ -105,9 +105,12 @@ uint64_t hashRecipe(const std::vector<std::string>& recipe)
   return hash;
 }
 
-uint64_t hashLayout(const uint64_t recipe_hash, const std::vector<DataPackage::_rtde_type_variant>& values)
+uint64_t hashLayout(const uint64_t recipe_hash, const uint16_t protocol_version,
+                    const std::vector<DataPackage::_rtde_type_variant>& values)
 {
   uint64_t hash = recipe_hash;
+  hash = fnv1aByte(hash, static_cast<uint8_t>(protocol_version));
+  hash = fnv1aByte(hash, static_cast<uint8_t>(protocol_version >> 8));
   for (const auto& value : values)
   {
     hash = fnv1aByte(hash, static_cast<uint8_t>(value.index()));
@@ -310,7 +313,7 @@ void rtde_interface::DataPackage::initStorage()
 
 void rtde_interface::DataPackage::updateLayoutHash()
 {
-  layout_hash_ = hashLayout(recipe_hash_, values_);
+  layout_hash_ = hashLayout(recipe_hash_, protocol_version_, values_);
   fully_typed_ = std::none_of(values_.begin(), values_.end(), [](const _rtde_type_variant& field) {
     return std::holds_alternative<std::monostate>(field);
   });
@@ -352,6 +355,7 @@ rtde_interface::DataPackage rtde_interface::DataPackage::emptyCopy() const
   // The delegated constructor allocates the storage, builds the name-to-index map and computes the
   // recipe hash; the field types and their zero values are what this package contributes.
   DataPackage package(recipe_, protocol_version_);
+  package.setProtocolVersion(protocol_version_);
   package.values_ = zeros_;
   package.zeros_ = zeros_;
   package.updateLayoutHash();
@@ -382,45 +386,11 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
     return true;
   }
 
-  if (recipe_hash_ != other.recipe_hash_ || values_.size() != other.values_.size())
-  {
-    URCL_LOG_ERROR("Cannot copy from an RTDE data package built from a different recipe.");
-    return false;
-  }
-
-  // Same recipe, so field i here is field i there. Validate before writing anything, so a package
-  // that is rejected leaves the values already in here alone.
-  for (size_t i = 0; i < values_.size(); ++i)
-  {
-    if (!std::holds_alternative<std::monostate>(other.values_[i]) && other.values_[i].index() != values_[i].index())
-    {
-      URCL_LOG_ERROR("The value passed for the data field '%s' is of type %s, but the robot reports that field as "
-                     "%s.",
-                     recipe_[i].c_str(), typeNameOf(other.values_[i]).c_str(), typeNameOf(values_[i]).c_str());
-      return false;
-    }
-  }
-
-  for (size_t i = 0; i < values_.size(); ++i)
-  {
-    values_[i] = std::holds_alternative<std::monostate>(other.values_[i]) ? zeros_[i] : other.values_[i];
-  }
-
-  used_slow_copy_ = true;
-  return true;
+  // if the layout hash is different, then the data package is not initialized properly
+  return false;
 }
 
-rtde_interface::DataPackage::~DataPackage()
-{
-  if (used_slow_copy_)
-  {
-    URCL_LOG_WARN("Copied an RTDE data package that was not fully typed by walking each field "
-                  "instead of copying the value array in one step. That is the path a package takes "
-                  "when it is constructed from a recipe and only some of its fields are written. A "
-                  "package that already carries the same field names and types as this one can be "
-                  "copied in one memcpy. For an example, see the example/rtde_writer.cpp.");
-  }
-}
+rtde_interface::DataPackage::~DataPackage() = default;
 
 bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
 {

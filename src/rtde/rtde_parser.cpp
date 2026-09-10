@@ -27,13 +27,6 @@ namespace urcl
 {
 namespace rtde_interface
 {
-// Only reached when the caller didn't hand in a package we can use. Copying the template gives the
-// negotiated recipe and data types without having to reapply them.
-std::unique_ptr<DataPackage> RTDEParser::makeTypedDataPackage() const
-{
-  return std::make_unique<DataPackage>(*typed_template_);
-}
-
 bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
 {
   // A package an application built from the recipe alone defaults to protocol version 2. The
@@ -45,7 +38,7 @@ bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& packa
 
 bool RTDEParser::recipeTypesKnown() const
 {
-  if (typed_template_.has_value())
+  if (expected_layout_known_)
   {
     return true;
   }
@@ -85,14 +78,23 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       {
         return false;
       }
-      std::unique_ptr<DataPackage> package = makeTypedDataPackage();
-
+      if (results.empty() || results.back() == nullptr)
+      {
+        URCL_LOG_ERROR("Cannot parse an RTDE data package without a pre-allocated DataPackage with the expected "
+                       "layout.");
+        return false;
+      }
+      DataPackage* package = dynamic_cast<DataPackage*>(results.back().get());
+      if (package == nullptr || package->layoutHash() != layout_hash_)
+      {
+        throw UrException("The passed DataPackage does not match the RTDE client's registered type layout. Set the "
+                          "expected layout hash and pass a matching pre-allocated DataPackage.");
+      }
       if (!parseDataPackagePayload(bp, *package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;
       }
-      results.push_back(std::move(package));
       break;
     }
     default:
@@ -154,26 +156,14 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
                         "a DataPackage would be sent.",
                         result->getType());
         }
-        result = makeTypedDataPackage();
+        throw UrException("An RTDE data package requires a pre-allocated DataPackage with the expected layout.");
       }
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
-      if (data_package->layoutHash() != typed_template_->layoutHash())
+      if (data_package == nullptr || data_package->layoutHash() != layout_hash_)
       {
-        if (data_package->recipeHash() == typed_template_->recipeHash())
-        {
-          // Built from our recipe, so its storage is already the right shape and only the data
-          // types are missing or stale. Applying them writes into that storage without allocating,
-          // which is what lets an application hand in a package it built from the recipe alone.
-          data_package->setTypes(recipe_types_);
-        }
-        else
-        {
-          URCL_LOG_WARN("The passed pre-allocated DataPackage was built from a different recipe. A new DataPackage "
-                        "will have to be allocated.");
-          result = makeTypedDataPackage();
-          data_package = dynamic_cast<DataPackage*>(result.get());
-        }
+        throw UrException("The passed DataPackage does not match the RTDE client's registered output recipe and "
+                          "type layout. Set the recipe and types using RTDEClient.");
       }
 
       if (!parseDataPackagePayload(bp, *data_package))
