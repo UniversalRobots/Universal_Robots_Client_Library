@@ -44,11 +44,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
-          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           gh release create "$VERSION" \
             --draft \
             --generate-notes \
-            --notes "$PR_BODY" \
+            --notes-file .github/release_notes_header.txt \
             --title "$VERSION" \
             --target "${{ github.sha }}"
