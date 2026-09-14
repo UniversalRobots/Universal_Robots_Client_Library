@@ -31,8 +31,8 @@
 PERSISTENT_BASE="${HOME}/.ursim"
 URCAP_VERSION="latest"
 IP_ADDRESS="192.168.56.101"
-PORT_FORWARDING_WITH_DASHBOARD="-p 30001-30004:30001-30004 -p 29999:29999"
-PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004"
+PORT_FORWARDING_WITH_DASHBOARD="-p 30001-30004:30001-30004 -p 29999:29999 -p 5900:5900 -p 6080:6080"
+PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004 -p 8000:80"
 CONTAINER_NAME="ursim"
 TEST_RUN=false
 
@@ -58,7 +58,10 @@ help()
   echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
   echo "    -i             IP address the container should get. Defaults to $IP_ADDRESS"
   echo "    -d             Detached mode - start in background"
-  echo "    -f             Specify port forwarding to use. Defaults to '$PORT_FORWARDING'. Set to \"DISABLED\" to disable port forwarding."
+  echo "    -f             Specify port forwarding to use. Defaults to 
+                     - '$PORT_FORWARDING_WITH_DASHBOARD' (CB3 and PolyScope 5)
+                     - '$PORT_FORWARDING_WITHOUT_DASHBOARD' (PolyScope X).
+                   Set to \"DISABLED\" to disable port forwarding."
   echo "    -h             Print this Help."
   echo
 }
@@ -233,11 +236,62 @@ validate_parameters()
   exit 1
 }
 
+# Extract the host port that forwards to a given container port from PORT_FORWARDING.
+# Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER, and range mappings.
+# Echoes the host port and returns 0 on success, 1 if not found.
+get_forwarded_host_port()
+{
+  local container_port=$1
+  local remaining="$PORT_FORWARDING"
+  local mapping host_spec container_spec
+
+  while [[ "$remaining" =~ -p[[:space:]]+([^[:space:]]+)(.*) ]]; do
+    mapping="${BASH_REMATCH[1]}"
+    remaining="${BASH_REMATCH[2]}"
+
+    # Strip optional bind address (e.g. 127.0.0.1:8080:80 -> 8080:80)
+    if [[ "$mapping" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:(.+)$ ]]; then
+      mapping="${BASH_REMATCH[1]}"
+    fi
+
+    if [[ "$mapping" =~ ^([0-9]+(-[0-9]+)?):([0-9]+(-[0-9]+)?)$ ]]; then
+      host_spec="${BASH_REMATCH[1]}"
+      container_spec="${BASH_REMATCH[3]}"
+
+      if [[ "$container_spec" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+        local c_start="${BASH_REMATCH[1]}"
+        local c_end="${BASH_REMATCH[2]}"
+        if [[ "$host_spec" =~ ^([0-9]+)-([0-9]+)$ ]] &&
+           (( container_port >= c_start && container_port <= c_end )); then
+          echo $(( BASH_REMATCH[1] + container_port - c_start ))
+          return 0
+        fi
+      elif [[ "$container_spec" == "$container_port" ]]; then
+        echo "$host_spec"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
 post_setup_cb3()
 {
   echo "Docker URSim is running"
   echo -e "\nTo access PolyScope, open the following URL in a web browser."
   printf "\n\n\thttp://%s:6080/vnc.html\n\n" "$IP_ADDRESS"
+  printf "\tor connect with a VNC client to %s:5900\n\n" "$IP_ADDRESS"
+
+  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the VNC access ports to your local machine and connect to localhost instead. The default port forwarding contains those entries already. Unless disabled, the following lines will print the access URLs for the forwarded ports."
+
+  local host_port
+  if host_port=$(get_forwarded_host_port 6080); then
+    printf "\n\tAccess VNC web: http://localhost:%s/vnc.html" "$host_port"
+  fi
+  if host_port=$(get_forwarded_host_port 5900); then
+    printf "\n\tAccess via VNC client: localhost:%s" "$host_port"
+  fi
+  printf "\n\n"
 }
 post_setup_e-series()
 {
@@ -353,6 +407,15 @@ post_setup_polyscopex()
 
   echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
   printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
+
+  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the web access port to your local machine and connect to localhost instead. The default port forwarding contains that entry already. Unless disabled, the following line will print the access URL for the forwarded port."
+
+  local host_port
+  if host_port=$(get_forwarded_host_port 80); then
+    printf "\n\tAccess PolyScope X: http://localhost:%s\n\n" "$host_port"
+  else
+    printf "\n"
+  fi
 }
 
 parse_arguments(){

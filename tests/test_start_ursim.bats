@@ -556,6 +556,180 @@ setup() {
   grep -v -E "\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?" <<< "$docker_line"
 }
 
+@test "get_forwarded_host_port default cb3 mappings" {
+  PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
+  run get_forwarded_host_port 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "6080" ]
+
+  run get_forwarded_host_port 5900
+  [ "$status" -eq 0 ]
+  [ "$output" = "5900" ]
+}
+
+@test "get_forwarded_host_port default polyscopex mapping" {
+  PORT_FORWARDING="$PORT_FORWARDING_WITHOUT_DASHBOARD"
+  run get_forwarded_host_port 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "8000" ]
+}
+
+@test "get_forwarded_host_port custom host ports" {
+  PORT_FORWARDING="-p 16080:6080 -p 15900:5900 -p 8080:80"
+  run get_forwarded_host_port 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "16080" ]
+
+  run get_forwarded_host_port 5900
+  [ "$status" -eq 0 ]
+  [ "$output" = "15900" ]
+
+  run get_forwarded_host_port 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "8080" ]
+}
+
+@test "get_forwarded_host_port with bind address" {
+  PORT_FORWARDING="-p 127.0.0.1:8080:80 -p 0.0.0.0:16080:6080"
+  run get_forwarded_host_port 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "8080" ]
+
+  run get_forwarded_host_port 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "16080" ]
+}
+
+@test "get_forwarded_host_port range mapping" {
+  PORT_FORWARDING="-p 30001-30004:30001-30004"
+  run get_forwarded_host_port 30002
+  [ "$status" -eq 0 ]
+  [ "$output" = "30002" ]
+
+  PORT_FORWARDING="-p 40001-40004:30001-30004"
+  run get_forwarded_host_port 30003
+  [ "$status" -eq 0 ]
+  [ "$output" = "40003" ]
+}
+
+@test "get_forwarded_host_port missing mapping fails" {
+  PORT_FORWARDING="-p 30001-30004:30001-30004 -p 29999:29999"
+  run get_forwarded_host_port 6080
+  [ "$status" -eq 1 ]
+
+  PORT_FORWARDING=""
+  run get_forwarded_host_port 80
+  [ "$status" -eq 1 ]
+}
+
+@test "post_setup_cb3 prints default forwarded ports" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"http://192.168.56.101:6080/vnc.html"* ]]
+  [[ "$output" == *"Access VNC web: http://localhost:6080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: localhost:5900"* ]]
+}
+
+@test "post_setup_cb3 prints custom forwarded ports" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 16080:6080 -p 15900:5900"
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access VNC web: http://localhost:16080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: localhost:15900"* ]]
+}
+
+@test "post_setup_cb3 omits localhost urls when forwarding disabled" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING=""
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"http://192.168.56.101:6080/vnc.html"* ]]
+  [[ "$output" != *"Access VNC web:"* ]]
+  [[ "$output" != *"Access via VNC client:"* ]]
+}
+
+@test "post_setup_e-series prints custom forwarded ports" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 16080:6080 -p 15900:5900"
+  run post_setup_e-series
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access VNC web: http://localhost:16080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: localhost:15900"* ]]
+}
+
+@test "post_setup_polyscopex prints custom forwarded port" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 8080:80"
+  # Stub network-dependent helpers so we only exercise the access-URL printing.
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"http://192.168.56.101"* ]]
+  [[ "$output" == *"Access PolyScope X: http://localhost:8080"* ]]
+}
+
+@test "post_setup_polyscopex prints default forwarded port" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="$PORT_FORWARDING_WITHOUT_DASHBOARD"
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access PolyScope X: http://localhost:8000"* ]]
+}
+
+@test "post_setup_polyscopex omits localhost url when forwarding disabled" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING=""
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"http://192.168.56.101"* ]]
+  [[ "$output" != *"Access PolyScope X: http://localhost:"* ]]
+}
+
 @test "default_container_name" {
   run main -t
   echo "$output"
