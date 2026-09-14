@@ -2,6 +2,11 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Remove Symlink to UR5 programs as it was not needed and blocked the bloom release tool (`#569 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/569>`_)
+* Contributors: Felix Exner
+
 2.15.1 (2026-09-10)
 -------------------
 * Tolerate null values in the PolyScope X program list (`#565 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/565>`_)
