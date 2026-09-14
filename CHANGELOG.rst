@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.15.2 (2026-09-14)
+-------------------
 * Remove Symlink to UR5 programs as it was not needed and blocked the bloom release tool (`#569 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/569>`_)
 * Contributors: Felix Exner
 
