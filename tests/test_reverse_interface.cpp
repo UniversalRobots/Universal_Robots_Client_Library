@@ -278,19 +278,19 @@ TEST_F(ReverseInterfaceTest, write_trajectory_control_message)
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   control::TrajectoryControlMessage written_control_message = control::TrajectoryControlMessage::TRAJECTORY_CANCEL;
-  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 0, 1);
   int32_t received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
 
   written_control_message = control::TrajectoryControlMessage::TRAJECTORY_NOOP;
-  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 0, 1);
   received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
 
   written_control_message = control::TrajectoryControlMessage::TRAJECTORY_START;
-  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 1);
+  reverse_interface_->writeTrajectoryControlMessage(written_control_message, 0, 1);
   received_control_message = client_->getTrajectoryControlMode();
 
   EXPECT_EQ(toUnderlying(written_control_message), received_control_message);
@@ -302,7 +302,7 @@ TEST_F(ReverseInterfaceTest, write_trajectory_point_number)
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   int32_t written_point_number = 2;
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START,
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0,
                                                     written_point_number);
   int32_t received_point_number = client_->getTrajectoryPointNumber();
 
@@ -316,7 +316,7 @@ TEST_F(ReverseInterfaceTest, control_mode_is_forward)
 
   // When writing trajectory control message, the control mode should always be mode forward
   comm::ControlMode expected_control_mode = comm::ControlMode::MODE_FORWARD;
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0, 1);
   int32_t received_control_mode = client_->getControlMode();
 
   EXPECT_EQ(toUnderlying(expected_control_mode), received_control_mode);
@@ -328,15 +328,30 @@ TEST_F(ReverseInterfaceTest, remaining_message_points_are_zeros)
   EXPECT_TRUE(waitForProgramState(1000, true));
 
   // When using trajectory control message, the received message is keep_alive_signal=keep_alive_signal,
-  // received_pos[0]=control::TrajectoryControlMessage, received_pos[1]=point_number and received_pos[2]-received_pos[5]
-  // should be zeros.
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  // received_pos[0]=control::TrajectoryControlMessage, received_pos[1]=point_number,
+  // received_pos[2]=move_id and received_pos[3]-received_pos[5] should be zeros.
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0, 1);
   vector6int32_t received_pos = client_->getPositions();
 
-  EXPECT_EQ(0, received_pos[2]);
   EXPECT_EQ(0, received_pos[3]);
   EXPECT_EQ(0, received_pos[4]);
   EXPECT_EQ(0, received_pos[5]);
+}
+
+TEST_F(ReverseInterfaceTest, write_trajectory_move_id)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+
+  // The move identifier occupies the slot immediately after the point number, which used to be
+  // part of the padding. A move announces its identifier here, and the robot then runs only those
+  // trajectory points which carry it.
+  const int32_t written_move_id = 7;
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START,
+                                                    written_move_id, 1);
+  vector6int32_t received_pos = client_->getPositions();
+
+  EXPECT_EQ(written_move_id, received_pos[2]);
 }
 
 TEST_F(ReverseInterfaceTest, read_timeout)
@@ -354,7 +369,7 @@ TEST_F(ReverseInterfaceTest, read_timeout)
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
   // Test that read timeout works with trajectory control message as well
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1,
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0, 1,
                                                     RobotReceiveTimeout::millisec(expected_read_timeout));
   received_read_timeout = client_->getReadTimeout();
 
@@ -383,7 +398,7 @@ TEST_F(ReverseInterfaceTest, default_read_timeout)
 
   // Test that read timeout works with trajectory control message as well
   expected_read_timeout = 200;
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0, 1);
   received_read_timeout = client_->getReadTimeout();
 
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
@@ -495,7 +510,7 @@ TEST_F(ReverseInterfaceTest, deprecated_set_keep_alive_count)
   int32_t received_read_timeout = client_->getReadTimeout();
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
-  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 0, 1);
   received_read_timeout = client_->getReadTimeout();
   EXPECT_EQ(expected_read_timeout, received_read_timeout);
 
