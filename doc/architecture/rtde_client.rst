@@ -47,7 +47,7 @@ the :ref:`rtde_client_example` for an example of the blocking read method.
 
    A recipe only lists field names. The data types belonging to them are reported by the robot when
    it acknowledges the recipe, and the first read applies them to your ``DataPackage``, which costs
-   no memory. Until that has happened ``getData()`` on the package fails. See `Field data types`_
+   no memory. Until that has happened ``getData()`` throws ``std::bad_variant_access``. See `Field data types`_
    for how to ask a package what type it gave a field.
 
 Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
@@ -88,7 +88,8 @@ every call by design and is therefore not suited for real-time use.
 Field data types
 ~~~~~~~~~~~~~~~~
 
-``getData()`` has to be given a variable of the field's own type, and returns ``false`` if it isn't.
+``getData()`` has to be given a variable of the field's own type. A missing name returns
+``false``; a type mismatch throws ``std::bad_variant_access``.
 Rather than hardcoding which type a field has, ask the package: ``getDataType()`` reports the
 ``DataType`` a field currently holds. After acknowledgement that is the type the robot reported;
 on an input package written with ``setData()`` before then, it is the type of that write. An

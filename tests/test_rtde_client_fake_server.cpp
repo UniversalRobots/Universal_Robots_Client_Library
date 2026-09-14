@@ -35,6 +35,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 
 #include <ur_client_library/comm/stream.h>
@@ -516,7 +517,7 @@ TEST_F(RTDEClientFakeServerTest, received_package_rejects_a_wrong_get_data_type)
   ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
 
   uint32_t timestamp_as_int = 0;
-  EXPECT_FALSE(data_pkg.getData("timestamp", timestamp_as_int));
+  EXPECT_THROW(data_pkg.getData("timestamp", timestamp_as_int), std::bad_variant_access);
   double timestamp = 0.0;
   EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
 

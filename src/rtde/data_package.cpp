@@ -167,15 +167,6 @@ std::optional<DataType> typeOf(const DataPackage::_rtde_type_variant& field)
 }
 
 /*!
- * \brief Names the type a field holds for an error message, even if it has none.
- */
-std::string typeNameOf(const DataPackage::_rtde_type_variant& field)
-{
-  const std::optional<DataType> type = typeOf(field);
-  return type.has_value() ? toString(*type) : "unknown";
-}
-
-/*!
  * \brief Creates an empty value of the given data type.
  *
  * Switching over the enum rather than testing names in sequence means the compiler points at this
@@ -285,21 +276,6 @@ std::optional<rtde_interface::DataType> rtde_interface::DataPackage::getDataType
     return std::nullopt;
   }
   return typeOf(values_[*index]);
-}
-
-void rtde_interface::DataPackage::reportReadFailure(const std::string_view name, const _rtde_type_variant& field)
-{
-  if (std::holds_alternative<std::monostate>(field))
-  {
-    URCL_LOG_ERROR("Cannot read the data field '%.*s', as its data type isn't known yet. The data types of a recipe "
-                   "are reported by the robot during the RTDE handshake, so a data package can only be read from "
-                   "after it has received data at least once.",
-                   static_cast<int>(name.size()), name.data());
-    return;
-  }
-  URCL_LOG_ERROR("Type of requested data doesn't match type of existing field for index '%.*s'. The robot reports "
-                 "that field as %s.",
-                 static_cast<int>(name.size()), name.data(), typeNameOf(field).c_str());
 }
 
 void rtde_interface::DataPackage::initStorage()
