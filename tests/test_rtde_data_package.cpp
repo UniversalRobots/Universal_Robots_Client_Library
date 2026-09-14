@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -271,16 +272,16 @@ TEST(rtde_data_package, every_rtde_data_type_can_be_applied)
   EXPECT_TRUE(package.getData("f_v6uint32", v6uint32_value));
 
   // Each field holds exactly the type the robot named for it, and nothing else
-  EXPECT_FALSE(package.getData("f_bool", double_value));
-  EXPECT_FALSE(package.getData("f_uint8", uint32_value));
-  EXPECT_FALSE(package.getData("f_uint32", int32_value));
-  EXPECT_FALSE(package.getData("f_uint64", uint32_value));
-  EXPECT_FALSE(package.getData("f_int32", uint32_value));
-  EXPECT_FALSE(package.getData("f_double", uint64_value));
-  EXPECT_FALSE(package.getData("f_vector3d", vector6d_value));
-  EXPECT_FALSE(package.getData("f_vector6d", vector3d_value));
-  EXPECT_FALSE(package.getData("f_v6int32", v6uint32_value));
-  EXPECT_FALSE(package.getData("f_v6uint32", v6int32_value));
+  EXPECT_THROW(package.getData("f_bool", double_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_uint8", uint32_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_uint32", int32_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_uint64", uint32_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_int32", uint32_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_double", uint64_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_vector3d", vector6d_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_vector6d", vector3d_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_v6int32", v6uint32_value), std::bad_variant_access);
+  EXPECT_THROW(package.getData("f_v6uint32", v6int32_value), std::bad_variant_access);
 }
 
 // The wire format of the rarer data types is otherwise only exercised against a real robot, so a
@@ -430,7 +431,7 @@ TEST(rtde_data_package, untyped_package_cannot_be_parsed_or_serialized)
   EXPECT_FALSE(package.getDataType("timestamp").has_value());
 
   double timestamp = 0.0;
-  EXPECT_FALSE(package.getData("timestamp", timestamp));
+  EXPECT_THROW(package.getData("timestamp", timestamp), std::bad_variant_access);
 
   uint8_t buffer[4096];
   EXPECT_EQ(package.serializePackage(buffer), 0);
@@ -463,7 +464,7 @@ TEST(rtde_data_package, applying_types_makes_the_package_usable)
   rtde_interface::DataPackage package(recipe);
 
   double timestamp = 0.0;
-  ASSERT_FALSE(package.getData("timestamp", timestamp));
+  EXPECT_THROW(package.getData("timestamp", timestamp), std::bad_variant_access);
 
   package.setTypes({ "DOUBLE", "VECTOR6D" });
 
@@ -489,7 +490,7 @@ TEST(rtde_data_package, set_data_establishes_the_type_of_an_untyped_field)
 
   // The field that was never written keeps no type at all
   uint32_t speed_slider_mask = 1;
-  EXPECT_FALSE(package.getData("speed_slider_mask", speed_slider_mask));
+  EXPECT_THROW(package.getData("speed_slider_mask", speed_slider_mask), std::bad_variant_access);
   EXPECT_FALSE(package.getDataType("speed_slider_mask").has_value());
 }
 
@@ -608,15 +609,13 @@ TEST(rtde_data_package, copy_keeps_types_and_values)
   EXPECT_DOUBLE_EQ(timestamp, 42.0);
 }
 
-TEST(rtde_data_package, get_data_with_wrong_type_fails)
+TEST(rtde_data_package, get_data_with_wrong_type_throws)
 {
   auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
 
-  // The robot dictates the types, so asking for the wrong one has to fail gracefully instead of
-  // throwing std::bad_variant_access.
   uint32_t timestamp = 0;
-  EXPECT_FALSE(package.getData("timestamp", timestamp));
+  EXPECT_THROW(package.getData("timestamp", timestamp), std::bad_variant_access);
 }
 
 TEST(rtde_data_package, layout_hash_changes_when_types_are_set)
@@ -867,7 +866,7 @@ TEST(rtde_data_package, bitset_get_data_fails_on_an_untyped_field)
 {
   rtde_interface::DataPackage package({ "robot_status_bits" });
   std::bitset<4> bits;
-  EXPECT_FALSE(package.getData<uint32_t>("robot_status_bits", bits));
+  EXPECT_THROW(package.getData<uint32_t>("robot_status_bits", bits), std::bad_variant_access);
 }
 
 TEST(rtde_data_package, bitset_get_data_fails_when_the_underlying_type_is_wrong)
@@ -876,7 +875,7 @@ TEST(rtde_data_package, bitset_get_data_fails_when_the_underlying_type_is_wrong)
   ASSERT_TRUE(package.setData("robot_status_bits", static_cast<uint32_t>(0x5)));
 
   std::bitset<8> bits;
-  EXPECT_FALSE(package.getData<uint8_t>("robot_status_bits", bits));
+  EXPECT_THROW(package.getData<uint8_t>("robot_status_bits", bits), std::bad_variant_access);
 }
 
 TEST(rtde_data_package, to_string_covers_every_data_type)

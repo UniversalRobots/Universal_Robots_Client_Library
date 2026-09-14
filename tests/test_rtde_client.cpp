@@ -33,6 +33,7 @@
 #include <chrono>
 #include <cmath>
 #include <sstream>
+#include <stdexcept>
 #include <thread>
 #include <iostream>
 #include "ur_client_library/comm/tcp_server.h"
@@ -365,10 +366,10 @@ TEST_F(RTDEClientTest, get_data_package_w_background)
   // Test that we can receive a package and extract data from the received package
   const std::chrono::milliseconds read_timeout{ 100 };
 
-  // A package built from a recipe alone is untyped until the first receive, so getData fails.
+  // A package built from a recipe alone is untyped until the first receive, so getData throws.
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   double timestamp;
-  EXPECT_FALSE(data_pkg.getData("timestamp", timestamp));
+  EXPECT_THROW(data_pkg.getData("timestamp", timestamp), std::bad_variant_access);
   ASSERT_TRUE(data_pkg.setData("timestamp", 0.0));
 
   ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));

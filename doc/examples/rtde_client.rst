@@ -66,8 +66,9 @@ received, data from the received package can be accessed using the ``getData()``
 returns the corresponding value.
 
 .. note:: The key used to access data has to be part of the output recipe used to initialize the RTDE
-   client. ``getData()`` returns ``false`` for an unknown key, and also if the type of the passed
-   variable doesn't match the type the robot reported for that field.
+   client. ``getData()`` returns ``false`` for an unknown key. If the type of the passed
+   variable doesn't match the type the robot reported for that field, it throws
+   ``std::bad_variant_access``.
 
 Writing Data to the RTDE client
 -------------------------------

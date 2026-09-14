@@ -27,18 +27,13 @@ Four consequences are worth knowing about:
   available from ``RTDEClient::createInputDataPackage()`` after ``init()``, so filling several
   input fields no longer depends on guessing the field types correctly; ``setData()`` then rejects
   a mismatch immediately.
-- **Reading a field as the wrong type no longer throws.** ``DataPackage::getData()`` used to let a
-  ``std::bad_variant_access`` escape when the passed variable didn't match the field's type. It now
-  returns ``false`` and logs which type the robot reported for that field, matching what its
-  documentation always promised. Code that caught that exception should check the return value
-  instead.
 - **``getData()``/``setData()`` with a ``std::string`` is now a compile error.** That alternative
   was never a protocol type, so those calls used to compile and return ``false`` at runtime. Nothing
   could have relied on them working.
 
 On a ``DataPackage`` that hasn't been typed yet, meaning it has neither received data nor been
-written to, ``getData()`` fails with an explanatory message instead of returning stale values, and
-``getDataType()`` reports that the field has no type yet.
+written to, ``getData()`` throws ``std::bad_variant_access``, and ``getDataType()`` reports that
+the field has no type yet.
 
 Migrating from 1.x.x to 2.x.x
 -----------------------------

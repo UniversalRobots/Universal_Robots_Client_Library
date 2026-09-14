@@ -109,7 +109,7 @@ std::string toString(const DataType type);
  * \endcode
  *
  * Until a package has been typed, either by receiving into it or by writing to it with setData(),
- * it cannot be parsed into or serialized and getData() will fail.
+ * it cannot be parsed into or serialized and getData() throws std::bad_variant_access.
  */
 class DataPackage : public RTDEPackage
 {
@@ -263,8 +263,10 @@ public:
    * \param name The string identifier for the data field as used in the documentation.
    * \param val Target variable. Make sure, it's the correct type.
    *
-   * \returns True on success, false if the field cannot be found inside the package or if its type
-   * doesn't match the requested one.
+   * \returns True on success, false if the field cannot be found inside the package.
+   *
+   * \throws std::bad_variant_access if the field is present but does not hold T, including when
+   *         the field has not been typed yet.
    */
   template <typename T>
   bool getData(const std::string_view name, T& val) const
@@ -274,13 +276,7 @@ public:
     {
       return false;
     }
-    const T* value = std::get_if<T>(&values_[*index]);
-    if (value == nullptr)
-    {
-      reportReadFailure(recipe_[*index], values_[*index]);
-      return false;
-    }
-    val = *value;
+    val = std::get<T>(values_[*index]);
     return true;
   }
 
@@ -292,8 +288,10 @@ public:
    * \param name The string identifier for the data field as used in the documentation.
    * \param val Target variable. Make sure, it's the correct type.
    *
-   * \returns True on success, false if the field cannot be found inside the package or if its type
-   * doesn't match the requested one.
+   * \returns True on success, false if the field cannot be found inside the package.
+   *
+   * \throws std::bad_variant_access if the field is present but the underlying type is not T,
+   *         including when the field has not been typed yet.
    */
   template <typename T, size_t N>
   bool getData(const std::string_view name, std::bitset<N>& val) const
@@ -424,7 +422,8 @@ public:
    *
    * A package constructed from a recipe alone is untyped until either the robot's setup
    * acknowledgement has been applied to it or setData() has been used to write to every field. An
-   * untyped package cannot be parsed into or serialized, and getData() fails on it.
+   * untyped package cannot be parsed into or serialized, and getData() throws
+   * std::bad_variant_access on it.
    *
    * \returns True if the package carries type information for all of its fields
    */
@@ -478,11 +477,6 @@ private:
    * \brief The recipe index of \p name, or empty if the name is not in this package.
    */
   std::optional<size_t> fieldIndex(const std::string_view name) const;
-
-  /*!
-   * \brief Logs why reading \p field didn't produce the requested type.
-   */
-  static void reportReadFailure(const std::string_view name, const _rtde_type_variant& field);
 
   uint8_t recipe_id_ = 0;
   std::vector<std::string> recipe_;
