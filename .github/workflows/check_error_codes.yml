@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * *'   # Every night at 06:00 UTC
+  pull_request:
+    paths:
+      - '.github/workflows/check_error_codes.yml'
 
 jobs:
   check_error_codes:
@@ -61,7 +64,10 @@ jobs:
           echo "upstream=$UPSTREAM"   >> "$GITHUB_OUTPUT"
 
       - name: Ensure label exists
-        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
+        if: >-
+          github.event_name != 'pull_request' &&
+          steps.check.outcome == 'failure' &&
+          steps.versions.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -71,12 +77,29 @@ jobs:
             --force
 
       - name: Regenerate header and open PR
-        if: steps.check.outcome == 'failure' && steps.versions.outcome == 'success'
+        if: >-
+          github.event_name != 'pull_request' &&
+          steps.check.outcome == 'failure' &&
+          steps.versions.outcome == 'success'
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMITTED: ${{ steps.versions.outputs.committed }}
           UPSTREAM: ${{ steps.versions.outputs.upstream }}
+          PR_BODY: |
+            The upstream UR ErrorCodes JSON has been updated. This PR regenerates `error_code_texts.h` automatically.
+
+            | | Version |
+            |---|---|
+            | Previous header (`ERROR_CODE_JSON_VERSION`) | `${{ steps.versions.outputs.committed }}` |
+            | Upstream JSON | `${{ steps.versions.outputs.upstream }}` |
+
+            **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            > [!NOTE]
+            > Only `include/ur_client_library/ur/error_code_texts.h` is updated here.
+            > If you have pending entries in `scripts/error_code_overrides.json`, verify
+            > they are still correct against the new JSON before merging.
         run: |
           BRANCH="auto/update-error-codes-v${UPSTREAM}"
 
@@ -108,22 +131,11 @@ jobs:
               --label "error-codes-outdated" \
               --base "${{ github.event.repository.default_branch }}" \
               --head "$BRANCH" \
-              --body "The upstream UR ErrorCodes JSON has been updated. This PR regenerates \`error_code_texts.h\` automatically.
-
-| | Version |
-|---|---|
-| Previous header (\`ERROR_CODE_JSON_VERSION\`) | \`${COMMITTED}\` |
-| Upstream JSON | \`${UPSTREAM}\` |
-
-**Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-> [!NOTE]
-> Only \`include/ur_client_library/ur/error_code_texts.h\` is updated here.
-> If you have pending entries in \`scripts/error_code_overrides.json\`, verify
-> they are still correct against the new JSON before merging.")
+              --body "$PR_BODY")
 
             echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           fi
+
       - name: Fail if version mismatch
         if: steps.check.outcome == 'failure'
         run: exit 1
