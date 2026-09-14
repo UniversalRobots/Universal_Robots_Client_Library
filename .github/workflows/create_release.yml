@@ -1,4 +1,4 @@
-name: Create draft release
+name: Create release
 
 on:
   pull_request:
@@ -46,7 +46,6 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh release create "$VERSION" \
-            --draft \
             --generate-notes \
             --notes-file .github/release_notes_header.txt \
             --title "$VERSION" \
