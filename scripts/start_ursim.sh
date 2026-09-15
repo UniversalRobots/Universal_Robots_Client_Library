@@ -626,10 +626,6 @@ main() {
     )
   fi
 
-  # PORT_FORWARDING is a space-separated list of -p flags; word-splitting is intentional.
-  # Disable pathname expansion so bracketed IPv6 binds (e.g. [::1]:6080:6080) are not
-  # treated as globs.
-  # shellcheck disable=SC2206
   if [[ -n "$PORT_FORWARDING" ]]; then
     local -a port_forwarding_args
     read -r -a port_forwarding_args <<< "$PORT_FORWARDING"
