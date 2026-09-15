@@ -203,6 +203,23 @@ TEST_F(RTDEClientReconnectTest, destroying_the_client_while_the_server_is_silent
   client_.reset();
 }
 
+// A START acknowledgement can reach the client before the server callback creates its sender.
+// Exercise teardown immediately after that acknowledgement, without a sleep to hide the race.
+TEST_F(RTDEClientReconnectTest, destroying_the_server_immediately_after_start)
+{
+  for (int attempt = 0; attempt < 50; ++attempt)
+  {
+    SCOPED_TRACE(attempt);
+    startServer();
+    makeClient();
+    ASSERT_TRUE(client_->init());
+    // No background reader: this checks server teardown without also launching a reconnect.
+    ASSERT_TRUE(client_->start(false));
+    server_.reset();
+    client_.reset();
+  }
+}
+
 // Regression test for the bug where ~RTDEClient() could block indefinitely when the reconnect
 // thread was stuck inside TCPSocket::setup(). Fixed by: (1) calling stream_.disconnect() (followed
 // by RTDEClient::disconnect()) before joining reconnecting_thread_ in ~RTDEClient(), and (2) making
