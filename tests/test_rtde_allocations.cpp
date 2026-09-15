@@ -387,6 +387,38 @@ TEST_F(RTDEAllocationTest, blocking_receive_does_not_allocate)
   EXPECT_GT(timestamp, 0.0);
 }
 
+// The types the robot reported reach an application's package on its first read. The storage was
+// already sized at construction, so that must not allocate either.
+TEST_F(RTDEAllocationTest, typing_a_package_on_the_first_read_does_not_allocate)
+{
+  ASSERT_TRUE(client_->start(false));
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  ASSERT_FALSE(data_pkg->isTyped());
+
+  // Warm up on a package of its own so the measured read is the first one for data_pkg
+  auto warmup_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  {
+    ASSERT_TRUE(client_->getDataPackageBlocking(warmup_pkg));
+  }
+
+  bool received = false;
+  std::size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    received = client_->getDataPackageBlocking(data_pkg);
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_TRUE(received);
+  EXPECT_TRUE(data_pkg->isTyped());
+
+  double timestamp = 0.0;
+  ASSERT_TRUE(data_pkg->getData("timestamp", timestamp));
+  EXPECT_GT(timestamp, 0.0);
+}
+
 TEST_F(RTDEAllocationTest, copying_the_latest_background_package_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(true));

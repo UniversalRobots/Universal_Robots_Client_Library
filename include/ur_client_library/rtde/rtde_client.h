@@ -402,6 +402,21 @@ protected:
   bool sendPause();
 
   /*!
+   * \brief Makes sure \p data_package can receive this client's output, applying the robot's data
+   * types to it if it doesn't carry them yet.
+   *
+   * A package built from an output recipe alone has no data types; the robot reports those when it
+   * acknowledges the recipe. This is where they reach a package handed in by an application, which
+   * is what makes the first read the one that types it. The storage exists from construction, so
+   * neither this nor any read after it allocates.
+   *
+   * \param data_package The package the caller wants to receive into
+   *
+   * \throws UrException if the package was built from a different output recipe than this client's
+   */
+  void ensureOutputLayout(DataPackage& data_package) const;
+
+  /*!
    * \brief Reconnects to the RTDE interface and set the input and output recipes again.
    */
   void reconnect();

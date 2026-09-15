@@ -780,9 +780,31 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
   return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
 }
 
+void RTDEClient::ensureOutputLayout(DataPackage& data_package) const
+{
+  if (data_package.layoutHash() == preallocated_data_pkg_.layoutHash())
+  {
+    return;
+  }
+  if (data_package.recipeHash() != preallocated_data_pkg_.recipeHash())
+  {
+    throw UrException("The passed DataPackage was not built from this RTDEClient's output recipe. Construct it from "
+                      "RTDEClient::getOutputRecipe().");
+  }
+  // Both packages name the same fields, so this takes over the data types and the negotiated
+  // protocol version while leaving the recipe alone, which is the only part that would allocate.
+  data_package = preallocated_data_pkg_;
+}
+
 bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_package,
                                 std::chrono::milliseconds timeout)
 {
+  if (data_package == nullptr)
+  {
+    URCL_LOG_ERROR("Cannot receive into an empty DataPackage pointer. Please pass a package built from this client's "
+                   "output recipe.");
+    return false;
+  }
   return getDataPackage(*data_package, timeout);
 }
 
@@ -799,6 +821,7 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
                    "reading or use getDataPackageBlocking(...).");
     return false;
   }
+  ensureOutputLayout(data_package);
 
   if (new_data_.load())
   {
@@ -830,6 +853,10 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
     URCL_LOG_ERROR("Background reading is running, cannot get data package in blocking mode. Please either stop "
                    "background reading or use getDataPackage(...).");
     return false;
+  }
+  if (data_package != nullptr)
+  {
+    ensureOutputLayout(*data_package);
   }
 
   // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages

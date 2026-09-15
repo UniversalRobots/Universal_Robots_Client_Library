@@ -27,6 +27,12 @@ Four consequences are worth knowing about:
   available from ``RTDEClient::createInputDataPackage()`` after ``init()``, so filling several
   input fields no longer depends on guessing the field types correctly; ``setData()`` then rejects
   a mismatch immediately.
+- **Receiving into a package built from a different output recipe throws.** The first read applies
+  the types the robot reported to the package handed to ``RTDEClient::getDataPackage()`` or
+  ``RTDEClient::getDataPackageBlocking()``, which only works when that package names the same
+  fields. One built from another recipe is rejected with a ``UrException`` instead of being
+  silently refilled under the wrong names. Driving ``RTDEParser`` directly is stricter still: it
+  needs a package that already carries the negotiated types, since it has no recipe to apply.
 - **``getData()``/``setData()`` with a ``std::string`` is now a compile error.** That alternative
   was never a protocol type, so those calls used to compile and return ``false`` at runtime. Nothing
   could have relied on them working.
