@@ -237,11 +237,11 @@ validate_parameters()
 }
 
 # Extract the host endpoint that forwards to a given container port from PORT_FORWARDING.
-# Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER, and range mappings.
-# An optional /tcp protocol suffix is accepted; non-TCP mappings are ignored.
-# Echoes HOST:PORT suitable for access URLs. Unspecified or 0.0.0.0 bind addresses
-# are reported as localhost; any other bind address is preserved. Returns 0 on
-# success, 1 if not found.
+# Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER (IPv4 or bracketed IPv6), and range
+# mappings. An optional /tcp protocol suffix is accepted; non-TCP mappings are ignored.
+# Echoes HOST:PORT suitable for access URLs. Unspecified, 0.0.0.0, or [::] bind addresses
+# are reported as localhost; any other bind address is preserved (IPv6 keeps its brackets
+# so the HTTP URL stays valid). Returns 0 on success, 1 if not found.
 get_forwarded_access_endpoint()
 {
   local container_port=$1
@@ -254,7 +254,11 @@ get_forwarded_access_endpoint()
     bind_addr=""
     host_port=""
 
-    if [[ "$mapping" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):(.+)$ ]]; then
+    if [[ "$mapping" =~ ^\[([^\]]+)\]:(.+)$ ]]; then
+      # Preserve brackets for a valid HTTP host (e.g. http://[::1]:8080).
+      bind_addr="[${BASH_REMATCH[1]}]"
+      mapping="${BASH_REMATCH[2]}"
+    elif [[ "$mapping" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):(.+)$ ]]; then
       bind_addr="${BASH_REMATCH[1]}"
       mapping="${BASH_REMATCH[2]}"
     fi
@@ -276,7 +280,7 @@ get_forwarded_access_endpoint()
       fi
 
       if [[ -n "$host_port" ]]; then
-        if [[ -z "$bind_addr" || "$bind_addr" == "0.0.0.0" ]]; then
+        if [[ -z "$bind_addr" || "$bind_addr" == "0.0.0.0" || "$bind_addr" == "[::]" ]]; then
           access_host="localhost"
         else
           access_host="$bind_addr"

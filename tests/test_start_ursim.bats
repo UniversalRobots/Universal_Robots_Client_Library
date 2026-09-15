@@ -600,6 +600,28 @@ setup() {
   [ "$output" = "localhost:16080" ]
 }
 
+@test "get_forwarded_access_endpoint with bracketed ipv6 bind addresses" {
+  PORT_FORWARDING="-p [::1]:8080:80"
+  run get_forwarded_access_endpoint 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "[::1]:8080" ]
+
+  PORT_FORWARDING="-p [::]:16080:6080"
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:16080" ]
+
+  PORT_FORWARDING="-p [2001:db8::1]:8080:80/tcp"
+  run get_forwarded_access_endpoint 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "[2001:db8::1]:8080" ]
+
+  PORT_FORWARDING="-p [fe80::1]:40001-40004:30001-30004"
+  run get_forwarded_access_endpoint 30003
+  [ "$status" -eq 0 ]
+  [ "$output" = "[fe80::1]:40003" ]
+}
+
 @test "get_forwarded_access_endpoint preserves non-loopback bind address" {
   PORT_FORWARDING="-p 192.168.1.20:8080:80 -p 10.0.0.5:16080:6080"
   run get_forwarded_access_endpoint 80
@@ -716,6 +738,16 @@ setup() {
   [[ "$output" == *"Access via VNC client: 127.0.0.1:15900"* ]]
 }
 
+@test "post_setup_cb3 prints ipv6 bind-address forwarded endpoints" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p [::1]:16080:6080/tcp -p [::1]:15900:5900/tcp"
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access VNC web: http://[::1]:16080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: [::1]:15900"* ]]
+}
+
 @test "post_setup_cb3 omits localhost urls when forwarding disabled" {
   IP_ADDRESS="192.168.56.101"
   PORT_FORWARDING=""
@@ -801,6 +833,27 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"Access PolyScope X: http://192.168.1.20:8080"* ]]
   [[ "$output" != *"Access PolyScope X: http://localhost:8080"* ]]
+}
+
+@test "post_setup_polyscopex prints ipv6 bind-address forwarded endpoint" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p [::1]:8080:80"
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access PolyScope X: http://[::1]:8080"* ]]
 }
 
 @test "post_setup_polyscopex omits localhost url when forwarding disabled" {
