@@ -464,6 +464,79 @@ TEST_F(RTDEClientFakeServerTest, receive_without_background_read)
   client_->pause();
 }
 
+// A package built from the output recipe alone carries no data types. The robot reports those
+// during the handshake, and the first read is what puts them on the application's package.
+TEST_F(RTDEClientFakeServerTest, the_first_read_types_the_package)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(false));
+
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  ASSERT_FALSE(data_pkg->isTyped());
+
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
+
+  EXPECT_TRUE(data_pkg->isTyped());
+  EXPECT_EQ(data_pkg->getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+
+  // Reading into the same package again keeps it usable
+  double first_timestamp = 0.0;
+  ASSERT_TRUE(data_pkg->getData("timestamp", first_timestamp));
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
+  double second_timestamp = 0.0;
+  ASSERT_TRUE(data_pkg->getData("timestamp", second_timestamp));
+  EXPECT_GE(second_timestamp, first_timestamp);
+
+  client_->pause();
+}
+
+TEST_F(RTDEClientFakeServerTest, the_first_background_read_types_the_package)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
+  ASSERT_FALSE(data_pkg.isTyped());
+
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+
+  EXPECT_TRUE(data_pkg.isTyped());
+  EXPECT_EQ(data_pkg.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+
+  client_->pause();
+}
+
+// Receiving into a package built from someone else's recipe would silently hand out data under
+// the wrong names, so both read paths refuse it.
+TEST_F(RTDEClientFakeServerTest, receiving_into_a_foreign_recipe_is_refused)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(false));
+
+  auto foreign_pkg = std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "timestamp" });
+  EXPECT_THROW(client_->getDataPackageBlocking(foreign_pkg), UrException);
+
+  client_->pause();
+  ASSERT_TRUE(client_->start(true));
+
+  rtde_interface::DataPackage other_foreign_pkg({ "timestamp" });
+  EXPECT_THROW(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT), UrException);
+
+  client_->pause();
+}
+
+TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_is_refused)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+
+  client_->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, background_read_can_be_stopped_and_started)
 {
   ASSERT_TRUE(client_->init());
