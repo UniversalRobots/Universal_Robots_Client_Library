@@ -397,22 +397,22 @@ post_setup_polyscopex()
     http_host="$IP_ADDRESS"
   fi
   local base_url="http://${http_host}"
+  local urcaps_url="${base_url}/universal-robots/urservice/api/v1/urcaps"
 
   echo -ne "Starting URSim. Waiting for UrService to be up..."
-  curl_cmd="curl --retry-connrefused -f --write-out %{http_code} --silent --output /dev/null ${base_url}/universal-robots/urservice/api/v1/urcaps"
-  status_code=$(eval "$curl_cmd")
+  status_code=$(curl --retry-connrefused -f --write-out "%{http_code}" --silent --output /dev/null "$urcaps_url")
 
   until [ "$status_code" == "200" ]
   do
     sleep 1
     echo -ne "."
-    status_code=$(eval "$curl_cmd")
+    status_code=$(curl --retry-connrefused -f --write-out "%{http_code}" --silent --output /dev/null "$urcaps_url")
   done
 
   echo ""; echo "UrService is up"
 
   echo "Installing URCapX $urcapx_file"
-  curl --location --request POST  --silent --output /dev/null "${base_url}/universal-robots/urservice/api/v1/urcaps" --form urcapxFile=@"${urcapx_file}"
+  curl --location --request POST  --silent --output /dev/null "$urcaps_url" --form urcapxFile=@"${urcapx_file}"
   echo "";
 
   echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
