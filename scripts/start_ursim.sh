@@ -622,9 +622,9 @@ main() {
   # treated as globs.
   # shellcheck disable=SC2206
   if [[ -n "$PORT_FORWARDING" ]]; then
-    set -f
-    docker_args+=($PORT_FORWARDING)
-    set +f
+    local -a port_forwarding_args
+    read -r -a port_forwarding_args <<< "$PORT_FORWARDING"
+    docker_args+=("${port_forwarding_args[@]}")
   fi
   docker_args+=(--name "$CONTAINER_NAME" "universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION")
 
