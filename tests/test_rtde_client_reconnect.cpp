@@ -310,18 +310,27 @@ TEST_F(RTDEClientReconnectTest, reconnect_gives_up_when_the_handshake_keeps_fail
   startServer();
   server_->setHighestAcceptedProtocolVersion(0);
 
-  // Two failed handshakes plus the short sleep between them, then give up.
-  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  // Each failed handshake tries protocol versions 2 and 1. Wait for both attempts rather
+  // than assuming they finish within a fixed delay: reconnect() waits in 250 ms increments
+  // even with a 50 ms initialization timeout, and scheduling can delay either attempt.
+  const std::vector<uint16_t> expected_requests{ 2, 1, 2, 1 };
+  const auto deadline = std::chrono::steady_clock::now() + g_STATE_CHANGE_TIMEOUT;
+  while (server_->requestedProtocolVersions().size() < expected_requests.size() &&
+         std::chrono::steady_clock::now() < deadline)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
   keep_running = false;
   data_consumer.join();
 
-  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+  ASSERT_EQ(server_->requestedProtocolVersions(), expected_requests) << "the client did not perform two failed "
+                                                                        "handshakes";
+  EXPECT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED));
   // During a retry the client is UNINITIALIZED between attempts, so a later state check alone
-  // cannot prove it stopped. Another protocol-version request would mean it is still trying.
-  const auto requests_after_give_up = server_->requestedProtocolVersions().size();
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  // cannot prove it stopped. Observe for longer than the 250 ms retry-wait increment so an
+  // unwanted third attempt can be detected, rather than sampling during the final retry wait.
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
-  EXPECT_EQ(server_->requestedProtocolVersions().size(), requests_after_give_up) << "the client kept retrying after "
-                                                                                    "exhausting its initialization "
-                                                                                    "attempts";
+  EXPECT_EQ(server_->requestedProtocolVersions(), expected_requests) << "the client kept retrying after exhausting its "
+                                                                        "initialization attempts";
 }
