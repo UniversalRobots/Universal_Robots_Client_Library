@@ -449,6 +449,7 @@ bool RTDEClient::setupOutputs()
       else
       {
         preallocated_data_pkg_.setTypes(variable_types);
+        // Register typed template so parser can allocate for null pointers or deprecated vector calls.
         parser_.setExpectedDataPackage(preallocated_data_pkg_);
         return true;
       }
@@ -782,6 +783,7 @@ void RTDEClient::ensureOutputLayout(DataPackage& data_package, const DataPackage
   {
     return;
   }
+  // Backwards compatibility: master repaired foreign recipes by assignment; warn because repair allocates.
   if (data_package.recipeHash() != output_template.recipeHash())
   {
     URCL_LOG_WARN("Replacing a DataPackage with a different output recipe; this may allocate. "
@@ -792,6 +794,7 @@ void RTDEClient::ensureOutputLayout(DataPackage& data_package, const DataPackage
 
 void RTDEClient::ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) const
 {
+  // Backwards compatibility: allocate a typed package if caller passed null.
   if (data_package == nullptr)
   {
     URCL_LOG_WARN("No DataPackage supplied; allocating one with the negotiated output layout.");
@@ -806,6 +809,7 @@ bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& da
 {
   if (data_package == nullptr)
   {
+    // Hold reconnect lock while allocating from preallocated_data_pkg_ to prevent race with reconnect.
     std::unique_lock<std::mutex> lock(reconnect_mutex_, std::try_to_lock);
     if (!lock.owns_lock() || reconnecting_ || !background_read_running_ || !preallocated_data_pkg_.isTyped())
     {
@@ -832,6 +836,7 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
   if (new_data_.load())
   {
     std::lock_guard<std::mutex> guard(read_mutex_);
+    // Use received buffer under read lock as layout template to stay consistent with background thread.
     ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
     data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
     new_data_.store(false);
@@ -846,6 +851,7 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
     }
     if (new_data_.load())
     {
+      // Use received buffer under read lock as layout template to stay consistent with background thread.
       ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
       data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
       new_data_.store(false);

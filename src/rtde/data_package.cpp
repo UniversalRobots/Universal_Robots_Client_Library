@@ -362,10 +362,12 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
     return true;
   }
 
+  // Backwards compatibility: accept partial input packages where unset fields default to typed zeros.
   if (recipe_hash_ != other.recipe_hash_ || values_.size() != other.values_.size())
   {
     return false;
   }
+  // Validate every set field against destination types before writing to ensure atomic rejection.
   for (size_t i = 0; i < values_.size(); ++i)
   {
     if (!std::holds_alternative<std::monostate>(other.values_[i]) && values_[i].index() != other.values_[i].index())

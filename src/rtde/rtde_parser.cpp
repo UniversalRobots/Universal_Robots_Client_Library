@@ -76,6 +76,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       }
       if (expected_data_package_.has_value())
       {
+        // Backwards compatibility: deprecated vector overload allocates a fresh package per cycle from template.
         auto package = std::make_unique<DataPackage>(*expected_data_package_);
         if (!parseDataPackagePayload(bp, *package) || !bp.empty())
         {
@@ -93,10 +94,12 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       DataPackage* package = dynamic_cast<DataPackage*>(results.back().get());
       if (package != nullptr && package->layoutHash() != layout_hash_)
       {
+        // Re-sync negotiated protocol version in case parser version changed after package creation.
         package->setProtocolVersion(protocol_version_);
       }
       if (package == nullptr || package->layoutHash() != layout_hash_)
       {
+        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
         return false;
       }
       if (!parseDataPackagePayload(bp, *package))
@@ -156,6 +159,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
         {
           return false;
         }
+        // Backwards compatibility: allocate from template if caller supplied null or non-data package.
         URCL_LOG_WARN("Allocating an RTDE DataPackage; pass a matching pre-allocated package to avoid allocation.");
         result = std::make_unique<DataPackage>(*expected_data_package_);
       }
@@ -163,10 +167,12 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
       if (data_package != nullptr && data_package->layoutHash() != layout_hash_)
       {
+        // Re-sync negotiated protocol version in case parser version changed after package creation.
         data_package->setProtocolVersion(protocol_version_);
       }
       if (data_package == nullptr || data_package->layoutHash() != layout_hash_)
       {
+        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
         return false;
       }
 
