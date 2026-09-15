@@ -31,7 +31,7 @@ a bracketed IPv6 address such as ``-p '[::1]:6080:6080'``. See Docker's document
 
    docker run --rm -it -p 127.0.0.1:5900:5900 -p 127.0.0.1:6080:6080 --name ursim universalrobots/ursim_e-series
 
-With the loopback binds above, open ``http://127.0.0.1:6080/vnc.html`` (or connect a VNC client to
+With the loopback binds above, open `<http://127.0.0.1:6080/vnc.html>`_ (or connect a VNC client to
 ``127.0.0.1:5900``) on the Docker host.
 
 External Control
@@ -84,7 +84,7 @@ The above commands first create a network for docker and then create a container
 image attaching to this network.
 
 With a fixed container IP you can also skip publishing the GUI ports and open
-``http://192.168.56.101:6080/vnc.html`` when the browser can reach that address (typically when
+`<http://192.168.56.101:6080/vnc.html>`_ when the browser can reach that address (typically when
 Docker and the browser run on the same host). Published ports remain useful behind Docker Desktop /
 NAT, or when you deliberately bind only to loopback / a specific interface.
 
