@@ -519,10 +519,10 @@ setup() {
 # Extract -p mappings from the docker command line printed by `main -t`.
 # Supports IPv4 binds, bracketed IPv6 binds, ranges, and an optional /tcp|/udp suffix.
 extract_port_forwarding() {
-  echo "$1" | tail -n -1 | grep -Eo "(\-p\s*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?(/[a-z]+)?\s*)+" | awk '{$1=$1};1'
+  echo "$1" | tail -n -1 | grep -Eo "(-p[[:space:]]*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(-[0-9]+)?:[0-9]+(-[0-9]+)?(/[a-z]+)?[[:space:]]*)+" | awk '{$1=$1};1'
 }
 
-port_forwarding_regex='\-p\s*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?(/[a-z]+)?'
+port_forwarding_regex='-p[[:space:]]*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(-[0-9]+)?:[0-9]+(-[0-9]+)?(/[a-z]+)?'
 
 @test "default_port_forwarding_cb3" {
   run main -t -v 3.14.3
@@ -601,7 +601,7 @@ port_forwarding_regex='\-p\s*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+
   echo "$output"
   [ $status -eq 0 ]
   docker_line=$(echo "$output" | tail -n -1)
-  grep -v -E "$port_forwarding_regex" <<< "$docker_line"
+  grep -v -E -- "$port_forwarding_regex" <<< "$docker_line"
 }
 
 # Stub `docker port` for unit tests. Usage in tests:
@@ -979,7 +979,7 @@ stub_docker_port() {
   run main -t
   echo "$output"
   [ $status -eq 0 ]
-  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E -- "--name[[:space:]][[:alnum:]_-]+" | cut -d " " -f2)
   [ "$container_name" = "ursim" ]
 }
 
@@ -987,7 +987,7 @@ stub_docker_port() {
   run main -t -n "ursim_test" -v 3.14.3
   echo "$output"
   [ $status -eq 0 ]
-  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E -- "--name[[:space:]][[:alnum:]_-]+" | cut -d " " -f2)
   [ "$container_name" = "ursim_test" ]
 }
 
@@ -995,7 +995,7 @@ stub_docker_port() {
   run main -t -n "ursim_test" -v 5.21.0
   echo "$output"
   [ $status -eq 0 ]
-  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E -- "--name[[:space:]][[:alnum:]_-]+" | cut -d " " -f2)
   [ "$container_name" = "ursim_test" ]
 }
 
@@ -1003,7 +1003,7 @@ stub_docker_port() {
   run main -t -n "ursim_test" -v 10.7.0
   echo "$output"
   [ $status -eq 0 ]
-  container_name=$(echo "$output" | tail -n -1 | grep -o -E "\-\-name\s\w+" | cut -d " " -f2)
+  container_name=$(echo "$output" | tail -n -1 | grep -o -E -- "--name[[:space:]][[:alnum:]_-]+" | cut -d " " -f2)
   [ "$container_name" = "ursim_test" ]
 }
 
