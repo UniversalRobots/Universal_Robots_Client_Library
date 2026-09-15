@@ -282,14 +282,20 @@ post_setup_cb3()
   printf "\n\n\thttp://%s:6080/vnc.html\n\n" "$IP_ADDRESS"
   printf "\tor connect with a VNC client to %s:5900\n\n" "$IP_ADDRESS"
 
-  echo "The container-IP URL is typically usable only when the browser can reach Docker's bridge network. On Docker Desktop / NAT running locally, use the published VNC ports shown below. For Docker on a remote host, the default loopback-only mappings require an SSH tunnel; alternatively, override -f to bind the GUI ports to a reachable interface. Unless disabled, the following lines print the published endpoints."
+  local web_endpoint vnc_endpoint
+  web_endpoint=$(get_forwarded_access_endpoint 6080) || web_endpoint=""
+  vnc_endpoint=$(get_forwarded_access_endpoint 5900) || vnc_endpoint=""
 
-  local endpoint
-  if endpoint=$(get_forwarded_access_endpoint 6080); then
-    printf "\n\tAccess VNC web: http://%s/vnc.html" "$endpoint"
+  echo "NOTE: The container-IP access will only work when the browser can reach Docker's bridge network. This is typically not the case when using Docker Desktop."
+  if [[ -n "$web_endpoint" || -n "$vnc_endpoint" ]]; then
+    echo "The published VNC endpoints are shown below. If you want to have the robot interface accessible from a remote client, override -f to bind the GUI ports (6080 and 5900) to a reachable interface."
   fi
-  if endpoint=$(get_forwarded_access_endpoint 5900); then
-    printf "\n\tAccess via VNC client: %s" "$endpoint"
+
+  if [[ -n "$web_endpoint" ]]; then
+    printf "\n\tAccess VNC web: http://%s/vnc.html" "$web_endpoint"
+  fi
+  if [[ -n "$vnc_endpoint" ]]; then
+    printf "\n\tAccess via VNC client: %s" "$vnc_endpoint"
   fi
   printf "\n\n"
 }
@@ -418,9 +424,9 @@ post_setup_polyscopex()
   echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
   printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
 
-  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the web access port to your local machine and connect via the forwarded port instead. The default port forwarding contains that entry already. Unless disabled, the following line will print the access URL for the forwarded port."
-
+  echo "NOTE: The container-IP access will only work when the browser can reach Docker's bridge network. This is typically not the case when using Docker Desktop."
   if [[ -n "$forwarded_endpoint" ]]; then
+    echo "The published PolyScope X endpoint is shown below. If you want to have the robot interface accessible from a remote client, override -f to bind the GUI port (80) to a reachable interface."
     printf "\n\tAccess PolyScope X: http://%s\n\n" "$forwarded_endpoint"
   else
     printf "\n"

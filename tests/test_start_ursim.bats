@@ -735,6 +735,10 @@ stub_docker_port() {
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" == *"http://192.168.56.101:6080/vnc.html"* ]]
+  [[ "$output" == *"NOTE: The container-IP access will only work when the browser can reach Docker's bridge network."* ]]
+  [[ "$output" == *"Docker Desktop"* ]]
+  [[ "$output" == *"The published VNC endpoints are shown below."* ]]
+  [[ "$output" == *"override -f to bind the GUI ports (6080 and 5900) to a reachable interface."* ]]
   [[ "$output" == *"Access VNC web: http://127.0.0.1:6080/vnc.html"* ]]
   [[ "$output" == *"Access via VNC client: 127.0.0.1:5900"* ]]
 }
@@ -784,6 +788,10 @@ stub_docker_port() {
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" == *"http://192.168.56.101:6080/vnc.html"* ]]
+  [[ "$output" == *"NOTE: The container-IP access will only work when the browser can reach Docker's bridge network."* ]]
+  [[ "$output" == *"Docker Desktop"* ]]
+  [[ "$output" != *"The published VNC endpoints are shown below."* ]]
+  [[ "$output" != *"override -f to bind the GUI ports (6080 and 5900) to a reachable interface."* ]]
   [[ "$output" != *"Access VNC web:"* ]]
   [[ "$output" != *"Access via VNC client:"* ]]
 }
@@ -845,6 +853,10 @@ stub_docker_port() {
   run post_setup_polyscopex
   echo "$output"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"NOTE: The container-IP access will only work when the browser can reach Docker's bridge network."* ]]
+  [[ "$output" == *"Docker Desktop"* ]]
+  [[ "$output" == *"The published PolyScope X endpoint is shown below."* ]]
+  [[ "$output" == *"override -f to bind the GUI port (80) to a reachable interface."* ]]
   [[ "$output" == *"Access PolyScope X: http://127.0.0.1:8000"* ]]
 }
 
@@ -916,6 +928,10 @@ stub_docker_port() {
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" == *"http://192.168.56.101"* ]]
+  [[ "$output" == *"NOTE: The container-IP access will only work when the browser can reach Docker's bridge network."* ]]
+  [[ "$output" == *"Docker Desktop"* ]]
+  [[ "$output" != *"The published PolyScope X endpoint is shown below."* ]]
+  [[ "$output" != *"override -f to bind the GUI port (80) to a reachable interface."* ]]
   [[ "$output" != *"Access PolyScope X: http://localhost:"* ]]
   [[ "$output" != *"Access PolyScope X: http://192."* ]]
 }
