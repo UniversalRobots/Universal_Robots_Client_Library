@@ -520,7 +520,7 @@ setup() {
   run main -t -v 3.14.3
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
   [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
 }
 
@@ -528,7 +528,7 @@ setup() {
   run main -t -v 5.21.0
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s+)+" | awk '{$1=$1};1')
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
   [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
 }
 
@@ -536,7 +536,7 @@ setup() {
   run main -t -v 10.7.0
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
   [ "$port_forwarding" = "$PORT_FORWARDING_WITHOUT_DASHBOARD" ]
 }
 
@@ -544,7 +544,7 @@ setup() {
   run main -t -f "-p 1234:1234 -p 50001-50004:60001-60004"
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
   [ "$port_forwarding" = "-p 1234:1234 -p 50001-50004:60001-60004" ]
 }
 
@@ -553,72 +553,88 @@ setup() {
   echo "$output"
   [ $status -eq 0 ]
   docker_line=$(echo "$output" | tail -n -1)
-  grep -v -E "\-p\s*[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?" <<< "$docker_line"
+  grep -v -E "\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?" <<< "$docker_line"
 }
 
-@test "get_forwarded_host_port default cb3 mappings" {
+@test "get_forwarded_access_endpoint default cb3 mappings" {
   PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
-  run get_forwarded_host_port 6080
+  run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
-  [ "$output" = "6080" ]
+  [ "$output" = "127.0.0.1:6080" ]
 
-  run get_forwarded_host_port 5900
+  run get_forwarded_access_endpoint 5900
   [ "$status" -eq 0 ]
-  [ "$output" = "5900" ]
+  [ "$output" = "127.0.0.1:5900" ]
 }
 
-@test "get_forwarded_host_port default polyscopex mapping" {
+@test "get_forwarded_access_endpoint default polyscopex mapping" {
   PORT_FORWARDING="$PORT_FORWARDING_WITHOUT_DASHBOARD"
-  run get_forwarded_host_port 80
+  run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "8000" ]
+  [ "$output" = "127.0.0.1:8000" ]
 }
 
-@test "get_forwarded_host_port custom host ports" {
+@test "get_forwarded_access_endpoint custom host ports" {
   PORT_FORWARDING="-p 16080:6080 -p 15900:5900 -p 8080:80"
-  run get_forwarded_host_port 6080
+  run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
-  [ "$output" = "16080" ]
+  [ "$output" = "localhost:16080" ]
 
-  run get_forwarded_host_port 5900
+  run get_forwarded_access_endpoint 5900
   [ "$status" -eq 0 ]
-  [ "$output" = "15900" ]
+  [ "$output" = "localhost:15900" ]
 
-  run get_forwarded_host_port 80
+  run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "8080" ]
+  [ "$output" = "localhost:8080" ]
 }
 
-@test "get_forwarded_host_port with bind address" {
+@test "get_forwarded_access_endpoint with loopback and wildcard bind addresses" {
   PORT_FORWARDING="-p 127.0.0.1:8080:80 -p 0.0.0.0:16080:6080"
-  run get_forwarded_host_port 80
+  run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "8080" ]
+  [ "$output" = "127.0.0.1:8080" ]
 
-  run get_forwarded_host_port 6080
+  run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
-  [ "$output" = "16080" ]
+  [ "$output" = "localhost:16080" ]
 }
 
-@test "get_forwarded_host_port range mapping" {
-  PORT_FORWARDING="-p 30001-30004:30001-30004"
-  run get_forwarded_host_port 30002
+@test "get_forwarded_access_endpoint preserves non-loopback bind address" {
+  PORT_FORWARDING="-p 192.168.1.20:8080:80 -p 10.0.0.5:16080:6080"
+  run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "30002" ]
+  [ "$output" = "192.168.1.20:8080" ]
+
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "10.0.0.5:16080" ]
+}
+
+@test "get_forwarded_access_endpoint range mapping" {
+  PORT_FORWARDING="-p 30001-30004:30001-30004"
+  run get_forwarded_access_endpoint 30002
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:30002" ]
 
   PORT_FORWARDING="-p 40001-40004:30001-30004"
-  run get_forwarded_host_port 30003
+  run get_forwarded_access_endpoint 30003
   [ "$status" -eq 0 ]
-  [ "$output" = "40003" ]
+  [ "$output" = "localhost:40003" ]
+
+  PORT_FORWARDING="-p 192.168.1.20:40001-40004:30001-30004"
+  run get_forwarded_access_endpoint 30003
+  [ "$status" -eq 0 ]
+  [ "$output" = "192.168.1.20:40003" ]
 }
 
-@test "get_forwarded_host_port missing mapping fails" {
+@test "get_forwarded_access_endpoint missing mapping fails" {
   PORT_FORWARDING="-p 30001-30004:30001-30004 -p 29999:29999"
-  run get_forwarded_host_port 6080
+  run get_forwarded_access_endpoint 6080
   [ "$status" -eq 1 ]
 
   PORT_FORWARDING=""
-  run get_forwarded_host_port 80
+  run get_forwarded_access_endpoint 80
   [ "$status" -eq 1 ]
 }
 
@@ -629,8 +645,8 @@ setup() {
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" == *"http://192.168.56.101:6080/vnc.html"* ]]
-  [[ "$output" == *"Access VNC web: http://localhost:6080/vnc.html"* ]]
-  [[ "$output" == *"Access via VNC client: localhost:5900"* ]]
+  [[ "$output" == *"Access VNC web: http://127.0.0.1:6080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: 127.0.0.1:5900"* ]]
 }
 
 @test "post_setup_cb3 prints custom forwarded ports" {
@@ -641,6 +657,16 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"Access VNC web: http://localhost:16080/vnc.html"* ]]
   [[ "$output" == *"Access via VNC client: localhost:15900"* ]]
+}
+
+@test "post_setup_cb3 prints bind-address forwarded endpoints" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 192.168.1.20:16080:6080 -p 127.0.0.1:15900:5900"
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access VNC web: http://192.168.1.20:16080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: 127.0.0.1:15900"* ]]
 }
 
 @test "post_setup_cb3 omits localhost urls when forwarding disabled" {
@@ -705,7 +731,29 @@ setup() {
   run post_setup_polyscopex
   echo "$output"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Access PolyScope X: http://localhost:8000"* ]]
+  [[ "$output" == *"Access PolyScope X: http://127.0.0.1:8000"* ]]
+}
+
+@test "post_setup_polyscopex prints bind-address forwarded endpoint" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 192.168.1.20:8080:80"
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access PolyScope X: http://192.168.1.20:8080"* ]]
+  [[ "$output" != *"Access PolyScope X: http://localhost:8080"* ]]
 }
 
 @test "post_setup_polyscopex omits localhost url when forwarding disabled" {
@@ -728,6 +776,7 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"http://192.168.56.101"* ]]
   [[ "$output" != *"Access PolyScope X: http://localhost:"* ]]
+  [[ "$output" != *"Access PolyScope X: http://192."* ]]
 }
 
 @test "default_container_name" {

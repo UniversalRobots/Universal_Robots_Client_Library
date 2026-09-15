@@ -236,22 +236,26 @@ validate_parameters()
   exit 1
 }
 
-# Extract the host port that forwards to a given container port from PORT_FORWARDING.
+# Extract the host endpoint that forwards to a given container port from PORT_FORWARDING.
 # Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER, and range mappings.
-# Echoes the host port and returns 0 on success, 1 if not found.
-get_forwarded_host_port()
+# Echoes HOST:PORT suitable for access URLs. Unspecified or 0.0.0.0 bind addresses
+# are reported as localhost; any other bind address is preserved. Returns 0 on
+# success, 1 if not found.
+get_forwarded_access_endpoint()
 {
   local container_port=$1
   local remaining="$PORT_FORWARDING"
-  local mapping host_spec container_spec
+  local mapping bind_addr host_spec container_spec host_port access_host
 
   while [[ "$remaining" =~ -p[[:space:]]+([^[:space:]]+)(.*) ]]; do
     mapping="${BASH_REMATCH[1]}"
     remaining="${BASH_REMATCH[2]}"
+    bind_addr=""
+    host_port=""
 
-    # Strip optional bind address (e.g. 127.0.0.1:8080:80 -> 8080:80)
-    if [[ "$mapping" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:(.+)$ ]]; then
-      mapping="${BASH_REMATCH[1]}"
+    if [[ "$mapping" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):(.+)$ ]]; then
+      bind_addr="${BASH_REMATCH[1]}"
+      mapping="${BASH_REMATCH[2]}"
     fi
 
     if [[ "$mapping" =~ ^([0-9]+(-[0-9]+)?):([0-9]+(-[0-9]+)?)$ ]]; then
@@ -263,11 +267,19 @@ get_forwarded_host_port()
         local c_end="${BASH_REMATCH[2]}"
         if [[ "$host_spec" =~ ^([0-9]+)-([0-9]+)$ ]] &&
            (( container_port >= c_start && container_port <= c_end )); then
-          echo $(( BASH_REMATCH[1] + container_port - c_start ))
-          return 0
+          host_port=$(( BASH_REMATCH[1] + container_port - c_start ))
         fi
       elif [[ "$container_spec" == "$container_port" ]]; then
-        echo "$host_spec"
+        host_port="$host_spec"
+      fi
+
+      if [[ -n "$host_port" ]]; then
+        if [[ -z "$bind_addr" || "$bind_addr" == "0.0.0.0" ]]; then
+          access_host="localhost"
+        else
+          access_host="$bind_addr"
+        fi
+        echo "${access_host}:${host_port}"
         return 0
       fi
     fi
@@ -282,14 +294,14 @@ post_setup_cb3()
   printf "\n\n\thttp://%s:6080/vnc.html\n\n" "$IP_ADDRESS"
   printf "\tor connect with a VNC client to %s:5900\n\n" "$IP_ADDRESS"
 
-  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the VNC access ports to your local machine and connect to localhost instead. The default port forwarding contains those entries already. Unless disabled, the following lines will print the access URLs for the forwarded ports."
+  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the VNC access ports to your local machine and connect via the forwarded ports instead. The default port forwarding contains those entries already. Unless disabled, the following lines will print the access URLs for the forwarded ports."
 
-  local host_port
-  if host_port=$(get_forwarded_host_port 6080); then
-    printf "\n\tAccess VNC web: http://localhost:%s/vnc.html" "$host_port"
+  local endpoint
+  if endpoint=$(get_forwarded_access_endpoint 6080); then
+    printf "\n\tAccess VNC web: http://%s/vnc.html" "$endpoint"
   fi
-  if host_port=$(get_forwarded_host_port 5900); then
-    printf "\n\tAccess via VNC client: localhost:%s" "$host_port"
+  if endpoint=$(get_forwarded_access_endpoint 5900); then
+    printf "\n\tAccess via VNC client: %s" "$endpoint"
   fi
   printf "\n\n"
 }
@@ -408,11 +420,11 @@ post_setup_polyscopex()
   echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
   printf "\n\n\thttp://%s\n\n" "$IP_ADDRESS"
 
-  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the web access port to your local machine and connect to localhost instead. The default port forwarding contains that entry already. Unless disabled, the following line will print the access URL for the forwarded port."
+  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the web access port to your local machine and connect via the forwarded port instead. The default port forwarding contains that entry already. Unless disabled, the following line will print the access URL for the forwarded port."
 
-  local host_port
-  if host_port=$(get_forwarded_host_port 80); then
-    printf "\n\tAccess PolyScope X: http://localhost:%s\n\n" "$host_port"
+  local endpoint
+  if endpoint=$(get_forwarded_access_endpoint 80); then
+    printf "\n\tAccess PolyScope X: http://%s\n\n" "$endpoint"
   else
     printf "\n"
   fi
