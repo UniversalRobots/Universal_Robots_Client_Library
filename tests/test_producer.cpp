@@ -65,7 +65,7 @@ TEST_F(ProducerTest, get_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
+  parser.setExpectedDataPackage(test::typedPackage(recipe, { "DOUBLE" }));
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
@@ -79,7 +79,8 @@ TEST_F(ProducerTest, get_data_package)
   server_->write(data_package, sizeof(data_package), written);
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
-  EXPECT_EQ(producer.tryGet(products), true);
+  ASSERT_TRUE(producer.tryGet(products));
+  ASSERT_EQ(products.size(), 1u);
 
   if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(products[0].get()))
   {

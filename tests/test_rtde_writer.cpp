@@ -218,6 +218,26 @@ TEST_F(RTDEWriterTest, masks_do_not_leak_into_the_following_package)
   EXPECT_EQ(std::get<uint8_t>(parsed_data_["standard_digital_output_mask"]), 4);
 }
 
+TEST_F(RTDEWriterTest, partial_packages_send_zeros_for_unset_fields)
+{
+  ASSERT_TRUE(writer_->sendSpeedSlider(0.5));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  rtde_interface::DataPackage package(input_recipe_);
+  ASSERT_TRUE(package.setData("input_double_register_25", 0.75));
+  ASSERT_TRUE(writer_->sendPackage(package));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  EXPECT_DOUBLE_EQ(std::get<double>(parsed_data_.at("input_double_register_25")), 0.75);
+  EXPECT_DOUBLE_EQ(std::get<double>(parsed_data_.at("speed_slider_fraction")), 0.0);
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_.at("speed_slider_mask")), 0u);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_.at("standard_digital_output_mask")), 0u);
+  EXPECT_FALSE(std::get<bool>(parsed_data_.at("input_bit_register_65")));
+  EXPECT_EQ(std::get<int32_t>(parsed_data_.at("input_int_register_25")), 0);
+  EXPECT_EQ(std::get<vector6d_t>(parsed_data_.at("external_force_torque")), vector6d_t{});
+  EXPECT_FALSE(package.isTyped());
+}
+
 TEST_F(RTDEWriterTest, send_standard_digital_output)
 {
   uint8_t expected_standard_digital_output_mask = 4;

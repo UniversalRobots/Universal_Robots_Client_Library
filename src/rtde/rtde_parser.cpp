@@ -29,10 +29,6 @@ namespace rtde_interface
 {
 bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
 {
-  // A package an application built from the recipe alone defaults to protocol version 2. The
-  // negotiated version lives on the parser, so apply it before parseWith() decides whether the
-  // payload starts with a recipe-id byte.
-  package.setProtocolVersion(protocol_version_);
   return package.parseWith(bp);
 }
 
@@ -78,6 +74,16 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       {
         return false;
       }
+      if (expected_data_package_.has_value())
+      {
+        auto package = std::make_unique<DataPackage>(*expected_data_package_);
+        if (!parseDataPackagePayload(bp, *package) || !bp.empty())
+        {
+          return false;
+        }
+        results.push_back(std::move(package));
+        break;
+      }
       if (results.empty() || results.back() == nullptr)
       {
         URCL_LOG_ERROR("Cannot parse an RTDE data package without a pre-allocated DataPackage with the expected "
@@ -85,10 +91,13 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
         return false;
       }
       DataPackage* package = dynamic_cast<DataPackage*>(results.back().get());
+      if (package != nullptr && package->layoutHash() != layout_hash_)
+      {
+        package->setProtocolVersion(protocol_version_);
+      }
       if (package == nullptr || package->layoutHash() != layout_hash_)
       {
-        throw UrException("The passed DataPackage does not match the RTDE client's registered type layout. Set the "
-                          "expected layout hash and pass a matching pre-allocated DataPackage.");
+        return false;
       }
       if (!parseDataPackagePayload(bp, *package))
       {
@@ -143,27 +152,22 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
       }
       if (result == nullptr || result->getType() != PackageType::RTDE_DATA_PACKAGE)
       {
-        if (result == nullptr)
+        if (!expected_data_package_.has_value())
         {
-          URCL_LOG_WARN("The passed result pointer is empty. A new DataPackage will "
-                        "have to be allocated. Please pass a pre-allocated DataPackage if you expect a DataPackage "
-                        "would be sent.");
+          return false;
         }
-        else
-        {
-          URCL_LOG_WARN("Passed a pre-allocated RTDE package of type %u while a DataPackage was received. A new "
-                        "DataPackage will have to be allocated. Please pass a pre-allocated DataPackage if you expect "
-                        "a DataPackage would be sent.",
-                        result->getType());
-        }
-        throw UrException("An RTDE data package requires a pre-allocated DataPackage with the expected layout.");
+        URCL_LOG_WARN("Allocating an RTDE DataPackage; pass a matching pre-allocated package to avoid allocation.");
+        result = std::make_unique<DataPackage>(*expected_data_package_);
       }
 
       DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
+      if (data_package != nullptr && data_package->layoutHash() != layout_hash_)
+      {
+        data_package->setProtocolVersion(protocol_version_);
+      }
       if (data_package == nullptr || data_package->layoutHash() != layout_hash_)
       {
-        throw UrException("The passed DataPackage does not match the RTDE client's registered output recipe and "
-                          "type layout. Set the recipe and types using RTDEClient.");
+        return false;
       }
 
       if (!parseDataPackagePayload(bp, *data_package))

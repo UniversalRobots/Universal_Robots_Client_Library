@@ -9,9 +9,9 @@ RTDE field types come from the robot
 ------------------------------------
 
 The data types of an RTDE recipe's fields are now taken from the robot's answer to the recipe setup,
-instead of from a table of field names maintained inside the library. No application code has to
-change for this: ``DataPackage`` is still constructed from a recipe, still allocates all of its
-storage there, and is typed by the robot's answer afterwards, which costs no memory.
+instead of from a table of field names maintained inside the library. ``DataPackage`` can still be
+constructed from a recipe and preallocates its field storage there. The first client read applies
+the negotiated types without allocation when the recipe matches.
 
 Four consequences are worth knowing about:
 
@@ -23,16 +23,18 @@ Four consequences are worth knowing about:
 - **A wrongly typed input field is reported when the package is sent.** ``DataPackage::setData()``
   decides a field's type from the value passed to it, so it can no longer tell on its own that the
   robot expects something else. ``RTDEWriter::sendPackage()`` checks the package against the robot's
-  answer and names the field and both types if they disagree. A typed input package is now also
+  answer and returns ``false`` if they disagree. Unset fields in a same-recipe package are sent as
+  typed zeros. A typed input package is now also
   available from ``RTDEClient::createInputDataPackage()`` after ``init()``, so filling several
   input fields no longer depends on guessing the field types correctly; ``setData()`` then rejects
   a mismatch immediately.
-- **Receiving into a package built from a different output recipe throws.** The first read applies
-  the types the robot reported to the package handed to ``RTDEClient::getDataPackage()`` or
-  ``RTDEClient::getDataPackageBlocking()``, which only works when that package names the same
-  fields. One built from another recipe is rejected with a ``UrException`` instead of being
-  silently refilled under the wrong names. Driving ``RTDEParser`` directly is stricter still: it
-  needs a package that already carries the negotiated types, since it has no recipe to apply.
+- **Client reads repair foreign recipes and allocate for null pointers.** Both
+  ``RTDEClient::getDataPackage()`` and ``RTDEClient::getDataPackageBlocking()`` warn about these
+  allocation-prone paths. Reuse a package built from ``getOutputRecipe()`` to avoid them.
+  Direct ``RTDEParser`` users must register negotiated types with ``setExpectedDataPackage()``
+  to enable null/non-data pointer replacement and deprecated vector allocation, or register only
+  ``setExpectedLayoutHash()`` and supply a matching typed package. Layout mismatches return
+  ``false`` rather than throwing.
 - **``getData()``/``setData()`` with a ``std::string`` is now a compile error.** That alternative
   was never a protocol type, so those calls used to compile and return ``false`` at runtime. Nothing
   could have relied on them working.

@@ -50,8 +50,7 @@ public:
   /*!
    * \brief Creates a new RTDEParser object, registering the used recipe.
    *
-   * The expected data-package layout is registered after the robot has acknowledged the recipe,
-   * so setExpectedLayoutHash() has to be called before data packages can be parsed.
+   * Register robot-acknowledged types with setExpectedDataPackage() or setExpectedLayoutHash() before parsing data.
    *
    * \param recipe The recipe used in RTDE data communication
    */
@@ -68,7 +67,7 @@ public:
    * \param result A pointer to the created RTDE package object. Ideally, the passed \p result is a pre-allocated
    * package of the type expected to be read. For example, when RTDE communication has been setup it enters the data
    * communication phase, where the expected package is a DataPackage. A DataPackage passed for RTDE data must have
-   * the registered layout hash. Passing a package with a different layout throws UrException.
+   * the registered layout hash; a mismatch returns false. Null/non-data pointers require setExpectedDataPackage().
    *
    * \returns True, if the byte stream could successfully be parsed as an RTDE package, false
    * otherwise
@@ -91,6 +90,11 @@ public:
   void setProtocolVersion(uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
+    if (expected_data_package_.has_value())
+    {
+      expected_data_package_->setProtocolVersion(protocol_version);
+      layout_hash_ = expected_data_package_->layoutHash();
+    }
   }
 
   uint16_t getProtocolVersion() const
@@ -109,7 +113,21 @@ public:
    */
   void setExpectedLayoutHash(uint64_t layout_hash)
   {
+    expected_data_package_.reset();
     layout_hash_ = layout_hash;
+    expected_layout_known_ = true;
+  }
+
+  /// Registers a typed template, enabling allocation for null/non-data pointers and the deprecated vector overload.
+  void setExpectedDataPackage(const DataPackage& data_package)
+  {
+    if (!data_package.isTyped())
+    {
+      throw UrException("The expected RTDE data package must be typed.");
+    }
+    expected_data_package_.emplace(data_package);
+    expected_data_package_->setProtocolVersion(protocol_version_);
+    layout_hash_ = expected_data_package_->layoutHash();
     expected_layout_known_ = true;
   }
 
@@ -117,6 +135,7 @@ private:
   bool parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const;
 
   std::vector<std::string> recipe_;
+  std::optional<DataPackage> expected_data_package_;
   uint64_t layout_hash_ = 0;
   bool expected_layout_known_ = false;
   bool recipeTypesKnown() const;

@@ -448,12 +448,8 @@ bool RTDEClient::setupOutputs()
       }
       else
       {
-        // All variables are accounted for in the RTDE package. The robot told us their data types,
-        // so this is the point where everything holding received data learns what it holds. The
-        // storage itself already exists, so this doesn't allocate and neither does the receive path
-        // from here on.
         preallocated_data_pkg_.setTypes(variable_types);
-        parser_.setExpectedLayoutHash(preallocated_data_pkg_.layoutHash());
+        parser_.setExpectedDataPackage(preallocated_data_pkg_);
         return true;
       }
     }
@@ -780,20 +776,29 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
   return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
 }
 
-void RTDEClient::ensureOutputLayout(DataPackage& data_package) const
+void RTDEClient::ensureOutputLayout(DataPackage& data_package, const DataPackage& output_template) const
 {
-  if (data_package.layoutHash() == preallocated_data_pkg_.layoutHash())
+  if (data_package.layoutHash() == output_template.layoutHash())
   {
     return;
   }
-  if (data_package.recipeHash() != preallocated_data_pkg_.recipeHash())
+  if (data_package.recipeHash() != output_template.recipeHash())
   {
-    throw UrException("The passed DataPackage was not built from this RTDEClient's output recipe. Construct it from "
-                      "RTDEClient::getOutputRecipe().");
+    URCL_LOG_WARN("Replacing a DataPackage with a different output recipe; this may allocate. "
+                  "Construct it from RTDEClient::getOutputRecipe() to avoid this repair.");
   }
-  // Both packages name the same fields, so this takes over the data types and the negotiated
-  // protocol version while leaving the recipe alone, which is the only part that would allocate.
-  data_package = preallocated_data_pkg_;
+  data_package = output_template;
+}
+
+void RTDEClient::ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) const
+{
+  if (data_package == nullptr)
+  {
+    URCL_LOG_WARN("No DataPackage supplied; allocating one with the negotiated output layout.");
+    data_package = std::make_unique<DataPackage>(preallocated_data_pkg_);
+    return;
+  }
+  ensureOutputLayout(*data_package, preallocated_data_pkg_);
 }
 
 bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_package,
@@ -801,9 +806,12 @@ bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& da
 {
   if (data_package == nullptr)
   {
-    URCL_LOG_ERROR("Cannot receive into an empty DataPackage pointer. Please pass a package built from this client's "
-                   "output recipe.");
-    return false;
+    std::unique_lock<std::mutex> lock(reconnect_mutex_, std::try_to_lock);
+    if (!lock.owns_lock() || reconnecting_ || !background_read_running_ || !preallocated_data_pkg_.isTyped())
+    {
+      return false;
+    }
+    ensureOutputLayout(data_package);
   }
   return getDataPackage(*data_package, timeout);
 }
@@ -821,11 +829,10 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
                    "reading or use getDataPackageBlocking(...).");
     return false;
   }
-  ensureOutputLayout(data_package);
-
   if (new_data_.load())
   {
     std::lock_guard<std::mutex> guard(read_mutex_);
+    ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
     data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
     new_data_.store(false);
   }
@@ -839,6 +846,7 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
     }
     if (new_data_.load())
     {
+      ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
       data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
       new_data_.store(false);
     }
@@ -854,16 +862,16 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
                    "background reading or use getDataPackage(...).");
     return false;
   }
-  if (data_package != nullptr)
-  {
-    ensureOutputLayout(*data_package);
-  }
-
   // Cannot get data packages while reconnecting as we could end up getting some of the configuration packages
-  std::unique_ptr<RTDEPackage> base_package(data_package.release());
   std::unique_lock<std::mutex> lock(reconnect_mutex_, std::defer_lock);
   if (lock.try_lock())
   {
+    if (!preallocated_data_pkg_.isTyped())
+    {
+      return false;
+    }
+    ensureOutputLayout(data_package);
+    std::unique_ptr<RTDEPackage> base_package(data_package.release());
     if (prod_->tryGet(base_package))
     {
       lock.unlock();
@@ -876,6 +884,7 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
       data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
       return true;
     }
+    data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
     lock.unlock();
   }
   else
@@ -885,7 +894,6 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
     std::this_thread::sleep_for(period);
   }
 
-  data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
   return false;
 }
 

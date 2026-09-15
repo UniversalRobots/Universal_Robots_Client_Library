@@ -270,12 +270,10 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_is_rejected)
   EXPECT_EQ(product.get(), package_address);
 }
 
-// The existing pattern of constructing an input package from the recipe and setting only the
-// fields that change. The copy itself must not log; the warning is deferred until the destination
-// is destroyed.
-TEST(DataPackageAllocationTest, rejecting_a_partial_package_does_not_allocate)
+TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
 {
   auto destination = test::typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 1 }));
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
 
@@ -290,7 +288,13 @@ TEST(DataPackageAllocationTest, rejecting_a_partial_package_does_not_allocate)
   setLogLevel(LogLevel::ERROR);
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_FALSE(copied);
+  EXPECT_TRUE(copied);
+  uint32_t mask = 1;
+  double fraction = 0.0;
+  ASSERT_TRUE(destination.getData("speed_slider_mask", mask));
+  ASSERT_TRUE(destination.getData("speed_slider_fraction", fraction));
+  EXPECT_EQ(mask, 0u);
+  EXPECT_DOUBLE_EQ(fraction, 0.5);
 }
 
 TEST(DataPackageAllocationTest, serializing_a_typed_package_does_not_allocate)
@@ -491,7 +495,7 @@ TEST_F(RTDEAllocationTest, copying_input_data_into_the_store_buffer_does_not_all
   client_->pause();
 }
 
-TEST_F(RTDEAllocationTest, rejecting_a_partial_package_does_not_allocate)
+TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
 {
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage input_pkg(client_->getInputRecipe());
@@ -514,7 +518,7 @@ TEST_F(RTDEAllocationTest, rejecting_a_partial_package_does_not_allocate)
   }
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_FALSE(all_sent);
+  EXPECT_TRUE(all_sent);
 
   client_->pause();
 }
