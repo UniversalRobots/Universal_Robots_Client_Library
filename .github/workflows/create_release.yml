@@ -50,4 +50,4 @@ jobs:
             --generate-notes \
             --notes-file .github/release_notes_header.txt \
             --title "$VERSION" \
-            --target "${{ github.sha }}"
+            --target "${{ github.base_ref }}"
