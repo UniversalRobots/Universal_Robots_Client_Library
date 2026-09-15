@@ -508,8 +508,11 @@ RTDEServer::~RTDEServer()
   // The TCP worker calls handlePackage() and the disconnect callback, both of which lock
   // mutexes declared after server_. Join that thread here so those mutexes are still alive.
   // ~TCPServer would otherwise do it too late, after the mutexes have already been destroyed.
-  stopSendingDataPackages();
+  // Finish callbacks before stopping the sender: an in-flight START may have acknowledged the
+  // request but not yet created send_thread_. Stopping it first would leave that new thread
+  // joinable when its destructor runs, causing std::terminate().
   server_.shutdown();
+  stopSendingDataPackages();
 }
 
 void RTDEServer::queueTextMessageBeforeVersionReply(const std::string& message)
@@ -889,6 +892,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
 
 void RTDEServer::startSendingDataPackages()
 {
+  std::lock_guard<std::mutex> thread_lock(thread_control_mutex_);
+  if (send_thread_.joinable())
+  {
+    return;
+  }
   URCL_LOG_INFO("Start sending data.");
   send_loop_running_ = true;
   send_thread_ = std::thread(&RTDEServer::sendDataLoop, this);

@@ -228,6 +228,9 @@ target_link_libraries(rtde_client_fake_server_tests PRIVATE ur_client_library::u
 gtest_add_tests(TARGET      rtde_client_fake_server_tests
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
+set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_idempotent
+                     RTDEClientFakeServerTest.server_sender_start_and_stop_are_serialized
+                     PROPERTIES TIMEOUT 60)
 
 # Covers RTDEClient::reconnect() by taking the fake RTDE server away and giving it back, so it runs
 # without a robot. Kept apart from the tests above because these wait on retry timing and are
@@ -239,6 +242,7 @@ gtest_add_tests(TARGET      rtde_client_reconnect_tests
 )
 # Bound these so a hang fails CI fast instead of timing out the job.
 set_tests_properties(RTDEClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     RTDEClientReconnectTest.destroying_the_server_immediately_after_start
                      RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_background_read
                      RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_blocking_read
                      RTDEClientReconnectTest.destroying_the_client_while_the_server_is_silent

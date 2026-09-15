@@ -148,6 +148,42 @@ TEST_F(RTDEClientFakeServerTest, init_is_idempotent)
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
 }
 
+TEST_F(RTDEClientFakeServerTest, server_sender_start_and_stop_are_idempotent)
+{
+  ASSERT_TRUE(client_->init());
+
+  server_->startSendingDataPackages();
+  server_->startSendingDataPackages();
+  server_->stopSendingDataPackages();
+  server_->stopSendingDataPackages();
+
+  // The sender can still be restarted after a completed stop/join.
+  ASSERT_TRUE(client_->start(false));
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  EXPECT_TRUE(client_->getDataPackageBlocking(data_pkg));
+}
+
+TEST_F(RTDEClientFakeServerTest, server_sender_start_and_stop_are_serialized)
+{
+  ASSERT_TRUE(client_->init());
+
+  auto toggle_sender = [this]() {
+    for (int i = 0; i < 25; ++i)
+    {
+      server_->startSendingDataPackages();
+      server_->stopSendingDataPackages();
+    }
+  };
+  std::thread first(toggle_sender);
+  std::thread second(toggle_sender);
+  first.join();
+  second.join();
+
+  ASSERT_TRUE(client_->start(false));
+  auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  EXPECT_TRUE(client_->getDataPackageBlocking(data_pkg));
+}
+
 TEST_F(RTDEClientFakeServerTest, start_and_pause_out_of_order)
 {
   EXPECT_FALSE(client_->start());
