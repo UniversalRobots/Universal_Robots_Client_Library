@@ -27,6 +27,22 @@ namespace urcl
 {
 namespace rtde_interface
 {
+bool RTDEParser::parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const
+{
+  return package.parseWith(bp);
+}
+
+bool RTDEParser::recipeTypesKnown() const
+{
+  if (expected_layout_known_)
+  {
+    return true;
+  }
+  URCL_LOG_ERROR("Received an RTDE data package while the data types of the output recipe are unknown. Those are "
+                 "reported by the robot when it acknowledges the recipe, so this means a data package arrived before "
+                 "the RTDE handshake was completed.");
+  return false;
+}
 
 bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
 {
@@ -54,14 +70,43 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
-      std::unique_ptr<RTDEPackage> package(new DataPackage(recipe_, protocol_version_));
-
-      if (!package->parseWith(bp))
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
+      if (expected_data_package_.has_value())
+      {
+        // Backwards compatibility: deprecated vector overload allocates a fresh package per cycle from template.
+        auto package = std::make_unique<DataPackage>(*expected_data_package_);
+        if (!parseDataPackagePayload(bp, *package) || !bp.empty())
+        {
+          return false;
+        }
+        results.push_back(std::move(package));
+        break;
+      }
+      if (results.empty() || results.back() == nullptr)
+      {
+        URCL_LOG_ERROR("Cannot parse an RTDE data package without a pre-allocated DataPackage with the expected "
+                       "layout.");
+        return false;
+      }
+      DataPackage* package = dynamic_cast<DataPackage*>(results.back().get());
+      if (package != nullptr && package->layoutHash() != layout_hash_)
+      {
+        // Re-sync negotiated protocol version in case parser version changed after package creation.
+        package->setProtocolVersion(protocol_version_);
+      }
+      if (package == nullptr || package->layoutHash() != layout_hash_)
+      {
+        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
+        return false;
+      }
+      if (!parseDataPackagePayload(bp, *package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;
       }
-      results.push_back(std::move(package));
       break;
     }
     default:
@@ -104,25 +149,34 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
   {
     case PackageType::RTDE_DATA_PACKAGE:
     {
+      if (!recipeTypesKnown())
+      {
+        return false;
+      }
       if (result == nullptr || result->getType() != PackageType::RTDE_DATA_PACKAGE)
       {
-        if (result == nullptr)
+        if (!expected_data_package_.has_value())
         {
-          URCL_LOG_WARN("The passed result pointer is empty. A new DataPackage will "
-                        "have to be allocated. Please pass a pre-allocated DataPackage if you expect a DataPackage "
-                        "would be sent.");
+          return false;
         }
-        else
-        {
-          URCL_LOG_WARN("Passed a pre-allocated RTDE package of type %u while a DataPackage was received. A new "
-                        "DataPackage will have to be allocated. Please pass a pre-allocated DataPackage if you expect "
-                        "a DataPackage would be sent.",
-                        result->getType());
-        }
-        result = std::make_unique<DataPackage>(recipe_, protocol_version_);
+        // Backwards compatibility: allocate from template if caller supplied null or non-data package.
+        URCL_LOG_WARN("Allocating an RTDE DataPackage; pass a matching pre-allocated package to avoid allocation.");
+        result = std::make_unique<DataPackage>(*expected_data_package_);
       }
 
-      if (!dynamic_cast<DataPackage*>(result.get())->parseWith(bp))
+      DataPackage* data_package = dynamic_cast<DataPackage*>(result.get());
+      if (data_package != nullptr && data_package->layoutHash() != layout_hash_)
+      {
+        // Re-sync negotiated protocol version in case parser version changed after package creation.
+        data_package->setProtocolVersion(protocol_version_);
+      }
+      if (data_package == nullptr || data_package->layoutHash() != layout_hash_)
+      {
+        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
+        return false;
+      }
+
+      if (!parseDataPackagePayload(bp, *data_package))
       {
         URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(type));
         return false;

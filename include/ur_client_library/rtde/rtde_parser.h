@@ -19,6 +19,7 @@
  */
 
 #pragma once
+#include <optional>
 #include <vector>
 #include "ur_client_library/comm/parser.h"
 #include "ur_client_library/comm/bin_parser.h"
@@ -49,6 +50,8 @@ public:
   /*!
    * \brief Creates a new RTDEParser object, registering the used recipe.
    *
+   * Register robot-acknowledged types with setExpectedDataPackage() or setExpectedLayoutHash() before parsing data.
+   *
    * \param recipe The recipe used in RTDE data communication
    */
   RTDEParser(const std::vector<std::string>& recipe) : recipe_(recipe), protocol_version_(1)
@@ -63,8 +66,8 @@ public:
    * \param bp A BinParser holding a serialized RTDE package
    * \param result A pointer to the created RTDE package object. Ideally, the passed \p result is a pre-allocated
    * package of the type expected to be read. For example, when RTDE communication has been setup it enters the data
-   * communication phase, where the expected package is a DataPackage. If the package content inside the \p bp object
-   * being doesn't match the result package's type or if the \p result is a nullptr, a new package will be allocated.
+   * communication phase, where the expected package is a DataPackage. A DataPackage passed for RTDE data must have
+   * the registered layout hash; a mismatch returns false. Null/non-data pointers require setExpectedDataPackage().
    *
    * \returns True, if the byte stream could successfully be parsed as an RTDE package, false
    * otherwise
@@ -87,6 +90,11 @@ public:
   void setProtocolVersion(uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
+    if (expected_data_package_.has_value())
+    {
+      expected_data_package_->setProtocolVersion(protocol_version);
+      layout_hash_ = expected_data_package_->layoutHash();
+    }
   }
 
   uint16_t getProtocolVersion() const
@@ -94,8 +102,45 @@ public:
     return protocol_version_;
   }
 
+  /*!
+   * \brief Registers the expected data-package layout reported by the robot in the RTDE setup
+   * acknowledgement.
+   *
+   * This has to be called before the robot starts sending data packages, i.e. before the
+   * RTDE_CONTROL_PACKAGE_START request is sent.
+   *
+   * \param layout_hash The layout hash of the acknowledged output recipe
+   */
+  void setExpectedLayoutHash(uint64_t layout_hash)
+  {
+    // Clear any previous template when registering only a hash to enforce strict non-allocating mode.
+    expected_data_package_.reset();
+    layout_hash_ = layout_hash;
+    expected_layout_known_ = true;
+  }
+
+  /// Registers a typed template, enabling allocation for null/non-data pointers and the deprecated vector overload.
+  void setExpectedDataPackage(const DataPackage& data_package)
+  {
+    if (!data_package.isTyped())
+    {
+      throw UrException("The expected RTDE data package must be typed.");
+    }
+    expected_data_package_.emplace(data_package);
+    expected_data_package_->setProtocolVersion(protocol_version_);
+    layout_hash_ = expected_data_package_->layoutHash();
+    expected_layout_known_ = true;
+  }
+
 private:
+  bool parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const;
+
   std::vector<std::string> recipe_;
+  // Optional typed template restoring legacy allocation for null pointers and deprecated vector parse.
+  std::optional<DataPackage> expected_data_package_;
+  uint64_t layout_hash_ = 0;
+  bool expected_layout_known_ = false;
+  bool recipeTypesKnown() const;
   PackageType getPackageTypeFromHeader(comm::BinParser& bp) const;
   RTDEPackage* createNewPackageFromType(PackageType type) const;
 

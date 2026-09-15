@@ -28,6 +28,7 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 #include <mutex>
+#include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -69,16 +70,50 @@ void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
   used_masks_.clear();
   for (const auto& field : recipe)
   {
-    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
+    if (field.size() >= 5 && field.compare(field.size() - 5, 5, "_mask") == 0)
     {
       used_masks_.push_back(field);
     }
   }
+  // All storage the send path needs is allocated here. The buffers stay unusable until the robot
+  // has reported the data types of the recipe's fields, which setRecipeTypes() then applies without
+  // allocating again.
   data_buffer0_ = std::make_shared<DataPackage>(recipe_);
   data_buffer1_ = std::make_shared<DataPackage>(recipe_);
+  data_buffer0_->setProtocolVersion(protocol_version_);
+  data_buffer1_->setProtocolVersion(protocol_version_);
 
   current_store_buffer_ = data_buffer0_;
   current_send_buffer_ = data_buffer1_;
+}
+
+void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the RTDE protocol version while the writer is running.");
+  }
+  protocol_version_ = protocol_version;
+  if (data_buffer0_ != nullptr)
+  {
+    data_buffer0_->setProtocolVersion(protocol_version);
+  }
+  if (data_buffer1_ != nullptr)
+  {
+    data_buffer1_->setProtocolVersion(protocol_version);
+  }
+}
+
+void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot apply RTDE recipe types while the writer is running.");
+  }
+  data_buffer0_->setTypes(types);
+  data_buffer1_->setTypes(types);
 }
 
 void RTDEWriter::init(uint8_t recipe_id)
@@ -90,12 +125,19 @@ void RTDEWriter::init(uint8_t recipe_id)
   }
   {
     std::lock_guard<std::mutex> lock_guard(store_mutex_);
+    if (running_)
+    {
+      throw UrException("Requesting to init a RTDEWriter while it is running. The writer has to be "
+                        "stopped before initializing it.");
+    }
     data_buffer0_->setRecipeID(recipe_id);
     data_buffer1_->setRecipeID(recipe_id);
+    current_store_buffer_ = data_buffer0_;
+    current_send_buffer_ = data_buffer1_;
+    running_ = true;
   }
   recipe_id_ = recipe_id;
   new_data_available_ = false;
-  running_ = true;
   writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
 
@@ -143,9 +185,23 @@ void RTDEWriter::stop()
 bool RTDEWriter::sendPackage(const DataPackage& package)
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  *current_store_buffer_ = package;
+  if (!current_store_buffer_->copyFrom(package))
+  {
+    return false;
+  }
   markStorageToBeSent();
   return true;
+}
+
+DataPackage RTDEWriter::createDataPackage()
+{
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  if (current_store_buffer_ == nullptr || !running_ || !current_store_buffer_->isTyped())
+  {
+    throw UrException("Cannot create an RTDE input data package before the robot has acknowledged the input recipe. "
+                      "That happens during the RTDE handshake, so call this after RTDEClient::init().");
+  }
+  return current_store_buffer_->emptyCopy();
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
@@ -404,19 +460,7 @@ void RTDEWriter::resetMasks(const std::shared_ptr<DataPackage>& buffer)
 {
   for (const auto& mask_name : used_masks_)
   {
-    // "speed_slider_mask" is uint32_t, all others are uint8_t
-    // If we reset it to the wrong type, serialization will be wrong
-    if (mask_name == "speed_slider_mask")
-
-    {
-      uint32_t mask = 0;
-      buffer->setData<uint32_t>(mask_name, mask);
-    }
-    else
-    {
-      uint8_t mask = 0;
-      buffer->setData<uint8_t>(mask_name, mask);
-    }
+    buffer->resetData(mask_name);
   }
 }
 
