@@ -238,6 +238,7 @@ validate_parameters()
 
 # Extract the host endpoint that forwards to a given container port from PORT_FORWARDING.
 # Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER, and range mappings.
+# An optional /tcp protocol suffix is accepted; non-TCP mappings are ignored.
 # Echoes HOST:PORT suitable for access URLs. Unspecified or 0.0.0.0 bind addresses
 # are reported as localhost; any other bind address is preserved. Returns 0 on
 # success, 1 if not found.
@@ -258,7 +259,8 @@ get_forwarded_access_endpoint()
       mapping="${BASH_REMATCH[2]}"
     fi
 
-    if [[ "$mapping" =~ ^([0-9]+(-[0-9]+)?):([0-9]+(-[0-9]+)?)$ ]]; then
+    # Accept optional /tcp; skip non-TCP protocol suffixes (e.g. /udp).
+    if [[ "$mapping" =~ ^([0-9]+(-[0-9]+)?):([0-9]+(-[0-9]+)?)(/tcp)?$ ]]; then
       host_spec="${BASH_REMATCH[1]}"
       container_spec="${BASH_REMATCH[3]}"
 

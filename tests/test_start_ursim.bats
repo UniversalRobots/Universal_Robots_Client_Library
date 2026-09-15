@@ -638,6 +638,43 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
+@test "get_forwarded_access_endpoint accepts optional tcp protocol suffix" {
+  PORT_FORWARDING="-p 16080:6080/tcp -p 15900:5900/tcp -p 8080:80/tcp"
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:16080" ]
+
+  run get_forwarded_access_endpoint 5900
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:15900" ]
+
+  run get_forwarded_access_endpoint 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:8080" ]
+
+  PORT_FORWARDING="-p 192.168.1.20:8080:80/tcp"
+  run get_forwarded_access_endpoint 80
+  [ "$status" -eq 0 ]
+  [ "$output" = "192.168.1.20:8080" ]
+
+  PORT_FORWARDING="-p 40001-40004:30001-30004/tcp"
+  run get_forwarded_access_endpoint 30003
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:40003" ]
+}
+
+@test "get_forwarded_access_endpoint ignores non-tcp protocol suffixes" {
+  PORT_FORWARDING="-p 16080:6080/udp"
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 1 ]
+
+  # Prefer the TCP mapping when both protocols are published for the same container port.
+  PORT_FORWARDING="-p 16080:6080/udp -p 16081:6080/tcp"
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:16081" ]
+}
+
 @test "post_setup_cb3 prints default forwarded ports" {
   IP_ADDRESS="192.168.56.101"
   PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
@@ -652,6 +689,16 @@ setup() {
 @test "post_setup_cb3 prints custom forwarded ports" {
   IP_ADDRESS="192.168.56.101"
   PORT_FORWARDING="-p 16080:6080 -p 15900:5900"
+  run post_setup_cb3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Access VNC web: http://localhost:16080/vnc.html"* ]]
+  [[ "$output" == *"Access via VNC client: localhost:15900"* ]]
+}
+
+@test "post_setup_cb3 prints forwarded ports with tcp protocol suffix" {
+  IP_ADDRESS="192.168.56.101"
+  PORT_FORWARDING="-p 16080:6080/tcp -p 15900:5900/tcp"
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
