@@ -136,6 +136,20 @@ enum class ReportLevel : int32_t
   DEVL_CRITICAL_FAULT = 133
 };
 
+enum class ControlBoxType : uint16_t
+{
+  UNKNOWN = 0,
+  CB5 = 1,
+  CB7 = 2
+};
+
+enum class ToolFlangeType : uint16_t
+{
+  UNKNOWN = 0,
+  V1 = 1,
+  V2 = 2
+};
+
 inline std::string reportLevelString(const ReportLevel& code)
 {
   switch (code)

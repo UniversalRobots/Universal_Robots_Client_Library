@@ -259,6 +259,29 @@ const unsigned char VERSION_MESSAGE[] = {
   0x33, 0x33
 };
 
+const unsigned char HARDWARE_INFO_MESSAGE[] = {
+  // message size
+  0x00, 0x00, 0x00, 0x1b,
+  // message type robot message
+  0x14,
+  // timestamp
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a,
+  // source
+  0xfe,
+  // robot_message_type HARDWARE_INFO
+  0x12,
+  // robot type
+  0x00, 0x00, 0x00, 0x07,
+  // reserved
+  0x00, 0x00,
+  // control box type CB7
+  0x00, 0x02,
+  // reserved
+  0x00, 0x00,
+  // tool flange type V1
+  0x00, 0x01
+};
+
 const unsigned char KEY_MESSAGE[] = {
   // message size
   0x00, 0x00, 0x00, 0x32,
@@ -438,6 +461,28 @@ TEST_F(PrimaryParserTest, parse_version_message)
   {
     FAIL() << "Parsed package is not of type VersionMessage";
   }
+}
+
+TEST_F(PrimaryParserTest, parse_hardware_info_message)
+{
+  unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
+  memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+
+  std::unique_ptr<primary_interface::PrimaryPackage> product;
+  ASSERT_TRUE(parser_.parse(bp, product));
+  ASSERT_NE(product, nullptr);
+
+  auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->timestamp_, 42);
+  EXPECT_EQ(data->source_, -2);
+  EXPECT_EQ(data->message_type_, primary_interface::RobotMessagePackageType::ROBOT_MESSAGE_HARDWARE_INFO);
+  EXPECT_EQ(data->robot_type_, RobotType::UR20);
+  EXPECT_EQ(data->reserved_1_, 0);
+  EXPECT_EQ(data->control_box_type_, ControlBoxType::CB7);
+  EXPECT_EQ(data->reserved_2_, 0);
+  EXPECT_EQ(data->tool_flange_type_, ToolFlangeType::V1);
 }
 
 TEST_F(PrimaryParserTest, parse_key_message)
