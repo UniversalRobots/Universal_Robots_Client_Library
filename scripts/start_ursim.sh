@@ -58,7 +58,7 @@ help()
   echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
   echo "    -i             IP address the container should get. Defaults to $IP_ADDRESS"
   echo "    -d             Detached mode - start in background"
-  echo "    -f             Specify port forwarding to use. Defaults to 
+  echo "    -f             Specify port forwarding to use. Defaults to
                      - '$PORT_FORWARDING_WITH_DASHBOARD' (CB3 and PolyScope 5)
                      - '$PORT_FORWARDING_WITHOUT_DASHBOARD' (PolyScope X).
                    Set to \"DISABLED\" to disable port forwarding."
@@ -236,61 +236,43 @@ validate_parameters()
   exit 1
 }
 
-# Extract the host endpoint that forwards to a given container port from PORT_FORWARDING.
-# Supports -p HOST:CONTAINER, -p IP:HOST:CONTAINER (IPv4 or bracketed IPv6), and range
-# mappings. An optional /tcp protocol suffix is accepted; non-TCP mappings are ignored.
-# Echoes HOST:PORT suitable for access URLs. Unspecified, 0.0.0.0, or [::] bind addresses
-# are reported as localhost; any other bind address is preserved (IPv6 keeps its brackets
-# so the HTTP URL stays valid). Returns 0 on success, 1 if not found.
+# Query the published host endpoint for a container port via `docker port`.
+# Echoes HOST:PORT suitable for access URLs. Wildcard binds (0.0.0.0 / [::]) are
+# reported as localhost; other bind addresses are preserved (IPv6 keeps brackets).
+# Only TCP mappings are considered. Returns 0 on success, 1 if not published.
 get_forwarded_access_endpoint()
 {
   local container_port=$1
-  local remaining="$PORT_FORWARDING"
-  local mapping bind_addr host_spec container_spec host_port access_host
+  local docker_output host_port_line bind_addr host_port access_host
 
-  while [[ "$remaining" =~ -p[[:space:]]+([^[:space:]]+)(.*) ]]; do
-    mapping="${BASH_REMATCH[1]}"
-    remaining="${BASH_REMATCH[2]}"
-    bind_addr=""
-    host_port=""
+  if ! docker_output=$(docker port "$CONTAINER_NAME" "${container_port}/tcp" 2>/dev/null); then
+    return 1
+  fi
+  [[ -z "$docker_output" ]] && return 1
 
-    if [[ "$mapping" =~ ^\[([^\]]+)\]:(.+)$ ]]; then
-      # Preserve brackets for a valid HTTP host (e.g. http://[::1]:8080).
-      bind_addr="[${BASH_REMATCH[1]}]"
-      mapping="${BASH_REMATCH[2]}"
-    elif [[ "$mapping" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):(.+)$ ]]; then
-      bind_addr="${BASH_REMATCH[1]}"
-      mapping="${BASH_REMATCH[2]}"
-    fi
+  # Prefer an IPv4 mapping when Docker lists both address families.
+  host_port_line=$(echo "$docker_output" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+$' | head -n1)
+  if [[ -z "$host_port_line" ]]; then
+    host_port_line=$(echo "$docker_output" | head -n1)
+  fi
 
-    # Accept optional /tcp; skip non-TCP protocol suffixes (e.g. /udp).
-    if [[ "$mapping" =~ ^([0-9]+(-[0-9]+)?):([0-9]+(-[0-9]+)?)(/tcp)?$ ]]; then
-      host_spec="${BASH_REMATCH[1]}"
-      container_spec="${BASH_REMATCH[3]}"
+  if [[ "$host_port_line" =~ ^\[([^\]]+)\]:([0-9]+)$ ]]; then
+    bind_addr="[${BASH_REMATCH[1]}]"
+    host_port="${BASH_REMATCH[2]}"
+  elif [[ "$host_port_line" =~ ^([^:]+):([0-9]+)$ ]]; then
+    bind_addr="${BASH_REMATCH[1]}"
+    host_port="${BASH_REMATCH[2]}"
+  else
+    return 1
+  fi
 
-      if [[ "$container_spec" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-        local c_start="${BASH_REMATCH[1]}"
-        local c_end="${BASH_REMATCH[2]}"
-        if [[ "$host_spec" =~ ^([0-9]+)-([0-9]+)$ ]] &&
-           (( container_port >= c_start && container_port <= c_end )); then
-          host_port=$(( BASH_REMATCH[1] + container_port - c_start ))
-        fi
-      elif [[ "$container_spec" == "$container_port" ]]; then
-        host_port="$host_spec"
-      fi
-
-      if [[ -n "$host_port" ]]; then
-        if [[ -z "$bind_addr" || "$bind_addr" == "0.0.0.0" || "$bind_addr" == "[::]" ]]; then
-          access_host="localhost"
-        else
-          access_host="$bind_addr"
-        fi
-        echo "${access_host}:${host_port}"
-        return 0
-      fi
-    fi
-  done
-  return 1
+  if [[ "$bind_addr" == "0.0.0.0" || "$bind_addr" == "[::]" ]]; then
+    access_host="localhost"
+  else
+    access_host="$bind_addr"
+  fi
+  echo "${access_host}:${host_port}"
+  return 0
 }
 
 post_setup_cb3()
@@ -635,9 +617,15 @@ main() {
     )
   fi
 
-  # PORT_FORWARDING is a space-separated list of -p flags; word-splitting is intentional
+  # PORT_FORWARDING is a space-separated list of -p flags; word-splitting is intentional.
+  # Disable pathname expansion so bracketed IPv6 binds (e.g. [::1]:6080:6080) are not
+  # treated as globs.
   # shellcheck disable=SC2206
-  [[ -n "$PORT_FORWARDING" ]] && docker_args+=($PORT_FORWARDING)
+  if [[ -n "$PORT_FORWARDING" ]]; then
+    set -f
+    docker_args+=($PORT_FORWARDING)
+    set +f
+  fi
   docker_args+=(--name "$CONTAINER_NAME" "universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION")
 
   if [ "$TEST_RUN" = true ]; then

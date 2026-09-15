@@ -516,11 +516,19 @@ setup() {
   [ "$ip_address" = "123.123.123.123" ]
 }
 
+# Extract -p mappings from the docker command line printed by `main -t`.
+# Supports IPv4 binds, bracketed IPv6 binds, ranges, and an optional /tcp|/udp suffix.
+extract_port_forwarding() {
+  echo "$1" | tail -n -1 | grep -Eo "(\-p\s*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?(/[a-z]+)?\s*)+" | awk '{$1=$1};1'
+}
+
+port_forwarding_regex='\-p\s*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?(/[a-z]+)?'
+
 @test "default_port_forwarding_cb3" {
   run main -t -v 3.14.3
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(extract_port_forwarding "$output")
   [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
 }
 
@@ -528,7 +536,7 @@ setup() {
   run main -t -v 5.21.0
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(extract_port_forwarding "$output")
   [ "$port_forwarding" = "$PORT_FORWARDING_WITH_DASHBOARD" ]
 }
 
@@ -536,7 +544,7 @@ setup() {
   run main -t -v 10.7.0
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(extract_port_forwarding "$output")
   [ "$port_forwarding" = "$PORT_FORWARDING_WITHOUT_DASHBOARD" ]
 }
 
@@ -544,8 +552,48 @@ setup() {
   run main -t -f "-p 1234:1234 -p 50001-50004:60001-60004"
   echo "$output"
   [ $status -eq 0 ]
-  port_forwarding=$(echo "$output" | tail -n -1 | grep -Eo "(\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?\s*)+" | awk '{$1=$1};1')
+  port_forwarding=$(extract_port_forwarding "$output")
   [ "$port_forwarding" = "-p 1234:1234 -p 50001-50004:60001-60004" ]
+}
+
+@test "setting_port_forwarding with ipv6 bind address" {
+  run main -t -f "-p 30001-30004:30001-30004 -p [::1]:6080:6080 -p [::1]:5900:5900"
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(extract_port_forwarding "$output")
+  [ "$port_forwarding" = "-p 30001-30004:30001-30004 -p [::1]:6080:6080 -p [::1]:5900:5900" ]
+}
+
+@test "setting_port_forwarding with ipv6 survives pathname expansion" {
+  # A file named "1" would match the character-class glob [::1] if pathname
+  # expansion were left enabled while splitting PORT_FORWARDING.
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  touch "$tmpdir/1"
+  pushd "$tmpdir" >/dev/null
+  run main -t -f "-p [::1]:6080:6080"
+  popd >/dev/null
+  rm -rf "$tmpdir"
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(extract_port_forwarding "$output")
+  [ "$port_forwarding" = "-p [::1]:6080:6080" ]
+}
+
+@test "setting_port_forwarding with ipv6 bind address and tcp suffix" {
+  run main -t -f "-p [2001:db8::1]:8080:80/tcp -p [::1]:16080:6080/tcp"
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(extract_port_forwarding "$output")
+  [ "$port_forwarding" = "-p [2001:db8::1]:8080:80/tcp -p [::1]:16080:6080/tcp" ]
+}
+
+@test "setting_port_forwarding with ipv6 range mapping" {
+  run main -t -f "-p [fe80::1]:40001-40004:30001-30004"
+  echo "$output"
+  [ $status -eq 0 ]
+  port_forwarding=$(extract_port_forwarding "$output")
+  [ "$port_forwarding" = "-p [fe80::1]:40001-40004:30001-30004" ]
 }
 
 @test "disable_port_forwarding" {
@@ -553,11 +601,39 @@ setup() {
   echo "$output"
   [ $status -eq 0 ]
   docker_line=$(echo "$output" | tail -n -1)
-  grep -v -E "\-p\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+(\-[0-9]+)?:[0-9]+(\-[0-9]+)?" <<< "$docker_line"
+  grep -v -E "$port_forwarding_regex" <<< "$docker_line"
 }
 
-@test "get_forwarded_access_endpoint default cb3 mappings" {
-  PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
+# Stub `docker port` for unit tests. Usage in tests:
+#   DOCKER_PORT_MAP=$'6080=127.0.0.1:6080\n5900=127.0.0.1:5900'
+# Each line is CONTAINER_PORT=HOST:PORT, where HOST:PORT is the output of
+# `docker port CONTAINER CONTAINER_PORT/tcp`
+stub_docker_port() {
+  docker() {
+    if [[ "$1" != "port" ]]; then
+      return 1
+    fi
+    local requested="${3%%/*}"
+    if [[ "$3" == */* && "${3##*/}" != "tcp" ]]; then
+      return 1
+    fi
+    local line
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      if [[ "${line%%=*}" == "$requested" ]]; then
+        printf '%s\n' "${line#*=}"
+        return 0
+      fi
+    done <<< "$DOCKER_PORT_MAP"
+    return 1
+  }
+}
+
+@test "get_forwarded_access_endpoint from docker port ipv4" {
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=127.0.0.1:6080\n5900=127.0.0.1:5900\n80=0.0.0.0:8000'
+  stub_docker_port
+
   run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
   [ "$output" = "127.0.0.1:6080" ]
@@ -565,133 +641,86 @@ setup() {
   run get_forwarded_access_endpoint 5900
   [ "$status" -eq 0 ]
   [ "$output" = "127.0.0.1:5900" ]
-}
 
-@test "get_forwarded_access_endpoint default polyscopex mapping" {
-  PORT_FORWARDING="$PORT_FORWARDING_WITHOUT_DASHBOARD"
   run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "127.0.0.1:8000" ]
+  [ "$output" = "localhost:8000" ]
 }
 
-@test "get_forwarded_access_endpoint custom host ports" {
-  PORT_FORWARDING="-p 16080:6080 -p 15900:5900 -p 8080:80"
+@test "get_forwarded_access_endpoint from docker port custom and bind addresses" {
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=0.0.0.0:16080\n5900=192.168.1.20:15900\n80=10.0.0.5:8080'
+  stub_docker_port
+
   run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
   [ "$output" = "localhost:16080" ]
 
   run get_forwarded_access_endpoint 5900
   [ "$status" -eq 0 ]
-  [ "$output" = "localhost:15900" ]
+  [ "$output" = "192.168.1.20:15900" ]
 
   run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
-  [ "$output" = "localhost:8080" ]
+  [ "$output" = "10.0.0.5:8080" ]
 }
 
-@test "get_forwarded_access_endpoint with loopback and wildcard bind addresses" {
-  PORT_FORWARDING="-p 127.0.0.1:8080:80 -p 0.0.0.0:16080:6080"
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 0 ]
-  [ "$output" = "127.0.0.1:8080" ]
+@test "get_forwarded_access_endpoint from docker port ipv6" {
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'80=[::1]:8080\n6080=[::]:16080\n5900=[2001:db8::1]:15900'
+  stub_docker_port
 
-  run get_forwarded_access_endpoint 6080
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:16080" ]
-}
-
-@test "get_forwarded_access_endpoint with bracketed ipv6 bind addresses" {
-  PORT_FORWARDING="-p [::1]:8080:80"
   run get_forwarded_access_endpoint 80
   [ "$status" -eq 0 ]
   [ "$output" = "[::1]:8080" ]
 
-  PORT_FORWARDING="-p [::]:16080:6080"
-  run get_forwarded_access_endpoint 6080
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:16080" ]
-
-  PORT_FORWARDING="-p [2001:db8::1]:8080:80/tcp"
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 0 ]
-  [ "$output" = "[2001:db8::1]:8080" ]
-
-  PORT_FORWARDING="-p [fe80::1]:40001-40004:30001-30004"
-  run get_forwarded_access_endpoint 30003
-  [ "$status" -eq 0 ]
-  [ "$output" = "[fe80::1]:40003" ]
-}
-
-@test "get_forwarded_access_endpoint preserves non-loopback bind address" {
-  PORT_FORWARDING="-p 192.168.1.20:8080:80 -p 10.0.0.5:16080:6080"
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 0 ]
-  [ "$output" = "192.168.1.20:8080" ]
-
-  run get_forwarded_access_endpoint 6080
-  [ "$status" -eq 0 ]
-  [ "$output" = "10.0.0.5:16080" ]
-}
-
-@test "get_forwarded_access_endpoint range mapping" {
-  PORT_FORWARDING="-p 30001-30004:30001-30004"
-  run get_forwarded_access_endpoint 30002
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:30002" ]
-
-  PORT_FORWARDING="-p 40001-40004:30001-30004"
-  run get_forwarded_access_endpoint 30003
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:40003" ]
-
-  PORT_FORWARDING="-p 192.168.1.20:40001-40004:30001-30004"
-  run get_forwarded_access_endpoint 30003
-  [ "$status" -eq 0 ]
-  [ "$output" = "192.168.1.20:40003" ]
-}
-
-@test "get_forwarded_access_endpoint missing mapping fails" {
-  PORT_FORWARDING="-p 30001-30004:30001-30004 -p 29999:29999"
-  run get_forwarded_access_endpoint 6080
-  [ "$status" -eq 1 ]
-
-  PORT_FORWARDING=""
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 1 ]
-}
-
-@test "get_forwarded_access_endpoint accepts optional tcp protocol suffix" {
-  PORT_FORWARDING="-p 16080:6080/tcp -p 15900:5900/tcp -p 8080:80/tcp"
   run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
   [ "$output" = "localhost:16080" ]
 
   run get_forwarded_access_endpoint 5900
   [ "$status" -eq 0 ]
-  [ "$output" = "localhost:15900" ]
-
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:8080" ]
-
-  PORT_FORWARDING="-p 192.168.1.20:8080:80/tcp"
-  run get_forwarded_access_endpoint 80
-  [ "$status" -eq 0 ]
-  [ "$output" = "192.168.1.20:8080" ]
-
-  PORT_FORWARDING="-p 40001-40004:30001-30004/tcp"
-  run get_forwarded_access_endpoint 30003
-  [ "$status" -eq 0 ]
-  [ "$output" = "localhost:40003" ]
+  [ "$output" = "[2001:db8::1]:15900" ]
 }
 
-@test "get_forwarded_access_endpoint ignores non-tcp protocol suffixes" {
-  PORT_FORWARDING="-p 16080:6080/udp"
+@test "get_forwarded_access_endpoint prefers ipv4 when dual-stack" {
+  CONTAINER_NAME="ursim"
+  docker() {
+    if [[ "$1" == "port" && "$3" == "6080/tcp" ]]; then
+      printf '%s\n' '0.0.0.0:16080' '[::]:16080'
+      return 0
+    fi
+    return 1
+  }
+
+  run get_forwarded_access_endpoint 6080
+  [ "$status" -eq 0 ]
+  [ "$output" = "localhost:16080" ]
+}
+
+@test "get_forwarded_access_endpoint missing mapping fails" {
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'30001=0.0.0.0:30001'
+  stub_docker_port
+
   run get_forwarded_access_endpoint 6080
   [ "$status" -eq 1 ]
 
-  # Prefer the TCP mapping when both protocols are published for the same container port.
-  PORT_FORWARDING="-p 16080:6080/udp -p 16081:6080/tcp"
+  DOCKER_PORT_MAP=""
+  run get_forwarded_access_endpoint 80
+  [ "$status" -eq 1 ]
+}
+
+@test "get_forwarded_access_endpoint queries tcp only" {
+  CONTAINER_NAME="ursim"
+  docker() {
+    if [[ "$1" == "port" && "$3" == "6080/tcp" ]]; then
+      echo "0.0.0.0:16081"
+      return 0
+    fi
+    return 1
+  }
+
   run get_forwarded_access_endpoint 6080
   [ "$status" -eq 0 ]
   [ "$output" = "localhost:16081" ]
@@ -699,7 +728,9 @@ setup() {
 
 @test "post_setup_cb3 prints default forwarded ports" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="$PORT_FORWARDING_WITH_DASHBOARD"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=127.0.0.1:6080\n5900=127.0.0.1:5900'
+  stub_docker_port
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
@@ -710,17 +741,9 @@ setup() {
 
 @test "post_setup_cb3 prints custom forwarded ports" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 16080:6080 -p 15900:5900"
-  run post_setup_cb3
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Access VNC web: http://localhost:16080/vnc.html"* ]]
-  [[ "$output" == *"Access via VNC client: localhost:15900"* ]]
-}
-
-@test "post_setup_cb3 prints forwarded ports with tcp protocol suffix" {
-  IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 16080:6080/tcp -p 15900:5900/tcp"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=0.0.0.0:16080\n5900=0.0.0.0:15900'
+  stub_docker_port
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
@@ -730,7 +753,9 @@ setup() {
 
 @test "post_setup_cb3 prints bind-address forwarded endpoints" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 192.168.1.20:16080:6080 -p 127.0.0.1:15900:5900"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=192.168.1.20:16080\n5900=127.0.0.1:15900'
+  stub_docker_port
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
@@ -740,7 +765,9 @@ setup() {
 
 @test "post_setup_cb3 prints ipv6 bind-address forwarded endpoints" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p [::1]:16080:6080/tcp -p [::1]:15900:5900/tcp"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=[::1]:16080\n5900=[::1]:15900'
+  stub_docker_port
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
@@ -750,7 +777,9 @@ setup() {
 
 @test "post_setup_cb3 omits localhost urls when forwarding disabled" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING=""
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=""
+  stub_docker_port
   run post_setup_cb3
   echo "$output"
   [ "$status" -eq 0 ]
@@ -761,7 +790,9 @@ setup() {
 
 @test "post_setup_e-series prints custom forwarded ports" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 16080:6080 -p 15900:5900"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=$'6080=0.0.0.0:16080\n5900=0.0.0.0:15900'
+  stub_docker_port
   run post_setup_e-series
   echo "$output"
   [ "$status" -eq 0 ]
@@ -771,7 +802,9 @@ setup() {
 
 @test "post_setup_polyscopex prints custom forwarded port" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 8080:80"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=0.0.0.0:8080'
+  stub_docker_port
   # Stub network-dependent helpers so we only exercise the access-URL printing.
   get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
   curl() {
@@ -794,7 +827,9 @@ setup() {
 
 @test "post_setup_polyscopex prints default forwarded port" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="$PORT_FORWARDING_WITHOUT_DASHBOARD"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=127.0.0.1:8000'
+  stub_docker_port
   get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
   curl() {
     if [[ "$*" == *"--form"* ]]; then
@@ -815,7 +850,9 @@ setup() {
 
 @test "post_setup_polyscopex prints bind-address forwarded endpoint" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p 192.168.1.20:8080:80"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=192.168.1.20:8080'
+  stub_docker_port
   get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
   curl() {
     if [[ "$*" == *"--form"* ]]; then
@@ -837,7 +874,9 @@ setup() {
 
 @test "post_setup_polyscopex prints ipv6 bind-address forwarded endpoint" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING="-p [::1]:8080:80"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=[::1]:8080'
+  stub_docker_port
   get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
   curl() {
     if [[ "$*" == *"--form"* ]]; then
@@ -858,7 +897,9 @@ setup() {
 
 @test "post_setup_polyscopex omits localhost url when forwarding disabled" {
   IP_ADDRESS="192.168.56.101"
-  PORT_FORWARDING=""
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=""
+  stub_docker_port
   get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
   curl() {
     if [[ "$*" == *"--form"* ]]; then
