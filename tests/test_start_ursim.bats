@@ -920,6 +920,61 @@ stub_docker_port() {
   [[ "$output" != *"Access PolyScope X: http://192."* ]]
 }
 
+@test "post_setup_polyscopex uses forwarded endpoint for http calls" {
+  IP_ADDRESS="192.168.56.101"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=127.0.0.1:8000'
+  stub_docker_port
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  CURL_LOG=$(mktemp)
+  curl() {
+    printf '%s\n' "$*" >> "$CURL_LOG"
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  echo "curl log:"; cat "$CURL_LOG"
+  [ "$status" -eq 0 ]
+  grep -F "http://127.0.0.1:8000/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  ! grep -F "http://192.168.56.101/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  rm -f "$CURL_LOG"
+}
+
+@test "post_setup_polyscopex falls back to IP_ADDRESS for http calls when unpublished" {
+  IP_ADDRESS="192.168.56.101"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP=""
+  stub_docker_port
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  CURL_LOG=$(mktemp)
+  curl() {
+    printf '%s\n' "$*" >> "$CURL_LOG"
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  echo "curl log:"; cat "$CURL_LOG"
+  [ "$status" -eq 0 ]
+  grep -F "http://192.168.56.101/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  rm -f "$CURL_LOG"
+}
+
 @test "default_container_name" {
   run main -t
   echo "$output"

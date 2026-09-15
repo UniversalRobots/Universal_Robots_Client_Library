@@ -388,8 +388,18 @@ post_setup_polyscopex()
     curl -L -o "$urcapx_file" "$URCAPX_DOWNLOAD_URL"
   fi
 
+  # Prefer a published host mapping for HTTP (needed on Docker Desktop / NAT where the
+  # container IP is unreachable). Fall back to the container IP when nothing is published.
+  local forwarded_endpoint http_host
+  if forwarded_endpoint=$(get_forwarded_access_endpoint 80); then
+    http_host="$forwarded_endpoint"
+  else
+    http_host="$IP_ADDRESS"
+  fi
+  local base_url="http://${http_host}"
+
   echo -ne "Starting URSim. Waiting for UrService to be up..."
-  curl_cmd="curl --retry-connrefused -f --write-out %{http_code} --silent --output /dev/null $IP_ADDRESS/universal-robots/urservice/api/v1/urcaps"
+  curl_cmd="curl --retry-connrefused -f --write-out %{http_code} --silent --output /dev/null ${base_url}/universal-robots/urservice/api/v1/urcaps"
   status_code=$(eval "$curl_cmd")
 
   until [ "$status_code" == "200" ]
@@ -402,7 +412,7 @@ post_setup_polyscopex()
   echo ""; echo "UrService is up"
 
   echo "Installing URCapX $urcapx_file"
-  curl --location --request POST  --silent --output /dev/null "$IP_ADDRESS/universal-robots/urservice/api/v1/urcaps" --form urcapxFile=@"${urcapx_file}"
+  curl --location --request POST  --silent --output /dev/null "${base_url}/universal-robots/urservice/api/v1/urcaps" --form urcapxFile=@"${urcapx_file}"
   echo "";
 
   echo -e "\nTo access PolyScopeX, open the following URL in a web browser."
@@ -410,9 +420,8 @@ post_setup_polyscopex()
 
   echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the web access port to your local machine and connect via the forwarded port instead. The default port forwarding contains that entry already. Unless disabled, the following line will print the access URL for the forwarded port."
 
-  local endpoint
-  if endpoint=$(get_forwarded_access_endpoint 80); then
-    printf "\n\tAccess PolyScope X: http://%s\n\n" "$endpoint"
+  if [[ -n "$forwarded_endpoint" ]]; then
+    printf "\n\tAccess PolyScope X: http://%s\n\n" "$forwarded_endpoint"
   else
     printf "\n"
   fi
