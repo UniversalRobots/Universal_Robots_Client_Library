@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 #include <cstring>
+#include <initializer_list>
 
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/rtde/rtde_parser.h>
@@ -475,7 +476,7 @@ TEST(rtde_parser, reused_package_follows_protocol_changes_in_place)
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(expected);
   auto* original = product.get();
 
-  for (const uint16_t version : { 1, 2, 1 })
+  for (const uint16_t version : std::initializer_list<uint16_t>{ 1, 2, 1 })
   {
     parser.setProtocolVersion(version);
     comm::BinParser bp(version == 1 ? version1 : version2, version == 1 ? sizeof(version1) : sizeof(version2));
