@@ -113,6 +113,7 @@ public:
    */
   void setExpectedLayoutHash(uint64_t layout_hash)
   {
+    // Clear any previous template when registering only a hash to enforce strict non-allocating mode.
     expected_data_package_.reset();
     layout_hash_ = layout_hash;
     expected_layout_known_ = true;
@@ -135,6 +136,7 @@ private:
   bool parseDataPackagePayload(comm::BinParser& bp, DataPackage& package) const;
 
   std::vector<std::string> recipe_;
+  // Optional typed template restoring legacy allocation for null pointers and deprecated vector parse.
   std::optional<DataPackage> expected_data_package_;
   uint64_t layout_hash_ = 0;
   bool expected_layout_known_ = false;

@@ -398,7 +398,13 @@ protected:
   bool sendStart();
   bool sendPause();
 
+  /*!
+   * \brief Repairs foreign or untyped packages by assigning the negotiated output template.
+   */
   void ensureOutputLayout(DataPackage& data_package, const DataPackage& output_template) const;
+  /*!
+   * \brief Allocates a package with the negotiated output layout if null, or delegates to reference repair.
+   */
   void ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) const;
 
   /*!
