@@ -1,0 +1,53 @@
+name: Create release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read version from package.xml
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' package.xml | head -n1)
+          if [ -z "$VERSION" ]; then
+            echo "Failed to parse version from package.xml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Parsed version: $VERSION"
+
+      - name: Check that release does not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists"
+            exit 1
+          fi
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --draft \
+            --generate-notes \
+            --notes-file .github/release_notes_header.txt \
+            --title "$VERSION" \
+            --target "${{ github.event.pull_request.merge_commit_sha }}"
