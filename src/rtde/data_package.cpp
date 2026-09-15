@@ -362,8 +362,22 @@ bool rtde_interface::DataPackage::copyFrom(const DataPackage& other)
     return true;
   }
 
-  // if the layout hash is different, then the data package is not initialized properly
-  return false;
+  if (recipe_hash_ != other.recipe_hash_ || values_.size() != other.values_.size())
+  {
+    return false;
+  }
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    if (!std::holds_alternative<std::monostate>(other.values_[i]) && values_[i].index() != other.values_[i].index())
+    {
+      return false;
+    }
+  }
+  for (size_t i = 0; i < values_.size(); ++i)
+  {
+    values_[i] = std::holds_alternative<std::monostate>(other.values_[i]) ? zeros_[i] : other.values_[i];
+  }
+  return true;
 }
 
 rtde_interface::DataPackage::~DataPackage() = default;

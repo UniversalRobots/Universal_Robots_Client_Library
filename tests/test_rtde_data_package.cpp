@@ -714,7 +714,7 @@ TEST(rtde_data_package, copy_from_rejects_a_source_whose_types_changed)
   EXPECT_DOUBLE_EQ(fraction, 0.5);
 }
 
-TEST(rtde_data_package, copy_from_rejects_a_source_with_an_incomplete_layout)
+TEST(rtde_data_package, copy_from_fills_untyped_fields_with_zeros)
 {
   auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
   ASSERT_TRUE(destination.setData("speed_slider_mask", static_cast<uint32_t>(7)));
@@ -722,14 +722,55 @@ TEST(rtde_data_package, copy_from_rejects_a_source_with_an_incomplete_layout)
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
 
-  EXPECT_FALSE(destination.copyFrom(source));
+  ASSERT_TRUE(destination.copyFrom(source));
 
   double fraction = 0.0;
   uint32_t mask = 0;
   ASSERT_TRUE(destination.getData("speed_slider_fraction", fraction));
   ASSERT_TRUE(destination.getData("speed_slider_mask", mask));
-  EXPECT_DOUBLE_EQ(fraction, 0.0);
+  EXPECT_DOUBLE_EQ(fraction, 0.5);
+  EXPECT_EQ(mask, 0u);
+}
+
+TEST(rtde_data_package, partial_copy_validates_all_fields_before_writing)
+{
+  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 7 }));
+  ASSERT_TRUE(destination.setData("speed_slider_fraction", 0.5));
+  rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
+  ASSERT_TRUE(source.setData("speed_slider_fraction", uint64_t{ 1 }));
+
+  EXPECT_FALSE(destination.copyFrom(source));
+  uint32_t mask = 0;
+  double fraction = 0.0;
+  ASSERT_TRUE(destination.getData("speed_slider_mask", mask));
+  ASSERT_TRUE(destination.getData("speed_slider_fraction", fraction));
   EXPECT_EQ(mask, 7u);
+  EXPECT_DOUBLE_EQ(fraction, 0.5);
+}
+
+TEST(rtde_data_package, copying_unset_fields_preserves_destination_layout_and_source)
+{
+  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  destination.setRecipeID(7);
+  const auto layout = destination.layoutHash();
+  ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 1 }));
+  ASSERT_TRUE(destination.setData("speed_slider_fraction", 0.5));
+  rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" }, 1);
+  source.setRecipeID(3);
+
+  ASSERT_TRUE(destination.copyFrom(source));
+  EXPECT_EQ(destination.layoutHash(), layout);
+  EXPECT_FALSE(source.isTyped());
+  EXPECT_FALSE(source.getDataType("speed_slider_mask").has_value());
+  EXPECT_FALSE(source.getDataType("speed_slider_fraction").has_value());
+  uint8_t buffer[64]{};
+  ASSERT_EQ(destination.serializePackage(buffer), 16u);
+  EXPECT_EQ(buffer[3], 7u);
+  for (size_t i = 4; i < 16; ++i)
+  {
+    EXPECT_EQ(buffer[i], 0u);
+  }
 }
 
 TEST(rtde_data_package, copy_from_rejects_when_the_destination_is_retyped)
@@ -958,7 +999,7 @@ TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
   setLogLevel(LogLevel::ERROR);
 }
 
-TEST(rtde_data_package, copy_from_a_partial_package_is_rejected_without_warning)
+TEST(rtde_data_package, copy_from_a_partial_package_does_not_warn)
 {
   auto handler = std::make_unique<CapturingLogHandler>();
   auto* captured = handler.get();
@@ -969,7 +1010,7 @@ TEST(rtde_data_package, copy_from_a_partial_package_is_rejected_without_warning)
     auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
     rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
     ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
-    EXPECT_FALSE(destination.copyFrom(source));
+    EXPECT_TRUE(destination.copyFrom(source));
   }
 
   EXPECT_TRUE(captured->warnings_.empty());

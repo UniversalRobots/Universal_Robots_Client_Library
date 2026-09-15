@@ -388,23 +388,9 @@ public:
   void setTypes(const std::vector<std::string>& types);
 
   /*!
-   * \brief Takes over the values of \p other when both packages have the same layout.
-   *
-   * This package must already be typed. \p other has to be built from the same recipe, and every
-   * field has to carry the type this package has for it. Recipe id and protocol version are left
-   * untouched.
-   *
-   * When \p other has the same field names and the same type on every one of them, which is what a
-   * package has after the robot's acknowledgement, the copy is a layout-hash compare and a memcpy
-   * of the value array. The hashes are a 64-bit identity of the field names and each field's
-   * variant index; a collision would skip a validation that should have failed, which is accepted
-   * for this path. A different layout hash means that the package was not initialized consistently
-   * and the copy is rejected.
-   *
-   * \param other The package to copy from
-   *
-   * \returns True on success, false if this package is untyped or if the package layouts differ.
-   * Copying a package onto itself succeeds without writing.
+   * \brief Copies same-recipe values without allocation; unset source fields become typed zeros.
+   * \param other Source package; its typed fields must match this typed destination.
+   * \returns False on recipe/type mismatch or an untyped destination, without changing values, recipe id or version.
    */
   bool copyFrom(const DataPackage& other);
 

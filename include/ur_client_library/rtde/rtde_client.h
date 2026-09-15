@@ -196,6 +196,7 @@ public:
    *
    * \param data_package Reference to a DataPackage where the received data package will be stored
    * if a package was fetched successfully.
+   * Foreign recipes are repaired with a warning; null pointers allocate a package with a warning.
    * \param timeout Time to wait if no data package is currently in the queue
    *
    * \returns Whether a data package was received successfully
@@ -212,12 +213,8 @@ public:
    * For optimal performance, the data package pointer should contain a pre-allocated data package
    * that was built from the same output recipe as used in this RTDEClient. Such a package needs no
    * data types of its own: the first read applies the ones the robot reported, which allocates
-   * nothing. The package must be built from the same output recipe as this RTDEClient; use
-   * setInputRecipe() or setOutputRecipe() to set the recipe.
-   * Use RTDEClient::createInputDataPackage() to create a pre-allocated data package for the
-   * input recipe with the correct types after the connection is established.
-   * Passing a package built from a different recipe throws
-   * UrException. If none is passed, a package is allocated internally.
+   * nothing. Use getOutputRecipe() for the recipe; foreign recipes are repaired with a warning and may allocate.
+   * Null pointers allocate a package with a warning.
    *
    * \returns Whether a data package was received successfully
    */
@@ -401,20 +398,8 @@ protected:
   bool sendStart();
   bool sendPause();
 
-  /*!
-   * \brief Makes sure \p data_package can receive this client's output, applying the robot's data
-   * types to it if it doesn't carry them yet.
-   *
-   * A package built from an output recipe alone has no data types; the robot reports those when it
-   * acknowledges the recipe. This is where they reach a package handed in by an application, which
-   * is what makes the first read the one that types it. The storage exists from construction, so
-   * neither this nor any read after it allocates.
-   *
-   * \param data_package The package the caller wants to receive into
-   *
-   * \throws UrException if the package was built from a different output recipe than this client's
-   */
-  void ensureOutputLayout(DataPackage& data_package) const;
+  void ensureOutputLayout(DataPackage& data_package, const DataPackage& output_template) const;
+  void ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) const;
 
   /*!
    * \brief Reconnects to the RTDE interface and set the input and output recipes again.

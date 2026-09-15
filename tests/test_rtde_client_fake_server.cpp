@@ -507,33 +507,70 @@ TEST_F(RTDEClientFakeServerTest, the_first_background_read_types_the_package)
   client_->pause();
 }
 
-// Receiving into a package built from someone else's recipe would silently hand out data under
-// the wrong names, so both read paths refuse it.
-TEST_F(RTDEClientFakeServerTest, receiving_into_a_foreign_recipe_is_refused)
+TEST_F(RTDEClientFakeServerTest, receiving_into_a_foreign_recipe_is_repaired)
 {
   ASSERT_TRUE(client_->init());
   ASSERT_TRUE(client_->start(false));
 
   auto foreign_pkg = std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "timestamp" });
-  EXPECT_THROW(client_->getDataPackageBlocking(foreign_pkg), UrException);
+  auto* original = foreign_pkg.get();
+  ASSERT_TRUE(client_->getDataPackageBlocking(foreign_pkg));
+  EXPECT_EQ(foreign_pkg.get(), original);
+  EXPECT_EQ(foreign_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  ASSERT_TRUE(client_->getDataPackageBlocking(foreign_pkg));
+  EXPECT_EQ(foreign_pkg.get(), original);
 
   client_->pause();
   ASSERT_TRUE(client_->start(true));
 
   rtde_interface::DataPackage other_foreign_pkg({ "timestamp" });
-  EXPECT_THROW(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT), UrException);
+  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT));
+  EXPECT_EQ(other_foreign_pkg.getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT));
+
+  foreign_pkg = std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "timestamp" });
+  original = foreign_pkg.get();
+  ASSERT_TRUE(client_->getDataPackage(foreign_pkg, g_READ_TIMEOUT));
+  EXPECT_EQ(foreign_pkg.get(), original);
+  EXPECT_EQ(foreign_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
 
   client_->pause();
 }
 
-TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_is_refused)
+TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_allocates_one)
 {
   ASSERT_TRUE(client_->init());
-  ASSERT_TRUE(client_->start(true));
+  ASSERT_TRUE(client_->start(false));
 
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
-  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
+  ASSERT_NE(data_pkg, nullptr);
+  EXPECT_TRUE(data_pkg->isTyped());
+  EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
 
+  client_->pause();
+  ASSERT_TRUE(client_->start(true));
+  data_pkg.reset();
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_NE(data_pkg, nullptr);
+  EXPECT_TRUE(data_pkg->isTyped());
+  EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+
+  client_->pause();
+}
+
+TEST_F(RTDEClientFakeServerTest, unavailable_reads_leave_an_empty_pointer_untouched)
+{
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  EXPECT_FALSE(client_->getDataPackageBlocking(data_pkg));
+  EXPECT_EQ(data_pkg, nullptr);
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_EQ(data_pkg, nullptr);
+
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(false));
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_EQ(data_pkg, nullptr);
   client_->pause();
 }
 
