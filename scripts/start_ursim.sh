@@ -282,7 +282,7 @@ post_setup_cb3()
   printf "\n\n\thttp://%s:6080/vnc.html\n\n" "$IP_ADDRESS"
   printf "\tor connect with a VNC client to %s:5900\n\n" "$IP_ADDRESS"
 
-  echo "The IP-address-based access will only work if the container is running on the same host as the browser. If you are running the container on a remote host, or you are using a NAT (e.g. Docker Desktop), you should forward the VNC access ports to your local machine and connect via the forwarded ports instead. The default port forwarding contains those entries already. Unless disabled, the following lines will print the access URLs for the forwarded ports."
+  echo "The container-IP URL is typically usable only when the browser can reach Docker's bridge network. On Docker Desktop / NAT running locally, use the published VNC ports shown below. For Docker on a remote host, the default loopback-only mappings require an SSH tunnel; alternatively, override -f to bind the GUI ports to a reachable interface. Unless disabled, the following lines print the published endpoints."
 
   local endpoint
   if endpoint=$(get_forwarded_access_endpoint 6080); then
