@@ -19,17 +19,20 @@ Start a URSim docker container
 ------------------------------
 
 To startup a simulated robot run the following command. This will start a Docker container named
-``ursim`` and startup a simulated UR5e robot. It exposes ports 5900 and 6080 for the browser-based
-polyscope access. Note that this will expose the simulated robot to your local area network if you
-don't have any further level of security such as a firewall active. To prevent this, you can either
-skip the port forwarding instructions (skip the two ``-p port:port`` statements) in which case
-you'll have to use the container's IP address to access the polyscope gui rather than ``localhost`` or
-you can restrict the port forwarding to a certain network interface (such as the looppack interface)
-see Docker's upstream documentation on port exposure for further information.
+``ursim`` and startup a simulated UR5e robot. It publishes ports 5900 and 6080 for VNC / browser-based
+PolyScope access. Binding those ports to the loopback interface (``127.0.0.1``) keeps the GUI off your
+LAN. If you omit the bind address (for example ``-p 6080:6080``), Docker listens on all interfaces and
+exposes the simulator to the local network unless a firewall prevents that. You can also skip port
+publishing entirely and reach PolyScope via the container IP, or bind to another interface — including
+a bracketed IPv6 address such as ``-p '[::1]:6080:6080'``. See Docker's documentation on
+`publish ports <https://docs.docker.com/engine/network/#published-ports>`_ for details.
 
 .. code-block:: bash
 
-   docker run --rm -it -p 5900:5900 -p 6080:6080 --name ursim universalrobots/ursim_e-series
+   docker run --rm -it -p 127.0.0.1:5900:5900 -p 127.0.0.1:6080:6080 --name ursim universalrobots/ursim_e-series
+
+With the loopback binds above, open `<http://127.0.0.1:6080/vnc.html>`_ (or connect a VNC client to
+``127.0.0.1:5900``) on the Docker host.
 
 External Control
 ----------------
@@ -59,7 +62,7 @@ With this, start your URSim containers with the following command:
 
 .. code-block:: bash
 
-   docker run --rm -it -p 5900:5900 -p 6080:6080 -v ${HOME}/.ursim/urcaps:/urcaps -v ${HOME}/.ursim/programs:/ursim/programs --name ursim universalrobots/ursim_e-series
+   docker run --rm -it -p 127.0.0.1:5900:5900 -p 127.0.0.1:6080:6080 -v ${HOME}/.ursim/urcaps:/urcaps -v ${HOME}/.ursim/programs:/ursim/programs --name ursim universalrobots/ursim_e-series
 
 With this, you should be able to setup the ``external_control`` URCap and create a program as
 described in :ref:`URCap setup guide <install_urcap>`.
@@ -75,17 +78,39 @@ address to our URSim container.
 .. code-block:: bash
 
    docker network create --subnet=192.168.56.0/24 ursim_net
-   docker run --rm -it -p 5900:5900 -p 6080:6080 --net ursim_net --ip 192.168.56.101 universalrobots/ursim_e-series
+   docker run --rm -it -p 127.0.0.1:5900:5900 -p 127.0.0.1:6080:6080 --net ursim_net --ip 192.168.56.101 universalrobots/ursim_e-series
 
 The above commands first create a network for docker and then create a container with the URSim
 image attaching to this network.
 
-We can skip the port exposure, as we use a fixed IP address for the simulated robot. Therefore, the VNC web server will be available at `<http://192.168.56.101:6080/vnc.html>`_.
+With a fixed container IP you can also skip publishing the GUI ports and open
+`<http://192.168.56.101:6080/vnc.html>`_ when the browser can reach that address (typically when
+Docker and the browser run on the same host). Published ports remain useful behind Docker Desktop /
+NAT, or when you deliberately bind only to loopback / a specific interface.
 
 Script startup
 --------------
 
 All of the above is put together in a script in the ``ur_client_library`` package.
+
+By default, ``start_ursim.sh``:
+
+* Attaches the container to ``ursim_net`` at ``192.168.56.101``
+* Publishes the robot interface ports (``30001-30004``, and ``29999`` for CB3 / PolyScope 5)
+* Publishes the GUI on loopback only: VNC ``127.0.0.1:5900`` / ``127.0.0.1:6080`` (CB3 / PolyScope 5),
+  or the PolyScope X web UI at ``127.0.0.1:8000`` (container port ``80``)
+
+After startup, the script prints both the container-IP URLs and the host endpoints taken from
+``docker port`` for any published GUI ports. Override publishing with ``-f`` (pass ``DISABLED`` to
+turn it off). Examples:
+
+.. code-block:: bash
+
+   # Custom host ports on all interfaces
+   ./scripts/start_ursim.sh -f "-p 30001-30004:30001-30004 -p 16080:6080 -p 15900:5900"
+
+   # Bind GUI ports to IPv6 loopback (keep the -f argument in double quotes)
+   ./scripts/start_ursim.sh -f "-p 30001-30004:30001-30004 -p [::1]:6080:6080 -p [::1]:5900:5900"
 
 .. tabs::
 
