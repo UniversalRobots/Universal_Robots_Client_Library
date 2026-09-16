@@ -31,7 +31,7 @@ jobs:
           fail_ci_if_error: true
           files: build/junit.xml
           report_type: test_results
-          flags: unit,alpine
+          flags: unit-alpine
           name: unit-alpine
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

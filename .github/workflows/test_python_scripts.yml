@@ -26,7 +26,7 @@ jobs:
           fail_ci_if_error: true
           files: junit.xml
           report_type: test_results
-          flags: python,linux
+          flags: python_scripts
           name: python-scripts
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
         with:
           fail_ci_if_error: true
           files: coverage.xml
-          flags: python,linux
+          flags: python_scripts
           name: python-scripts
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

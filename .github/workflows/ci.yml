@@ -131,6 +131,7 @@ jobs:
       - name: Generate rtde outputs lists
         run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
+        id: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
@@ -143,7 +144,7 @@ jobs:
           fail_ci_if_error: true
           files: build/junit.xml
           report_type: test_results
-          flags: integration,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: integration-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -156,22 +157,23 @@ jobs:
           if-no-files-found: warn
           retention-days: 10
       - name: install gcovr
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: build/coverage.xml
-          flags: integration,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: integration-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: run examples
+        if: ${{ steps.test.outcome == 'success' }}
         run: ./run_examples.sh "192.168.56.101" 1
       - name: Generate URSim log files
         if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
@@ -336,6 +338,7 @@ jobs:
       - name: inspect build folder
         run: ls -la build && ls -la build/tests
       - name: test robot type
+        id: test
         run: cd build && ctest -R PrimaryClientTest.test_robot_type --verbose --output-junit junit.xml
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
@@ -347,7 +350,7 @@ jobs:
           fail_ci_if_error: true
           files: build/junit.xml
           report_type: test_results
-          flags: check-model,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: check-model-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -360,18 +363,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 10
       - name: install gcovr
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
-        if: ${{ !cancelled() }}
+        if: ${{ steps.test.outcome == 'success' }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: build/coverage.xml
-          flags: check-model,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: check-model-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -410,7 +413,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          flags: start-ursim,linux
+          flags: start_ursim
           name: start-ursim
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

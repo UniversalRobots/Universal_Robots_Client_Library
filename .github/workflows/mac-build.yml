@@ -43,7 +43,7 @@ jobs:
           fail_ci_if_error: true
           files: build/junit.xml
           report_type: test_results
-          flags: unit,macos-${{ matrix.arch }}
+          flags: unit-macos-${{ matrix.arch }}
           name: unit-macos-${{ matrix.arch }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
