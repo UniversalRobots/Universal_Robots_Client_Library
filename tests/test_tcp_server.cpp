@@ -188,6 +188,26 @@ TEST_F(TCPServerTest, message_transmission)
   EXPECT_EQ(client.recv(), message);
 }
 
+TEST_F(TCPServerTest, write_unchecked_initializes_written)
+{
+  TestableTcpServer server(port_);
+  server.start();
+
+  Client client(port_);
+  ASSERT_TRUE(server.waitForConnectionCallback());
+
+  const std::string message = "test message\n";
+  const auto client_fds = server.getClientFDs();
+  ASSERT_EQ(client_fds.size(), 1u);
+
+  // `written` is an output parameter, so its incoming value must not affect the write.
+  size_t written = message.size() + 1;
+  ASSERT_TRUE(server.writeUnchecked(client_fds.front(), reinterpret_cast<const uint8_t*>(message.data()),
+                                    message.size(), written));
+  ASSERT_EQ(written, message.size());
+  EXPECT_EQ(client.recv(), message);
+}
+
 TEST_F(TCPServerTest, client_connections)
 {
   TestableTcpServer server(port_);
