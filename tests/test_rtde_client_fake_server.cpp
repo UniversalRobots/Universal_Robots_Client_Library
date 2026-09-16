@@ -157,8 +157,9 @@ TEST_F(RTDEClientFakeServerTest, server_sender_start_and_stop_are_idempotent)
   server_->stopSendingDataPackages();
   server_->stopSendingDataPackages();
 
-  // The sender can still be restarted after a completed stop/join.
-  ASSERT_TRUE(client_->start(false));
+  // Restart directly: the manual sender calls can leave data queued on the socket.
+  // A protocol START could mistake that data for its reply and leave the START ack unread.
+  server_->startSendingDataPackages();
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
   EXPECT_TRUE(client_->getDataPackageBlocking(data_pkg));
 }
@@ -179,7 +180,8 @@ TEST_F(RTDEClientFakeServerTest, server_sender_start_and_stop_are_serialized)
   first.join();
   second.join();
 
-  ASSERT_TRUE(client_->start(false));
+  // As above, keep the sender lifecycle check separate from the protocol START handshake.
+  server_->startSendingDataPackages();
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
   EXPECT_TRUE(client_->getDataPackageBlocking(data_pkg));
 }
