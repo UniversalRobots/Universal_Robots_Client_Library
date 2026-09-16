@@ -51,12 +51,6 @@ bool HardwareInfoMessage::parseWith(comm::BinParser& bp)
 
   control_box_type_ = static_cast<ControlBoxType>(control_box_type);
   tool_flange_type_ = static_cast<ToolFlangeType>(tool_flange_type);
-
-  if (robot_type < std::numeric_limits<std::underlying_type_t<RobotType>>::min() ||
-      robot_type > std::numeric_limits<std::underlying_type_t<RobotType>>::max())
-  {
-    throw std::runtime_error("robot_type does not fit into RobotType enum");
-  }
   robot_type_ = static_cast<RobotType>(robot_type);
   return true;
 }

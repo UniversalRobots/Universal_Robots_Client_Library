@@ -98,7 +98,7 @@ enum class AnalogOutputType : int8_t
   VOLTAGE = 1
 };
 
-enum class RobotType : int8_t
+enum class RobotType : int32_t
 {
   UNDEFINED = -128,  // This is not defined by UR but only inside this driver
   UR5 = 1,
