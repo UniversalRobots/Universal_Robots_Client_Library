@@ -173,7 +173,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: run examples
-        if: ${{ steps.test.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
         run: ./run_examples.sh "192.168.56.101" 1
       - name: Generate URSim log files
         if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}

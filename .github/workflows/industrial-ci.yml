@@ -78,7 +78,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           mkdir -p ros_junit
-          find /tmp/ici_ws/target_ws -path '*/test_results/*.xml' -exec cp -t ros_junit {} + 2>/dev/null || true
+          # target_ws is this library; downstream_ws is the ROS/ROS2 driver.
+          # Flatten paths so identically named XML files do not overwrite.
+          find /tmp/ici_ws -path '*/test_results/*.xml' -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do
+                rel=${f#/tmp/ici_ws/}
+                cp "$f" "ros_junit/${rel//\//_}"
+              done
       - name: Upload ROS JUnit results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
