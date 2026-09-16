@@ -432,6 +432,7 @@ void TCPServer::start()
 
 bool TCPServer::write(const socket_t fd, const uint8_t* buf, const size_t buf_len, size_t& written)
 {
+  written = 0;
   if (fd == INVALID_SOCKET)
   {
     URCL_LOG_ERROR("Invalid socket provided for writing.");
