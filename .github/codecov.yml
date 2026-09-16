@@ -7,3 +7,4 @@ ignore:
   - "3rdparty/**/*"  # ignore examples
   - "examples/*"  # ignore examples
   - "tests/*"  # ignore unit tests
+  - "scripts/generate_error_codes.py"  # maintenance script, not part of the library

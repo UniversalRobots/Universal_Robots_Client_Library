@@ -2,6 +2,29 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.15.2 (2026-09-14)
+-------------------
+* Remove Symlink to UR5 programs as it was not needed and blocked the bloom release tool (`#569 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/569>`_)
+* Contributors: Felix Exner
+
+2.15.1 (2026-09-10)
+-------------------
+* Tolerate null values in the PolyScope X program list (`#565 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/565>`_)
+* Fix flaky spline interpolation test (`#556 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/556>`_)
+* Error codes are now also followed by a description (`#564 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/564>`_)
+* Contributors: Felix Exner, Michael Mair, URJala
+
+2.15.0 (2026-09-03)
+-------------------
+* Robot api 10.14 (`#549 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/549>`_)
+* Fix spline point velocity and acceleration precision (`#559 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/559>`_)
+* MotionTarget helpers (`#558 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/558>`_)
+* [CI] Support running PolyScope X robot in remote control mode in CI (`#553 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/553>`_)
+* [CI] Update downstream branch for lyrical (`#555 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/555>`_)
+* [CI] Add exclude rule for stackoverflow (`#557 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/557>`_)
+* [CI] Separate standalone instruction executor test into its own file (`#554 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/554>`_)
+* Contributors: Felix Exner, Hasan Amin, URJala
+
 2.14.1 (2026-08-07)
 -------------------
 * fix: teardown blocks indefinitely when a reconnect thread is active and the robot is unreachable (`#519 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/519>`_)

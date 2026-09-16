@@ -405,12 +405,12 @@ public:
    *
    * \return True succeeded
    */
-  bool commandPopup(const std::string& popup_text);
+  bool commandPopup(const std::string& popup_text, const std::string& popup_title = "");
 
   /*!
    * \brief Send popup command
    */
-  DashboardResponse commandPopupWithResponse(const std::string& popup_text);
+  DashboardResponse commandPopupWithResponse(const std::string& popup_text, const std::string& popup_title = "");
 
   /*!
    * \brief Send text to log
@@ -676,7 +676,7 @@ public:
    *
    * \return True succeeded
    */
-  bool commandGenerateFlightReport(const std::string& report_type);
+  bool commandGenerateFlightReport(const std::string& report_type = "");
 
   /*!
    * \brief Send Generate flight report command
@@ -685,7 +685,7 @@ public:
    *
    * \param report_type The report type to set for the flight report
    */
-  DashboardResponse commandGenerateFlightReportWithResponse(const std::string& report_type);
+  DashboardResponse commandGenerateFlightReportWithResponse(const std::string& report_type = "");
 
   /*!
    * \brief Send Generate support file command
@@ -708,6 +708,28 @@ public:
    * where the support file is saved
    */
   DashboardResponse commandGenerateSupportFileWithResponse(const std::string& dir_path);
+
+  /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \note Only available for PolyScope X robots.
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the machine where the
+   * dashboard client is running.
+   *
+   * \return True on success
+   */
+  bool commandDownloadSupportFiles(const std::string& save_path);
+
+  /*!
+   * \brief Download support files from the robot as a zip archive
+   *
+   * \note Only available for PolyScope X robots.
+   *
+   * \param save_path Filepath where the downloaded support file archive should be saved on the machine where the
+   * dashboard client is running.
+   */
+  DashboardResponse commandDownloadSupportFilesWithResponse(const std::string& save_path);
 
   /*!
    * \brief Flush the polyscope log to the log_history.txt file

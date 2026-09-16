@@ -31,6 +31,7 @@ jobs:
             --max-cache-age 2d
             --exclude '^https?://(www\.)?stackoverflow\.com'
             --exclude '^http://192\.168\.56\.101'
+            --exclude '^http://127\.0\.0\.1'
             --exclude 'kernel\.org\/pub\/linux\/kernel'
             --exclude 'releases/download/v\$%7BURCAP_VERSION%7D/externalcontrol-\$%7BURCAP_VERSION%7D\.jar'
             --exclude '^http://rosin-project\.eu'

@@ -58,7 +58,9 @@ if (INTEGRATION_TESTS)
   )
 
   add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
+  target_include_directories(dashboard_client_x_tests PRIVATE ${CMAKE_SOURCE_DIR}/3rdparty)
   target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+  target_compile_options(dashboard_client_x_tests PRIVATE -Wno-uninitialized)
   gtest_add_tests(TARGET      dashboard_client_x_tests
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
@@ -180,6 +182,11 @@ gtest_add_tests(TARGET      dashboard_client_mock_tests
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      primary_parser_tests
+)
+
+add_executable(error_code_message_tests test_error_code_message.cpp)
+target_link_libraries(error_code_message_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      error_code_message_tests
 )
 
 add_executable(fake_primary_server_tests test_fake_primary_server.cpp fake_primary_server.cpp)

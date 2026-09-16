@@ -318,14 +318,15 @@ DashboardResponse DashboardClient::commandIsInRemoteControlWithResponse()
   return impl_->commandIsInRemoteControl();
 }
 
-bool DashboardClient::commandPopup(const std::string& popup_text)
+bool DashboardClient::commandPopup(const std::string& popup_text, const std::string& popup_title)
 {
-  return commandPopupWithResponse(popup_text).ok;
+  return commandPopupWithResponse(popup_text, popup_title).ok;
 }
 
-DashboardResponse DashboardClient::commandPopupWithResponse(const std::string& popup_text)
+DashboardResponse DashboardClient::commandPopupWithResponse(const std::string& popup_text,
+                                                            const std::string& popup_title)
 {
-  return impl_->commandPopup(popup_text);
+  return impl_->commandPopup(popup_text, popup_title);
 }
 
 bool DashboardClient::commandAddToLog(const std::string& log_text)
@@ -535,6 +536,16 @@ bool DashboardClient::commandGenerateSupportFile(const std::string& dir_path)
 DashboardResponse DashboardClient::commandGenerateSupportFileWithResponse(const std::string& dir_path)
 {
   return impl_->commandGenerateSupportFile(dir_path);
+}
+
+bool DashboardClient::commandDownloadSupportFiles(const std::string& save_path)
+{
+  return commandDownloadSupportFilesWithResponse(save_path).ok;
+}
+
+DashboardResponse DashboardClient::commandDownloadSupportFilesWithResponse(const std::string& save_path)
+{
+  return impl_->commandDownloadSupportFiles(save_path);
 }
 
 bool DashboardClient::commandSaveLog()

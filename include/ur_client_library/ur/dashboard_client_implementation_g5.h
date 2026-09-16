@@ -131,8 +131,9 @@ public:
   DashboardResponse commandClearOperationalMode() override;
   DashboardResponse commandClosePopup() override;
   DashboardResponse commandCloseSafetyPopup() override;
-  DashboardResponse commandGenerateFlightReport(const std::string& report_type) override;
+  DashboardResponse commandGenerateFlightReport(const std::string& report_type = "") override;
   DashboardResponse commandGenerateSupportFile(const std::string& dir_path) override;
+  DashboardResponse commandDownloadSupportFiles(const std::string& save_path) override;
   DashboardResponse commandGetLoadedProgram() override;
   DashboardResponse commandGetOperationalMode() override;
   DashboardResponse commandGetRobotModel() override;
@@ -146,7 +147,7 @@ public:
   DashboardResponse commandResume() override;
   DashboardResponse commandPlay() override;
   DashboardResponse commandPolyscopeVersion() override;
-  DashboardResponse commandPopup(const std::string& popup_text) override;
+  DashboardResponse commandPopup(const std::string& popup_text, const std::string& popup_title = "") override;
   DashboardResponse commandPowerOff() override;
   DashboardResponse commandPowerOn(const std::chrono::duration<double> timeout = std::chrono::seconds(300)) override;
   DashboardResponse commandProgramState() override;
@@ -175,7 +176,7 @@ public:
 
 protected:
   virtual VersionInformation queryPolyScopeVersion();
-  void assertHasCommand(const std::string& command) const override;
+  void assertHasCommand(const std::string& command) override;
   static std::string replacePayload(const std::string& command, const std::string& payload);
   std::string retryCommandString(const std::string& requestCommand, const std::string& requestExpectedResponse,
                                  const std::string& waitRequest, const std::string& waitExpectedResponse,
