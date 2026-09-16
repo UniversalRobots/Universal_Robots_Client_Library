@@ -82,7 +82,9 @@ protected:
 
   void makeClient()
   {
-    client_ = std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, g_OUTPUT_RECIPE, g_INPUT_RECIPE,
+    // TCPServer listens on IPv4 only. Avoid an initial IPv6 connection attempt for localhost:
+    // on Windows its fallback delay can exhaust the teardown stress test's timeout over 50 cycles.
+    client_ = std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, g_OUTPUT_RECIPE, g_INPUT_RECIPE,
                                                            g_RTDE_FREQUENCY, false, g_FAKE_RTDE_PORT);
   }
 
