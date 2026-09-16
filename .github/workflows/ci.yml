@@ -137,29 +137,44 @@ jobs:
           POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL: ${{matrix.env.POLYSCOPE_X_WITH_REMOTE_CONTROL || ''}}
           POLYSCOPE_X_SCREENSHOT_DIR: ${{github.workspace}}/test_artifacts/screenshots
       - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: build/junit.xml
           report_type: test_results
+          flags: integration,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          name: integration-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: run examples
-        run: ./run_examples.sh "192.168.56.101" 1
+      - name: Upload junit.xml
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_junit
+          path: build/junit.xml
+          if-no-files-found: warn
+          retention-days: 10
       - name: install gcovr
+        if: ${{ !cancelled() }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
+        if: ${{ !cancelled() }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: build/coverage.xml
-          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: integration,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          name: integration-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: run examples
+        run: ./run_examples.sh "192.168.56.101" 1
       - name: Generate URSim log files
-        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
         run: |
           nc -q 1 192.168.56.101 29999 <<END
           saveLog
@@ -169,36 +184,36 @@ jobs:
           docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
           docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
       - name: Copy flight reports
-        if: ${{ failure() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        if: ${{ failure() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
         run: |
           mkdir -p ursim_logs/flightreports
           docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
       - name: Upload logfiles
         uses: actions/upload-artifact@v7
-        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'false' }}
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: ursim_logs
-          if-no-files-found: error
-          retention-days: 10
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v7
-        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
-        with:
-          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
-          path: test_artifacts
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 10
       - name: Capture PolyScope X URSim logs
-        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
+        if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         run: docker logs ursim > test_artifacts/ursim_docker.log 2>&1
       - name: Upload PolyScope X URSim logs
         uses: actions/upload-artifact@v7
-        if: ${{ always() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
+        if: ${{ !cancelled() && steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
           path: test_artifacts/ursim_docker.log
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 10
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
+          path: test_artifacts
+          if-no-files-found: warn
           retention-days: 10
       - name: Upload PolyScope X screenshots
         uses: actions/upload-artifact@v7
@@ -209,8 +224,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 10
       - name: Upload generated scripts
-        uses: actions/upload-artifact@v6
-        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_generated_scripts
           path: test_artifacts/generated_scripts
@@ -325,18 +340,52 @@ jobs:
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          fail_ci_if_error: true
+          files: build/junit.xml
+          report_type: test_results
+          flags: check-model,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          name: check-model-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload junit.xml
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: check_model_${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_junit
+          path: build/junit.xml
+          if-no-files-found: warn
+          retention-days: 10
       - name: install gcovr
+        if: ${{ !cancelled() }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
+        if: ${{ !cancelled() }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: build/coverage.xml
-          flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          flags: check-model,${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+          name: check-model-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Capture URSim logs
+        if: ${{ failure() }}
+        run: docker logs ursim > ursim_docker.log 2>&1
+      - name: Upload URSim logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: check_model_${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
+          path: ursim_docker.log
+          if-no-files-found: warn
+          retention-days: 10
 
   test_start_ursim:
     runs-on: ubuntu-latest
@@ -357,9 +406,11 @@ jobs:
           BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
         run: bundle exec bashcov --skip-uncovered bats tests/test_start_ursim.bats
       - name: Upload coverage reports to Codecov with GitHub Action
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          flags: start_ursim
+          flags: start-ursim,linux
+          name: start-ursim
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -18,12 +18,33 @@ jobs:
       - name: Install dependencies
         run: pip install pytest pytest-cov
       - name: Run tests
-        run: python -m pytest scripts/*.py --cov=scripts --cov-report=xml
+        run: python -m pytest scripts/*.py --cov=scripts --cov-report=xml --junitxml=junit.xml
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          fail_ci_if_error: true
+          files: junit.xml
+          report_type: test_results
+          flags: python,linux
+          name: python-scripts
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload junit.xml
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: python_scripts_junit
+          path: junit.xml
+          if-no-files-found: warn
+          retention-days: 10
       - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
           files: coverage.xml
-          flags: python_scripts
+          flags: python,linux
+          name: python-scripts
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

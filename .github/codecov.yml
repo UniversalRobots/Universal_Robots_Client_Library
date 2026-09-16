@@ -3,6 +3,10 @@
 codecov:
   strict_yaml_branch: default  # only use the latest YAML on stated branch
 
+flag_management:
+  default_rules:
+    carryforward: true
+
 ignore:
   - "3rdparty/**/*"  # ignore examples
   - "examples/*"  # ignore examples
