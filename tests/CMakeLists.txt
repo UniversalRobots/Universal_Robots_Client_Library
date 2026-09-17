@@ -230,6 +230,13 @@ gtest_add_tests(TARGET      rtde_client_fake_server_tests
 )
 set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_idempotent
                      RTDEClientFakeServerTest.server_sender_start_and_stop_are_serialized
+                     RTDEClientFakeServerTest.too_few_output_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_many_output_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_few_input_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_many_input_types_fail_then_recover
+                     RTDEClientFakeServerTest.unknown_output_type_fails_then_recovers
+                     RTDEClientFakeServerTest.unknown_input_type_fails_then_recovers
+                     RTDEClientFakeServerTest.input_in_use_exhausts_retries_then_recovers
                      PROPERTIES TIMEOUT 60)
 
 # Covers RTDEClient::reconnect() by taking the fake RTDE server away and giving it back, so it runs

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,11 @@ public:
    */
   void queueTextMessageBeforeSetupInputs(const std::string& message);
 
+  // Override only the wire acknowledgement, not the server's internal typed data. Overrides
+  // persist across reconnects so retries see the same fault; nullopt restores normal replies.
+  void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
+  void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
+
 private:
   std::vector<std::string> input_recipe_;
   std::vector<std::string> output_recipe_;
@@ -110,6 +116,8 @@ private:
   std::deque<std::string> pending_text_messages_;
   std::deque<std::string> pending_setup_outputs_text_messages_;
   std::deque<std::string> pending_setup_inputs_text_messages_;
+  std::optional<std::vector<std::string>> output_type_reply_;
+  std::optional<std::vector<std::string>> input_type_reply_;
   uint16_t highest_accepted_protocol_version_ = 2;
   uint16_t negotiated_protocol_version_ = 2;
   std::vector<uint16_t> requested_protocol_versions_;

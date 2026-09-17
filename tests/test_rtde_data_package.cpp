@@ -30,6 +30,9 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include <ur_client_library/log.h>
@@ -391,6 +394,79 @@ TEST(rtde_data_package, unknown_data_types_are_rejected)
   EXPECT_THROW(package.setTypes({ "NOT_FOUND" }), UrException);
   EXPECT_THROW(package.setTypes({ "IN_USE" }), UrException);
   EXPECT_THROW(package.setTypes({ "double" }), UrException);
+}
+
+TEST(rtde_data_package, every_data_type_obeys_get_set_invariants)
+{
+  using Value = rtde_interface::DataPackage::_rtde_type_variant;
+  const std::vector<std::pair<std::string, Value>> cases{
+    { "BOOL", true },
+    { "UINT8", uint8_t{ 0xa5 } },
+    { "UINT32", uint32_t{ 0x12345678 } },
+    { "UINT64", uint64_t{ 0x0123456789abcdef } },
+    { "INT32", int32_t{ -12345 } },
+    { "DOUBLE", -12.5 },
+    { "VECTOR3D", vector3d_t{ 1.5, -2.5, 3.5 } },
+    { "VECTOR6D", vector6d_t{ 1, -2, 3, -4, 5, -6 } },
+    { "VECTOR6INT32", vector6int32_t{ -1, 2, -3, 4, -5, 6 } },
+    { "VECTOR6UINT32", vector6uint32_t{ 1, 2, 3, 4, 5, 0xffffffffu } },
+  };
+
+  for (const auto& entry : cases)
+  {
+    SCOPED_TRACE(entry.first);
+    rtde_interface::DataPackage untyped({ "field" });
+    auto typed = typedPackage({ "field" }, { entry.first });
+    std::visit(
+        [&](const auto& value) {
+          using T = std::decay_t<decltype(value)>;
+          if constexpr (!std::is_same_v<T, std::monostate>)
+          {
+            for (auto* package : { &untyped, &typed })
+            {
+              const bool was_typed = package->isTyped();
+              SCOPED_TRACE(was_typed ? "robot-typed" : "assignment-typed");
+              const auto recipe = package->recipeHash();
+              const auto before = package->layoutHash();
+              T read = value;
+              EXPECT_FALSE(package->getData("missing", read));
+              EXPECT_EQ(read, value);
+              EXPECT_FALSE(package->setData("missing", value));
+              EXPECT_EQ(package->layoutHash(), before);
+              if (!was_typed)
+              {
+                EXPECT_THROW(package->getData("field", read), std::bad_variant_access);
+                EXPECT_EQ(read, value);
+              }
+
+              ASSERT_TRUE(package->setData("field", T{}));
+              ASSERT_TRUE(package->isTyped());
+              EXPECT_EQ(package->getDataType("field"), typed.getDataType("field"));
+              const auto established = package->layoutHash();
+              if (!was_typed)
+              {
+                EXPECT_NE(established, before);
+              }
+              else
+              {
+                EXPECT_EQ(established, before);
+              }
+              EXPECT_EQ(established, typed.layoutHash());
+              ASSERT_TRUE(package->setData("field", value));
+              EXPECT_EQ(package->layoutHash(), established);
+
+              using WrongType = std::conditional_t<std::is_same_v<T, bool>, uint8_t, bool>;
+              EXPECT_FALSE(package->setData("field", WrongType{ 1 }));
+              read = T{};
+              ASSERT_TRUE(package->getData("field", read));
+              EXPECT_EQ(read, value);
+              EXPECT_EQ(package->layoutHash(), established);
+              EXPECT_EQ(package->recipeHash(), recipe);
+            }
+          }
+        },
+        entry.second);
+  }
 }
 
 TEST(rtde_data_package, failed_set_types_leaves_the_package_unchanged)
@@ -910,6 +986,55 @@ TEST(rtde_data_package, bitset_get_data_fails_on_an_untyped_field)
   EXPECT_THROW(package.getData<uint32_t>("robot_status_bits", bits), std::bad_variant_access);
 }
 
+TEST(rtde_data_package, bitset_get_data_missing_field_preserves_value)
+{
+  auto package = typedPackage({ "robot_status_bits" }, { "UINT32" });
+  const std::bitset<8> expected(0xa5);
+  auto bits = expected;
+
+  EXPECT_FALSE(package.getData<uint32_t>("missing", bits));
+  EXPECT_EQ(bits, expected);
+}
+
+TEST(rtde_data_package, distinct_empty_packages_copy_and_init_empty_preserve_layout_and_serialization)
+{
+  for (const uint16_t version : { 1, 2 })
+  {
+    SCOPED_TRACE(version);
+    auto source = typedPackage({}, {});
+    auto destination = typedPackage({}, {});
+    source.setProtocolVersion(version);
+    destination.setProtocolVersion(version);
+    source.setRecipeID(3);
+    destination.setRecipeID(7);
+    const auto recipe = source.recipeHash();
+    const auto layout = source.layoutHash();
+
+    // Distinct objects exercise the empty storage path, not the self-copy shortcut.
+    ASSERT_TRUE(destination.copyFrom(source));
+    destination.initEmpty();
+    auto copy = destination.emptyCopy();
+    rtde_interface::DataPackage constructed(destination);
+    const std::vector<std::pair<rtde_interface::DataPackage*, uint8_t>> packages{
+      { &source, 3 }, { &destination, 7 }, { &copy, 0 }, { &constructed, 7 }
+    };
+    for (const auto& entry : packages)
+    {
+      EXPECT_TRUE(entry.first->isTyped());
+      EXPECT_EQ(entry.first->recipeHash(), recipe);
+      EXPECT_EQ(entry.first->layoutHash(), layout);
+      std::vector<uint8_t> expected{ 0, static_cast<uint8_t>(version == 2 ? 4 : 3), 0x55 };
+      if (version == 2)
+      {
+        expected.push_back(entry.second);
+      }
+      uint8_t buffer[4]{};
+      ASSERT_EQ(entry.first->serializePackage(buffer), expected.size());
+      EXPECT_EQ(std::vector<uint8_t>(buffer, buffer + expected.size()), expected);
+    }
+  }
+}
+
 TEST(rtde_data_package, bitset_get_data_fails_when_the_underlying_type_is_wrong)
 {
   auto package = typedPackage({ "robot_status_bits" }, { "UINT32" });
@@ -931,6 +1056,11 @@ TEST(rtde_data_package, to_string_covers_every_data_type)
   EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6D), "VECTOR6D");
   EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6INT32), "VECTOR6INT32");
   EXPECT_EQ(rtde_interface::toString(rtde_interface::DataType::VECTOR6UINT32), "VECTOR6UINT32");
+}
+
+TEST(rtde_data_package, to_string_rejects_invalid_data_type)
+{
+  EXPECT_THROW(rtde_interface::toString(static_cast<rtde_interface::DataType>(0xff)), UrException);
 }
 
 // emplace() keeps the first index when a recipe repeats a name. Looking a field up by name

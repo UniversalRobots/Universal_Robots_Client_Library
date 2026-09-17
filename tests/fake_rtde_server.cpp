@@ -557,6 +557,18 @@ void RTDEServer::queueTextMessageBeforeSetupInputs(const std::string& message)
   pending_setup_inputs_text_messages_.push_back(message);
 }
 
+void RTDEServer::setOutputTypeReply(const std::optional<std::vector<std::string>>& types)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  output_type_reply_ = types;
+}
+
+void RTDEServer::setInputTypeReply(const std::optional<std::vector<std::string>>& types)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  input_type_reply_ = types;
+}
+
 void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
 {
   comm::PackageSerializer serializer;
@@ -739,7 +751,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       bp.parseRemainder(variable_names_str);
       output_recipe_ = splitString(variable_names_str);
       const std::vector<std::string> variable_types = variableTypesFor(output_recipe_);
-      const std::string variable_types_str = joinStrings(variable_types);
+      std::string variable_types_str;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        variable_types_str = joinStrings(output_type_reply_.value_or(variable_types));
+      }
 
       {
         std::lock_guard<std::mutex> data_lock(output_data_mutex_);
@@ -793,7 +809,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       bp.parseRemainder(variable_names_str);
       input_recipe_ = splitString(variable_names_str);
       const std::vector<std::string> variable_types = variableTypesFor(input_recipe_);
-      const std::string variable_types_str = joinStrings(variable_types);
+      std::string variable_types_str;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        variable_types_str = joinStrings(input_type_reply_.value_or(variable_types));
+      }
 
       uint16_t protocol_version = 2;
       {

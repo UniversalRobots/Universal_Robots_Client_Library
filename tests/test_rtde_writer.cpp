@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <condition_variable>
 #include <mutex>
+#include <type_traits>
 #include <vector>
 
 #include <ur_client_library/rtde/rtde_writer.h>
@@ -74,24 +75,36 @@ protected:
   void messageCallback([[maybe_unused]] const socket_t filedescriptor, char* buffer, int nbytesrecv)
   {
     std::lock_guard<std::mutex> lk(message_mutex_);
-    uint8_t* buf = reinterpret_cast<uint8_t*>(buffer);
-    comm::BinParser bp(buf, nbytesrecv);
-    // These might be needed in the test
-    uint16_t size;
-    uint8_t type, recipe_id;
-    bp.parse(size);
-    bp.parse(type);
-    bp.parse(recipe_id);
-    parseMessage(bp);
-    message_cv_.notify_one();
-    message_callback_ = true;
+    const auto* bytes = reinterpret_cast<const uint8_t*>(buffer);
+    received_bytes_.insert(received_bytes_.end(), bytes, bytes + nbytesrecv);
+    // TCP callbacks may split or combine frames. Only acknowledge a fully parsed package.
+    while (received_bytes_.size() >= 3)
+    {
+      const size_t frame_size = (static_cast<size_t>(received_bytes_[0]) << 8) | received_bytes_[1];
+      ASSERT_GE(frame_size, 4u);
+      if (received_bytes_.size() < frame_size)
+      {
+        return;
+      }
+      comm::BinParser bp(received_bytes_.data(), frame_size);
+      uint16_t size;
+      uint8_t type, recipe_id;
+      bp.parse(size);
+      bp.parse(type);
+      bp.parse(recipe_id);
+      EXPECT_EQ(type, 0x55);
+      parseMessage(bp);
+      EXPECT_TRUE(bp.empty());
+      received_bytes_.erase(received_bytes_.begin(), received_bytes_.begin() + frame_size);
+      message_callback_ = true;
+      message_cv_.notify_one();
+    }
   }
 
   bool waitForMessageCallback(int milliseconds = 100)
   {
     std::unique_lock<std::mutex> lk(message_mutex_);
-    if (message_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds)) == std::cv_status::no_timeout ||
-        message_callback_ == true)
+    if (message_cv_.wait_for(lk, std::chrono::milliseconds(milliseconds), [this] { return message_callback_; }))
     {
       message_callback_ = false;
       return true;
@@ -140,7 +153,7 @@ protected:
   std::unordered_map<std::string, input_types> parsed_data_;
 
 private:
-  void parseMessage(comm::BinParser bp)
+  void parseMessage(comm::BinParser& bp)
   {
     for (auto& item : input_recipe_)
     {
@@ -156,6 +169,7 @@ private:
   std::condition_variable message_cv_;
   std::mutex message_mutex_;
   bool message_callback_ = false;
+  std::vector<uint8_t> received_bytes_;
 
   std::unordered_map<std::string, input_types> input_map_types_ = {
     { "speed_slider_mask", uint32_t() },
@@ -643,6 +657,130 @@ TEST_F(RTDEWriterTest, create_data_package_before_types_are_known_throws)
 {
   rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
   EXPECT_THROW(writer.createDataPackage(), UrException);
+}
+
+TEST_F(RTDEWriterTest, create_data_package_while_running_without_types_throws)
+{
+  writer_->stop();
+  rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
+  ASSERT_NO_THROW(writer.init(1));
+
+  // Isolate the running-but-untyped guard without queuing an unserializable send.
+  EXPECT_THROW(writer.createDataPackage(), UrException);
+  writer.stop();
+  EXPECT_FALSE(waitForMessageCallback(100));
+  EXPECT_TRUE(parsed_data_.empty());
+}
+
+TEST_F(RTDEWriterTest, invalid_recipe_types_while_stopped_allow_valid_setup_and_init)
+{
+  writer_->stop();
+  writer_->setInputRecipe(input_recipe_);
+  auto too_few = input_recipe_types_;
+  too_few.pop_back();
+  auto too_many = input_recipe_types_;
+  too_many.push_back("DOUBLE");
+  auto unknown = input_recipe_types_;
+  unknown.back() = "NOT_A_TYPE";
+
+  EXPECT_THROW(writer_->setRecipeTypes(too_few), UrException);
+  EXPECT_THROW(writer_->setRecipeTypes(too_many), UrException);
+  EXPECT_THROW(writer_->setRecipeTypes(unknown), UrException);
+  ASSERT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
+  ASSERT_NO_THROW(writer_->init(1));
+
+  auto package = writer_->createDataPackage();
+  EXPECT_TRUE(package.isTyped());
+  const auto expected = urcl::test::typedPackage(input_recipe_, input_recipe_types_);
+  EXPECT_EQ(package.layoutHash(), expected.layoutHash());
+  for (const auto& field : input_recipe_)
+  {
+    EXPECT_EQ(package.getDataType(field), expected.getDataType(field)) << field;
+  }
+  writer_->stop();
+}
+
+TEST_F(RTDEWriterTest, typing_and_retyping_initialize_both_send_buffers)
+{
+  // Compare parsed fields, not TCP callbacks or raw receive chunks. Each send below is
+  // acknowledged before another is queued, since the writer may coalesce pending writes.
+  const auto expect_package = [this](const rtde_interface::DataPackage& expected) {
+    ASSERT_EQ(parsed_data_.size(), input_recipe_.size());
+    for (const auto& field : input_recipe_)
+    {
+      ASSERT_TRUE(dataFieldExist(field));
+      std::visit(
+          [&](const auto& received) {
+            std::decay_t<decltype(received)> value{};
+            ASSERT_TRUE(expected.getData(field, value));
+            EXPECT_EQ(received, value) << field;
+          },
+          parsed_data_.at(field));
+    }
+  };
+  const std::vector<std::string> byte_masks{ "standard_digital_output_mask", "configurable_digital_output_mask",
+                                             "tool_digital_output_mask", "standard_analog_output_mask" };
+  std::vector<rtde_interface::DataPackage> packages{ writer_->createDataPackage(), writer_->createDataPackage() };
+  for (size_t i = 0; i < packages.size(); ++i)
+  {
+    SCOPED_TRACE(i);
+    auto& package = packages[i];
+    const double value = i == 0 ? 0.25 : 0.75;
+    ASSERT_TRUE(package.setData("speed_slider_mask", uint32_t{ 1 }));
+    for (const auto& mask : byte_masks)
+    {
+      ASSERT_TRUE(package.setData(mask, uint8_t{ 1 }));
+    }
+    ASSERT_TRUE(package.setData("speed_slider_fraction", value));
+    ASSERT_TRUE(package.setData("standard_digital_output", uint8_t{ 0xa5 }));
+    ASSERT_TRUE(package.setData("configurable_digital_output", uint8_t{ 0x5a }));
+    ASSERT_TRUE(package.setData("tool_digital_output", uint8_t{ 3 }));
+    ASSERT_TRUE(package.setData("standard_analog_output_type", uint8_t{ 3 }));
+    ASSERT_TRUE(package.setData("standard_analog_output_0", value));
+    ASSERT_TRUE(package.setData("standard_analog_output_1", value));
+    ASSERT_TRUE(package.setData("input_bit_register_65", true));
+    ASSERT_TRUE(package.setData("input_int_register_25", int32_t{ -42 }));
+    ASSERT_TRUE(package.setData("input_double_register_25", value));
+    ASSERT_TRUE(package.setData("external_force_torque", vector6d_t{ value, -2, 3, -4, 5, -6 }));
+    ASSERT_TRUE(writer_->sendPackage(package));
+    ASSERT_TRUE(waitForMessageCallback(1000));
+    ASSERT_NO_FATAL_FAILURE(expect_package(package));
+  }
+
+  // Reuse both buffers without overwriting the whole package. Masks must have been reset,
+  // while each buffer's distinct non-mask values remain intact.
+  for (size_t i = 0; i < packages.size(); ++i)
+  {
+    SCOPED_TRACE(i);
+    auto& expected = packages[i];
+    ASSERT_TRUE(expected.resetData("speed_slider_mask"));
+    for (const auto& mask : byte_masks)
+    {
+      ASSERT_TRUE(expected.resetData(mask));
+    }
+    const int32_t value = i == 0 ? -123 : 456;
+    ASSERT_TRUE(expected.setData("input_int_register_25", value));
+    ASSERT_TRUE(writer_->sendInputIntRegister(25, value));
+    ASSERT_TRUE(waitForMessageCallback(1000));
+    ASSERT_NO_FATAL_FAILURE(expect_package(expected));
+  }
+
+  writer_->stop();
+  // Change the layout while stopped, then restore the fixture's wire types. No sends occur
+  // under the temporary recipe types, which the fixture is not configured to parse.
+  writer_->setRecipeTypes(std::vector<std::string>(input_recipe_.size(), "UINT8"));
+  writer_->setRecipeTypes(input_recipe_types_);
+  writer_->init(1);
+  for (const double value : { -1.25, 2.5 })
+  {
+    SCOPED_TRACE(value);
+    auto expected = urcl::test::typedPackage(input_recipe_, input_recipe_types_);
+    ASSERT_TRUE(expected.setData("input_double_register_25", value));
+    ASSERT_TRUE(writer_->sendInputDoubleRegister(25, value));
+    ASSERT_TRUE(waitForMessageCallback(1000));
+    // Both buffers must have their old data and masks cleared, not just the current store.
+    ASSERT_NO_FATAL_FAILURE(expect_package(expected));
+  }
 }
 
 // A package has to be built from the recipe that was registered, since the fallback copies

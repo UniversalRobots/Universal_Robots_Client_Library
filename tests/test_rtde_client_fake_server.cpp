@@ -82,8 +82,44 @@ protected:
                                                          double target_frequency,
                                                          bool ignore_unavailable_outputs = false)
   {
-    return std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, output_recipe, input_recipe,
+    return std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, output_recipe, input_recipe,
                                                         target_frequency, ignore_unavailable_outputs, g_FAKE_RTDE_PORT);
+  }
+
+  void expectFailedNegotiationThenRecovery()
+  {
+    // Count failures as bounded initialization attempts, not elapsed time. An IN_USE response is
+    // caught internally and retried; malformed counts also return false from setupCommunication.
+    EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 2, std::chrono::milliseconds(10)), UrException);
+    ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+    EXPECT_THROW(client_->createInputDataPackage(), UrException);
+
+    server_->setOutputTypeReply(std::nullopt);
+    server_->setInputTypeReply(std::nullopt);
+    ASSERT_TRUE(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
+    ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
+    EXPECT_EQ(client_->getOutputRecipe(), g_OUTPUT_RECIPE);
+    EXPECT_EQ(client_->getInputRecipe(), g_INPUT_RECIPE);
+
+    auto input = client_->createInputDataPackage();
+    EXPECT_TRUE(input.isTyped());
+    EXPECT_EQ(input.getDataType("speed_slider_mask"), rtde_interface::DataType::UINT32);
+    EXPECT_EQ(input.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
+    ASSERT_TRUE(input.setData("speed_slider_fraction", 0.5));
+    EXPECT_FALSE(input.setData("speed_slider_mask", uint8_t(1)));
+
+    ASSERT_TRUE(client_->start(true));
+    rtde_interface::DataPackage output(g_OUTPUT_RECIPE);
+    ASSERT_TRUE(client_->getDataPackage(output, std::chrono::seconds(1)));
+    EXPECT_TRUE(output.isTyped());
+    EXPECT_EQ(output.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+    EXPECT_EQ(output.getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+    EXPECT_EQ(output.getDataType("target_speed_fraction"), rtde_interface::DataType::DOUBLE);
+    EXPECT_EQ(output.getDataType("runtime_state"), rtde_interface::DataType::UINT32);
+    double timestamp = 0;
+    ASSERT_TRUE(output.getData("timestamp", timestamp));
+    EXPECT_GE(timestamp, 40.0);
+    EXPECT_TRUE(client_->pause());
   }
 
   comm::INotifier notifier_;
@@ -720,6 +756,50 @@ TEST_F(RTDEClientFakeServerTest, write_and_read_back_input_data)
 
 // The robot is the authority on which fields exist, so a typo in a recipe is caught from the
 // acknowledgement rather than from a table inside the library.
+TEST_F(RTDEClientFakeServerTest, too_few_output_types_fail_then_recover)
+{
+  server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE", "VECTOR6D", "DOUBLE" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, too_many_output_types_fail_then_recover)
+{
+  server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE", "VECTOR6D", "DOUBLE", "UINT32", "DOUBLE" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, too_few_input_types_fail_then_recover)
+{
+  server_->setInputTypeReply(std::vector<std::string>{ "UINT32" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, too_many_input_types_fail_then_recover)
+{
+  server_->setInputTypeReply(std::vector<std::string>{ "UINT32", "DOUBLE", "BOOL" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, unknown_output_type_fails_then_recovers)
+{
+  server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE", "VECTOR6D", "DOUBLE", "UNKNOWN_TYPE" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, unknown_input_type_fails_then_recovers)
+{
+  server_->setInputTypeReply(std::vector<std::string>{ "UINT32", "UNKNOWN_TYPE" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, input_in_use_exhausts_retries_then_recovers)
+{
+  server_->setInputTypeReply(std::vector<std::string>{ "IN_USE", "DOUBLE" });
+  ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+  // Two failed handshakes and the successful recovery each negotiate v2 exactly once.
+  EXPECT_EQ(server_->requestedProtocolVersions(), (std::vector<uint16_t>{ 2, 2, 2 }));
+}
+
 TEST_F(RTDEClientFakeServerTest, unknown_output_field_throws)
 {
   auto client = makeClient({ "timestamp", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY);

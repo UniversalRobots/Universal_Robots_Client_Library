@@ -424,6 +424,280 @@ TEST(rtde_parser, test_deprecated_parse_method)
   }
 }
 
+TEST(rtde_parser, deprecated_parse_without_registration_rejects_typed_package)
+{
+  unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  auto package = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  package.setProtocolVersion(2);
+  ASSERT_TRUE(package.setData("timestamp", 42.0));
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  products.push_back(std::make_unique<rtde_interface::DataPackage>(package));
+  const auto* original = products.back().get();
+
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+  URCL_SILENCE_DEPRECATED_BEGIN
+  EXPECT_FALSE(parser.parse(bp, products));
+  URCL_SILENCE_DEPRECATED_END
+  ASSERT_EQ(products.size(), 1u);
+  EXPECT_EQ(products.back().get(), original);
+  auto* data = dynamic_cast<rtde_interface::DataPackage*>(products.back().get());
+  ASSERT_NE(data, nullptr);
+  double timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_rejects_empty_vector)
+{
+  unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  expected.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+  URCL_SILENCE_DEPRECATED_BEGIN
+  EXPECT_FALSE(parser.parse(bp, products));
+  URCL_SILENCE_DEPRECATED_END
+  EXPECT_TRUE(products.empty());
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_rejects_null_or_non_data_last_entry)
+{
+  unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  for (const bool null_last_entry : { false, true })
+  {
+    SCOPED_TRACE(null_last_entry);
+    rtde_interface::RTDEParser parser({ "timestamp" });
+    parser.setProtocolVersion(2);
+    auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+    expected.setProtocolVersion(2);
+    parser.setExpectedLayoutHash(expected.layoutHash());
+    ASSERT_TRUE(expected.setData("timestamp", 42.0));
+    std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+    // A matching earlier entry must not be used in place of an invalid last entry.
+    products.push_back(std::make_unique<rtde_interface::DataPackage>(expected));
+    const auto* first = products.front().get();
+    if (null_last_entry)
+    {
+      products.push_back(nullptr);
+    }
+    else
+    {
+      auto control = std::make_unique<rtde_interface::ControlPackageStart>();
+      control->accepted_ = true;
+      products.push_back(std::move(control));
+    }
+    const auto* last = products.back().get();
+
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    URCL_SILENCE_DEPRECATED_BEGIN
+    EXPECT_FALSE(parser.parse(bp, products));
+    URCL_SILENCE_DEPRECATED_END
+    ASSERT_EQ(products.size(), 2u);
+    EXPECT_EQ(products.front().get(), first);
+    EXPECT_EQ(products.back().get(), last);
+    if (!null_last_entry)
+    {
+      auto* start = dynamic_cast<rtde_interface::ControlPackageStart*>(products.back().get());
+      ASSERT_NE(start, nullptr);
+      EXPECT_TRUE(start->accepted_);
+    }
+    auto* data = dynamic_cast<rtde_interface::DataPackage*>(products.front().get());
+    ASSERT_NE(data, nullptr);
+    double timestamp = 0.0;
+    ASSERT_TRUE(data->getData("timestamp", timestamp));
+    EXPECT_DOUBLE_EQ(timestamp, 42.0);
+  }
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_reuses_last_package_repeatedly)
+{
+  // Complete v2 packets: (timestamp, target_speed_fraction) = (1, 0.5), then (2, 1).
+  unsigned char packets[][20] = { { 0x00, 0x14, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x3f, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+                                  { 0x00, 0x14, 0x55, 0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
+  const std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
+  rtde_interface::RTDEParser parser(recipe);
+  parser.setProtocolVersion(2);
+  auto expected = test::typedPackage(recipe, { "DOUBLE", "DOUBLE" });
+  expected.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  ASSERT_TRUE(expected.setData("timestamp", 42.0));
+  ASSERT_TRUE(expected.setData("target_speed_fraction", 0.25));
+  std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+  products.push_back(std::make_unique<rtde_interface::DataPackage>(expected));
+  products.push_back(std::make_unique<rtde_interface::DataPackage>(expected));
+  const auto* first = products.front().get();
+  const auto* last = products.back().get();
+
+  for (size_t i = 0; i < 2; ++i)
+  {
+    SCOPED_TRACE(i);
+    comm::BinParser bp(packets[i], sizeof(packets[i]));
+    URCL_SILENCE_DEPRECATED_BEGIN
+    ASSERT_TRUE(parser.parse(bp, products));
+    URCL_SILENCE_DEPRECATED_END
+    EXPECT_TRUE(bp.empty());
+    ASSERT_EQ(products.size(), 2u);
+    EXPECT_EQ(products.front().get(), first);
+    EXPECT_EQ(products.back().get(), last);
+    for (size_t j = 0; j < products.size(); ++j)
+    {
+      auto* data = dynamic_cast<rtde_interface::DataPackage*>(products[j].get());
+      ASSERT_NE(data, nullptr);
+      EXPECT_EQ(data->layoutHash(), expected.layoutHash());
+      double timestamp = 0.0;
+      double target_speed_fraction = 0.0;
+      ASSERT_TRUE(data->getData("timestamp", timestamp));
+      ASSERT_TRUE(data->getData("target_speed_fraction", target_speed_fraction));
+      EXPECT_DOUBLE_EQ(timestamp, j == 0 ? 42.0 : (i == 0 ? 1.0 : 2.0));
+      EXPECT_DOUBLE_EQ(target_speed_fraction, j == 0 ? 0.25 : (i == 0 ? 0.5 : 1.0));
+    }
+  }
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_repairs_protocol_only_mismatch)
+{
+  unsigned char version1[] = { 0x00, 0x0b, 0x55, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char version2[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  for (const uint16_t version : std::initializer_list<uint16_t>{ 1, 2 })
+  {
+    SCOPED_TRACE(version);
+    rtde_interface::RTDEParser parser({ "timestamp" });
+    parser.setProtocolVersion(version);
+    auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+    expected.setProtocolVersion(version);
+    parser.setExpectedLayoutHash(expected.layoutHash());
+    auto package = std::make_unique<rtde_interface::DataPackage>(expected);
+    package->setProtocolVersion(version == 1 ? 2 : 1);
+    ASSERT_TRUE(package->setData("timestamp", 42.0));
+    ASSERT_NE(package->layoutHash(), expected.layoutHash());
+    std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+    products.push_back(std::move(package));
+    const auto* original = products.back().get();
+
+    comm::BinParser bp(version == 1 ? version1 : version2, version == 1 ? sizeof(version1) : sizeof(version2));
+    URCL_SILENCE_DEPRECATED_BEGIN
+    ASSERT_TRUE(parser.parse(bp, products));
+    URCL_SILENCE_DEPRECATED_END
+    EXPECT_TRUE(bp.empty());
+    ASSERT_EQ(products.size(), 1u);
+    EXPECT_EQ(products.back().get(), original);
+    auto* data = dynamic_cast<rtde_interface::DataPackage*>(products.back().get());
+    ASSERT_NE(data, nullptr);
+    EXPECT_EQ(data->layoutHash(), expected.layoutHash());
+    double timestamp = 0.0;
+    ASSERT_TRUE(data->getData("timestamp", timestamp));
+    EXPECT_DOUBLE_EQ(timestamp, 1.0);
+  }
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_rejects_wrong_recipe_after_protocol_resync)
+{
+  unsigned char version1[] = { 0x00, 0x0b, 0x55, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char version2[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  for (const uint16_t version : std::initializer_list<uint16_t>{ 1, 2 })
+  {
+    SCOPED_TRACE(version);
+    rtde_interface::RTDEParser parser({ "timestamp" });
+    parser.setProtocolVersion(version);
+    auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+    expected.setProtocolVersion(version);
+    parser.setExpectedLayoutHash(expected.layoutHash());
+    auto wrong_recipe = test::typedPackage({ "target_speed_fraction" }, { "DOUBLE" });
+    wrong_recipe.setProtocolVersion(version);
+    ASSERT_NE(wrong_recipe.layoutHash(), expected.layoutHash());
+    auto package = std::make_unique<rtde_interface::DataPackage>(wrong_recipe);
+    package->setProtocolVersion(version == 1 ? 2 : 1);
+    ASSERT_NE(package->layoutHash(), wrong_recipe.layoutHash());
+    ASSERT_TRUE(package->setData("target_speed_fraction", 0.25));
+    std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+    products.push_back(std::move(package));
+    const auto* original = products.back().get();
+
+    comm::BinParser bp(version == 1 ? version1 : version2, version == 1 ? sizeof(version1) : sizeof(version2));
+    URCL_SILENCE_DEPRECATED_BEGIN
+    EXPECT_FALSE(parser.parse(bp, products));
+    URCL_SILENCE_DEPRECATED_END
+    ASSERT_EQ(products.size(), 1u);
+    EXPECT_EQ(products.back().get(), original);
+    auto* data = dynamic_cast<rtde_interface::DataPackage*>(products.back().get());
+    ASSERT_NE(data, nullptr);
+    EXPECT_EQ(data->layoutHash(), wrong_recipe.layoutHash());
+    EXPECT_NE(data->layoutHash(), expected.layoutHash());
+    double target_speed_fraction = 0.0;
+    ASSERT_TRUE(data->getData("target_speed_fraction", target_speed_fraction));
+    EXPECT_DOUBLE_EQ(target_speed_fraction, 0.25);
+  }
+}
+
+TEST(rtde_parser, deprecated_hash_only_parse_rejects_same_width_wrong_type_after_protocol_resync)
+{
+  unsigned char version1[] = { 0x00, 0x0b, 0x55, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char version2[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  for (const uint16_t version : std::initializer_list<uint16_t>{ 1, 2 })
+  {
+    SCOPED_TRACE(version);
+    rtde_interface::RTDEParser parser({ "timestamp" });
+    parser.setProtocolVersion(version);
+    auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+    expected.setProtocolVersion(version);
+    parser.setExpectedLayoutHash(expected.layoutHash());
+    // UINT64 and DOUBLE both occupy eight wire bytes: size alone cannot detect the mismatch.
+    auto wrong_type = test::typedPackage({ "timestamp" }, { "UINT64" });
+    wrong_type.setProtocolVersion(version);
+    ASSERT_NE(wrong_type.layoutHash(), expected.layoutHash());
+    auto package = std::make_unique<rtde_interface::DataPackage>(wrong_type);
+    package->setProtocolVersion(version == 1 ? 2 : 1);
+    ASSERT_NE(package->layoutHash(), wrong_type.layoutHash());
+    ASSERT_TRUE(package->setData("timestamp", uint64_t{ 42 }));
+    std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
+    products.push_back(std::move(package));
+    const auto* original = products.back().get();
+
+    comm::BinParser bp(version == 1 ? version1 : version2, version == 1 ? sizeof(version1) : sizeof(version2));
+    URCL_SILENCE_DEPRECATED_BEGIN
+    EXPECT_FALSE(parser.parse(bp, products));
+    URCL_SILENCE_DEPRECATED_END
+    ASSERT_EQ(products.size(), 1u);
+    EXPECT_EQ(products.back().get(), original);
+    auto* data = dynamic_cast<rtde_interface::DataPackage*>(products.back().get());
+    ASSERT_NE(data, nullptr);
+    EXPECT_EQ(data->layoutHash(), wrong_type.layoutHash());
+    EXPECT_NE(data->layoutHash(), expected.layoutHash());
+    uint64_t timestamp = 0;
+    ASSERT_TRUE(data->getData("timestamp", timestamp));
+    EXPECT_EQ(timestamp, uint64_t{ 42 });
+  }
+}
+
+TEST(rtde_parser, hash_only_parse_rejects_non_data_pointer)
+{
+  unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  expected.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  auto control = std::make_unique<rtde_interface::ControlPackageStart>();
+  control->accepted_ = true;
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::move(control);
+  const auto* original = product.get();
+
+  comm::BinParser bp(raw_data, sizeof(raw_data));
+  EXPECT_FALSE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), original);
+  auto* start = dynamic_cast<rtde_interface::ControlPackageStart*>(product.get());
+  ASSERT_NE(start, nullptr);
+  EXPECT_TRUE(start->accepted_);
+}
+
 TEST(rtde_parser, typed_template_replaces_a_non_data_package)
 {
   unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
