@@ -21,12 +21,16 @@ jobs:
         run: cmake --build build --config Debug
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml -C Debug
+      - name: Prepare JUnit for Codecov
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: bash scripts/prepare_junit_for_codecov.sh build/junit.xml ctest.junit.xml ctest
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          files: build/junit.xml
+          files: ctest.junit.xml
           report_type: test_results
           flags: unit-windows
           name: unit-windows
@@ -37,6 +41,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: unit_windows_junit
-          path: build/junit.xml
+          path: ctest.junit.xml
           if-no-files-found: warn
           retention-days: 10

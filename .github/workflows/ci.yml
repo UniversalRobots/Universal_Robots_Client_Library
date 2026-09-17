@@ -137,12 +137,15 @@ jobs:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           POLYSCOPE_X_TESTS_WITH_REMOTE_CONTROL: ${{matrix.env.POLYSCOPE_X_WITH_REMOTE_CONTROL || ''}}
           POLYSCOPE_X_SCREENSHOT_DIR: ${{github.workspace}}/test_artifacts/screenshots
+      - name: Prepare JUnit for Codecov
+        if: ${{ !cancelled() }}
+        run: bash scripts/prepare_junit_for_codecov.sh build/junit.xml ctest.junit.xml ctest
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          files: build/junit.xml
+          files: ctest.junit.xml
           report_type: test_results
           flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: integration-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
@@ -153,7 +156,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_junit
-          path: build/junit.xml
+          path: ctest.junit.xml
           if-no-files-found: warn
           retention-days: 10
       - name: install gcovr
@@ -343,12 +346,15 @@ jobs:
         env:
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+      - name: Prepare JUnit for Codecov
+        if: ${{ !cancelled() }}
+        run: bash scripts/prepare_junit_for_codecov.sh build/junit.xml ctest.junit.xml check_model
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          files: build/junit.xml
+          files: ctest.junit.xml
           report_type: test_results
           flags: check_version_${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
           name: check-model-${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
@@ -359,7 +365,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: check_model_${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_junit
-          path: build/junit.xml
+          path: ctest.junit.xml
           if-no-files-found: warn
           retention-days: 10
       - name: Capture URSim logs
