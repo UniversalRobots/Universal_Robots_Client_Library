@@ -77,6 +77,9 @@ public:
   void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
   void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
 
+  // Inject one frame after init(), while streaming is paused and the connection is stable.
+  bool sendTestFrame(const std::vector<uint8_t>& frame);
+
 private:
   std::vector<std::string> input_recipe_;
   std::vector<std::string> output_recipe_;

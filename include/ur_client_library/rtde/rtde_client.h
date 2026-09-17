@@ -197,6 +197,7 @@ public:
    * \param data_package Reference to a DataPackage where the received data package will be stored
    * if a package was fetched successfully.
    * Foreign recipes are repaired with a warning; null pointers allocate a package with a warning.
+   * A null pointer is assigned only after a successful read. Stop/reconnect cancels pending reads.
    * \param timeout Time to wait if no data package is currently in the queue
    *
    * \returns Whether a data package was received successfully
@@ -215,6 +216,8 @@ public:
    * data types of its own: the first read applies the ones the robot reported, which allocates
    * nothing. Use getOutputRecipe() for the recipe; foreign recipes are repaired with a warning and may allocate.
    * Null pointers allocate a package with a warning.
+   * The caller retains ownership on failure; null pointers are assigned only on success.
+   * Malformed data may partially update an existing package's values before failure.
    *
    * \returns Whether a data package was received successfully
    */
@@ -352,6 +355,8 @@ protected:
   std::atomic<bool> background_read_running_ = false;
   std::thread background_read_thread_;
   std::condition_variable background_read_cv_;
+  // Protected by read_mutex_; prevents a waiter from crossing a stop/restart or reconnect.
+  uint64_t background_read_session_id_ = 0;
 
   DataPackage preallocated_data_pkg_;
 

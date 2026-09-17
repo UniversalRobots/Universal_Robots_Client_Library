@@ -75,6 +75,14 @@ public:
   bool parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result) override;
 
   /*!
+   * \brief Consumes one frame, borrowing the destination without replacing or deleting it.
+   * Returns false for non-data frames or parse failures. Malformed data may partially update
+   * field values; ownership is always retained by the caller. The destination must have the
+   * registered layout. Non-data frames use separate temporary storage.
+   */
+  bool parseDataPackage(comm::BinParser& bp, DataPackage& destination);
+
+  /*!
    * \brief Uses the given BinParser to create package objects from the contained serialization.
    *
    * \param bp A BinParser holding one or more serialized RTDE packages
@@ -125,6 +133,10 @@ public:
     if (!data_package.isTyped())
     {
       throw UrException("The expected RTDE data package must be typed.");
+    }
+    if (!data_package.hasRecipe(recipe_))
+    {
+      throw UrException("The expected RTDE data package must use the parser's recipe.");
     }
     expected_data_package_.emplace(data_package);
     expected_data_package_->setProtocolVersion(protocol_version_);

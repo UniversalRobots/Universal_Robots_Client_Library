@@ -429,6 +429,12 @@ public:
     return recipe_hash_;
   }
 
+  /// Exact setup-time comparison of recipe field names and order; does not allocate.
+  bool hasRecipe(const std::vector<std::string>& recipe) const
+  {
+    return recipe_ == recipe;
+  }
+
   /*!
    * \brief FNV-1a identity of this package's protocol version, field names and current variant indices.
    *

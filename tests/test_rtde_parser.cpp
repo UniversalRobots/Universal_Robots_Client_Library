@@ -819,6 +819,76 @@ TEST(rtde_parser, untyped_template_is_rejected_without_changing_registration)
   EXPECT_TRUE(parser.parse(bp, product));
 }
 
+TEST(rtde_parser, foreign_typed_templates_leave_registration_unchanged)
+{
+  rtde_interface::RTDEParser parser({ "timestamp", "target_speed_fraction" });
+  parser.setProtocolVersion(2);
+  auto expected = test::typedPackage({ "timestamp", "target_speed_fraction" }, { "DOUBLE", "DOUBLE" });
+  parser.setExpectedDataPackage(expected);
+  const std::vector<std::vector<std::string>> recipes{ { "actual_q" },
+                                                       { "target_speed_fraction", "timestamp" },
+                                                       { "timestamp", "other_double" } };
+  for (const auto& recipe : recipes)
+  {
+    const std::vector<std::string> types =
+        recipe.size() == 1 ? std::vector<std::string>{ "VECTOR6D" } : std::vector<std::string>{ "DOUBLE", "DOUBLE" };
+    EXPECT_THROW(parser.setExpectedDataPackage(test::typedPackage(recipe, types)), UrException);
+    uint8_t bytes[128];
+    const auto size = expected.serializePackage(bytes);
+    comm::BinParser bp(bytes, size);
+    std::unique_ptr<rtde_interface::RTDEPackage> result;
+    ASSERT_TRUE(parser.parse(bp, result));
+    EXPECT_TRUE(dynamic_cast<rtde_interface::DataPackage&>(*result).hasRecipe({ "timestamp", "target_speed_"
+                                                                                             "fraction" }));
+  }
+}
+
+TEST(rtde_parser, borrowed_data_parse_rejects_other_frames_and_recovers)
+{
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  auto output = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  ASSERT_TRUE(output.setData("timestamp", 42.0));
+  parser.setExpectedDataPackage(output);
+  std::vector<std::vector<uint8_t>> frames{
+    { 0x00, 0x04, 0x53, 0x01 },                   // START acknowledgement
+    { 0x00, 0x07, 0x4d, 0x01, 'x', 0x00, 0x01 },  // Valid text
+    { 0x00, 0x04, 0x4d, 0xff },                   // Truncated text
+    { 0x00, 0x04, 0x55, 0x01 },                   // Truncated data
+    { 0x00 },                                     // Truncated header
+  };
+  for (auto& frame : frames)
+  {
+    comm::BinParser bp(frame.data(), frame.size());
+    EXPECT_FALSE(parser.parseDataPackage(bp, output));
+    double timestamp = 0;
+    ASSERT_TRUE(output.getData("timestamp", timestamp));
+    EXPECT_EQ(timestamp, 42.0);
+  }
+  uint8_t bytes[64];
+  const auto size = output.serializePackage(bytes);
+  comm::BinParser bp(bytes, size);
+  EXPECT_TRUE(parser.parseDataPackage(bp, output));
+}
+
+TEST(rtde_parser, borrowed_data_parse_requires_known_matching_layout)
+{
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  auto output = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  uint8_t bytes[64];
+  const auto size = output.serializePackage(bytes);
+  comm::BinParser unknown(bytes, size);
+  EXPECT_FALSE(parser.parseDataPackage(unknown, output));
+  parser.setExpectedDataPackage(output);
+  auto foreign = test::typedPackage({ "other" }, { "DOUBLE" });
+  comm::BinParser mismatch(bytes, size);
+  EXPECT_FALSE(parser.parseDataPackage(mismatch, foreign));
+  bytes[size] = 0;
+  comm::BinParser trailing(bytes, size + 1);
+  EXPECT_FALSE(parser.parseDataPackage(trailing, output));
+}
+
 TEST(rtde_parser, deprecated_parse_appends_only_complete_packages)
 {
   unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff };

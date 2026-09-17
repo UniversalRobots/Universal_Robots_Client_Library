@@ -614,6 +614,12 @@ void RTDEServer::connectionCallback(const socket_t filedescriptor)
   receive_buffer_.clear();
   URCL_LOG_INFO("Client connected to RTDE server on FD %d", filedescriptor);
 }
+
+bool RTDEServer::sendTestFrame(const std::vector<uint8_t>& frame)
+{
+  size_t written = 0;
+  return server_.write(client_socket_, frame.data(), frame.size(), written) && written == frame.size();
+}
 void RTDEServer::disconnectionCallback(const socket_t filedescriptor)
 {
   URCL_LOG_INFO("Client disconnected from RTDE server on FD %d", filedescriptor);

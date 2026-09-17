@@ -205,6 +205,74 @@ TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
   EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
 }
 
+TEST(DataPackageAllocationTest, borrowed_parser_reuses_storage)
+{
+  auto output = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  parser.setExpectedDataPackage(output);
+  uint8_t bytes[64];
+  const auto size = output.serializePackage(bytes);
+  bool success = true;
+  size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    for (size_t i = 0; i < 100; ++i)
+    {
+      comm::BinParser bp(bytes, size);
+      success = parser.parseDataPackage(bp, output) && success;
+    }
+    allocations = counter.count();
+  }
+  EXPECT_TRUE(success);
+  EXPECT_EQ(allocations, 0u);
+}
+
+TEST(DataPackageAllocationTest, enabled_failure_diagnostics_are_not_allocation_free)
+{
+  struct DiagnosticHandler : LogHandler
+  {
+    explicit DiagnosticHandler(size_t& calls) : calls_(calls)
+    {
+    }
+    void log(const char*, int, LogLevel, const char*) override
+    {
+      ++calls_;
+    }
+    size_t& calls_;
+  };
+  struct RestoreLogger
+  {
+    ~RestoreLogger()
+    {
+      unregisterLogHandler();
+      setLogLevel(LogLevel::INFO);
+    }
+  } restore;
+  size_t messages = 0;
+  registerLogHandler(std::make_unique<DiagnosticHandler>(messages));
+  setLogLevel(LogLevel::DEBUG);
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto foreign = test::typedPackage({ "other" }, { "DOUBLE" });
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  parser.setExpectedDataPackage(expected);
+  uint8_t bytes[64];
+  const auto size = expected.serializePackage(bytes);
+  size_t allocations = 0;
+  bool parsed = true;
+  {
+    AllocationCounter counter;
+    comm::BinParser bp(bytes, size);
+    parsed = parser.parseDataPackage(bp, foreign);
+    allocations = counter.count();
+  }
+  EXPECT_FALSE(parsed);
+  EXPECT_EQ(messages, 1u);
+  // urcl::log allocates its formatting buffer even with a non-allocating handler.
+  EXPECT_GT(allocations, 0u);
+}
+
 TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate)
 {
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,

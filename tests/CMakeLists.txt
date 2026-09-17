@@ -229,6 +229,9 @@ gtest_add_tests(TARGET      rtde_client_fake_server_tests
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_idempotent
+                     RTDEClientFakeServerTest.blocking_failures_preserve_caller_ownership
+                     RTDEBackgroundReadTest.notifications_without_data_do_not_succeed
+                     RTDEBackgroundReadTest.stop_and_reconnect_cancel_pending_reads
                      RTDEClientFakeServerTest.server_sender_start_and_stop_are_serialized
                      RTDEClientFakeServerTest.too_few_output_types_fail_then_recover
                      RTDEClientFakeServerTest.too_many_output_types_fail_then_recover

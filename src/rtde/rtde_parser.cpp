@@ -44,6 +44,49 @@ bool RTDEParser::recipeTypesKnown() const
   return false;
 }
 
+bool RTDEParser::parseDataPackage(comm::BinParser& bp, DataPackage& destination)
+{
+  try
+  {
+    const auto type = getPackageTypeFromHeader(bp);
+    if (type != PackageType::RTDE_DATA_PACKAGE)
+    {
+      std::unique_ptr<RTDEPackage> message(createNewPackageFromType(type));
+      if (!message->parseWith(bp) || !bp.empty())
+      {
+        URCL_LOG_ERROR("Malformed non-data RTDE frame, type %d.", static_cast<int>(type));
+        return false;
+      }
+      URCL_LOG_WARN("Expected RTDE data but received type %d: %s", static_cast<int>(type), message->toString().c_str());
+      return false;
+    }
+    if (!recipeTypesKnown())
+    {
+      return false;
+    }
+    if (destination.layoutHash() != layout_hash_)
+    {
+      destination.setProtocolVersion(protocol_version_);
+    }
+    if (destination.layoutHash() != layout_hash_)
+    {
+      URCL_LOG_DEBUG("Cannot parse RTDE data: destination layout does not match the registered layout.");
+      return false;
+    }
+    if (!parseDataPackagePayload(bp, destination) || !bp.empty())
+    {
+      URCL_LOG_ERROR("RTDE data payload was not parsed completely.");
+      return false;
+    }
+    return true;
+  }
+  catch (const UrException& error)
+  {
+    URCL_LOG_ERROR("RTDE data parsing failed: %s", error.what());
+    return false;
+  }
+}
+
 bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results)
 {
   static bool warning_printed = false;
@@ -80,6 +123,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
         auto package = std::make_unique<DataPackage>(*expected_data_package_);
         if (!parseDataPackagePayload(bp, *package) || !bp.empty())
         {
+          URCL_LOG_ERROR("RTDE data payload was not parsed completely.");
           return false;
         }
         results.push_back(std::move(package));
@@ -99,7 +143,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPack
       }
       if (package == nullptr || package->layoutHash() != layout_hash_)
       {
-        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
+        URCL_LOG_DEBUG("Cannot parse RTDE data: destination layout does not match the registered layout.");
         return false;
       }
       if (!parseDataPackagePayload(bp, *package))
@@ -157,6 +201,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
       {
         if (!expected_data_package_.has_value())
         {
+          URCL_LOG_DEBUG("Cannot allocate RTDE data: no typed template is registered.");
           return false;
         }
         // Backwards compatibility: allocate from template if caller supplied null or non-data package.
@@ -172,7 +217,7 @@ bool RTDEParser::parse(comm::BinParser& bp, std::unique_ptr<RTDEPackage>& result
       }
       if (data_package == nullptr || data_package->layoutHash() != layout_hash_)
       {
-        // Mismatch returns false without logging to preserve zero-allocation guarantees in real-time loops.
+        URCL_LOG_DEBUG("Cannot parse RTDE data: destination layout does not match the registered layout.");
         return false;
       }
 

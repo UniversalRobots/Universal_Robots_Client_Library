@@ -35,6 +35,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <future>
 #include <stdexcept>
 #include <thread>
 
@@ -631,6 +632,156 @@ TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_allocates_one)
   EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
 
   client_->pause();
+}
+
+TEST_F(RTDEClientFakeServerTest, blocking_failures_preserve_caller_ownership)
+{
+  ASSERT_TRUE(client_->init());  // init leaves streaming paused, so no DATA races with the injected frames.
+  auto output = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
+  auto* original = output.get();
+  const std::vector<std::vector<uint8_t>> frames{
+    { 0x00, 0x04, 0x53, 0x01 },
+    { 0x00, 0x07, 0x4d, 0x01, 'x', 0x00, 0x01 },
+    { 0x00, 0x04, 0x4d, 0xff },
+    { 0x00, 0x04, 0x55, 0x01 },
+  };
+  for (const auto& frame : frames)
+  {
+    ASSERT_TRUE(server_->sendTestFrame(frame));
+    EXPECT_FALSE(client_->getDataPackageBlocking(output));
+    ASSERT_EQ(output.get(), original);
+    std::unique_ptr<rtde_interface::DataPackage> empty;
+    ASSERT_TRUE(server_->sendTestFrame(frame));
+    EXPECT_FALSE(client_->getDataPackageBlocking(empty));
+    EXPECT_EQ(empty, nullptr);
+  }
+  ASSERT_TRUE(client_->start(false));
+  EXPECT_TRUE(client_->getDataPackageBlocking(output));
+  EXPECT_EQ(output.get(), original);
+  EXPECT_TRUE(client_->pause());
+}
+
+namespace
+{
+// Exercise consumer synchronization without a socket reader racing to deliver extra data.
+// Uses the same protected publication state as the real worker, but never starts a worker thread.
+class BackgroundReadHarness : public rtde_interface::RTDEClient
+{
+public:
+  explicit BackgroundReadHarness(comm::INotifier& notifier)
+    : RTDEClient("127.0.0.1", notifier, std::vector<std::string>{ "timestamp" }, std::vector<std::string>{})
+  {
+    preallocated_data_pkg_.setTypes({ "DOUBLE" });
+    prepareReader();
+  }
+
+  void prepareReader()
+  {
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    data_buffer0_ = std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
+    new_data_ = false;
+    background_read_running_ = true;
+    ++background_read_session_id_;
+  }
+
+  void notifyWithoutData()
+  {
+    background_read_cv_.notify_all();
+  }
+
+  void cancelForReconnect()
+  {
+    {
+      std::lock_guard<std::mutex> lock(read_mutex_);
+      reconnecting_ = true;
+      ++background_read_session_id_;
+    }
+    background_read_cv_.notify_all();
+  }
+
+  void publish(double timestamp)
+  {
+    {
+      std::lock_guard<std::mutex> lock(read_mutex_);
+      dynamic_cast<rtde_interface::DataPackage&>(*data_buffer0_).setData("timestamp", timestamp);
+      new_data_ = true;
+    }
+    background_read_cv_.notify_one();
+  }
+};
+}  // namespace
+
+TEST(RTDEBackgroundReadTest, timeout_does_not_publish_an_empty_pointer)
+{
+  comm::INotifier notifier;
+  BackgroundReadHarness client(notifier);
+  std::unique_ptr<rtde_interface::DataPackage> output;
+  EXPECT_FALSE(client.getDataPackage(output, std::chrono::milliseconds(1)));
+  EXPECT_EQ(output, nullptr);
+  client.publish(42.0);
+  ASSERT_TRUE(client.getDataPackage(output, std::chrono::milliseconds(1)));
+  double timestamp = 0;
+  ASSERT_TRUE(output->getData("timestamp", timestamp));
+  EXPECT_EQ(timestamp, 42.0);
+}
+
+TEST(RTDEBackgroundReadTest, notifications_without_data_do_not_succeed)
+{
+  comm::INotifier notifier;
+  BackgroundReadHarness client(notifier);
+  std::unique_ptr<rtde_interface::DataPackage> output;
+  auto read =
+      std::async(std::launch::async, [&] { return client.getDataPackage(output, std::chrono::milliseconds(50)); });
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  while (read.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready &&
+         std::chrono::steady_clock::now() < deadline)
+  {
+    client.notifyWithoutData();
+    std::this_thread::yield();
+  }
+  EXPECT_FALSE(read.get());
+  EXPECT_EQ(output, nullptr);
+}
+
+TEST(RTDEBackgroundReadTest, stop_and_reconnect_cancel_pending_reads)
+{
+  for (const bool reconnect : { false, true })
+  {
+    comm::INotifier notifier;
+    BackgroundReadHarness client(notifier);
+    std::unique_ptr<rtde_interface::DataPackage> output;
+    std::promise<void> entered;
+    auto read = std::async(std::launch::async, [&] {
+      entered.set_value();
+      return client.getDataPackage(output, std::chrono::seconds(2));
+    });
+    entered.get_future().wait();
+    EXPECT_EQ(read.wait_for(std::chrono::milliseconds(20)), std::future_status::timeout);
+    if (reconnect)
+      client.cancelForReconnect();
+    else
+      client.stopBackgroundRead();
+    EXPECT_EQ(read.wait_for(std::chrono::milliseconds(500)), std::future_status::ready);
+    EXPECT_FALSE(read.get());
+    EXPECT_EQ(output, nullptr);
+  }
+}
+
+TEST(RTDEBackgroundReadTest, restart_does_not_publish_stale_data)
+{
+  comm::INotifier notifier;
+  BackgroundReadHarness client(notifier);
+  client.publish(42.0);
+  client.stopBackgroundRead();
+  client.prepareReader();
+  std::unique_ptr<rtde_interface::DataPackage> output;
+  EXPECT_FALSE(client.getDataPackage(output, std::chrono::milliseconds(1)));
+  EXPECT_EQ(output, nullptr);
+  client.publish(43.0);
+  ASSERT_TRUE(client.getDataPackage(output, std::chrono::milliseconds(1)));
+  double timestamp = 0;
+  ASSERT_TRUE(output->getData("timestamp", timestamp));
+  EXPECT_EQ(timestamp, 43.0);
 }
 
 TEST_F(RTDEClientFakeServerTest, unavailable_reads_leave_an_empty_pointer_untouched)

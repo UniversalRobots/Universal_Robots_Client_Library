@@ -807,21 +807,48 @@ void RTDEClient::ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) 
 bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& data_package,
                                 std::chrono::milliseconds timeout)
 {
-  if (data_package == nullptr)
+  if (data_package)
+  {
+    return getDataPackage(*data_package, timeout);
+  }
+  std::unique_ptr<DataPackage> candidate;
   {
     // Hold reconnect lock while allocating from preallocated_data_pkg_ to prevent race with reconnect.
     std::unique_lock<std::mutex> lock(reconnect_mutex_, std::try_to_lock);
-    if (!lock.owns_lock() || reconnecting_ || !background_read_running_ || !preallocated_data_pkg_.isTyped())
+    if (!lock.owns_lock())
     {
+      URCL_LOG_DEBUG("Cannot prepare RTDE output: communication setup is locked.");
       return false;
     }
-    ensureOutputLayout(data_package);
+    if (reconnecting_)
+    {
+      URCL_LOG_DEBUG("Cannot prepare RTDE output while reconnecting.");
+      return false;
+    }
+    if (!background_read_running_)
+    {
+      URCL_LOG_ERROR("Cannot get RTDE output: background reading is not running.");
+      return false;
+    }
+    if (!preallocated_data_pkg_.isTyped())
+    {
+      URCL_LOG_ERROR("Cannot get RTDE output before recipe types are negotiated.");
+      return false;
+    }
+    ensureOutputLayout(candidate);
   }
-  return getDataPackage(*data_package, timeout);
+  if (!getDataPackage(*candidate, timeout))
+  {
+    URCL_LOG_DEBUG("Failed to get RTDE data package within the specified timeout.");
+    return false;  // The reference overload diagnoses the failure.
+  }
+  data_package = std::move(candidate);
+  return true;
 }
 
 bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)
 {
+  std::unique_lock<std::mutex> lock(read_mutex_);
   if (reconnecting_)
   {
     URCL_LOG_WARN("Currently reconnecting to the RTDE interface, unable to get data package");
@@ -833,30 +860,39 @@ bool RTDEClient::getDataPackage(DataPackage& data_package, std::chrono::millisec
                    "reading or use getDataPackageBlocking(...).");
     return false;
   }
-  if (new_data_.load())
+  const auto initial_session_id = background_read_session_id_;
+  if (!background_read_cv_.wait_for(lock, timeout, [this, initial_session_id] {
+        return new_data_.load() || !background_read_running_ || reconnecting_ ||
+               background_read_session_id_ != initial_session_id;
+      }))
   {
-    std::lock_guard<std::mutex> guard(read_mutex_);
-    // Use received buffer under read lock as layout template to stay consistent with background thread.
-    ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
-    data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
-    new_data_.store(false);
+    URCL_LOG_DEBUG("Timed out waiting for new RTDE data.");
+    return false;
   }
-  else
+  if (background_read_session_id_ != initial_session_id)
   {
-    std::unique_lock<std::mutex> lock(read_mutex_);
-    auto wait_result = background_read_cv_.wait_for(lock, timeout);
-    if (wait_result == std::cv_status::timeout)
-    {
-      return false;
-    }
-    if (new_data_.load())
-    {
-      // Use received buffer under read lock as layout template to stay consistent with background thread.
-      ensureOutputLayout(data_package, *dynamic_cast<DataPackage*>(data_buffer0_.get()));
-      data_package = *dynamic_cast<DataPackage*>(data_buffer0_.get());
-      new_data_.store(false);
-    }
+    URCL_LOG_DEBUG("RTDE read cancelled by a reader lifecycle change.");
+    return false;
   }
+  if (reconnecting_)
+  {
+    URCL_LOG_DEBUG("RTDE read cancelled by reconnect.");
+    return false;
+  }
+  if (!background_read_running_)
+  {
+    URCL_LOG_DEBUG("RTDE read cancelled because background reading stopped.");
+    return false;
+  }
+  auto* received = dynamic_cast<DataPackage*>(data_buffer0_.get());
+  if (!new_data_ || received == nullptr)
+  {
+    URCL_LOG_ERROR("RTDE reader signalled data without a received data package.");
+    return false;
+  }
+  ensureOutputLayout(data_package, *received);
+  data_package = *received;
+  new_data_ = false;
   return true;
 }
 
@@ -874,24 +910,32 @@ bool RTDEClient::getDataPackageBlocking(std::unique_ptr<DataPackage>& data_packa
   {
     if (!preallocated_data_pkg_.isTyped())
     {
+      URCL_LOG_ERROR("Cannot read RTDE data before recipe types are negotiated.");
       return false;
     }
-    ensureOutputLayout(data_package);
-    std::unique_ptr<RTDEPackage> base_package(data_package.release());
-    if (prod_->tryGet(base_package))
+    // Recheck after acquiring the setup lock; never compete with a background socket reader.
+    if (background_read_running_ || reconnecting_)
     {
-      lock.unlock();
-      auto package_type = base_package->getType();
-      if (package_type != PackageType::RTDE_DATA_PACKAGE)
-      {
-        URCL_LOG_ERROR("Received package from RTDE interface is not a data package, but of type %d", package_type);
-        return false;
-      }
-      data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
-      return true;
+      URCL_LOG_DEBUG("Blocking RTDE read cancelled: background reading or reconnect is active.");
+      return false;
     }
-    data_package.reset(dynamic_cast<DataPackage*>(base_package.release()));
-    lock.unlock();
+    const auto read_into = [this](DataPackage& destination) {
+      return prod_->tryGetWithParser(
+          [this, &destination](comm::BinParser& bp) { return parser_.parseDataPackage(bp, destination); });
+    };
+    if (data_package)
+    {
+      ensureOutputLayout(data_package);
+      return read_into(*data_package);
+    }
+    std::unique_ptr<DataPackage> candidate;
+    ensureOutputLayout(candidate);
+    if (!read_into(*candidate))
+    {
+      return false;  // The producer/parser diagnoses the failure.
+    }
+    data_package = std::move(candidate);
+    return true;
   }
   else
   {
@@ -1010,7 +1054,12 @@ void RTDEClient::reconnectCallback()
   {
     reconnecting_thread_.join();
   }
-  reconnecting_ = true;
+  {
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    reconnecting_ = true;
+    ++background_read_session_id_;
+  }
+  background_read_cv_.notify_all();
   reconnecting_thread_ = std::thread(&RTDEClient::reconnect, this);
 }
 
@@ -1027,23 +1076,39 @@ void RTDEClient::startBackgroundRead()
                    "data types of the output recipe are reported by the robot. Please call init() first.");
     return;
   }
-  background_read_running_ = true;
   // Copying the package the blocking read uses gives these the same recipe and data types without
   // needing to know what those are. Its values could be from an earlier read, so drop them.
   auto buffer0 = std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
   auto buffer1 = std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
   buffer0->initEmpty();
   buffer1->initEmpty();
+  std::lock_guard<std::mutex> lock(read_mutex_);
   data_buffer0_ = std::move(buffer0);
   data_buffer1_ = std::move(buffer1);
-
-  background_read_thread_ = std::thread(&RTDEClient::backgroundReadThreadFunc, this);
+  new_data_ = false;
+  ++background_read_session_id_;
+  background_read_running_ = true;
+  try
+  {
+    background_read_thread_ = std::thread(&RTDEClient::backgroundReadThreadFunc, this);
+  }
+  catch (...)
+  {
+    background_read_running_ = false;
+    background_read_cv_.notify_all();
+    throw;
+  }
 }
 
 void RTDEClient::stopBackgroundRead()
 {
-  background_read_running_ = false;
-  background_read_cv_.notify_one();
+  {
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    background_read_running_ = false;
+    new_data_ = false;
+    ++background_read_session_id_;
+  }
+  background_read_cv_.notify_all();
   if (background_read_thread_.joinable())
   {
     background_read_thread_.join();
@@ -1069,15 +1134,19 @@ void RTDEClient::backgroundReadThreadFunc()
         {
           {
             std::scoped_lock rw_lock(read_mutex_, write_mutex_);
+            if (!background_read_running_ || reconnecting_)
+            {
+              continue;
+            }
             std::swap(data_buffer0_, data_buffer1_);
+            new_data_.store(true);
           }
 
-          new_data_.store(true);
           background_read_cv_.notify_one();
         }
         else if (data_buffer1_->getType() == PackageType::RTDE_TEXT_MESSAGE)
         {
-          URCL_LOG_INFO(data_buffer1_->toString().c_str());
+          URCL_LOG_INFO("%s", data_buffer1_->toString().c_str());
         }
       }
       else
@@ -1094,7 +1163,10 @@ void RTDEClient::backgroundReadThreadFunc()
       std::this_thread::sleep_for(period);
     }
   }
-  new_data_.store(false);
+  {
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    new_data_.store(false);
+  }
   URCL_LOG_INFO("RTDE background read thread stopped");
 }
 
