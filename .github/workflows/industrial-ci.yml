@@ -89,6 +89,10 @@ jobs:
                 cp "$f" "ros_junit/${flat}"
                 cp "$f" "ros_${flat%.xml}.junit.xml"
               done
+          for report in ros_*.junit.xml; do
+            [ -f "$report" ] || continue
+            bash scripts/prepare_junit_for_codecov.sh "$report" "$report" ros
+          done
       - name: Upload ROS JUnit results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
