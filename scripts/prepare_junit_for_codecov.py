@@ -26,6 +26,25 @@ def _first(root: ET.Element, name: str) -> ET.Element | None:
     return None
 
 
+def _as_float(value: str | None) -> float:
+    try:
+        return float(value) if value not in (None, "") else 0.0
+    except ValueError:
+        return 0.0
+
+
+def _duration(root: ET.Element) -> str:
+    # Prefer the document aggregate (testsuites or a bare CTest testsuite).
+    if root.get("time") not in (None, ""):
+        return root.get("time") or "0"
+    total = sum(
+        _as_float(child.get("time"))
+        for child in root
+        if _local(child.tag) == "testsuite"
+    )
+    return f"{total:g}" if total else "0"
+
+
 def _cases(root: ET.Element) -> list[ET.Element]:
     return [el for el in root.iter() if _local(el.tag) == "testcase"]
 
@@ -41,7 +60,7 @@ def rewrite(src: Path, dst: Path, suite: str) -> None:
     orig = ET.parse(src).getroot()
     cases = _cases(orig)
     ts_orig = _first(orig, "testsuite")
-    time_s = ts_orig.get("time", "0") if ts_orig is not None else "0"
+    time_s = _duration(orig)
     timestamp = ts_orig.get("timestamp", "") if ts_orig is not None else ""
 
     failures = 0
