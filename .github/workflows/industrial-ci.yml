@@ -102,6 +102,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
+          disable_search: true
           handle_no_reports_found: true
           files: ros_*.junit.xml
           report_type: test_results
