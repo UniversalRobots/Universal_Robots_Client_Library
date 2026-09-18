@@ -177,8 +177,10 @@ public:
    * getData() fails, until it has been typed. That happens either by receiving into it (see
    * RTDEClient::getDataPackage()) or, for input recipes, by writing to it with setData().
    *
-   * Typing a package does not allocate, so this constructor is the only point at which the package
-   * touches the heap. Call it wherever suits your application; it needs no connection.
+   * Typing a package does not allocate. Reusing it for normal client reads with the same recipe
+   * needs no further allocation; foreign-recipe assignment or repair may allocate. Construction
+   * needs no connection, but using getOutputRecipe() after init() accounts for unavailable fields
+   * removed during negotiation.
    *
    * \param recipe The used recipe
    * \param protocol_version Protocol version used for the RTDE communication
@@ -211,10 +213,11 @@ public:
   /*!
    * \brief Get the data type a field currently holds.
    *
-   * After the robot acknowledges the recipe this is the type it reported, which is how to find
-   * out what to pass to getData() without hardcoding it. On an input package, setData() can
-   * establish a type before that acknowledgement; this then reports that stored type, which
-   * sendPackage() still checks against the robot. An untouched field has no type yet.
+   * After a client read or setTypes() applies the negotiated types, this is the type the robot
+   * reported. createInputDataPackage() also returns a package with those types already applied.
+   * The handshake alone does not type application-owned packages. On a recipe-only package,
+   * setData() can establish a field's type; this reports that stored type, which sendPackage()
+   * still checks against the robot. An untouched field has no type yet.
    *
    * \param name The string identifier for the data field as used in the documentation.
    *
@@ -408,8 +411,8 @@ public:
    *
    * A package constructed from a recipe alone is untyped until either the robot's setup
    * acknowledgement has been applied to it or setData() has been used to write to every field. An
-   * untyped package cannot be parsed into or serialized, and getData() throws
-   * std::bad_variant_access on it.
+   * incompletely typed package cannot be parsed into or serialized. getData() throws
+   * std::bad_variant_access for an untyped field, but typed fields can already be read.
    *
    * \returns True if the package carries type information for all of its fields
    */

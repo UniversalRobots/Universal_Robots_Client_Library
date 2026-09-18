@@ -1,21 +1,22 @@
-:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/rtde_writer.rst
+:github_url: https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/doc/examples/rtde_roundtrip.rst
 
-.. _rtde_writer_example:
+.. _rtde_roundtrip_example:
 
-RTDE writer example
-===================
+RTDE register round-trip example
+================================
 
 This example shows how to write several `Real-Time Data Exchange (RTDE)
 <https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/>`_
 inputs to the robot in a single package, at the robot's maximum frequency, and how to prove that
 the robot processed them.
 
-The one-field ``send...()`` helpers on ``RTDEWriter`` each produce a package of their own. When
-several general purpose registers have to change together, ``sendPackage()`` is the method that
-puts them on the wire in one RTDE package.
+The ``send...()`` helpers on ``RTDEWriter`` update individual inputs and notify the asynchronous
+writer separately. When several general purpose registers have to change together,
+``sendPackage()`` submits them together in one pending-buffer update, avoiding a transmission
+between separate helper calls. It does not guarantee a separate transmission for every call.
 
-The example's source code can be found in `rtde_writer.cpp
-<https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/rtde_writer.cpp>`_.
+The example's source code can be found in `rtde_roundtrip.cpp
+<https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/rtde_roundtrip.cpp>`_.
 
 .. note:: The robot has to be powered on and, on an e-Series, in *remote control mode* for the
    register-processing program to be accepted.
@@ -30,9 +31,9 @@ because the client adds it if it is missing.
 The general purpose register ranges reserved for external RTDE clients are bit registers
 ``64..127`` and integer and double registers ``24..47``.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: const std::vector<std::string> INPUT_RECIPE
@@ -55,17 +56,17 @@ have been produced by this program. ``sync()`` runs the loop once per control cy
 ``sendScript()`` is used rather than ``sendScriptBlocking()``, because the latter would wait until
 the program stops, and this one loops forever.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: const std::string MIRROR_PROGRAM
    :end-at: end)";
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // Start the robot program that processes the registers
@@ -82,9 +83,9 @@ copying the package into the send buffer is a single memcpy.
 A package constructed from ``getInputRecipe()`` still works. Its types are taken from the values
 written to it and are only checked when the package is sent.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // RTDE client at the robot's maximum frequency
@@ -93,9 +94,10 @@ written to it and are only checked when the package is sent.
 ``target_frequency = 0.0`` (the default) requests the robot's maximum: 125 Hz on CB3, 500 Hz on
 e-Series. See :ref:`real time setup` and :ref:`rtde_client`.
 
-Both ``DataPackage`` objects are allocated before the loop, so the loop itself is allocation-free.
-The output package is built from ``getOutputRecipe()`` and is therefore still untyped; the first
-read applies the robot's types to it in place, which needs no memory.
+Both ``DataPackage`` objects are allocated before the loop, so the normal RTDE data receive and
+submission paths reuse their storage without allocation. This does not extend to logging, error
+handling or reconnection. The output package is built from ``getOutputRecipe()`` and is therefore
+still untyped; the first read applies the robot's types to it in place, without allocation.
 
 Letting the robot pace the loop
 -------------------------------
@@ -105,9 +107,9 @@ per RTDE cycle and is this loop's time base. The input package is produced immed
 read so it reaches the robot in time to be acted on in the next cycle. Printing is throttled to
 about once per second, so it stays out of the hot path.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // The blocking read is this loop's clock
@@ -116,13 +118,17 @@ about once per second, so it stays out of the hot path.
 Writing several inputs in one package
 -------------------------------------
 
-Unwritten fields of the package are sent as zeros. One ``sendPackage()`` produces exactly one
-RTDE package; the ``send...()`` helpers would produce one package per field. The call only queues
-the values for the writer thread, so the loop stays aligned to the robot.
+The newly created input package contains zeros. Reusing it preserves previously written values
+unless they are changed or reset. ``sendPackage()`` copies all fields into the pending buffer and
+notifies the writer thread without waiting for transmission. Multiple calls before the writer
+consumes that buffer can be coalesced, with a later package replacing an earlier pending one.
+Separate ``send...()`` calls may be transmitted separately or coalesced; they are not an atomic
+update of several fields. A successful return means the buffer update was accepted, not that the
+robot received or processed it.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // Writing several general purpose inputs in one package
@@ -142,9 +148,9 @@ Against URSim the lag is one cycle: the values written after the read of cycle N
 the robot and observed in the read of cycle N+1. ``getData()`` needs a variable of the field's own
 type; ``getDataType()`` reports that type if the recipe is not known in advance.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // Reading what the robot made of the previous package
@@ -156,9 +162,9 @@ Cleanup
 The input registers are reset and the robot program is stopped. A failed stop is only logged,
 because CI runs the example for one second and still requires exit code 0.
 
-.. literalinclude:: ../../examples/rtde_writer.cpp
+.. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
-   :caption: examples/rtde_writer.cpp
+   :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
    :start-at: // Reset the input registers before leaving

@@ -73,8 +73,11 @@ public:
   void setInputRecipe(const std::vector<std::string>& recipe);
 
   /*!
-   * \brief Starts the writer thread, which periodically clears the queue to write packages to the
-   * robot.
+   * \brief Starts the writer thread, which sends pending buffer updates to the robot.
+   *
+   * Apply the negotiated protocol version and input field types with setProtocolVersion() and
+   * setRecipeTypes() while stopped, before calling this method. This method does not negotiate
+   * or establish field types. RTDEClient::init() handles that setup for its writer.
    *
    * \param recipe_id The recipe id to use, so the robot correctly identifies the used recipe
    */
@@ -92,16 +95,18 @@ public:
   /*!
    * \brief Sends a complete RTDEPackage to the robot.
    *
-   * Use this if multiple values need to be sent at once. When using the other provided functions,
-   * an RTDE data package will be sent each time.
+   * Use this to submit multiple values together in one pending-buffer update. Separate helper
+   * calls may be transmitted separately or coalesced, depending on when the writer thread runs.
+   * Calls are not queued individually: a later update can replace an earlier pending package.
    *
-   * Every field of \p package is copied into the send buffer. The package has to carry the same
-   * field names and types as the input recipe the robot acknowledged, so a field written with the
-   * wrong type is reported here rather than silently corrupting the package.
+   * Every field of \p package is copied into the pending buffer. Field names and order must match
+   * the input recipe the robot acknowledged. Typed fields must match the negotiated types;
+   * fields that are still untyped are copied as typed zeros. A mismatch returns false.
    *
    * \param package The package to send, constructed from the client's input recipe
    *
-   * \returns Success of the package creation
+   * \returns Whether the pending buffer update was accepted, not confirmation of transmission or
+   * processing by the robot.
    */
   bool sendPackage(const DataPackage& package);
 
@@ -116,7 +121,8 @@ public:
    *
    * \returns A package built from the input recipe with the acknowledged data types applied
    *
-   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   * \throws UrException if the writer is stopped or its input buffers are not typed. An RTDEClient
+   * with an empty input recipe does not start its writer, so this also throws for read-only clients.
    */
   DataPackage createDataPackage();
 

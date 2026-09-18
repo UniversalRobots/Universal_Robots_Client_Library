@@ -41,14 +41,26 @@ the :ref:`rtde_client_example` for an example of the blocking read method.
    }
 
 .. note::
-   Constructing the ``DataPackage`` is where its memory is allocated, so create it before entering
-   your control loop and reuse it: ``getDataPackage()`` and ``getDataPackageBlocking()`` don't
-   allocate.
 
-   A recipe only lists field names. The data types belonging to them are reported by the robot when
-   it acknowledges the recipe, and the first read applies them to your ``DataPackage``, which costs
-   no memory. Until that has happened ``getData()`` throws ``std::bad_variant_access``. See `Field data types`_
-   for how to ask a package what type it gave a field.
+  **Recommended:** Construct a ``DataPackage`` from ``getOutputRecipe()`` after ``init()`` and
+  reuse it in your control loop. With a matching recipe, the normal data receive path of
+  ``getDataPackage()`` and ``getDataPackageBlocking()`` does not allocate.
+
+  **Still supported, but not recommended:** The older flow that lets the client allocate a
+  package remains available for compatibility. The deprecated ``getDataPackage(timeout)``
+  overload allocates a new package on each call, and passing a null unique pointer to either
+  read method also allocates a package. Passing a package with a foreign recipe is supported
+  through automatic repair, which may allocate. The null-pointer and foreign-recipe paths log
+  warnings; these warn about allocation, not unsupported usage. Prefer a reusable, matching-recipe
+  package for new code, especially in real-time loops.
+
+  The allocation-free guarantee applies only to the normal data receive path with that reused
+  package. It does not cover error handling, non-data messages or reconnection.
+
+  A recipe only lists field names. The data types belonging to them are reported by the robot when
+  it acknowledges the recipe, and the first read applies them to your ``DataPackage`` without
+  allocation. Until that has happened ``getData()`` throws ``std::bad_variant_access``. See
+  `Field data types`_ for how to ask a package what type it gave a field.
 
 Upon construction, two recipe files have to be given, one for the RTDE inputs, one for the RTDE
 outputs. Please refer to the `RTDE
@@ -79,11 +91,46 @@ After calling ``my_client.start()``, data can be read from the
 Remember that, when not using a background thread, data has to be polled regularly, as the robot
 will shutdown RTDE communication if the receiving side doesn't empty its buffer.
 
-Both methods deliver their data into a ``DataPackage`` that the caller owns, which is what keeps the
-read path free of memory allocations: ``getDataPackage()`` copies the background reader's latest
-package into it, ``getDataPackageBlocking()`` parses the next package straight into it. The
-deprecated ``getDataPackage(timeout)`` overload, which returns a new package instead, allocates on
-every call by design and is therefore not suited for real-time use.
+Both methods deliver their data into a ``DataPackage`` that the caller owns:
+``getDataPackage()`` copies the background reader's latest package into it, while
+``getDataPackageBlocking()`` parses the next package straight into it. Reusing a package with the
+negotiated recipe keeps the normal data receive path free of memory allocations. The
+older ``getDataPackage(timeout)`` overload, which returns a new package instead, is deprecated but
+still supported. It allocates on every call by design and is not recommended for new code or
+real-time use; prefer an overload that fills an existing, reusable package.
+
+Always check the return value before using received data. A background read returns ``false`` on
+timeout or when stopping or reconnecting cancels the pending read; restarting the reader does not
+make a cancelled read succeed with stale data. Both unique-pointer overloads retain caller
+ownership on failure and assign a previously null pointer only on success. A failed blocking read
+can still partially update an existing package's values if the incoming data is malformed.
+
+Pacing a loop with the robot
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both read modes can pace an application loop at the robot's negotiated RTDE output frequency,
+without a separate fixed-period sleep. Choose the mode according to how directly the loop should
+follow incoming packages:
+
+- With ``start(false)``, ``getDataPackageBlocking()`` waits for the next package when no data is
+  already buffered. Calling it at the start of each iteration lets packet arrival pace the loop,
+  coupling it directly to the RTDE stream without a background-reader handoff. This is useful
+  when each iteration should read data and then compute and submit a response. See the
+  :ref:`rtde_roundtrip_example`.
+- With ``start(true)``, ``getDataPackage(package, timeout)`` can also pace the loop: after the
+  latest sample has been consumed, it waits for the background reader to publish another one,
+  up to the timeout. If a newer sample is already available, it returns immediately. This mode
+  decouples socket reading from application work and favors the latest sample; intermediate
+  samples can be overwritten when the application is slower than the stream. It suits loops
+  that need less direct synchronization and do not need to process every received sample.
+
+For background reads used as a loop clock, allow enough timeout for the expected RTDE period
+and scheduling jitter, and handle a ``false`` return instead of processing old data. In either
+mode, the loop must keep up with the negotiated frequency for steady pacing. Buffered data can
+make synchronous reads return immediately, and network or scheduling delays can make arrivals
+irregular. Neither mode guarantees phase synchronization with the robot's internal control cycle
+or receipt of a command in the next cycle. Use the output ``timestamp`` to track robot time and
+detect gaps between samples.
 
 Field data types
 ~~~~~~~~~~~~~~~~
@@ -91,10 +138,12 @@ Field data types
 ``getData()`` has to be given a variable of the field's own type. A missing name returns
 ``false``; a type mismatch throws ``std::bad_variant_access``.
 Rather than hardcoding which type a field has, ask the package: ``getDataType()`` reports the
-``DataType`` a field currently holds. After acknowledgement that is the type the robot reported;
-on an input package written with ``setData()`` before then, it is the type of that write. An
-untouched field has no type. This is useful for code that has to handle whatever recipe it is
-configured with, such as a bridge to another middleware:
+``DataType`` a field currently holds. A successful client read applies the robot's negotiated
+types to an output package; ``init()`` alone does not type application-owned packages.
+``createInputDataPackage()`` returns an input package with the negotiated types already applied.
+On a recipe-only package, ``setData()`` establishes an untyped field's type from the value written;
+subsequent writes must match that type. An untouched field has no type. This is useful for code
+that has to handle whatever recipe it is configured with, such as a bridge to another middleware:
 
 .. code-block:: c++
 
@@ -182,13 +231,33 @@ RTDEWriter
 The ``RTDEWriter`` class provides an interface to write data to the RTDE interface. Data fields that
 should be written have to be defined inside the ``INPUT_RECIPE`` as noted above.
 
-The class offers specific methods for every RTDE input possible to write.
+.. important::
 
-Data is sent asynchronously to the RTDE interface.
+  **Use RTDEClient to initialize and access RTDEWriter (recommended).** Create an ``RTDEClient``
+  with a non-empty input recipe, call ``init()``, then use its writer through ``getWriter()``.
+  The client handles the connection, protocol negotiation, input recipe setup and writer
+  initialization, including the field types and recipe ID reported by the robot.
+
+  Constructing and using ``RTDEWriter`` directly is still supported, but is a lower-level option
+  for applications that manage the RTDE connection and handshake themselves. It is not the
+  recommended approach for normal application code.
+
+The class offers convenience methods for common inputs and ``sendPackage()`` for a complete input
+recipe.
+
+Data is sent asynchronously to the RTDE interface. A successful ``sendPackage()`` or ``send...()``
+call updates the pending send buffer and notifies the writer thread; it does not confirm delivery
+or processing by the robot. This is not a FIFO queue of calls: multiple updates before the writer
+consumes the pending buffer can be coalesced, and a later ``sendPackage()`` can replace an earlier
+pending package. Separate helper calls may be transmitted separately or coalesced, depending on
+when the writer runs. Use ``sendPackage()`` to submit related fields together in one buffer update,
+not to guarantee a distinct transmission for every call.
 
 To write several fields at once, ask the client for a package that already carries the data types
-the robot reported for the input recipe, fill the fields you care about and pass it to
-``sendPackage()``. Fields you leave alone are sent as zeros. Because the package is already typed,
+the robot reported for the input recipe. Call ``createInputDataPackage()`` after a successful
+``init()`` with a non-empty input recipe, fill the fields you care about and pass it to
+``sendPackage()``. The new package starts with zero values; when reusing it, fields retain their
+previous values unless explicitly changed or reset. Because the package is already typed,
 ``setData()`` reports a value written with the wrong type immediately:
 
 .. code-block:: c++
@@ -199,11 +268,21 @@ the robot reported for the input recipe, fill the fields you care about and pass
    my_client.getWriter().sendPackage(input_pkg);
 
 A package constructed from ``getInputRecipe()`` still works. Its types are taken from the values
-written to it and are checked when the package is sent. See the :ref:`rtde_writer_example` for a
-complete example.
+written to it and are checked when the package is submitted to ``sendPackage()``. The field names
+and order must match the negotiated input recipe. Fields that remain untyped are sent as typed
+zeros, while incompatible types cause ``sendPackage()`` to return ``false``. See the
+:ref:`rtde_roundtrip_example` for a complete example.
+
+If direct ``RTDEWriter`` use is required instead of the recommended ``RTDEClient`` flow, perform the RTDE handshake
+and configure the stopped writer with ``setProtocolVersion(negotiated_version)`` and
+``setRecipeTypes(acknowledged_types)`` before calling ``init(recipe_id)`` with the acknowledged
+input recipe ID. Constructing the writer or calling ``init(recipe_id)`` alone does not establish
+the field types. ``RTDEClient::init()`` handles these steps automatically.
 
 .. note::
 
    The ``RTDEWriter`` will return ``false`` on any writing attempts for fields that have not been
    setup in the ``INPUT_RECIPE``. When no input recipe was provided, all write operations will
-   return ``false``.
+   return ``false``. No writer thread is started in that case, and ``createInputDataPackage()``
+   throws ``UrException`` even after successful client initialization. The factory also throws
+   before input recipe negotiation or while the writer is stopped.

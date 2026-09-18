@@ -191,6 +191,13 @@ public:
    * received from the robot can be fetched with this. When no new data has been received since the last call to this
    * function, it will wait for the time specified in the \p timeout parameter.
    *
+   * This wait can pace an application loop at the negotiated RTDE output frequency. If a newer
+   * sample is already available, the call returns immediately. The background reader keeps only
+   * the latest sample, so intermediate samples may be skipped when the application is slower.
+   * Allow a timeout covering the expected period and scheduling jitter, and check the return value.
+   * For more direct packet-arrival pacing without a background-reader handoff, use start(false)
+   * and getDataPackageBlocking(). Neither mode guarantees phase synchronization with robot control.
+   *
    * When packages are not read from the background thread, this function will return false and
    * print an error message.
    *
@@ -209,6 +216,14 @@ public:
    * \brief Blocking call to get the next data package received from the robot.
    *
    * This function will block until a new data package is received from the robot and return it.
+   *
+   * With start(false), calling this at the start of each loop iteration can pace application work
+   * at the negotiated RTDE output frequency: when no data is buffered, packet arrival releases
+   * the wait. Already buffered packages can return immediately, so the application must keep up
+   * with the stream to avoid lag. Network and scheduling jitter still apply; this does not guarantee
+   * phase synchronization with the robot's internal control cycle or next-cycle command delivery.
+   * getDataPackage() with background reading can also pace a loop, but favors the latest sample
+   * and decouples socket reading from application work.
    *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
    * For optimal performance, the data package pointer should contain a pre-allocated data package
@@ -293,9 +308,11 @@ public:
    * during the RTDE handshake.
    *
    * Fill it with DataPackage::setData() and hand it to RTDEWriter::sendPackage() to write several
-   * inputs in a single package. Has to be called after init().
+   * inputs in a single package. Has to be called after successful init() with a non-empty input
+   * recipe. The new package contains zeros; reusing it retains previously written values.
    *
-   * \throws UrException if the robot hasn't acknowledged the input recipe yet
+   * \throws UrException if the writer is stopped or input types have not been negotiated, including
+   * when the client has an empty input recipe.
    */
   DataPackage createInputDataPackage()
   {

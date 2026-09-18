@@ -13,7 +13,7 @@ instead of from a table of field names maintained inside the library. ``DataPack
 constructed from a recipe and preallocates its field storage there. The first client read applies
 the negotiated types without allocation when the recipe matches.
 
-Four consequences are worth knowing about:
+The following consequences are worth knowing about:
 
 - **A field name the robot doesn't know is reported later.** Since the library no longer has its own
   list of field names, a typo is caught when the robot rejects the recipe during
@@ -35,6 +35,12 @@ Four consequences are worth knowing about:
   to enable null/non-data pointer replacement and deprecated vector allocation, or register only
   ``setExpectedLayoutHash()`` and supply a matching typed package. Layout mismatches return
   ``false`` rather than throwing.
+- **Standalone writers need negotiated types before sending.** If using ``RTDEWriter`` directly,
+  configure it while stopped with ``setProtocolVersion(negotiated_version)`` and
+  ``setRecipeTypes(acknowledged_types)`` before ``init(recipe_id)``. Use the types, in recipe order,
+  and the input recipe ID returned by the robot's setup reply. The constructor and
+  ``init(recipe_id)`` alone no longer establish the field types. Repeat this setup if the recipe
+  is replaced. ``RTDEClient::init()`` performs these steps automatically for its writer.
 - **``getData()``/``setData()`` with a ``std::string`` is now a compile error.** That alternative
   was never a protocol type, so those calls used to compile and return ``false`` at runtime. Nothing
   could have relied on them working.
