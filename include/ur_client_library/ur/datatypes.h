@@ -98,7 +98,7 @@ enum class AnalogOutputType : int8_t
   VOLTAGE = 1
 };
 
-enum class RobotType : int8_t
+enum class RobotType : int32_t
 {
   UNDEFINED = -128,  // This is not defined by UR but only inside this driver
   UR5 = 1,
@@ -134,6 +134,20 @@ enum class ReportLevel : int32_t
   DEVL_VIOLATION = 131,
   DEVL_FAULT = 132,
   DEVL_CRITICAL_FAULT = 133
+};
+
+enum class ControlBoxType : uint16_t
+{
+  UNKNOWN = 0,
+  CB5 = 1,
+  CB7 = 2
+};
+
+enum class ToolFlangeType : uint16_t
+{
+  UNKNOWN = 0,
+  V1 = 1,
+  V2 = 2
 };
 
 inline std::string reportLevelString(const ReportLevel& code)

@@ -24,6 +24,7 @@
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/comm/parser.h"
 #include "ur_client_library/primary/package_header.h"
+#include "ur_client_library/primary/robot_message/hardware_info_message.h"
 #include "ur_client_library/primary/robot_message/key_message.h"
 #include "ur_client_library/primary/robot_message/runtime_exception_message.h"
 #include "ur_client_library/primary/robot_message/text_message.h"
@@ -243,6 +244,8 @@ private:
         return new RuntimeExceptionMessage(timestamp, source);
       case RobotMessagePackageType::ROBOT_MESSAGE_SAFETY_MODE:
         return new SafetyModeMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_HARDWARE_INFO:
+        return new HardwareInfoMessage(timestamp, source);
       default:
         return new RobotMessage(timestamp, source, type);
     }
