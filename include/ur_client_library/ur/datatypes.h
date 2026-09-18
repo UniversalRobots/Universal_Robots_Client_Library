@@ -109,7 +109,10 @@ enum class RobotType : int32_t
   UR8LONG = 6,
   UR20 = 7,
   UR30 = 8,
-  UR15 = 9
+  UR15 = 9,
+  UR10G_1750 = 12,
+  UR17G_1300 = 13,
+  UR18G_950 = 14
 };
 
 enum class RobotSeries
@@ -117,7 +120,8 @@ enum class RobotSeries
   UNDEFINED = -128,
   CB3 = 1,
   E_SERIES = 2,
-  UR_SERIES = 3
+  UR_SERIES = 3,
+  G_SERIES = 4
 };
 
 enum class ReportLevel : int32_t
@@ -318,6 +322,12 @@ inline std::string robotTypeString(const RobotType& type)
       return "UR20";
     case RobotType::UR30:
       return "UR30";
+    case RobotType::UR10G_1750:
+      return "UR10g-1750";
+    case RobotType::UR17G_1300:
+      return "UR17g-1300";
+    case RobotType::UR18G_950:
+      return "UR18g-950";
     case RobotType::UNDEFINED:
       return "UNDEFINED";
   }
@@ -343,6 +353,8 @@ inline std::string robotSeriesString(const RobotSeries& series)
       return "E_SERIES";
     case RobotSeries::UR_SERIES:
       return "UR_SERIES";
+    case RobotSeries::G_SERIES:
+      return "G_SERIES";
     case RobotSeries::UNDEFINED:
       return "UNDEFINED";
   }

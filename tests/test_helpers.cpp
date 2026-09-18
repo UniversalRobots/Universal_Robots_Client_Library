@@ -132,6 +132,16 @@ TEST(TestHelpers, robotSeriesFromTypeAndVersion)
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR30, cb3_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR8LONG, cb3_version), RobotSeries::UNDEFINED);
 
+  // g-Series: version >= 10.15.0 -> G_SERIES, otherwise UNDEFINED
+  const VersionInformation before_g_series = VersionInformation::fromString("10.14.99.0");
+  const VersionInformation first_g_series = VersionInformation::fromString("10.15.0.0");
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10G_1750, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR17G_1300, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18G_950, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10G_1750, first_g_series), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR17G_1300, first_g_series), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18G_950, first_g_series), RobotSeries::G_SERIES);
+
   // UNDEFINED robot type yields UNDEFINED series
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_5_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, cb3_version), RobotSeries::UNDEFINED);
@@ -143,7 +153,19 @@ TEST(TestHelpers, robotSeriesString)
   EXPECT_EQ(robotSeriesString(RobotSeries::CB3), "CB3");
   EXPECT_EQ(robotSeriesString(RobotSeries::E_SERIES), "E_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
+  EXPECT_EQ(robotSeriesString(RobotSeries::G_SERIES), "G_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UNDEFINED), "UNDEFINED");
+}
+
+TEST(TestHelpers, robotTypeFromString)
+{
+  EXPECT_EQ(robotTypeFromString("ur10g-1750"), RobotType::UR10G_1750);
+  EXPECT_EQ(robotTypeFromString("ur17g-1300"), RobotType::UR17G_1300);
+  EXPECT_EQ(robotTypeFromString("ur18g-950"), RobotType::UR18G_950);
+  EXPECT_THROW(robotTypeFromString("ur10g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur17g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur18g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur10g_1750"), std::invalid_argument);
 }
 
 TEST(TestHelpers, stringFromMotionTarget)

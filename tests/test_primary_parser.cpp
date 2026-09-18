@@ -465,24 +465,33 @@ TEST_F(PrimaryParserTest, parse_version_message)
 
 TEST_F(PrimaryParserTest, parse_hardware_info_message)
 {
-  unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
-  memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
-  comm::BinParser bp(raw_data, sizeof(raw_data));
+  const auto parse_and_check = [this](const uint8_t robot_type_id, const RobotType expected_robot_type) {
+    constexpr size_t ROBOT_TYPE_ID_OFFSET = 18;
+    unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
+    memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
+    raw_data[ROBOT_TYPE_ID_OFFSET] = robot_type_id;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
 
-  std::unique_ptr<primary_interface::PrimaryPackage> product;
-  ASSERT_TRUE(parser_.parse(bp, product));
-  ASSERT_NE(product, nullptr);
+    std::unique_ptr<primary_interface::PrimaryPackage> product;
+    ASSERT_TRUE(parser_.parse(bp, product));
+    ASSERT_NE(product, nullptr);
 
-  auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
-  ASSERT_NE(data, nullptr);
-  EXPECT_EQ(data->timestamp_, 42);
-  EXPECT_EQ(data->source_, -2);
-  EXPECT_EQ(data->message_type_, primary_interface::RobotMessagePackageType::ROBOT_MESSAGE_HARDWARE_INFO);
-  EXPECT_EQ(data->robot_type_, RobotType::UR20);
-  EXPECT_EQ(data->reserved_1_, 0);
-  EXPECT_EQ(data->control_box_type_, ControlBoxType::CB7);
-  EXPECT_EQ(data->reserved_2_, 0);
-  EXPECT_EQ(data->tool_flange_type_, ToolFlangeType::V1);
+    auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
+    ASSERT_NE(data, nullptr);
+    EXPECT_EQ(data->timestamp_, 42);
+    EXPECT_EQ(data->source_, -2);
+    EXPECT_EQ(data->message_type_, primary_interface::RobotMessagePackageType::ROBOT_MESSAGE_HARDWARE_INFO);
+    EXPECT_EQ(data->robot_type_, expected_robot_type);
+    EXPECT_EQ(data->reserved_1_, 0);
+    EXPECT_EQ(data->control_box_type_, ControlBoxType::CB7);
+    EXPECT_EQ(data->reserved_2_, 0);
+    EXPECT_EQ(data->tool_flange_type_, ToolFlangeType::V1);
+  };
+
+  parse_and_check(7, RobotType::UR20);
+  parse_and_check(12, RobotType::UR10G_1750);
+  parse_and_check(13, RobotType::UR17G_1300);
+  parse_and_check(14, RobotType::UR18G_950);
 }
 
 TEST_F(PrimaryParserTest, parse_key_message)
