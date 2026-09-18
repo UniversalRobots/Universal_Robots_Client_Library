@@ -44,15 +44,6 @@ using namespace urcl;
 
 const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 
-// RTDE recipes as argument lists, so this example needs no recipe files. RTDEClient also takes two
-// filenames instead; see examples/rtde_client.cpp. The general purpose register ranges used here
-// are the ones the RTDE guide reserves for external clients: bit registers 64..127, integer and
-// double registers 24..47. Register fields need no companion "_mask" key.
-const std::vector<std::string> INPUT_RECIPE = { "input_bit_register_64", "input_int_register_24",
-                                                "input_double_register_24" };
-const std::vector<std::string> OUTPUT_RECIPE = { "timestamp", "runtime_state", "output_bit_register_64",
-                                                 "output_int_register_24", "output_double_register_24" };
-
 // We write the inputs, the robot program below writes the outputs.
 const std::string INPUT_BIT_REGISTER = "input_bit_register_64";
 const std::string INPUT_INT_REGISTER = "input_int_register_24";
@@ -60,6 +51,14 @@ const std::string INPUT_DOUBLE_REGISTER = "input_double_register_24";
 const std::string OUTPUT_BIT_REGISTER = "output_bit_register_64";
 const std::string OUTPUT_INT_REGISTER = "output_int_register_24";
 const std::string OUTPUT_DOUBLE_REGISTER = "output_double_register_24";
+
+// RTDE recipes as argument lists, so this example needs no recipe files. RTDEClient also takes two
+// filenames instead; see examples/rtde_client.cpp. The general purpose register ranges used here
+// are the ones the RTDE guide reserves for external clients: bit registers 64..127, integer and
+// double registers 24..47. Register fields need no companion "_mask" key.
+const std::vector<std::string> INPUT_RECIPE = { INPUT_BIT_REGISTER, INPUT_INT_REGISTER, INPUT_DOUBLE_REGISTER };
+const std::vector<std::string> OUTPUT_RECIPE = { "timestamp", "runtime_state", OUTPUT_BIT_REGISTER, OUTPUT_INT_REGISTER,
+                                                 OUTPUT_DOUBLE_REGISTER };
 
 // All three values we send are derived from the cycle counter, so the integer the robot returns
 // identifies which cycle an answer belongs to.
