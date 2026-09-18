@@ -95,6 +95,9 @@ protected:
     ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
     EXPECT_THROW(client_->createInputDataPackage(), UrException);
 
+    // init() closes the client socket on failure, but the server processes that close asynchronously.
+    // Wait for its single-client slot to be released so recovery tests negotiation, not connection rejection.
+    ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
     server_->setOutputTypeReply(std::nullopt);
     server_->setInputTypeReply(std::nullopt);
     ASSERT_TRUE(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
@@ -941,6 +944,41 @@ TEST_F(RTDEClientFakeServerTest, unknown_input_type_fails_then_recovers)
 {
   server_->setInputTypeReply(std::vector<std::string>{ "UINT32", "UNKNOWN_TYPE" });
   ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+}
+
+TEST_F(RTDEClientFakeServerTest, disconnection_wait_tracks_each_connection)
+{
+  EXPECT_TRUE(server_->waitForDisconnection(std::chrono::milliseconds(0)));
+  for (int iteration = 0; iteration < 5; ++iteration)
+  {
+    SCOPED_TRACE(iteration);
+    ASSERT_TRUE(client_->init());
+    EXPECT_FALSE(server_->waitForDisconnection(std::chrono::milliseconds(1)));
+    client_.reset();
+    ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
+    EXPECT_TRUE(server_->waitForDisconnection(std::chrono::milliseconds(0)));
+    client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+  }
+}
+
+TEST_F(RTDEClientFakeServerTest, repeated_output_negotiation_failures_recover)
+{
+  for (int iteration = 0; iteration < 50; ++iteration)
+  {
+    SCOPED_TRACE(iteration);
+    if (iteration % 2 == 0)
+    {
+      server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE", "VECTOR6D", "DOUBLE", "UNKNOWN_TYPE" });
+    }
+    else
+    {
+      server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE", "VECTOR6D", "DOUBLE", "UINT32", "DOUBLE" });
+    }
+    ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
+    client_.reset();
+    ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
+    client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+  }
 }
 
 TEST_F(RTDEClientFakeServerTest, input_in_use_exhausts_retries_then_recovers)

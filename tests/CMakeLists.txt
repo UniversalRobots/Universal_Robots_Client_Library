@@ -239,6 +239,8 @@ set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_i
                      RTDEClientFakeServerTest.too_many_input_types_fail_then_recover
                      RTDEClientFakeServerTest.unknown_output_type_fails_then_recovers
                      RTDEClientFakeServerTest.unknown_input_type_fails_then_recovers
+                     RTDEClientFakeServerTest.disconnection_wait_tracks_each_connection
+                     RTDEClientFakeServerTest.repeated_output_negotiation_failures_recover
                      RTDEClientFakeServerTest.input_in_use_exhausts_retries_then_recovers
                      PROPERTIES TIMEOUT 60)
 

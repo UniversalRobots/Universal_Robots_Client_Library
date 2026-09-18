@@ -1,5 +1,6 @@
 #pragma once
 
+#include <condition_variable>
 #include <deque>
 #include <optional>
 #include <string>
@@ -77,6 +78,10 @@ public:
   void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
   void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
 
+  // Wait until the single-client slot and disconnect cleanup are finished before reconnecting.
+  // Call after a handshake has established the connection and the client has disconnected.
+  bool waitForDisconnection(const std::chrono::milliseconds timeout);
+
   // Inject one frame after init(), while streaming is paused and the connection is stable.
   bool sendTestFrame(const std::vector<uint8_t>& frame);
 
@@ -114,6 +119,10 @@ private:
 
   std::mutex output_data_mutex_;
   std::mutex thread_control_mutex_;
+
+  std::mutex connection_mutex_;
+  std::condition_variable connection_cv_;
+  bool client_connected_ = false;
 
   std::mutex negotiation_mutex_;
   std::deque<std::string> pending_text_messages_;

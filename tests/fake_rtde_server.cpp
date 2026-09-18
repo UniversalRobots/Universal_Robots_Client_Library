@@ -612,7 +612,17 @@ void RTDEServer::connectionCallback(const socket_t filedescriptor)
 {
   client_socket_ = filedescriptor;
   receive_buffer_.clear();
+  {
+    std::lock_guard<std::mutex> lock(connection_mutex_);
+    client_connected_ = true;
+  }
   URCL_LOG_INFO("Client connected to RTDE server on FD %d", filedescriptor);
+}
+
+bool RTDEServer::waitForDisconnection(const std::chrono::milliseconds timeout)
+{
+  std::unique_lock<std::mutex> lock(connection_mutex_);
+  return connection_cv_.wait_for(lock, timeout, [this]() { return !client_connected_; });
 }
 
 bool RTDEServer::sendTestFrame(const std::vector<uint8_t>& frame)
@@ -625,6 +635,11 @@ void RTDEServer::disconnectionCallback(const socket_t filedescriptor)
   URCL_LOG_INFO("Client disconnected from RTDE server on FD %d", filedescriptor);
   receive_buffer_.clear();
   stopSendingDataPackages();
+  {
+    std::lock_guard<std::mutex> lock(connection_mutex_);
+    client_connected_ = false;
+  }
+  connection_cv_.notify_all();
 }
 void RTDEServer::messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv)
 {
