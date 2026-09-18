@@ -36,8 +36,8 @@ The general purpose register ranges reserved for external RTDE clients are bit r
    :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
-   :start-at: const std::vector<std::string> INPUT_RECIPE
-   :end-at: const std::string OUTPUT_DOUBLE_REGISTER
+   :start-at: // We write the inputs, the robot program below writes the outputs.
+   :end-at: OUTPUT_DOUBLE_REGISTER };
 
 .. note:: Register fields, unlike the digital and analog outputs and the speed slider, need no
    companion ``_mask`` key in the input recipe.
