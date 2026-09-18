@@ -998,7 +998,7 @@ TEST(rtde_data_package, bitset_get_data_missing_field_preserves_value)
 
 TEST(rtde_data_package, distinct_empty_packages_copy_and_init_empty_preserve_layout_and_serialization)
 {
-  for (const uint16_t version : { 1, 2 })
+  for (const uint16_t version : { uint16_t{ 1 }, uint16_t{ 2 } })
   {
     SCOPED_TRACE(version);
     auto source = typedPackage({}, {});
