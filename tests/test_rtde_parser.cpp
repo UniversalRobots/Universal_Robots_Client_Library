@@ -821,9 +821,10 @@ TEST(rtde_parser, untyped_template_is_rejected_without_changing_registration)
 
 TEST(rtde_parser, foreign_typed_templates_leave_registration_unchanged)
 {
-  rtde_interface::RTDEParser parser({ "timestamp", "target_speed_fraction" });
+  const std::vector<std::string> expected_recipe{ "timestamp", "target_speed_fraction" };
+  rtde_interface::RTDEParser parser(expected_recipe);
   parser.setProtocolVersion(2);
-  auto expected = test::typedPackage({ "timestamp", "target_speed_fraction" }, { "DOUBLE", "DOUBLE" });
+  auto expected = test::typedPackage(expected_recipe, { "DOUBLE", "DOUBLE" });
   parser.setExpectedDataPackage(expected);
   const std::vector<std::vector<std::string>> recipes{ { "actual_q" },
                                                        { "target_speed_fraction", "timestamp" },
@@ -838,8 +839,7 @@ TEST(rtde_parser, foreign_typed_templates_leave_registration_unchanged)
     comm::BinParser bp(bytes, size);
     std::unique_ptr<rtde_interface::RTDEPackage> result;
     ASSERT_TRUE(parser.parse(bp, result));
-    EXPECT_TRUE(dynamic_cast<rtde_interface::DataPackage&>(*result).hasRecipe({ "timestamp", "target_speed_"
-                                                                                             "fraction" }));
+    EXPECT_TRUE(dynamic_cast<rtde_interface::DataPackage&>(*result).hasRecipe(expected_recipe));
   }
 }
 
