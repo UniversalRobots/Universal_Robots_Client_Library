@@ -248,8 +248,8 @@ TEST(rtde_parser, untyped_pre_allocated_data_package_is_rejected)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
 
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
   const rtde_interface::RTDEPackage* package_address = product.get();
@@ -267,8 +267,8 @@ TEST(rtde_parser, wrongly_typed_pre_allocated_package_is_rejected)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
 
   auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
   ASSERT_TRUE(package->setData("timestamp", static_cast<uint64_t>(1)));
@@ -289,8 +289,8 @@ TEST(rtde_parser, pre_allocated_package_with_a_different_recipe_is_rejected)
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
 
   std::unique_ptr<rtde_interface::RTDEPackage> product =
       std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "foo", "bar" });
@@ -766,6 +766,90 @@ TEST(rtde_parser, reused_package_follows_protocol_changes_in_place)
   }
 }
 
+TEST(rtde_parser, hash_only_registration_is_invalidated_when_protocol_changes)
+{
+  unsigned char version1[] = { 0x00, 0x0b, 0x55, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  unsigned char version2[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  expected.setProtocolVersion(2);
+  ASSERT_TRUE(expected.setData("timestamp", 42.0));
+  const uint64_t original_hash = expected.layoutHash();
+
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(original_hash);
+  parser.setProtocolVersion(1);
+
+  auto dest = expected;
+  {
+    comm::BinParser bp(version2, sizeof(version2));
+    EXPECT_FALSE(parser.parseDataPackage(bp, dest));
+  }
+  EXPECT_EQ(dest.layoutHash(), original_hash);
+  double timestamp = 0.0;
+  ASSERT_TRUE(dest.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+
+  {
+    comm::BinParser bp(version1, sizeof(version1));
+    EXPECT_FALSE(parser.parseDataPackage(bp, dest));
+  }
+  EXPECT_EQ(dest.layoutHash(), original_hash);
+  timestamp = 0.0;
+  ASSERT_TRUE(dest.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+
+  std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(expected);
+  const auto* original = product.get();
+  comm::BinParser bp(version2, sizeof(version2));
+  EXPECT_FALSE(parser.parse(bp, product));
+  EXPECT_EQ(product.get(), original);
+  auto* data = dynamic_cast<rtde_interface::DataPackage*>(product.get());
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(data->layoutHash(), original_hash);
+  timestamp = 0.0;
+  ASSERT_TRUE(data->getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 42.0);
+}
+
+TEST(rtde_parser, hash_only_same_protocol_version_keeps_registration)
+{
+  unsigned char version2[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  expected.setProtocolVersion(2);
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  parser.setProtocolVersion(2);
+
+  auto dest = expected;
+  comm::BinParser bp(version2, sizeof(version2));
+  ASSERT_TRUE(parser.parseDataPackage(bp, dest));
+  double timestamp = 0.0;
+  ASSERT_TRUE(dest.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 1.0);
+}
+
+TEST(rtde_parser, hash_only_parse_succeeds_after_re_registering_new_protocol)
+{
+  unsigned char version1[] = { 0x00, 0x0b, 0x55, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  expected.setProtocolVersion(2);
+  rtde_interface::RTDEParser parser({ "timestamp" });
+  parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  parser.setProtocolVersion(1);
+
+  expected.setProtocolVersion(1);
+  parser.setExpectedLayoutHash(expected.layoutHash());
+  auto dest = expected;
+  comm::BinParser bp(version1, sizeof(version1));
+  ASSERT_TRUE(parser.parseDataPackage(bp, dest));
+  double timestamp = 0.0;
+  ASSERT_TRUE(dest.getData("timestamp", timestamp));
+  EXPECT_DOUBLE_EQ(timestamp, 1.0);
+}
+
 TEST(rtde_parser, reused_pointer_handles_data_control_data_sequence)
 {
   unsigned char raw_data[] = { 0x00, 0x0c, 0x55, 0x01, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -943,8 +1027,8 @@ TEST(rtde_parser, already_typed_package_is_parsed_in_place_without_being_replace
 
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
 
   auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
   package->setTypes({ "DOUBLE", "DOUBLE" });

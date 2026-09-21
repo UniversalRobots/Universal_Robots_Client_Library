@@ -365,15 +365,13 @@ public:
    * \brief Records the RTDE protocol version this package will serialize.
    *
    * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The
-   * constructor defaults to version 2.
+   * constructor defaults to version 2. The layout hash is always recomputed, including when the
+   * package is still untyped or only partially typed.
    */
   void setProtocolVersion(const uint16_t protocol_version)
   {
     protocol_version_ = protocol_version;
-    if (isTyped())
-    {
-      updateLayoutHash();
-    }
+    updateLayoutHash();
   }
 
   /*!

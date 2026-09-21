@@ -716,6 +716,31 @@ TEST(rtde_data_package, layout_hash_changes_when_protocol_version_changes)
   EXPECT_NE(package.layoutHash(), version_two);
 }
 
+TEST(rtde_data_package, untyped_layout_hash_changes_when_protocol_version_changes)
+{
+  rtde_interface::DataPackage package({ "timestamp", "actual_q" });
+  const uint64_t version_two = package.layoutHash();
+  EXPECT_FALSE(package.isTyped());
+
+  package.setProtocolVersion(1);
+
+  EXPECT_NE(package.layoutHash(), version_two);
+  EXPECT_EQ(package.emptyCopy().layoutHash(), package.layoutHash());
+}
+
+TEST(rtde_data_package, partially_typed_layout_hash_changes_when_protocol_version_changes)
+{
+  rtde_interface::DataPackage package({ "timestamp", "actual_q" });
+  ASSERT_TRUE(package.setData("timestamp", 1.0));
+  EXPECT_FALSE(package.isTyped());
+  const uint64_t version_two = package.layoutHash();
+
+  package.setProtocolVersion(1);
+
+  EXPECT_NE(package.layoutHash(), version_two);
+  EXPECT_EQ(package.emptyCopy().layoutHash(), package.layoutHash());
+}
+
 TEST(rtde_data_package, layout_hash_changes_on_first_set_data_to_an_untyped_field)
 {
   rtde_interface::DataPackage package({ "timestamp", "actual_q" });

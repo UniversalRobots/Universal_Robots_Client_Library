@@ -95,13 +95,30 @@ public:
                "a pre-allocated package. This function will be removed in May 2027.")]]
   bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<RTDEPackage>>& results) override;
 
+  /*!
+   * \brief Records the RTDE protocol version used for parsing.
+   *
+   * A typed template registered with setExpectedDataPackage() is updated in place. A hash-only
+   * registration from setExpectedLayoutHash() is bound to the protocol version at registration
+   * time: changing the version clears it, and a new hash must be registered before data can be
+   * parsed. Setting the same version is a no-op.
+   */
   void setProtocolVersion(uint16_t protocol_version)
   {
+    if (protocol_version_ == protocol_version)
+    {
+      return;
+    }
     protocol_version_ = protocol_version;
     if (expected_data_package_.has_value())
     {
       expected_data_package_->setProtocolVersion(protocol_version);
       layout_hash_ = expected_data_package_->layoutHash();
+    }
+    else if (expected_layout_known_)
+    {
+      expected_layout_known_ = false;
+      layout_hash_ = 0;
     }
   }
 
@@ -115,7 +132,8 @@ public:
    * acknowledgement.
    *
    * This has to be called before the robot starts sending data packages, i.e. before the
-   * RTDE_CONTROL_PACKAGE_START request is sent.
+   * RTDE_CONTROL_PACKAGE_START request is sent. The hash is bound to the parser's current protocol
+   * version; changing the version with setProtocolVersion() clears this registration.
    *
    * \param layout_hash The layout hash of the acknowledged output recipe
    */

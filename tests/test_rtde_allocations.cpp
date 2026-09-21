@@ -295,8 +295,8 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   const std::vector<std::string> types = { "DOUBLE", "DOUBLE" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, types).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, types).layoutHash());
   // Same as after the handshake: the package already has the negotiated layout, so parse must not
   // allocate a replacement.
   std::unique_ptr<rtde_interface::RTDEPackage> product =
@@ -336,8 +336,8 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_is_rejected)
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
   const rtde_interface::RTDEPackage* package_address = product.get();
 

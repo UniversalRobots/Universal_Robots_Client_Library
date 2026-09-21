@@ -102,8 +102,8 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
   auto start = std::chrono::system_clock::now();
