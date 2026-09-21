@@ -60,12 +60,12 @@ RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<st
 
 void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
 {
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
   if (running_)
   {
     throw UrException("Requesting to change the input recipe while the RTDEWriter is running. The writer has to be "
                       "stopped before setting the recipe.");
   }
-  std::lock_guard<std::mutex> lock_guard(store_mutex_);
   recipe_ = recipe;
   used_masks_.clear();
   for (const auto& field : recipe)

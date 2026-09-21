@@ -69,6 +69,8 @@ public:
    * needed.
    *
    * \param recipe The new recipe to use
+   *
+   * \throws UrException if the writer is already running
    */
   void setInputRecipe(const std::vector<std::string>& recipe);
 
