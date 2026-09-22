@@ -126,6 +126,10 @@ Separate ``send...()`` calls may be transmitted separately or coalesced; they ar
 update of several fields. A successful return means the buffer update was accepted, not that the
 robot received or processed it.
 
+Without a run duration the loop runs until it is interrupted, so the counter wraps at one million
+rather than growing past what an integer register can hold. Every answer carries the counter value
+it belongs to, so verification is unaffected, and the lag is measured modulo the same period.
+
 .. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
    :caption: examples/rtde_roundtrip.cpp

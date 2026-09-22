@@ -893,9 +893,19 @@ TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
   std::vector<uint8_t> payload;
   server.setMessageCallback([&](const socket_t, char* buffer, int nbytesrecv) {
     std::lock_guard<std::mutex> lock(mutex);
-    payload.assign(reinterpret_cast<uint8_t*>(buffer), reinterpret_cast<uint8_t*>(buffer) + nbytesrecv);
-    received = true;
-    cv.notify_one();
+    const auto* bytes = reinterpret_cast<const uint8_t*>(buffer);
+    payload.insert(payload.end(), bytes, bytes + nbytesrecv);
+    // TCP may split one frame over several callbacks, so the bytes are only reported once the
+    // length in the two-byte header says the frame is complete.
+    if (payload.size() >= sizeof(rtde_interface::PackageHeader::_package_size_type))
+    {
+      const size_t frame_size = (static_cast<size_t>(payload[0]) << 8) | payload[1];
+      if (payload.size() >= frame_size)
+      {
+        received = true;
+        cv.notify_one();
+      }
+    }
   });
   server.start();
 

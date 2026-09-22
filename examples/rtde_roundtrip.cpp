@@ -64,6 +64,12 @@ const std::vector<std::string> OUTPUT_RECIPE = { "timestamp", "runtime_state", O
 // identifies which cycle an answer belongs to.
 const double SINE_INCREMENT = 0.01;  // rad per cycle
 
+// Without a run duration the loop below never ends, so the counter wraps instead of growing until
+// it overflows. One is the lowest value the "has the robot processed anything yet" check accepts,
+// and the robot program adds one to whatever it receives, so the sent value stays in
+// [1, COUNTER_WRAP] and the echoed one in [2, COUNTER_WRAP + 1].
+const int32_t COUNTER_WRAP = 1000000;
+
 // Robot program processing the general purpose inputs and writing the results to the outputs.
 // Input registers cannot be written from URScript and output registers cannot be written through
 // RTDE, so getting values back requires a program on the robot. The program does not copy the
@@ -130,6 +136,8 @@ int main(int argc, char* argv[])
   my_client.start(false);
 
   int32_t counter = 0;
+  // The counter wraps, so the frequency report needs its own count of the cycles that ran.
+  size_t cycles = 0;
   size_t verified = 0;
   size_t mismatches = 0;
   int32_t last_lag_cycles = 0;
@@ -168,7 +176,8 @@ int main(int argc, char* argv[])
       const int32_t origin = echoed_int - 1;  // the counter value the robot processed
       const bool expected_bit = !((origin % 2) == 0);
       const double expected_double = -std::sin(origin * SINE_INCREMENT);
-      last_lag_cycles = counter - origin;
+      // Taken modulo the wrap period, so a lag measured across a wrap is still a small number.
+      last_lag_cycles = (counter - origin + COUNTER_WRAP) % COUNTER_WRAP;
       // The robot's double register is a 64-bit value, so the negated sine has to come back bit
       // for bit. Together with the inverted bit that is the proof the robot processed this cycle.
       if (echoed_bit == expected_bit && echoed_double == expected_double)
@@ -183,7 +192,8 @@ int main(int argc, char* argv[])
     }
 
     // Writing several general purpose inputs in one package
-    ++counter;
+    ++cycles;
+    counter = counter % COUNTER_WRAP + 1;
     const bool sent_bit = (counter % 2) == 0;
     const double sent_double = std::sin(counter * SINE_INCREMENT);
     bool write_ok = input_pkg.setData(INPUT_BIT_REGISTER, sent_bit);
@@ -198,7 +208,7 @@ int main(int argc, char* argv[])
     if (now - last_print >= std::chrono::seconds(1))
     {
       const double elapsed_s = std::chrono::duration<double>(now - start_time).count();
-      const double measured_hz = elapsed_s > 0.0 ? static_cast<double>(counter) / elapsed_s : 0.0;
+      const double measured_hz = elapsed_s > 0.0 ? static_cast<double>(cycles) / elapsed_s : 0.0;
       const bool program_playing =
           static_cast<rtde_interface::RUNTIME_STATE>(runtime_state) == rtde_interface::RUNTIME_STATE::PLAYING;
       std::cout << "sent: bit=" << sent_bit << " int=" << counter << " double=" << sent_double
@@ -214,8 +224,8 @@ int main(int argc, char* argv[])
   }
 
   const double elapsed_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
-  const double average_hz = elapsed_s > 0.0 ? static_cast<double>(counter) / elapsed_s : 0.0;
-  URCL_LOG_INFO("Cycles: %d, average frequency: %f Hz, verified: %zu, mismatches: %zu, last lag: %d cycles", counter,
+  const double average_hz = elapsed_s > 0.0 ? static_cast<double>(cycles) / elapsed_s : 0.0;
+  URCL_LOG_INFO("Cycles: %zu, average frequency: %f Hz, verified: %zu, mismatches: %zu, last lag: %d cycles", cycles,
                 average_hz, verified, mismatches, last_lag_cycles);
 
   // Reset the input registers before leaving
