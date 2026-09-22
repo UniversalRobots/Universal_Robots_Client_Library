@@ -331,7 +331,6 @@ rtde_interface::DataPackage rtde_interface::DataPackage::emptyCopy() const
   // The delegated constructor allocates the storage, builds the name-to-index map and computes the
   // recipe hash; the field types and their zero values are what this package contributes.
   DataPackage package(recipe_, protocol_version_);
-  package.setProtocolVersion(protocol_version_);
   package.values_ = zeros_;
   package.zeros_ = zeros_;
   package.updateLayoutHash();
