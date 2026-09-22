@@ -64,9 +64,7 @@ public:
    *
    * \param type The type of RobotState message received
    */
-  ConfigurationData(const RobotStateType type) : RobotState(type)
-  {
-  }
+  ConfigurationData(const RobotStateType type);
 
   /*!
    * \brief Creates a copy of a ConfigurationData object.
