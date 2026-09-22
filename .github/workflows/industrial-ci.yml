@@ -39,11 +39,8 @@ jobs:
       #     source for the URSim container that start_ursim.sh launches via the
       #     host docker daemon, so the URCap downloaded inside the ICI container
       #     is actually visible to URSim's /urcaps mount.
-      # /tmp/ici_ws: industrial_ci BASEDIR so colcon/catkin test_results XML is
-      #     bind-mounted out of the ICI container for artifact and Codecov upload.
-      # These paths are kept outside ${{ github.workspace }} so they do not
+      # Both paths are kept outside ${{ github.workspace }} so they do not
       # collide with industrial_ci's read-only bind-mount of TARGET_REPO_PATH.
-      BASEDIR: /tmp/ici_ws
       DOCKER_RUN_OPTS: '-v /var/run/docker.sock:/var/run/docker.sock -v /tmp/ur_test_artifacts:/test_artifacts -v /tmp/ursim_urcaps:/tmp/ursim_urcaps -e UR_TEST_ARTIFACTS_DIR=/test_artifacts -e UR_CI_URCAP_FOLDER=/tmp/ursim_urcaps --network ursim_net --ip 192.168.56.1'
     steps:
       - uses: actions/checkout@v7
@@ -51,12 +48,12 @@ jobs:
         if: ${{ !env.ACT }}
       - name: Create shared host directories
         run: |
-          mkdir -p /tmp/ur_test_artifacts /tmp/ursim_urcaps /tmp/ici_ws
+          mkdir -p /tmp/ur_test_artifacts /tmp/ursim_urcaps
           # Allow the container (running as root) to write here while keeping
           # the directory readable by the runner user for upload-artifact, and
           # writable by the host docker daemon when it bind-mounts /tmp/ursim_urcaps
           # into the URSim container.
-          chmod 777 /tmp/ur_test_artifacts /tmp/ursim_urcaps /tmp/ici_ws
+          chmod 777 /tmp/ur_test_artifacts /tmp/ursim_urcaps
       - uses: 'ros-industrial/industrial_ci@master'
         env:
           IMMEDIATE_TEST_OUTPUT: true
@@ -67,41 +64,9 @@ jobs:
           ROS_REPO: ${{matrix.ROS_REPO}}
           CLANG_TIDY: ${{matrix.ROS_DISTRO.CLANG_TIDY}}
           OS_CODE_NAME: ${{matrix.ROS_DISTRO.OS_CODE_NAME}}
-          BASEDIR: ${{ env.BASEDIR }}
       - name: Upload test artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: ur_test_artifacts-${{matrix.ROS_DISTRO.NAME}}-${{matrix.ROS_REPO}}
           path: /tmp/ur_test_artifacts
-      - name: Collect ROS JUnit results
-        if: ${{ !cancelled() }}
-        run: |
-          mkdir -p ros_junit
-          # target_ws is this library; downstream_ws is the ROS/ROS2 driver.
-          # Flatten paths so identically named XML files do not overwrite.
-          find /tmp/ici_ws -path '*/test_results/*.xml' -print0 2>/dev/null \
-            | while IFS= read -r -d '' f; do
-                rel=${f#/tmp/ici_ws/}
-                cp "$f" "ros_junit/${rel//\//_}"
-              done
-      - name: Upload ROS JUnit results
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: ros-junit-${{matrix.ROS_DISTRO.NAME}}-${{matrix.ROS_REPO}}
-          path: ros_junit
-          if-no-files-found: warn
-          retention-days: 10
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v7
-        with:
-          fail_ci_if_error: true
-          handle_no_reports_found: true
-          files: ros_junit/*.xml
-          report_type: test_results
-          flags: ros-${{ matrix.ROS_DISTRO.NAME }}-${{ matrix.ROS_REPO }}
-          name: ros-${{ matrix.ROS_DISTRO.NAME }}-${{ matrix.ROS_REPO }}
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
