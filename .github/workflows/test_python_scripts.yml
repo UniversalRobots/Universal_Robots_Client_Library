@@ -24,7 +24,6 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          disable_search: true
           files: junit.xml
           report_type: test_results
           flags: python_scripts

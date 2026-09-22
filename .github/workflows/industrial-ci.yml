@@ -80,19 +80,11 @@ jobs:
           mkdir -p ros_junit
           # target_ws is this library; downstream_ws is the ROS/ROS2 driver.
           # Flatten paths so identically named XML files do not overwrite.
-          # Codecov Test Analytics globs *junit.xml at the workspace root;
-          # colcon writes *.gtest.xml / *.xunit.xml under /tmp/ici_ws.
           find /tmp/ici_ws -path '*/test_results/*.xml' -print0 2>/dev/null \
             | while IFS= read -r -d '' f; do
                 rel=${f#/tmp/ici_ws/}
-                flat=${rel//\//_}
-                cp "$f" "ros_junit/${flat}"
-                cp "$f" "ros_${flat%.xml}.junit.xml"
+                cp "$f" "ros_junit/${rel//\//_}"
               done
-          for report in ros_*.junit.xml; do
-            [ -f "$report" ] || continue
-            bash scripts/prepare_junit_for_codecov.sh "$report" "$report" ros
-          done
       - name: Upload ROS JUnit results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
@@ -106,9 +98,8 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
-          disable_search: true
           handle_no_reports_found: true
-          files: ros_*.junit.xml
+          files: ros_junit/*.xml
           report_type: test_results
           flags: ros-${{ matrix.ROS_DISTRO.NAME }}-${{ matrix.ROS_REPO }}
           name: ros-${{ matrix.ROS_DISTRO.NAME }}-${{ matrix.ROS_REPO }}
