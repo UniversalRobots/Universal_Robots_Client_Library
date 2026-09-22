@@ -201,8 +201,12 @@ add_executable(primary_client_reconnect_tests test_primary_client_reconnect.cpp 
 target_link_libraries(primary_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      primary_client_reconnect_tests
 )
-# Bound this teardown regression test so a hang fails CI in ~1 min instead of timing out the job.
+# Bound the lifecycle regressions so a hang fails CI in ~1 min instead of timing out the job.
 set_tests_properties(PrimaryClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     PrimaryClientReconnectTest.stop_before_start_cancels_prepared_start
+                     PrimaryClientReconnectTest.stop_interrupts_prepared_start_during_connection_wait
+                     PrimaryClientReconnectTest.prepared_start_connects_and_stops_normally
+                     PrimaryClientReconnectTest.prepared_start_handles_fast_connect_stop_races
                      PROPERTIES TIMEOUT 60)
 
 

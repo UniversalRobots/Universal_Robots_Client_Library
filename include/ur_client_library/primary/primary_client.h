@@ -31,9 +31,12 @@
 #ifndef UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_PRIMARY_CLIENT_H_INCLUDED
 
+#include <atomic>
 #include <chrono>
-#include <memory>
 #include <deque>
+#include <memory>
+#include <mutex>
+#include <utility>
 
 #include <ur_client_library/comm/stream.h>
 #include <ur_client_library/comm/pipeline.h>
@@ -65,6 +68,24 @@ struct ScriptInfo
 class PrimaryClient
 {
 public:
+  class StartCancellationToken
+  {
+  public:
+    StartCancellationToken(const StartCancellationToken&) = default;
+    StartCancellationToken& operator=(const StartCancellationToken&) = default;
+    StartCancellationToken(StartCancellationToken&&) noexcept = default;
+    StartCancellationToken& operator=(StartCancellationToken&&) noexcept = default;
+
+  private:
+    explicit StartCancellationToken(std::shared_ptr<std::atomic<bool>> cancellation_requested)
+      : cancellation_requested_(std::move(cancellation_requested))
+    {
+    }
+
+    std::shared_ptr<std::atomic<bool>> cancellation_requested_;
+    friend class PrimaryClient;
+  };
+
   PrimaryClient() = delete;
   PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier);
   ~PrimaryClient();
@@ -82,8 +103,37 @@ public:
    * \param primary_consumer Primary consumer that should be removed from the list
    */
   void removePrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer);
+
+  /*!
+   * \brief Prepare a cancellable start operation.
+   *
+   * The returned token has to be passed to start(). Calling stop() after this method returns
+   * cancels that start even if start() has not been entered, yet. Preparing another start cancels
+   * the previous token.
+   */
+  StartCancellationToken prepareStart();
+
+  /*!
+   * \brief Start the primary client.
+   *
+   * This overload preserves the existing restart behavior: a start after a completed stop is a new
+   * start operation.
+   */
   void start(const size_t max_connection_attempts = 0,
              const std::chrono::milliseconds reconnection_timeout = urcl::comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Start the primary client using a token returned by prepareStart().
+   *
+   * If stop() is called after the token was prepared, startup is canceled whether stop() runs
+   * before or during this call.
+   */
+  void start(const StartCancellationToken& cancellation_token, const size_t max_connection_attempts = 0,
+             const std::chrono::milliseconds reconnection_timeout = urcl::comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Stop the primary client and cancel the active or prepared start operation.
+   */
   void stop();
 
   /*!
@@ -386,6 +436,15 @@ private:
   comm::URStream<PrimaryPackage> stream_;
   std::unique_ptr<comm::URProducer<PrimaryPackage>> prod_;
   std::unique_ptr<comm::Pipeline<PrimaryPackage>> pipeline_;
+
+  std::mutex start_mutex_;
+  std::mutex lifecycle_mutex_;
+  std::mutex start_cancellation_mutex_;
+  std::weak_ptr<std::atomic<bool>> active_start_cancellation_;
+
+  bool isStartCancellationTokenActive(const StartCancellationToken& cancellation_token);
+  void clearStartCancellationToken(const StartCancellationToken& cancellation_token);
+  void cancelActiveStart();
 
   std::mutex error_code_queue_mutex_;
   std::deque<ErrorCode> error_code_queue_;

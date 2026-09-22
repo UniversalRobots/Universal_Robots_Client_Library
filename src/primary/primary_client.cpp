@@ -72,13 +72,85 @@ PrimaryClient::~PrimaryClient()
 
 void PrimaryClient::start(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
+  start(prepareStart(), max_num_tries, reconnection_time);
+}
+
+PrimaryClient::StartCancellationToken PrimaryClient::prepareStart()
+{
+  auto cancellation_requested = std::make_shared<std::atomic<bool>>(false);
+  std::lock_guard<std::mutex> lock(start_cancellation_mutex_);
+  if (auto active_cancellation = active_start_cancellation_.lock())
+  {
+    active_cancellation->store(true);
+  }
+  active_start_cancellation_ = cancellation_requested;
+  return StartCancellationToken(cancellation_requested);
+}
+
+bool PrimaryClient::isStartCancellationTokenActive(const StartCancellationToken& cancellation_token)
+{
+  std::lock_guard<std::mutex> lock(start_cancellation_mutex_);
+  return active_start_cancellation_.lock() == cancellation_token.cancellation_requested_;
+}
+
+void PrimaryClient::clearStartCancellationToken(const StartCancellationToken& cancellation_token)
+{
+  std::lock_guard<std::mutex> lock(start_cancellation_mutex_);
+  if (active_start_cancellation_.lock() == cancellation_token.cancellation_requested_)
+  {
+    active_start_cancellation_.reset();
+  }
+}
+
+void PrimaryClient::cancelActiveStart()
+{
+  std::lock_guard<std::mutex> lock(start_cancellation_mutex_);
+  if (auto active_cancellation = active_start_cancellation_.lock())
+  {
+    active_cancellation->store(true);
+  }
+}
+
+void PrimaryClient::start(const StartCancellationToken& cancellation_token, const size_t max_num_tries,
+                          const std::chrono::milliseconds reconnection_time)
+{
+  std::lock_guard<std::mutex> start_lock(start_mutex_);
+  if (!isStartCancellationTokenActive(cancellation_token))
+  {
+    throw UrException("Primary client start cancellation token is no longer active.");
+  }
+
   URCL_LOG_INFO("Starting primary client pipeline");
-  pipeline_->init(max_num_tries, reconnection_time);
-  pipeline_->run();
+  try
+  {
+    prod_->setupProducer(*cancellation_token.cancellation_requested_, max_num_tries, reconnection_time);
+    multi_consumer_->setupConsumer();
+
+    std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+    if (cancellation_token.cancellation_requested_->load())
+    {
+      stream_.disconnect();
+      throw UrException("Primary client startup canceled.");
+    }
+    pipeline_->run();
+  }
+  catch (...)
+  {
+    const bool canceled = cancellation_token.cancellation_requested_->load();
+    clearStartCancellationToken(cancellation_token);
+    if (canceled)
+    {
+      throw UrException("Primary client startup canceled.");
+    }
+    throw;
+  }
+  clearStartCancellationToken(cancellation_token);
 }
 
 void PrimaryClient::stop()
 {
+  cancelActiveStart();
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
   stream_.disconnect();
   pipeline_->stop();
 }

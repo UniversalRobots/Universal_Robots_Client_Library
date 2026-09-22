@@ -41,6 +41,131 @@
 
 using namespace urcl;
 
+void expectStartupCanceled(std::future<void>& start_future)
+{
+  try
+  {
+    start_future.get();
+    FAIL() << "Prepared start completed without reporting cancellation";
+  }
+  catch (const UrException& exception)
+  {
+    EXPECT_STREQ(exception.what(), "Primary client startup canceled.");
+  }
+}
+
+TEST(PrimaryClientReconnectTest, stop_before_start_cancels_prepared_start)
+{
+  comm::INotifier notifier;
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+  auto cancellation_token = client->prepareStart();
+
+  client->stop();
+
+  std::packaged_task<void()> start_task([&client, &cancellation_token]() {
+    client->start(cancellation_token, /*max_num_tries=*/0, std::chrono::seconds(5));
+  });
+  auto start_future = start_task.get_future();
+  std::thread start_thread(std::move(start_task));
+
+  const bool timed_out = start_future.wait_for(std::chrono::milliseconds(500)) == std::future_status::timeout;
+  if (timed_out)
+  {
+    client->stop();
+  }
+  start_thread.join();
+
+  EXPECT_FALSE(timed_out) << "A start prepared before stop() ignored cancellation and entered the connection retry "
+                             "loop";
+  if (!timed_out)
+  {
+    expectStartupCanceled(start_future);
+  }
+}
+
+TEST(PrimaryClientReconnectTest, stop_interrupts_prepared_start_during_connection_wait)
+{
+  comm::INotifier notifier;
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+  auto cancellation_token = client->prepareStart();
+
+  std::packaged_task<void()> start_task([&client, &cancellation_token]() {
+    client->start(cancellation_token, /*max_num_tries=*/0, std::chrono::seconds(5));
+  });
+  auto start_future = start_task.get_future();
+  std::thread start_thread(std::move(start_task));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  client->stop();
+
+  const bool timed_out = start_future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout;
+  if (timed_out)
+  {
+    client->stop();
+  }
+  start_thread.join();
+
+  EXPECT_FALSE(timed_out) << "stop() did not interrupt a prepared start during the connection retry wait";
+  if (!timed_out)
+  {
+    expectStartupCanceled(start_future);
+  }
+}
+
+TEST(PrimaryClientReconnectTest, prepared_start_connects_and_stops_normally)
+{
+  comm::INotifier notifier;
+  auto server = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+  auto cancellation_token = client->prepareStart();
+
+  ASSERT_NO_THROW(client->start(cancellation_token, /*max_num_tries=*/2, std::chrono::milliseconds(100)));
+  EXPECT_TRUE(server->waitForClient());
+  EXPECT_NO_THROW(client->stop());
+}
+
+TEST(PrimaryClientReconnectTest, prepared_start_handles_fast_connect_stop_races)
+{
+  comm::INotifier notifier;
+  auto server = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+
+  for (size_t iteration = 0; iteration < 20; ++iteration)
+  {
+    auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+    auto cancellation_token = client->prepareStart();
+    std::promise<void> race_gate;
+    auto race_gate_future = race_gate.get_future().share();
+
+    std::packaged_task<void()> start_task([&client, cancellation_token, race_gate_future]() {
+      race_gate_future.wait();
+      try
+      {
+        client->start(cancellation_token, /*max_num_tries=*/0, std::chrono::milliseconds(100));
+      }
+      catch (const UrException&)
+      {
+      }
+    });
+    auto start_future = start_task.get_future();
+    std::thread start_thread(std::move(start_task));
+    std::thread stop_thread([&client, race_gate_future]() {
+      race_gate_future.wait();
+      client->stop();
+    });
+
+    race_gate.set_value();
+    stop_thread.join();
+    const bool timed_out = start_future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout;
+    if (timed_out)
+    {
+      client->stop();
+    }
+    start_thread.join();
+
+    ASSERT_FALSE(timed_out) << "Concurrent start/stop did not finish in iteration " << iteration;
+  }
+}
+
 // Regression test for ~PrimaryClient() blocking indefinitely when the pipeline's
 // producer thread is stuck in its reconnect loop at teardown time.
 //

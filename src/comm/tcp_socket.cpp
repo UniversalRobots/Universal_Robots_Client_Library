@@ -177,7 +177,8 @@ void TCPSocket::setupOptions()
   }
 }
 
-bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len)
+bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len,
+                                  const std::atomic<bool>* cancellation_requested)
 {
   if (!setSocketBlocking(socket_fd, false))
   {
@@ -197,7 +198,7 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
     // or a concurrent disconnect() asks us to abort.
     while (true)
     {
-      if (isStopRequested())
+      if (isStopRequested(cancellation_requested))
       {
         return false;
       }
@@ -238,7 +239,8 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
 }
 
 bool TCPSocket::setupInternal(const std::string& host, const int port, const size_t max_num_tries,
-                              const std::chrono::milliseconds reconnection_time)
+                              const std::chrono::milliseconds reconnection_time,
+                              const std::atomic<bool>* cancellation_requested)
 {
   // This can be removed once we remove the setReconnectionTime() method
   auto reconnection_time_resolved = reconnection_time;
@@ -270,7 +272,7 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
   bool connected = false;
   while (!connected)
   {
-    if (isStopRequested())
+    if (isStopRequested(cancellation_requested))
       return false;
 
     if (getaddrinfo(host_name, service.c_str(), &hints, &result) != 0)
@@ -285,13 +287,14 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       // one, so retrying does not leak file descriptors.
       socket_fd_.reset(::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
 
-      if (socket_fd_.get() != -1 && openInterruptible(socket_fd_.get(), p->ai_addr, p->ai_addrlen))
+      if (socket_fd_.get() != -1 &&
+          openInterruptible(socket_fd_.get(), p->ai_addr, p->ai_addrlen, cancellation_requested))
       {
         connected = true;
         break;
       }
 
-      if (isStopRequested())
+      if (isStopRequested(cancellation_requested))
       {
         freeaddrinfo(result);
         socket_fd_.reset();
@@ -320,18 +323,23 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
         // Sleep in short slices so that a concurrent disconnect() (e.g. from ~RTDEClient or
         // ~PrimaryClient before joining the reconnect thread) can interrupt the back-off promptly.
         const auto sleep_slice = std::chrono::milliseconds(100);
-        for (auto slept = std::chrono::milliseconds(0); slept < reconnection_time_resolved && !isStopRequested();
-             slept += sleep_slice)
+        for (auto slept = std::chrono::milliseconds(0);
+             slept < reconnection_time_resolved && !isStopRequested(cancellation_requested); slept += sleep_slice)
         {
           std::this_thread::sleep_for(sleep_slice);
         }
-        if (isStopRequested())
+        if (isStopRequested(cancellation_requested))
         {
           socket_fd_.reset();
           return false;
         }
       }
     }
+  }
+  if (isStopRequested(cancellation_requested))
+  {
+    close();
+    return false;
   }
   setupOptions();
   // Mark Connected only if no deliberate disconnect() slipped in while we were finishing up; a late
@@ -349,13 +357,31 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
 bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
                         const std::chrono::milliseconds reconnection_time)
 {
+  return connectInternal(host, port, max_num_tries, reconnection_time, nullptr);
+}
+
+bool TCPSocket::connect(const std::string& host, const int port, const std::atomic<bool>& cancellation_requested,
+                        const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
+{
+  return connectInternal(host, port, max_num_tries, reconnection_time, &cancellation_requested);
+}
+
+bool TCPSocket::connectInternal(const std::string& host, const int port, const size_t max_num_tries,
+                                const std::chrono::milliseconds reconnection_time,
+                                const std::atomic<bool>* cancellation_requested)
+{
   if (state_ == SocketState::Connected)
   {
     URCL_LOG_ERROR("Connect called on a socket that is already connected");
     return false;
   }
+  if (cancellation_requested != nullptr && cancellation_requested->load())
+  {
+    return false;
+  }
   target_state_ = SocketState::Connected;
-  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  if (isStopRequested(cancellation_requested) ||
+      !setupInternal(host, port, max_num_tries, reconnection_time, cancellation_requested))
   {
     disconnect();
     return false;
@@ -372,7 +398,7 @@ bool TCPSocket::reconnect(const std::string& host, const int port, const size_t 
     return false;
   }
   setTargetStateUnlessStopRequested(SocketState::Connected);
-  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  if (!setupInternal(host, port, max_num_tries, reconnection_time, nullptr))
   {
     // If we failed to reconnect, we need to set the target state back to LostConnection so that
     auto expected_state = SocketState::Connecting;
