@@ -199,6 +199,17 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
       {
         return RobotSeries::UNDEFINED;
       }
+    case RobotType::UR10G_1750:
+    case RobotType::UR17G_1300:
+    case RobotType::UR18G_950:
+      if (version_info.major > 10 || (version_info.major == 10 && version_info.minor >= 15))
+      {
+        return RobotSeries::G_SERIES;
+      }
+      else
+      {
+        return RobotSeries::UNDEFINED;
+      }
     case RobotType::UNDEFINED:
       return RobotSeries::UNDEFINED;
   }
@@ -210,11 +221,23 @@ RobotType robotTypeFromString(const std::string& robot_type_str)
   // RobotType has no dedicated entries for UR7/UR12, so UR7e and UR12e are mapped to their
   // closest siblings UR5 and UR10 respectively, matching what the robot reports over primary.
   static const std::unordered_map<std::string, RobotType> string_to_robot_type{
-    { "ur3", RobotType::UR3 },    { "ur3e", RobotType::UR3 },        { "ur5", RobotType::UR5 },
-    { "ur5e", RobotType::UR5 },   { "ur7e", RobotType::UR5 },        { "ur10", RobotType::UR10 },
-    { "ur10e", RobotType::UR10 }, { "ur12e", RobotType::UR10 },      { "ur16e", RobotType::UR16 },
-    { "ur15", RobotType::UR15 },  { "ur18", RobotType::UR18 },       { "ur20", RobotType::UR20 },
-    { "ur30", RobotType::UR30 },  { "ur8long", RobotType::UR8LONG },
+    { "ur3", RobotType::UR3 },
+    { "ur3e", RobotType::UR3 },
+    { "ur5", RobotType::UR5 },
+    { "ur5e", RobotType::UR5 },
+    { "ur7e", RobotType::UR5 },
+    { "ur10", RobotType::UR10 },
+    { "ur10e", RobotType::UR10 },
+    { "ur12e", RobotType::UR10 },
+    { "ur16e", RobotType::UR16 },
+    { "ur15", RobotType::UR15 },
+    { "ur18", RobotType::UR18 },
+    { "ur20", RobotType::UR20 },
+    { "ur30", RobotType::UR30 },
+    { "ur8long", RobotType::UR8LONG },
+    { "ur10g-1750", RobotType::UR10G_1750 },
+    { "ur17g-1300", RobotType::UR17G_1300 },
+    { "ur18g-950", RobotType::UR18G_950 },
   };
 
   const auto it = string_to_robot_type.find(robot_type_str);

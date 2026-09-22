@@ -56,6 +56,23 @@ setup() {
   echo "ROBOT_SERIES: $ROBOT_SERIES"
   [ "$ROBOT_SERIES" = "e-series" ]
 
+  get_series_from_model "ur10g-1750"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  [ "$ROBOT_SERIES" = "polyscopex" ]
+
+  get_series_from_model "ur17g-1300"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  [ "$ROBOT_SERIES" = "polyscopex" ]
+
+  get_series_from_model "ur18g-950"
+  echo "ROBOT_SERIES: $ROBOT_SERIES"
+  [ "$ROBOT_SERIES" = "polyscopex" ]
+
+  for model in ur10g ur17g ur18g; do
+    run get_series_from_model "$model"
+    [ $status -eq 1 ]
+  done
+
   run get_series_from_model "notarobotname"
   [ $status -eq 1 ]
 }
@@ -283,6 +300,26 @@ setup() {
   [ $status -eq 0 ]
 }
 
+@test "test g-series min version" {
+  for model in ur10g-1750 ur17g-1300 ur18g-950; do
+    run test_input_handling -m "$model" -v 5.25.1
+    echo "$output"
+    [ $status -eq 1 ]
+
+    run test_input_handling -m "$model" -v 10.14.9
+    echo "$output"
+    [ $status -eq 1 ]
+
+    run test_input_handling -m "$model" -v 10.15.0
+    echo "$output"
+    [ $status -eq 0 ]
+
+    run test_input_handling -m "$model"
+    echo "$output"
+    [ $status -eq 0 ]
+  done
+}
+
 @test "unsupported versions raise error" {
   run main -v 1.2.3 -t
   echo "$output"
@@ -382,6 +419,14 @@ setup() {
   [ $status -eq 0 ]
   model=$(echo "$output" | tail -n1 | grep -Po '-e ROBOT_TYPE=\w+' | cut -d '=' -f2)
   [ "$model" == "UR30" ]
+
+  for robot_model in ur10g-1750 ur17g-1300 ur18g-950; do
+    run main -m "$robot_model" -v 10.15.0 -t
+    echo "$output"
+    [ $status -eq 0 ]
+    model=$(echo "$output" | tail -n1 | grep -Po -- '-e ROBOT_TYPE=\S+' | cut -d '=' -f2)
+    [ "$model" == "${robot_model^^}" ]
+  done
 }
 
 @test "strip_robot_model" {

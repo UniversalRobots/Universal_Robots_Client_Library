@@ -178,7 +178,7 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
  *
  * \param robot_type_str The string representation of the robot type as used in the start_ursim.sh
  * script. Must be all lower-case, e.g. "ur3e", "ur5", "ur10e", "ur16e", "ur7e", "ur15", "ur30",
- * "ur8long".
+ * "ur8long", "ur10g-1750", "ur17g-1300", "ur18g-950".
  *
  * \throws std::invalid_argument if \p robot_type_str does not match a known robot type.
  *
