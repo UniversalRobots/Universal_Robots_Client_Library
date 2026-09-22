@@ -157,16 +157,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 10
       - name: run examples
+        id: examples
         if: ${{ !cancelled() && steps.test.outcome == 'success' }}
         run: ./run_examples.sh "192.168.56.101" 1
       - name: install gcovr
-        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.examples.outcome == 'success' }}
         run: sudo apt-get install -y gcovr
       - name: gcovr
-        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
+        id: gcovr
+        if: ${{ !cancelled() && steps.examples.outcome == 'success' }}
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
-        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.gcovr.outcome == 'success' }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true

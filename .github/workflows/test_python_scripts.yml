@@ -18,6 +18,7 @@ jobs:
       - name: Install dependencies
         run: pip install pytest pytest-cov
       - name: Run tests
+        id: test
         run: python -m pytest scripts/*.py --cov=scripts --cov-report=xml --junitxml=junit.xml
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
@@ -39,7 +40,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 10
       - name: Upload coverage reports to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
         uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: true
