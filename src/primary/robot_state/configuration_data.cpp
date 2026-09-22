@@ -53,6 +53,8 @@ ConfigurationData::ConfigurationData(const ConfigurationData& pkg) : RobotState(
   controller_box_type_ = pkg.controller_box_type_;
   robot_type_ = pkg.robot_type_;
   robot_sub_type_ = pkg.robot_sub_type_;
+  control_box_type_ = pkg.control_box_type_;
+  tool_flange_type_ = pkg.tool_flange_type_;
 }
 
 bool ConfigurationData::parseWith(comm::BinParser& bp)
@@ -81,13 +83,17 @@ bool ConfigurationData::parseWith(comm::BinParser& bp)
   bp.parse(robot_type_);
   bp.parse(robot_sub_type_);
 
-  if (bp.checkSize<decltype(reserved_1_)>())
+  if (bp.checkSize<uint16_t>())
   {
-    bp.parse(reserved_1_);
+    uint16_t control_box_type;
+    bp.parse(control_box_type);
+    control_box_type_ = static_cast<ControlBoxType>(control_box_type);
   }
-  if (bp.checkSize<decltype(reserved_2_)>())
+  if (bp.checkSize<uint16_t>())
   {
-    bp.parse(reserved_2_);
+    uint16_t tool_flange_type;
+    bp.parse(tool_flange_type);
+    tool_flange_type_ = static_cast<ToolFlangeType>(tool_flange_type);
   }
 
   return true;
@@ -151,6 +157,8 @@ std::string ConfigurationData::toString() const
   os << "Controller box type: " << controller_box_type_ << std::endl;
   os << "Robot type: " << robot_type_ << std::endl;
   os << "Robot sub type: " << robot_sub_type_ << std::endl;
+  os << "Control box type: " << static_cast<uint16_t>(control_box_type_) << std::endl;
+  os << "Tool flange type: " << static_cast<uint16_t>(tool_flange_type_) << std::endl;
 
   return os.str();
 }
