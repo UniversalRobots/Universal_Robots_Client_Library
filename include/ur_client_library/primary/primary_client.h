@@ -66,7 +66,14 @@ class PrimaryClient
 {
 public:
   PrimaryClient() = delete;
-  PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier);
+  /*!
+   * \brief Creates a new PrimaryClient object.
+   *
+   * \param robot_ip The IP of the robot
+   * \param notifier The notifier to notify of start and stop events
+   * \param port Optionally specify a different port
+   */
+  PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier, const int port = UR_PRIMARY_PORT);
   ~PrimaryClient();
 
   /*!
