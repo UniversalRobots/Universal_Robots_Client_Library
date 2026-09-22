@@ -115,9 +115,9 @@ public:
   urcl::vector6d_t dh_alpha_;
   urcl::vector6d_t dh_theta_;
   int32_t masterboard_version_;
-  // Deprecated in PolyScope 5.26.0 / 10.13.0.
   // This reserved field is not the control box type after PolyScope 5.25 / 10.12
   // (see control_box_type_ below).
+  [[deprecated("Deprecated in PolyScope 5.26.0 / 10.13.0.")]]
   int32_t controller_box_type_;
   int32_t robot_type_;
   int32_t robot_sub_type_;
