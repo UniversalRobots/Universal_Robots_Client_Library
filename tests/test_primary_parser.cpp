@@ -43,13 +43,12 @@ using namespace urcl;
 
 namespace
 {
-// ConfigurationData payload before optional int16 reserved fields (older UR software).
-constexpr size_t CONFIGURATION_DATA_PAYLOAD_BYTES =
-    6 * 2 * sizeof(double) +  // joint position limits
-    6 * 2 * sizeof(double) +  // joint motion limits
-    5 * sizeof(double) +      // v/a joint/tool defaults + eq_radius
-    4 * 6 * sizeof(double) +  // dh_a, dh_d, dh_alpha, dh_theta
-    4 * sizeof(int32_t);      // masterboard, controller, robot type, sub type
+// ConfigurationData payload before optional control box / tool flange fields (older UR software).
+constexpr size_t CONFIGURATION_DATA_PAYLOAD_BYTES = 6 * 2 * sizeof(double) +  // joint position limits
+                                                    6 * 2 * sizeof(double) +  // joint motion limits
+                                                    5 * sizeof(double) +      // v/a joint/tool defaults + eq_radius
+                                                    4 * 6 * sizeof(double) +  // dh_a, dh_d, dh_alpha, dh_theta
+                                                    4 * sizeof(int32_t);  // masterboard, reserved, robot type, sub type
 
 static_assert(CONFIGURATION_DATA_PAYLOAD_BYTES == 440);
 
@@ -754,18 +753,18 @@ TEST_F(PrimaryParserTest, parse_configuration_data_without_reserved_fields)
 
   auto* config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
   ASSERT_NE(config, nullptr);
-  EXPECT_EQ(config->reserved_1_, 0);
-  EXPECT_EQ(config->reserved_2_, 0);
+  EXPECT_EQ(config->control_box_type_, ControlBoxType::UNKNOWN);
+  EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::UNKNOWN);
 }
 
 TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
 {
   std::vector<uint8_t> payload(CONFIGURATION_DATA_PAYLOAD_BYTES, 0);
-  // Big-endian int16 values appended after the legacy payload.
-  payload.push_back(0x12);
-  payload.push_back(0x34);
-  payload.push_back(0x56);
-  payload.push_back(0x78);
+  // Big-endian uint16 control box type (CB7) and tool flange type (V1).
+  payload.push_back(0x00);
+  payload.push_back(0x02);
+  payload.push_back(0x00);
+  payload.push_back(0x01);
 
   std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
 
@@ -776,8 +775,8 @@ TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
 
   auto* config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
   ASSERT_NE(config, nullptr);
-  EXPECT_EQ(config->reserved_1_, static_cast<int16_t>(0x1234));
-  EXPECT_EQ(config->reserved_2_, static_cast<int16_t>(0x5678));
+  EXPECT_EQ(config->control_box_type_, ControlBoxType::CB7);
+  EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::V1);
 }
 
 TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)

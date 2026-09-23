@@ -30,12 +30,20 @@
 
 #include "ur_client_library/primary/robot_state/configuration_data.h"
 #include "ur_client_library/primary/abstract_primary_consumer.h"
+#include "ur_client_library/helpers.h"
 
 namespace urcl
 {
 namespace primary_interface
 {
 
+URCL_SILENCE_DEPRECATED_BEGIN
+ConfigurationData::ConfigurationData(const RobotStateType type) : RobotState(type)
+{
+}
+URCL_SILENCE_DEPRECATED_END
+
+URCL_SILENCE_DEPRECATED_BEGIN
 ConfigurationData::ConfigurationData(const ConfigurationData& pkg) : RobotState(RobotStateType::CONFIGURATION_DATA)
 {
   joint_position_limits_ = pkg.joint_position_limits_;
@@ -53,7 +61,10 @@ ConfigurationData::ConfigurationData(const ConfigurationData& pkg) : RobotState(
   controller_box_type_ = pkg.controller_box_type_;
   robot_type_ = pkg.robot_type_;
   robot_sub_type_ = pkg.robot_sub_type_;
+  control_box_type_ = pkg.control_box_type_;
+  tool_flange_type_ = pkg.tool_flange_type_;
 }
+URCL_SILENCE_DEPRECATED_END
 
 bool ConfigurationData::parseWith(comm::BinParser& bp)
 {
@@ -77,17 +88,23 @@ bool ConfigurationData::parseWith(comm::BinParser& bp)
   bp.parse(dh_alpha_);
   bp.parse(dh_theta_);
   bp.parse(masterboard_version_);
+  URCL_SILENCE_DEPRECATED_BEGIN
   bp.parse(controller_box_type_);
+  URCL_SILENCE_DEPRECATED_END
   bp.parse(robot_type_);
   bp.parse(robot_sub_type_);
 
-  if (bp.checkSize<decltype(reserved_1_)>())
+  if (bp.checkSize<uint16_t>())
   {
-    bp.parse(reserved_1_);
+    uint16_t control_box_type;
+    bp.parse(control_box_type);
+    control_box_type_ = static_cast<ControlBoxType>(control_box_type);
   }
-  if (bp.checkSize<decltype(reserved_2_)>())
+  if (bp.checkSize<uint16_t>())
   {
-    bp.parse(reserved_2_);
+    uint16_t tool_flange_type;
+    bp.parse(tool_flange_type);
+    tool_flange_type_ = static_cast<ToolFlangeType>(tool_flange_type);
   }
 
   return true;
@@ -148,9 +165,10 @@ std::string ConfigurationData::toString() const
   os << "]" << std::endl;
 
   os << "Masterboard version: " << masterboard_version_ << std::endl;
-  os << "Controller box type: " << controller_box_type_ << std::endl;
   os << "Robot type: " << robot_type_ << std::endl;
   os << "Robot sub type: " << robot_sub_type_ << std::endl;
+  os << "Control box type: " << static_cast<uint16_t>(control_box_type_) << std::endl;
+  os << "Tool flange type: " << static_cast<uint16_t>(tool_flange_type_) << std::endl;
 
   return os.str();
 }
