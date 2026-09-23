@@ -43,6 +43,7 @@
 #include <ur_client_library/ur/version_information.h>
 
 #include "fake_rtde_server.h"
+#include "rtde_output_recipe_metadata.h"
 #include "ur_client_library/log.h"
 
 using namespace urcl;
@@ -684,29 +685,40 @@ TEST_F(RTDEClientTest, connect_non_running_robot)
 
 TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
 {
-  const char* env_var = std::getenv("URSIM_VERSION");
-  if (env_var == nullptr)
+#ifndef CHECK_RTDE_DOCS_RECIPE
+  GTEST_SKIP() << "Enable CHECK_RTDE_DOCS_RECIPE to generate version-aware RTDE output metadata.";
+#else
+  // Query the actual controller using only a universally available output and no inputs.
+  client_.reset();
+  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, std::vector<std::string>{ "timestamp" },
+                                               std::vector<std::string>{}));
+  ASSERT_TRUE(client_->init());
+  const auto version = client_->getVersion();
+  client_.reset();
+  if (!test::supportsOutputMetadata(version))
   {
-    std::cout << "No URSIM_VERSION environment variable set, skipping test." << std::endl;
-    GTEST_SKIP();
+    GTEST_SKIP() << "Version-aware exhaustive output testing requires PolyScope 5 >= 5.9.0 or PolyScope X >= 10.10.0; "
+                    "got "
+                 << version.toString();
   }
-  const std::string env_ursim_version(env_var);
 
-  if (env_ursim_version != "latest")
+  const auto metadata = test::loadOutputMetadata(docs_output_recipe_file_);
+  std::ifstream pkg_file(exhaustive_output_recipe_file_);
+  ASSERT_TRUE(pkg_file.is_open()) << exhaustive_output_recipe_file_;
+  std::vector<std::string> pkg_outputs;
+  std::string line;
+  while (std::getline(pkg_file, line))
   {
-    std::cout << "Not using the latest URSIM version, skipping test. URSIM_VERSION is set to '" << env_ursim_version
-              << "'" << std::endl;
-    GTEST_SKIP();
+    pkg_outputs.push_back(line);
   }
-
-  client_->init();
-
-  // Ignore unknown output variables to account for variables not available in old urcontrol versions.
-  client_.reset(new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, exhaustive_output_recipe_file_,
-                                               input_recipe_file_, 0.0, false));
-
-  EXPECT_TRUE(client_->init());
-  client_->start();
+  ASSERT_FALSE(pkg_outputs.empty());
+  const auto output_recipe = test::filterOutputRecipe(pkg_outputs, metadata, version, std::cout);
+  ASSERT_FALSE(output_recipe.empty());
+  // Eligible fields must be accepted: never silently ignore NOT_FOUND responses.
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, output_recipe, std::vector<std::string>{}, 0.0, false));
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start());
 
   // Test that we can receive and parse the timestamp from the received package to prove the setup was successful
   const std::chrono::milliseconds read_timeout{ 100 };
@@ -718,24 +730,28 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   EXPECT_GT(timestamp, 0.0);
 
   client_->pause();
+#endif
 }
 
 #ifdef CHECK_RTDE_DOCS_RECIPE
 TEST_F(RTDEClientTest, check_rtde_data_fields_match_docs)
 {
-  std::ifstream docs_file(docs_output_recipe_file_);
+  const auto metadata = test::loadOutputMetadata(docs_output_recipe_file_);
   std::ifstream pkg_file(exhaustive_output_recipe_file_);
+  ASSERT_TRUE(pkg_file.is_open()) << exhaustive_output_recipe_file_;
   std::vector<std::string> docs_outputs;
-  std::string line;
-  while (std::getline(docs_file, line))
+  // Completeness is independent of the controller and includes every documented field.
+  for (const auto& entry : metadata)
   {
-    docs_outputs.push_back(line);
+    docs_outputs.push_back(entry.first);
   }
   std::vector<std::string> pkg_outputs;
+  std::string line;
   while (std::getline(pkg_file, line))
   {
     pkg_outputs.push_back(line);
   }
+  ASSERT_FALSE(pkg_outputs.empty());
   std::sort(docs_outputs.begin(), docs_outputs.end());
   std::sort(pkg_outputs.begin(), pkg_outputs.end());
   if (!std::is_permutation(docs_outputs.begin(), docs_outputs.end(), pkg_outputs.begin(), pkg_outputs.end()))

@@ -217,6 +217,11 @@ target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl GTest::g
 gtest_add_tests(TARGET      rtde_parser_tests
 )
 
+# Metadata parsing/filtering is tested offline, independently of documentation downloads or a robot.
+add_executable(rtde_output_recipe_metadata_tests test_rtde_output_recipe_metadata.cpp)
+target_link_libraries(rtde_output_recipe_metadata_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET rtde_output_recipe_metadata_tests)
+
 add_executable(tcp_server_tests test_tcp_server.cpp)
 if (MSVC)
   target_compile_options(tcp_server_tests PRIVATE /Zc:lambda)
