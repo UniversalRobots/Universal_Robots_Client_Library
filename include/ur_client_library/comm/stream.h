@@ -67,6 +67,18 @@ public:
   }
 
   /*!
+   * \brief Connects to the configured socket while observing an external cancellation request.
+   *
+   * Unlike a prior disconnect followed by the regular connect() overload, a cancellation that was
+   * requested before this call is not cleared.
+   */
+  bool connect(const std::atomic<bool>& cancellation_requested, const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+  {
+    return TCPSocket::connect(host_, port_, cancellation_requested, max_num_tries, reconnection_time);
+  }
+
+  /*!
    * \brief Re-establishes the connection after an unexpected drop, without clearing a deliberate
    * disconnect(). Used by the automatic reconnect path.
    *

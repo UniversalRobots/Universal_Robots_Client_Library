@@ -19,6 +19,7 @@
  */
 
 #pragma once
+#include <atomic>
 #include <chrono>
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/comm/parser.h"
@@ -45,7 +46,23 @@ private:
   std::chrono::seconds timeout_;
   std::function<void()> on_reconnect_cb_;
 
-  bool running_;
+  std::atomic<bool> running_;
+
+  void setupProducerImpl(const std::atomic<bool>* cancellation_requested, const size_t max_num_tries,
+                         const std::chrono::milliseconds reconnection_time)
+  {
+    timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    stream_.setReceiveTimeout(tv);
+    const bool connected = cancellation_requested == nullptr ?
+                               stream_.connect(max_num_tries, reconnection_time) :
+                               stream_.connect(*cancellation_requested, max_num_tries, reconnection_time);
+    if (!connected)
+    {
+      throw UrException("Failed to connect to robot. Please check if the robot is booted and connected.");
+    }
+  }
 
   template <typename ProductT>
   bool tryGetImpl(ProductT& product)
@@ -154,14 +171,13 @@ public:
   void setupProducer(const size_t max_num_tries = 0,
                      const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10)) override
   {
-    timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    stream_.setReceiveTimeout(tv);
-    if (!stream_.connect(max_num_tries, reconnection_time))
-    {
-      throw UrException("Failed to connect to robot. Please check if the robot is booted and connected.");
-    }
+    setupProducerImpl(nullptr, max_num_tries, reconnection_time);
+  }
+
+  void setupProducer(const std::atomic<bool>& cancellation_requested, const size_t max_num_tries = 0,
+                     const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+  {
+    setupProducerImpl(&cancellation_requested, max_num_tries, reconnection_time);
   }
   /*!
    * \brief Tears down the producer. Currently no special handling needed.

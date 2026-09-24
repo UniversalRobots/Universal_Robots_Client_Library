@@ -64,10 +64,16 @@ private:
   // Polls in short slices so that a concurrent disconnect() aborts the attempt
   // promptly on all platforms (POSIX close() of a blocked connect() is reliable,
   // Winsock's is not). Restores blocking mode on success.
-  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
+  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len,
+                         const std::atomic<bool>* cancellation_requested);
 
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
-                     const std::chrono::milliseconds reconnection_time);
+                     const std::chrono::milliseconds reconnection_time,
+                     const std::atomic<bool>* cancellation_requested);
+
+  bool connectInternal(const std::string& host, const int port, const size_t max_num_tries,
+                       const std::chrono::milliseconds reconnection_time,
+                       const std::atomic<bool>* cancellation_requested);
 
 protected:
   /*!
@@ -85,9 +91,10 @@ protected:
    * True while a deliberate disconnect() is in progress or has completed (the "deliberate-stop
    * set").
    */
-  bool isStopRequested() const
+  bool isStopRequested(const std::atomic<bool>* cancellation_requested = nullptr) const
   {
-    return target_state_ == SocketState::Closed;
+    return target_state_ == SocketState::Closed ||
+           (cancellation_requested != nullptr && cancellation_requested->load());
   }
 
   /*!
@@ -195,6 +202,16 @@ public:
    * a concurrent disconnect()
    */
   bool connect(const std::string& host, const int port, const size_t max_num_tries = 0,
+               const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
+
+  /*!
+   * \brief Establishes a connection while observing a caller-owned cancellation request.
+   *
+   * A request set before this call is preserved instead of being cleared as an intentional
+   * restart. Requests arriving during connection interrupt the active attempt.
+   */
+  bool connect(const std::string& host, const int port, const std::atomic<bool>& cancellation_requested,
+               const size_t max_num_tries = 0,
                const std::chrono::milliseconds reconnection_time = DEFAULT_RECONNECTION_TIME);
 
   /*!
