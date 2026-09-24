@@ -33,7 +33,7 @@ Communication protocol
 ----------------------
 
 The ``TrajectoryPointInterface``'s "trajectory_socket" on the robot is expecting 32 bit integer
-representations in 21 datafields. The data fields have the following meaning:
+representations in 22 datafields. The data fields have the following meaning:
 
 .. table:: trajectory_socket message format
    :widths: auto
@@ -106,6 +106,15 @@ representations in 21 datafields. The data fields have the following meaning:
           - 12: OPTIMOVEJ_POSE – ``optimovej`` to a pose target
           - 13: OPTIMOVEL_JOINT – ``optimovel`` to the pose implied by a joint target
           - 51: SPLINE - Cubic or quintic spline.
+   21     the identifier of the move this point belongs to, as a raw integer. The robot executes
+          only those points whose identifier matches the move it is currently running, and
+          discards the rest. This is what keeps points that a producer wrote for a move which has
+          already failed or been cancelled from being executed by whichever move runs next, since
+          the producer cannot learn of the end of a move instantly and may keep writing for a
+          short while afterwards. The identifier is announced to the robot in the control message
+          that begins the move, and is assigned by ``UrDriver``, which increments it once per
+          move for the life of a connection. A value of 0 belongs to no move and is what the
+          robot holds before it has been told about any.
    =====  =====
 
 where
