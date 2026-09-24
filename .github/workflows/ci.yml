@@ -46,6 +46,40 @@ jobs:
           retention-days: 5
           archive: false
 
+  unit_coverage:
+    name: unit_coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build-tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake gcovr
+      - name: configure
+        run: >
+          mkdir build &&
+          cd build &&
+          cmake ..
+          -DBUILDING_TESTS=1
+          -DINTEGRATION_TESTS=0
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        env:
+          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          LDFLAGS: -fprofile-arcs -ftest-coverage
+      - name: build
+        run: cmake --build build --config Debug
+      - name: test
+        run: cd build && ctest --output-on-failure --output-junit junit.xml
+      - name: gcovr
+        run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v7
+        with:
+          fail_ci_if_error: true
+          files: build/coverage.xml
+          flags: unit
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   run_tests:
     timeout-minutes: 60
     runs-on: ubuntu-latest

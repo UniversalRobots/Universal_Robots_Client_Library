@@ -47,8 +47,8 @@ private:
 
   bool running_;
 
-  template <typename ProductT>
-  bool tryGetImpl(ProductT& product)
+  template <typename ParseFrame>
+  bool tryGetImpl(ParseFrame&& parse_frame)
   {
     // TODO This function has become really ugly! That should be refactored!
 
@@ -63,11 +63,14 @@ private:
         // reset sleep amount
         timeout_ = std::chrono::seconds(1);
         BinParser bp(buf, read);
-        return parser_.parse(bp, product);
+        return parse_frame(bp);
       }
 
       if (!running_)
+      {
+        URCL_LOG_DEBUG("Cannot receive a package: producer is stopped.");
         return false;
+      }
 
       const SocketState state = stream_.getState();
 
@@ -96,7 +99,10 @@ private:
       }
 
       if (stream_.closed() || stream_.stopRequested())
+      {
+        URCL_LOG_DEBUG("Cannot receive a package: stream is closing or stopped.");
         return false;
+      }
 
       if (on_reconnect_cb_)
       {
@@ -120,7 +126,10 @@ private:
       }
 
       if (!running_ || stream_.closed() || stream_.stopRequested())
+      {
+        URCL_LOG_DEBUG("Package receive cancelled during reconnect backoff.");
         return false;
+      }
 
       if (stream_.reconnect())
         continue;
@@ -129,8 +138,6 @@ private:
       if (next <= std::chrono::seconds(120))
         timeout_ = next;
     }
-
-    return false;
   }
 
 public:
@@ -192,7 +199,7 @@ public:
    */
   bool tryGet(std::vector<std::unique_ptr<T>>& products) override
   {
-    return tryGetImpl(products);
+    return tryGetImpl([this, &products](BinParser& bp) { return parser_.parse(bp, products); });
   }
 
   /*!
@@ -207,7 +214,18 @@ public:
    */
   bool tryGet(std::unique_ptr<T>& product) override
   {
-    return tryGetImpl(product);
+    return tryGetImpl([this, &product](BinParser& bp) { return parser_.parse(bp, product); });
+  }
+
+  /*!
+   * \brief Receives one frame using the existing read/reconnect loop and a custom parser.
+   * The callable is invoked synchronously and is never stored. It must return whether parsing
+   * succeeded, and diagnose failures. This allows parsing into borrowed, caller-owned storage.
+   */
+  template <typename ParseFrame>
+  bool tryGetWithParser(ParseFrame&& parse_frame)
+  {
+    return tryGetImpl(parse_frame);
   }
 
   /*!

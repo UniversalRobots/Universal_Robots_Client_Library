@@ -42,8 +42,8 @@ namespace urcl
 {
 namespace primary_interface
 {
-PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier)
-  : stream_(robot_ip, UR_PRIMARY_PORT)
+PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier, const int port)
+  : stream_(robot_ip, port)
 {
   parser_.setStrictMode(COMPILE_OPTIONS.PRIMARY_CLIENT_STRICT_PARSING);
   prod_.reset(new comm::URProducer<PrimaryPackage>(stream_, parser_));
