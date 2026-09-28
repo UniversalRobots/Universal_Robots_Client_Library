@@ -239,12 +239,8 @@ Then, make sure ``/etc/security/limits.conf`` contains
 
 .. code-block:: linuxconfig
 
-   @realtime soft rtprio 99
-   @realtime soft priority 99
-   @realtime soft memlock 102400
-   @realtime hard rtprio 99
-   @realtime hard priority 99
-   @realtime hard memlock 102400
+   @realtime - rtprio 99
+   @realtime - memlock unlimited
 
 Note: You will have to log out and log back in (Not only close your terminal window) for these
 changes to take effect. No need to do this now, as we will reboot later on, anyway.
