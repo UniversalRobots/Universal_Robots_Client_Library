@@ -659,17 +659,50 @@ TEST_F(RTDEWriterTest, create_data_package_before_types_are_known_throws)
   EXPECT_THROW(writer.createDataPackage(), UrException);
 }
 
-TEST_F(RTDEWriterTest, create_data_package_while_running_without_types_throws)
+// A running writer with untyped buffers would let a helper type only its own fields and report
+// success, while the partially typed package serializes to nothing.
+TEST_F(RTDEWriterTest, init_without_recipe_types_throws)
 {
   writer_->stop();
   rtde_interface::RTDEWriter writer(stream_.get(), input_recipe_);
-  ASSERT_NO_THROW(writer.init(1));
+  EXPECT_THROW(writer.init(1), UrException);
 
-  // Isolate the running-but-untyped guard without queuing an unserializable send.
+  EXPECT_FALSE(writer.sendSpeedSlider(0.5));
   EXPECT_THROW(writer.createDataPackage(), UrException);
-  writer.stop();
   EXPECT_FALSE(waitForMessageCallback(100));
   EXPECT_TRUE(parsed_data_.empty());
+}
+
+// Without a writer thread nothing is sent, so accepting an update would report a success that
+// never reaches the robot.
+TEST_F(RTDEWriterTest, sends_are_rejected_while_stopped)
+{
+  writer_->stop();
+
+  auto package = urcl::test::typedPackage(input_recipe_, input_recipe_types_);
+  ASSERT_TRUE(package.setData("speed_slider_fraction", 0.9));
+  EXPECT_FALSE(writer_->sendPackage(package));
+  EXPECT_FALSE(writer_->sendSpeedSlider(0.5));
+  EXPECT_FALSE(writer_->sendStandardDigitalOutput(2, true));
+  EXPECT_FALSE(writer_->sendConfigurableDigitalOutput(2, true));
+  EXPECT_FALSE(writer_->sendToolDigitalOutput(1, true));
+  EXPECT_FALSE(writer_->sendStandardAnalogOutput(0, 0.5));
+  EXPECT_FALSE(writer_->sendInputBitRegister(65, true));
+  EXPECT_FALSE(writer_->sendInputIntRegister(25, 7));
+  EXPECT_FALSE(writer_->sendInputDoubleRegister(25, 1.5));
+  EXPECT_FALSE(writer_->sendExternalForceTorque({ 1, 2, 3, 4, 5, 6 }));
+  EXPECT_FALSE(waitForMessageCallback(100));
+
+  // The rejected calls must not have left values behind for the next send to transmit.
+  writer_->init(1);
+  ASSERT_TRUE(writer_->sendStandardDigitalOutput(3, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  ASSERT_TRUE(dataFieldExist("speed_slider_fraction"));
+  EXPECT_EQ(std::get<double>(parsed_data_["speed_slider_fraction"]), 0.0);
+  ASSERT_TRUE(dataFieldExist("input_int_register_25"));
+  EXPECT_EQ(std::get<int32_t>(parsed_data_["input_int_register_25"]), 0);
+  ASSERT_TRUE(dataFieldExist("input_double_register_25"));
+  EXPECT_EQ(std::get<double>(parsed_data_["input_double_register_25"]), 0.0);
 }
 
 TEST_F(RTDEWriterTest, invalid_recipe_types_while_stopped_allow_valid_setup_and_init)

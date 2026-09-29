@@ -167,7 +167,7 @@ The input registers are reset and the robot program is stopped. A failed stop is
 because CI runs the example for one second and still requires exit code 0.
 
 The loop ends when the run duration has passed, when an RTDE read or write fails, or when Ctrl-C
-is pressed. A ``SIGINT`` handler only clears ``g_running``, so every one of these paths leaves the
+is pressed. A ``SIGINT`` handler only clears ``running``, so every one of these paths leaves the
 loop and runs ``cleanup()``, and the program does not keep running on the robot. Ctrl-C can
 interrupt the blocking read, so a failed read after Ctrl-C ends the example normally. Resetting
 the registers may then fail, but the robot program is still stopped.

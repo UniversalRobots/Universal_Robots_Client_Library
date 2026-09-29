@@ -82,6 +82,9 @@ public:
    * or establish field types. RTDEClient::init() handles that setup for its writer.
    *
    * \param recipe_id The recipe id to use, so the robot correctly identifies the used recipe
+   *
+   * \throws UrException if the writer is already running or if the input buffers have not been
+   * typed with setRecipeTypes()
    */
   void init(uint8_t recipe_id);
   /*!
@@ -108,7 +111,8 @@ public:
    * \param package The package to send, constructed from the client's input recipe
    *
    * \returns Whether the pending buffer update was accepted, not confirmation of transmission or
-   * processing by the robot.
+   * processing by the robot. False if the writer is not running (not started, stopped or
+   * reconnecting); the pending buffer is then left unchanged.
    */
   bool sendPackage(const DataPackage& package);
 
@@ -133,7 +137,8 @@ public:
    *
    * \param speed_slider_fraction The new speed slider fraction as a value between 0.0 and 1.0
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendSpeedSlider(double speed_slider_fraction);
   /*!
@@ -142,7 +147,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendStandardDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -151,7 +157,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendConfigurableDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -160,7 +167,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendToolDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -172,7 +180,8 @@ public:
    * AnalogOutputType::SET_ON_TEACH_PENDANT. In the latter case the domain is left untouched and the domain configured
    * on the teach pendant will be used.
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendStandardAnalogOutput(uint8_t output_pin, double value,
                                 const AnalogOutputType type = AnalogOutputType::SET_ON_TEACH_PENDANT);
@@ -183,7 +192,8 @@ public:
    * \param register_id The id of the register that should be changed [64..127]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputBitRegister(uint32_t register_id, bool value);
 
@@ -193,7 +203,8 @@ public:
    * \param register_id The id of the register that should be changed [24..47]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputIntRegister(uint32_t register_id, int32_t value);
 
@@ -203,7 +214,8 @@ public:
    * \param register_id The id of the register that should be changed [24..47]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputDoubleRegister(uint32_t register_id, double value);
 
@@ -215,7 +227,8 @@ public:
    *
    * \param external_force_torque The new external force/torque as a vector6d_t
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
 

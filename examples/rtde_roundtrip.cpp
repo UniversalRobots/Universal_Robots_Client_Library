@@ -32,7 +32,6 @@
 #include <ur_client_library/primary/primary_client.h>
 #include <ur_client_library/rtde/rtde_client.h>
 
-#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <csignal>
@@ -89,11 +88,11 @@ const std::string MIRROR_PROGRAM = R"(def rtde_register_mirror():
 end)";
 
 // Cleared on Ctrl-C, so the main loop ends and the cleanup below still runs.
-std::atomic<bool> g_running{ true };
+volatile std::sig_atomic_t running = 1;
 
 void signalHandler(int /*signum*/)
 {
-  g_running = false;
+  running = 0;
 }
 
 // Reset the input registers and stop the robot program before leaving
@@ -176,7 +175,7 @@ int main(int argc, char* argv[])
   auto last_print = start_time;
   int exit_code = 0;
 
-  while (g_running &&
+  while (running &&
          (second_to_run <= 0 ||
           std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
               second_to_run))
@@ -185,7 +184,7 @@ int main(int argc, char* argv[])
     if (!my_client.getDataPackageBlocking(output_pkg))
     {
       // Ctrl-C interrupts the blocking read, which is a normal stop rather than an error.
-      if (!g_running)
+      if (!running)
       {
         break;
       }

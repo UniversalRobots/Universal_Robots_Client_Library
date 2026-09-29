@@ -130,6 +130,11 @@ void RTDEWriter::init(uint8_t recipe_id)
       throw UrException("Requesting to init a RTDEWriter while it is running. The writer has to be "
                         "stopped before initializing it.");
     }
+    if (!data_buffer0_->isTyped() || !data_buffer1_->isTyped())
+    {
+      throw UrException("Cannot start the RTDEWriter before the data types the robot acknowledged for the input "
+                        "recipe have been applied with setRecipeTypes().");
+    }
     data_buffer0_->setRecipeID(recipe_id);
     data_buffer1_->setRecipeID(recipe_id);
     current_store_buffer_ = data_buffer0_;
@@ -185,7 +190,7 @@ void RTDEWriter::stop()
 bool RTDEWriter::sendPackage(const DataPackage& package)
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  if (!current_store_buffer_->copyFrom(package))
+  if (!running_ || !current_store_buffer_->copyFrom(package))
   {
     return false;
   }
@@ -218,6 +223,10 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
   static const std::string key = "speed_slider_fraction";
   static const std::string mask_key = "speed_slider_mask";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint32_t mask = 1;
   bool success = true;
   success = current_store_buffer_->setData(mask_key, mask);
@@ -243,6 +252,10 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
   static const std::string key_mask = "standard_digital_output_mask";
   static const std::string key_output = "standard_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -278,6 +291,10 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
   static const std::string key_mask = "configurable_digital_output_mask";
   static const std::string key_output = "configurable_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -312,6 +329,10 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
   static const std::string key_mask = "tool_digital_output_mask";
   static const std::string key_output = "tool_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -351,6 +372,10 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
 
   bool success = true;
@@ -395,6 +420,10 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_bit_register_keys[register_id], value);
   if (success)
   {
@@ -415,6 +444,10 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_int_register_keys[register_id], value);
   if (success)
   {
@@ -435,6 +468,10 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_double_register_keys[register_id], value);
   if (success)
   {
@@ -448,6 +485,10 @@ bool RTDEWriter::sendExternalForceTorque(const vector6d_t& external_force_torque
 {
   static const std::string key = "external_force_torque";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(key, external_force_torque);
   if (success)
   {
