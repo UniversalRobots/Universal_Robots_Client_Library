@@ -45,10 +45,6 @@ using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
 
-// The fake-server fixture below binds a test port rather than the real primary one, which another
-// process on the host may already be using.
-constexpr int g_FAKE_PRIMARY_PORT = 60016;
-
 class RobotMessageConsumer : public comm::IConsumer<primary_interface::PrimaryPackage>
 {
 public:
@@ -106,8 +102,10 @@ class PrimaryClientFakeTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<FakePrimaryServer>(g_FAKE_PRIMARY_PORT);
-    client_ = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier_, g_FAKE_PRIMARY_PORT);
+    // Passing 0 makes bind() select an available port. A fixed port can already be in use, and
+    // TCPServer retries that bind forever.
+    server_ = std::make_unique<FakePrimaryServer>(0);
+    client_ = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier_, server_->getPort());
     EXPECT_NO_THROW(client_->start());
     EXPECT_TRUE(server_->waitForClient());
   }
