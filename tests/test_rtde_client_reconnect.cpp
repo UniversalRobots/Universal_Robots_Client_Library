@@ -40,6 +40,7 @@
 #include <thread>
 
 #include <ur_client_library/exceptions.h>
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/rtde/rtde_client.h>
 
@@ -147,6 +148,52 @@ TEST_F(RTDEClientReconnectTest, reconnects_when_the_server_comes_back_during_bac
   // Data has to actually flow again, not just the state having been restored
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   EXPECT_TRUE(client_->getDataPackage(data_pkg, std::chrono::milliseconds(100)));
+}
+
+// The deprecated overload returns a new package while reconnect retypes the client's output layout
+// on another thread, so the two must not share storage.
+// The race window is too narrow to hit reliably, even under ThreadSanitizer; this covers the
+// deprecated path staying usable across a reconnect.
+TEST_F(RTDEClientReconnectTest, deprecated_get_data_package_survives_a_reconnect)
+{
+  startServer();
+  makeClient();
+  ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
+  client_->start();
+
+  // Keep calling the deprecated overload the whole time, so calls overlap with the reconnect.
+  // Calls fail while the client is disconnected, which is expected and not checked here.
+  std::atomic<bool> keep_running{ true };
+  std::thread data_consumer([this, &keep_running]() {
+    while (keep_running)
+    {
+      URCL_SILENCE_DEPRECATED_BEGIN
+      std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(std::chrono::milliseconds(100));
+      URCL_SILENCE_DEPRECATED_END
+      if (!data_pkg)
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  server_.reset();
+  EXPECT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED)) << "the client did not notice the lost server";
+
+  startServer();
+  EXPECT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
+
+  keep_running = false;
+  data_consumer.join();
+
+  // After the reconnect, the returned package has to carry the renegotiated types, not just be non-null.
+  URCL_SILENCE_DEPRECATED_BEGIN
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(std::chrono::milliseconds(100));
+  URCL_SILENCE_DEPRECATED_END
+  ASSERT_NE(data_pkg, nullptr);
+  double timestamp = 0.0;
+  EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
 }
 
 // The same recovery, but for a client reading synchronously. reconnect() restores whichever read

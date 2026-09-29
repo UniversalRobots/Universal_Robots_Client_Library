@@ -768,13 +768,32 @@ std::vector<std::string> RTDEClient::ensureTimestampIsPresent(const std::vector<
 
 std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chrono::milliseconds timeout)
 {
-  if (getDataPackage(preallocated_data_pkg_, timeout))
+  // Don't touch preallocated_data_pkg_: reconnect() retypes it under reconnect_mutex_ only, which this
+  // path does not take. Read into a package owned by this call instead.
+  std::unique_ptr<rtde_interface::DataPackage> data_package;
   {
-    // Return a copy of the cached one
-    return std::make_unique<rtde_interface::DataPackage>(preallocated_data_pkg_);
+    // data_buffer0_ is only swapped under read_mutex_, and it already has the negotiated layout, so
+    // copying it gives a package that the read below can fill in without repairing it first.
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    if (auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get()))
+    {
+      data_package = std::make_unique<rtde_interface::DataPackage>(*latest);
+    }
   }
-
-  return std::unique_ptr<rtde_interface::DataPackage>(nullptr);
+  // The buffers only exist once background reading has been started.
+  if (data_package == nullptr)
+  {
+    URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
+                   "reading or use getDataPackageBlocking(...).");
+    return nullptr;
+  }
+  // A reconnect between the copy above and this read may change the layout; the reference overload
+  // repairs the package under read_mutex_ in that case, and also handles waiting and cancellation.
+  if (!getDataPackage(*data_package, timeout))
+  {
+    return nullptr;
+  }
+  return data_package;
 }
 
 void RTDEClient::ensureOutputLayout(DataPackage& data_package, const DataPackage& output_template) const
