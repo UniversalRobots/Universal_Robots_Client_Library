@@ -932,6 +932,22 @@ TEST_F(PrimaryParserTest, parse_error_code_report_levels)
   }
 }
 
+TEST(PrimaryPackageHeaderTest, get_package_length_from_unaligned_offset)
+{
+  // A one-byte prefix leaves the length on an odd address. Casting that pointer to int32_t is
+  // undefined behavior; getPackageLength() copies the bytes out before the endian swap.
+  constexpr int32_t length = 0x01020304;
+  std::vector<uint8_t> buffer = {
+    0xFF,
+    static_cast<uint8_t>((length >> 24) & 0xFF),
+    static_cast<uint8_t>((length >> 16) & 0xFF),
+    static_cast<uint8_t>((length >> 8) & 0xFF),
+    static_cast<uint8_t>(length & 0xFF),
+  };
+
+  EXPECT_EQ(primary_interface::PackageHeader::getPackageLength(buffer.data() + 1), static_cast<size_t>(length));
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
