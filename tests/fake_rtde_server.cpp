@@ -16,7 +16,7 @@ namespace
 // tests/resources/generate_rtde_outputs.py reads the output fields out of this table, so keep the
 // section comments below intact.
 // clang-format off
-const std::unordered_map<std::string, std::string> g_variable_types{
+const std::unordered_map<std::string, std::string> VARIABLE_TYPES{
   // INPUTS
   { "speed_slider_mask", "UINT32" },
   { "speed_slider_fraction", "DOUBLE" },
@@ -454,8 +454,8 @@ std::vector<std::string> variableTypesFor(const std::vector<std::string>& recipe
   types.reserve(recipe.size());
   for (const auto& name : recipe)
   {
-    const auto it = g_variable_types.find(name);
-    types.push_back(it == g_variable_types.end() ? "NOT_FOUND" : it->second);
+    const auto it = VARIABLE_TYPES.find(name);
+    types.push_back(it == VARIABLE_TYPES.end() ? "NOT_FOUND" : it->second);
   }
   return types;
 }

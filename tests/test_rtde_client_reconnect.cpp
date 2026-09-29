@@ -50,14 +50,14 @@ using namespace urcl;
 
 namespace
 {
-constexpr int g_FAKE_RTDE_PORT = 60007;
-constexpr double g_RTDE_FREQUENCY = 100.0;
+constexpr int FAKE_RTDE_PORT = 60007;
+constexpr double RTDE_FREQUENCY = 100.0;
 
-const std::vector<std::string> g_OUTPUT_RECIPE{ "timestamp", "actual_q", "target_speed_fraction", "runtime_state" };
-const std::vector<std::string> g_INPUT_RECIPE{ "speed_slider_mask", "speed_slider_fraction" };
+const std::vector<std::string> OUTPUT_RECIPE{ "timestamp", "actual_q", "target_speed_fraction", "runtime_state" };
+const std::vector<std::string> INPUT_RECIPE{ "speed_slider_mask", "speed_slider_fraction" };
 
 // How long to allow for a state transition that depends on the reconnect thread's retry timing.
-constexpr std::chrono::seconds g_STATE_CHANGE_TIMEOUT{ 10 };
+constexpr std::chrono::seconds STATE_CHANGE_TIMEOUT{ 10 };
 }  // namespace
 
 class RTDEClientReconnectTest : public ::testing::Test
@@ -77,7 +77,7 @@ protected:
    */
   void startServer()
   {
-    server_ = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
   }
 
@@ -85,8 +85,8 @@ protected:
   {
     // TCPServer listens on IPv4 only. Avoid an initial IPv6 connection attempt for localhost:
     // on Windows its fallback delay can exhaust the teardown stress test's timeout over 50 cycles.
-    client_ = std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, g_OUTPUT_RECIPE, g_INPUT_RECIPE,
-                                                           g_RTDE_FREQUENCY, false, g_FAKE_RTDE_PORT);
+    client_ = std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, OUTPUT_RECIPE, INPUT_RECIPE,
+                                                           RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
   }
 
   /*!
@@ -95,7 +95,7 @@ protected:
    */
   bool waitForState(const rtde_interface::ClientState expected)
   {
-    const auto deadline = std::chrono::steady_clock::now() + g_STATE_CHANGE_TIMEOUT;
+    const auto deadline = std::chrono::steady_clock::now() + STATE_CHANGE_TIMEOUT;
     while (std::chrono::steady_clock::now() < deadline)
     {
       if (client_->getClientState() == expected)
@@ -380,7 +380,7 @@ TEST_F(RTDEClientReconnectTest, reconnect_gives_up_when_the_handshake_keeps_fail
   // than assuming they finish within a fixed delay: reconnect() waits in 250 ms increments
   // even with a 50 ms initialization timeout, and scheduling can delay either attempt.
   const std::vector<uint16_t> expected_requests{ 2, 1, 2, 1 };
-  const auto deadline = std::chrono::steady_clock::now() + g_STATE_CHANGE_TIMEOUT;
+  const auto deadline = std::chrono::steady_clock::now() + STATE_CHANGE_TIMEOUT;
   while (server_->requestedProtocolVersions().size() < expected_requests.size() &&
          std::chrono::steady_clock::now() < deadline)
   {

@@ -58,7 +58,7 @@ constexpr struct
 {
   DataType type;
   std::string_view name;
-} g_type_names[] = {
+} TYPE_NAMES[] = {
   { DataType::BOOL, "BOOL" },
   { DataType::UINT8, "UINT8" },
   { DataType::UINT32, "UINT32" },
@@ -71,15 +71,15 @@ constexpr struct
   { DataType::VECTOR6UINT32, "VECTOR6UINT32" },
 };
 
-constexpr uint64_t g_FNV_OFFSET_BASIS = 14695981039346656037ULL;
-constexpr uint64_t g_FNV_PRIME = 1099511628211ULL;
+constexpr uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
+constexpr uint64_t FNV_PRIME = 1099511628211ULL;
 
 uint64_t fnv1a(uint64_t hash, const uint8_t* data, const size_t length)
 {
   for (size_t i = 0; i < length; ++i)
   {
     hash ^= data[i];
-    hash *= g_FNV_PRIME;
+    hash *= FNV_PRIME;
   }
   return hash;
 }
@@ -87,13 +87,13 @@ uint64_t fnv1a(uint64_t hash, const uint8_t* data, const size_t length)
 uint64_t fnv1aByte(uint64_t hash, const uint8_t value)
 {
   hash ^= value;
-  hash *= g_FNV_PRIME;
+  hash *= FNV_PRIME;
   return hash;
 }
 
 uint64_t hashRecipe(const std::vector<std::string>& recipe)
 {
-  uint64_t hash = g_FNV_OFFSET_BASIS;
+  uint64_t hash = FNV_OFFSET_BASIS;
   const uint64_t count = recipe.size();
   hash = fnv1a(hash, reinterpret_cast<const uint8_t*>(&count), sizeof(count));
   for (const auto& name : recipe)
@@ -210,7 +210,7 @@ DataPackage::_rtde_type_variant variantFor(const DataType type)
  */
 DataType typeFromName(const std::string_view type_name)
 {
-  for (const auto& entry : g_type_names)
+  for (const auto& entry : TYPE_NAMES)
   {
     if (entry.name == type_name)
     {
@@ -238,7 +238,7 @@ void copyValues(std::vector<DataPackage::_rtde_type_variant>& destination,
 
 std::string toString(const DataType type)
 {
-  for (const auto& entry : g_type_names)
+  for (const auto& entry : TYPE_NAMES)
   {
     if (entry.type == type)
     {

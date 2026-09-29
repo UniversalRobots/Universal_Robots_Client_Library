@@ -51,14 +51,14 @@ using namespace urcl;
 
 namespace
 {
-constexpr int g_FAKE_RTDE_PORT = 60006;
-constexpr double g_RTDE_FREQUENCY = 125.0;
+constexpr int FAKE_RTDE_PORT = 60006;
+constexpr double RTDE_FREQUENCY = 125.0;
 // The fake server answers the version query with 10.10.10.10, so the client takes the e-Series limit
-constexpr double g_MAX_FREQUENCY = 500.0;
-constexpr std::chrono::milliseconds g_READ_TIMEOUT{ 200 };
+constexpr double MAX_FREQUENCY = 500.0;
+constexpr std::chrono::milliseconds READ_TIMEOUT{ 200 };
 
-const std::vector<std::string> g_OUTPUT_RECIPE{ "timestamp", "actual_q", "target_speed_fraction", "runtime_state" };
-const std::vector<std::string> g_INPUT_RECIPE{ "speed_slider_mask", "speed_slider_fraction" };
+const std::vector<std::string> OUTPUT_RECIPE{ "timestamp", "actual_q", "target_speed_fraction", "runtime_state" };
+const std::vector<std::string> INPUT_RECIPE{ "speed_slider_mask", "speed_slider_fraction" };
 }  // namespace
 
 class RTDEClientFakeServerTest : public ::testing::Test
@@ -66,10 +66,10 @@ class RTDEClientFakeServerTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
-    client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+    client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
   }
 
   void TearDown() override
@@ -84,7 +84,7 @@ protected:
                                                          bool ignore_unavailable_outputs = false)
   {
     return std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, output_recipe, input_recipe,
-                                                        target_frequency, ignore_unavailable_outputs, g_FAKE_RTDE_PORT);
+                                                        target_frequency, ignore_unavailable_outputs, FAKE_RTDE_PORT);
   }
 
   void expectFailedNegotiationThenRecovery()
@@ -102,8 +102,8 @@ protected:
     server_->setInputTypeReply(std::nullopt);
     ASSERT_TRUE(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
     ASSERT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
-    EXPECT_EQ(client_->getOutputRecipe(), g_OUTPUT_RECIPE);
-    EXPECT_EQ(client_->getInputRecipe(), g_INPUT_RECIPE);
+    EXPECT_EQ(client_->getOutputRecipe(), OUTPUT_RECIPE);
+    EXPECT_EQ(client_->getInputRecipe(), INPUT_RECIPE);
 
     auto input = client_->createInputDataPackage();
     EXPECT_TRUE(input.isTyped());
@@ -113,7 +113,7 @@ protected:
     EXPECT_FALSE(input.setData("speed_slider_mask", uint8_t(1)));
 
     ASSERT_TRUE(client_->start(true));
-    rtde_interface::DataPackage output(g_OUTPUT_RECIPE);
+    rtde_interface::DataPackage output(OUTPUT_RECIPE);
     ASSERT_TRUE(client_->getDataPackage(output, std::chrono::seconds(1)));
     EXPECT_TRUE(output.isTyped());
     EXPECT_EQ(output.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
@@ -143,15 +143,15 @@ TEST_F(RTDEClientFakeServerTest, get_ip)
 
 TEST_F(RTDEClientFakeServerTest, recipes_are_reported_as_given)
 {
-  EXPECT_EQ(client_->getOutputRecipe(), g_OUTPUT_RECIPE);
-  EXPECT_EQ(client_->getInputRecipe(), g_INPUT_RECIPE);
+  EXPECT_EQ(client_->getOutputRecipe(), OUTPUT_RECIPE);
+  EXPECT_EQ(client_->getInputRecipe(), INPUT_RECIPE);
 }
 
 // The client needs the timestamp to tell whether the robot has finished booting, so it adds the
 // field to recipes that don't ask for it.
 TEST_F(RTDEClientFakeServerTest, timestamp_is_added_to_the_output_recipe)
 {
-  auto client = makeClient({ "actual_q" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+  auto client = makeClient({ "actual_q" }, INPUT_RECIPE, RTDE_FREQUENCY);
 
   const std::vector<std::string> expected_recipe{ "actual_q", "timestamp" };
   EXPECT_EQ(client->getOutputRecipe(), expected_recipe);
@@ -319,7 +319,7 @@ TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
 
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
   double timestamp = 0.0;
   EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
   EXPECT_GT(timestamp, 0.0);
@@ -336,7 +336,7 @@ TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
 // first and drop the rest, which is what made a pause request vanish after a burst of input data.
 TEST_F(RTDEClientFakeServerTest, two_requests_in_one_write_are_both_recorded)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("localhost", g_FAKE_RTDE_PORT);
+  comm::URStream<rtde_interface::RTDEPackage> stream("localhost", FAKE_RTDE_PORT);
   ASSERT_TRUE(stream.connect(1, std::chrono::milliseconds(100)));
 
   uint8_t buffer[16];
@@ -397,9 +397,9 @@ TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period)
 {
   client_.reset();
   server_.reset();
-  server_ = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+  server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
   const double bootup_frequency = 2.0;
-  client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, bootup_frequency);
+  client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, bootup_frequency);
 
   ASSERT_TRUE(client_->init());
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
@@ -451,12 +451,12 @@ TEST_F(RTDEClientFakeServerTest, init_fails_when_setup_inputs_never_gets_an_ackn
 
 TEST_F(RTDEClientFakeServerTest, target_frequency_defaults_to_the_maximum)
 {
-  auto client = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, 0.0);
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, 0.0);
   EXPECT_EQ(client->getTargetFrequency(), 0.0);
 
   ASSERT_TRUE(client->init());
 
-  EXPECT_EQ(client->getMaxFrequency(), g_MAX_FREQUENCY);
+  EXPECT_EQ(client->getMaxFrequency(), MAX_FREQUENCY);
   EXPECT_EQ(client->getTargetFrequency(), client->getMaxFrequency());
 }
 
@@ -464,13 +464,13 @@ TEST_F(RTDEClientFakeServerTest, configured_target_frequency_is_kept)
 {
   ASSERT_TRUE(client_->init());
 
-  EXPECT_EQ(client_->getMaxFrequency(), g_MAX_FREQUENCY);
-  EXPECT_EQ(client_->getTargetFrequency(), g_RTDE_FREQUENCY);
+  EXPECT_EQ(client_->getMaxFrequency(), MAX_FREQUENCY);
+  EXPECT_EQ(client_->getTargetFrequency(), RTDE_FREQUENCY);
 }
 
 TEST_F(RTDEClientFakeServerTest, target_frequency_outside_the_robots_range_throws)
 {
-  auto too_low = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, -1.0);
+  auto too_low = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, -1.0);
   EXPECT_THROW(too_low->init(), UrException);
   EXPECT_EQ(too_low->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
   // A thrown init() must leave the client usable for another attempt, not stuck INITIALIZING.
@@ -479,14 +479,14 @@ TEST_F(RTDEClientFakeServerTest, target_frequency_outside_the_robots_range_throw
   // The fake server allows only one client; drop the first connection before opening another.
   too_low.reset();
 
-  auto too_high = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_MAX_FREQUENCY + 1.0);
+  auto too_high = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, MAX_FREQUENCY + 1.0);
   EXPECT_THROW(too_high->init(), UrException);
   EXPECT_EQ(too_high->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
 }
 
 TEST_F(RTDEClientFakeServerTest, unknown_field_is_accepted_by_the_constructor)
 {
-  EXPECT_NO_THROW(makeClient({ "timestamp", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY));
+  EXPECT_NO_THROW(makeClient({ "timestamp", "not_a_field_the_robot_knows" }, INPUT_RECIPE, RTDE_FREQUENCY));
 }
 
 TEST_F(RTDEClientFakeServerTest, receive_with_background_read)
@@ -495,7 +495,7 @@ TEST_F(RTDEClientFakeServerTest, receive_with_background_read)
   ASSERT_TRUE(client_->start(true));
 
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   double timestamp = 0.0;
   ASSERT_TRUE(data_pkg.getData("timestamp", timestamp));
@@ -514,7 +514,7 @@ TEST_F(RTDEClientFakeServerTest, receive_with_background_read_into_a_unique_ptr)
   ASSERT_TRUE(client_->start(true));
 
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   double timestamp = 0.0;
   ASSERT_TRUE(data_pkg->getData("timestamp", timestamp));
@@ -537,7 +537,7 @@ TEST_F(RTDEClientFakeServerTest, receive_without_background_read)
 
   // Without the background thread there is nothing for the non-blocking overload to read from
   rtde_interface::DataPackage other_pkg(client_->getOutputRecipe());
-  EXPECT_FALSE(client_->getDataPackage(other_pkg, g_READ_TIMEOUT));
+  EXPECT_FALSE(client_->getDataPackage(other_pkg, READ_TIMEOUT));
 
   client_->pause();
 }
@@ -577,7 +577,7 @@ TEST_F(RTDEClientFakeServerTest, the_first_background_read_types_the_package)
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   ASSERT_FALSE(data_pkg.isTyped());
 
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   EXPECT_TRUE(data_pkg.isTyped());
   EXPECT_EQ(data_pkg.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
@@ -602,13 +602,13 @@ TEST_F(RTDEClientFakeServerTest, receiving_into_a_foreign_recipe_is_repaired)
   ASSERT_TRUE(client_->start(true));
 
   rtde_interface::DataPackage other_foreign_pkg({ "timestamp" });
-  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, READ_TIMEOUT));
   EXPECT_EQ(other_foreign_pkg.getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
-  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(other_foreign_pkg, READ_TIMEOUT));
 
   foreign_pkg = std::make_unique<rtde_interface::DataPackage>(std::vector<std::string>{ "timestamp" });
   original = foreign_pkg.get();
-  ASSERT_TRUE(client_->getDataPackage(foreign_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(foreign_pkg, READ_TIMEOUT));
   EXPECT_EQ(foreign_pkg.get(), original);
   EXPECT_EQ(foreign_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
 
@@ -629,7 +629,7 @@ TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_allocates_one)
   client_->pause();
   ASSERT_TRUE(client_->start(true));
   data_pkg.reset();
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
   ASSERT_NE(data_pkg, nullptr);
   EXPECT_TRUE(data_pkg->isTyped());
   EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
@@ -792,12 +792,12 @@ TEST_F(RTDEClientFakeServerTest, unavailable_reads_leave_an_empty_pointer_untouc
   std::unique_ptr<rtde_interface::DataPackage> data_pkg;
   EXPECT_FALSE(client_->getDataPackageBlocking(data_pkg));
   EXPECT_EQ(data_pkg, nullptr);
-  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
   EXPECT_EQ(data_pkg, nullptr);
 
   ASSERT_TRUE(client_->init());
   ASSERT_TRUE(client_->start(false));
-  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
   EXPECT_EQ(data_pkg, nullptr);
   client_->pause();
 }
@@ -808,13 +808,13 @@ TEST_F(RTDEClientFakeServerTest, background_read_can_be_stopped_and_started)
   ASSERT_TRUE(client_->start(true));
 
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   client_->stopBackgroundRead();
-  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   client_->startBackgroundRead();
-  EXPECT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   client_->pause();
 }
@@ -824,7 +824,7 @@ TEST_F(RTDEClientFakeServerTest, background_read_before_init_is_refused)
   client_->startBackgroundRead();
 
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  EXPECT_FALSE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_FALSE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 }
 
 TEST_F(RTDEClientFakeServerTest, deprecated_get_data_package_returns_a_usable_package)
@@ -833,7 +833,7 @@ TEST_F(RTDEClientFakeServerTest, deprecated_get_data_package_returns_a_usable_pa
   ASSERT_TRUE(client_->start(true));
 
   URCL_SILENCE_DEPRECATED_BEGIN
-  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(g_READ_TIMEOUT);
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg = client_->getDataPackage(READ_TIMEOUT);
   URCL_SILENCE_DEPRECATED_END
 
   ASSERT_NE(data_pkg, nullptr);
@@ -852,7 +852,7 @@ TEST_F(RTDEClientFakeServerTest, received_package_rejects_a_wrong_get_data_type)
   ASSERT_TRUE(client_->start(true));
 
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
 
   uint32_t timestamp_as_int = 0;
   EXPECT_THROW(data_pkg.getData("timestamp", timestamp_as_int), std::bad_variant_access);
@@ -900,7 +900,7 @@ TEST_F(RTDEClientFakeServerTest, write_and_read_back_input_data)
   double target_speed_fraction = 0.0;
   for (int i = 0; i < 20 && target_speed_fraction == 0.0; ++i)
   {
-    ASSERT_TRUE(client_->getDataPackage(data_pkg, g_READ_TIMEOUT));
+    ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
     ASSERT_TRUE(data_pkg.getData("target_speed_fraction", target_speed_fraction));
   }
   EXPECT_DOUBLE_EQ(target_speed_fraction, 0.25);
@@ -957,7 +957,7 @@ TEST_F(RTDEClientFakeServerTest, disconnection_wait_tracks_each_connection)
     client_.reset();
     ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
     EXPECT_TRUE(server_->waitForDisconnection(std::chrono::milliseconds(0)));
-    client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+    client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
   }
 }
 
@@ -977,7 +977,7 @@ TEST_F(RTDEClientFakeServerTest, repeated_output_negotiation_failures_recover)
     ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
     client_.reset();
     ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
-    client_ = makeClient(g_OUTPUT_RECIPE, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+    client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
   }
 }
 
@@ -991,7 +991,7 @@ TEST_F(RTDEClientFakeServerTest, input_in_use_exhausts_retries_then_recovers)
 
 TEST_F(RTDEClientFakeServerTest, unknown_output_field_throws)
 {
-  auto client = makeClient({ "timestamp", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY);
+  auto client = makeClient({ "timestamp", "not_a_field_the_robot_knows" }, INPUT_RECIPE, RTDE_FREQUENCY);
 
   EXPECT_THROW(client->init(), RTDEInvalidKeyException);
   EXPECT_EQ(client->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
@@ -1001,7 +1001,7 @@ TEST_F(RTDEClientFakeServerTest, unknown_output_field_throws)
 TEST_F(RTDEClientFakeServerTest, unknown_output_field_can_be_ignored)
 {
   auto client =
-      makeClient({ "timestamp", "actual_q", "not_a_field_the_robot_knows" }, g_INPUT_RECIPE, g_RTDE_FREQUENCY, true);
+      makeClient({ "timestamp", "actual_q", "not_a_field_the_robot_knows" }, INPUT_RECIPE, RTDE_FREQUENCY, true);
 
   ASSERT_TRUE(client->init());
 
@@ -1010,7 +1010,7 @@ TEST_F(RTDEClientFakeServerTest, unknown_output_field_can_be_ignored)
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
-  EXPECT_TRUE(client->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
 
   client->pause();
 }
@@ -1019,8 +1019,8 @@ TEST_F(RTDEClientFakeServerTest, unknown_output_field_can_be_ignored)
 // stripped when ignore_unavailable_outputs is set.
 TEST_F(RTDEClientFakeServerTest, ignore_unavailable_outputs_strips_a_typo_and_an_unknown_newer_field)
 {
-  auto client = makeClient({ "timestamp", "actual_q", "typo_output", "field_of_a_newer_robot" }, g_INPUT_RECIPE,
-                           g_RTDE_FREQUENCY, true);
+  auto client = makeClient({ "timestamp", "actual_q", "typo_output", "field_of_a_newer_robot" }, INPUT_RECIPE,
+                           RTDE_FREQUENCY, true);
 
   ASSERT_TRUE(client->init());
 
@@ -1030,7 +1030,7 @@ TEST_F(RTDEClientFakeServerTest, ignore_unavailable_outputs_strips_a_typo_and_an
 
 TEST_F(RTDEClientFakeServerTest, unknown_input_field_throws)
 {
-  auto client = makeClient(g_OUTPUT_RECIPE, { "not_a_field_the_robot_knows" }, g_RTDE_FREQUENCY);
+  auto client = makeClient(OUTPUT_RECIPE, { "not_a_field_the_robot_knows" }, RTDE_FREQUENCY);
 
   EXPECT_THROW(client->init(), RTDEInvalidKeyException);
   EXPECT_EQ(client->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
@@ -1046,14 +1046,14 @@ TEST_F(RTDEClientFakeServerTest, create_input_data_package_before_init_throws)
 
 TEST_F(RTDEClientFakeServerTest, empty_input_recipe_does_not_start_the_writer)
 {
-  auto client = makeClient(g_OUTPUT_RECIPE, {}, g_RTDE_FREQUENCY);
+  auto client = makeClient(OUTPUT_RECIPE, {}, RTDE_FREQUENCY);
 
   ASSERT_TRUE(client->init());
   EXPECT_THROW(client->createInputDataPackage(), UrException);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
-  EXPECT_TRUE(client->getDataPackage(data_pkg, g_READ_TIMEOUT));
+  EXPECT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
   double timestamp = 0.0;
   EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
 
@@ -1063,20 +1063,18 @@ TEST_F(RTDEClientFakeServerTest, empty_input_recipe_does_not_start_the_writer)
 TEST_F(RTDEClientFakeServerTest, recipe_files)
 {
   EXPECT_NO_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
-                                             "resources/rtde_input_recipe.txt", g_RTDE_FREQUENCY, false,
-                                             g_FAKE_RTDE_PORT));
+                                             "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT));
 
-  EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "", "resources/rtde_input_recipe.txt",
-                                          g_RTDE_FREQUENCY, false, g_FAKE_RTDE_PORT),
+  EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "", "resources/rtde_input_recipe.txt", RTDE_FREQUENCY,
+                                          false, FAKE_RTDE_PORT),
                UrException);
 
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/empty.txt",
-                                          "resources/rtde_input_recipe.txt", g_RTDE_FREQUENCY, false, g_FAKE_RTDE_PORT),
+                                          "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT),
                UrException);
 
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
-                                          "/i/do/not/exist/urclrtdetest.txt", g_RTDE_FREQUENCY, false,
-                                          g_FAKE_RTDE_PORT),
+                                          "/i/do/not/exist/urclrtdetest.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT),
                UrException);
 }
 

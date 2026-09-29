@@ -56,16 +56,16 @@ namespace
 // Blocking receive covers parsing on this thread. Background receive and input submission measure
 // the calling thread (copying the latest sample / copying into the store buffer); parsing and
 // serialization themselves are covered by the same-thread tests below.
-thread_local std::size_t g_allocation_count = 0;
-thread_local bool g_count_allocations = false;
+thread_local std::size_t allocation_count = 0;
+thread_local bool count_allocations = false;
 // Stores the pointer from the guard allocation so the compiler cannot prove the new/delete pair
 // is unused and omit the call to the replaced operator new (GCC's allocation DCE at -O2).
-void* volatile g_allocation_sink = nullptr;
+void* volatile allocation_sink = nullptr;
 
-constexpr int g_FAKE_RTDE_PORT = 60005;
-constexpr double g_RTDE_FREQUENCY = 125.0;
-constexpr int g_WARMUP_CYCLES = 10;
-constexpr int g_MEASURED_CYCLES = 50;
+constexpr int FAKE_RTDE_PORT = 60005;
+constexpr double RTDE_FREQUENCY = 125.0;
+constexpr int WARMUP_CYCLES = 10;
+constexpr int MEASURED_CYCLES = 50;
 
 /*!
  * \brief Counts the allocations made on the current thread for as long as it is alive.
@@ -75,18 +75,18 @@ class AllocationCounter
 public:
   AllocationCounter()
   {
-    g_allocation_count = 0;
-    g_count_allocations = true;
+    allocation_count = 0;
+    count_allocations = true;
   }
 
   ~AllocationCounter()
   {
-    g_count_allocations = false;
+    count_allocations = false;
   }
 
   std::size_t count() const
   {
-    return g_allocation_count;
+    return allocation_count;
   }
 };
 }  // namespace
@@ -100,9 +100,9 @@ public:
 
 void* operator new(std::size_t size)
 {
-  if (g_count_allocations)
+  if (count_allocations)
   {
-    ++g_allocation_count;
+    ++allocation_count;
   }
   void* memory = std::malloc(size == 0 ? 1 : size);
   if (memory == nullptr)
@@ -139,9 +139,9 @@ void operator delete[](void* memory, std::size_t) noexcept
 
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
-  if (g_count_allocations)
+  if (count_allocations)
   {
-    ++g_allocation_count;
+    ++allocation_count;
   }
   return std::malloc(size == 0 ? 1 : size);
 }
@@ -186,10 +186,10 @@ TEST(AllocationCounterTest, counts_allocations)
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    g_allocation_sink = ::operator new(sizeof(int));
+    allocation_sink = ::operator new(sizeof(int));
     allocations = counter.count();
-    ::operator delete(g_allocation_sink);
-    g_allocation_sink = nullptr;
+    ::operator delete(allocation_sink);
+    allocation_sink = nullptr;
   }
   EXPECT_GT(allocations, 0);
 }
@@ -411,12 +411,12 @@ class RTDEAllocationTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<RTDEServer>(g_FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
 
     client_ = std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, output_recipe_, input_recipe_,
-                                                           g_RTDE_FREQUENCY, false, g_FAKE_RTDE_PORT);
+                                                           RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
     ASSERT_TRUE(client_->init());
   }
 
@@ -449,7 +449,7 @@ TEST_F(RTDEAllocationTest, blocking_receive_does_not_allocate)
 
   // The first warm-up read applies the negotiated types to this recipe-only package.
   // The remaining cycles let every buffer along the way reach its final capacity.
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getDataPackageBlocking(data_pkg));
   }
@@ -463,7 +463,7 @@ TEST_F(RTDEAllocationTest, blocking_receive_does_not_allocate)
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    for (int i = 0; i < g_MEASURED_CYCLES; ++i)
+    for (int i = 0; i < MEASURED_CYCLES; ++i)
     {
       if (!client_->getDataPackageBlocking(data_pkg))
       {
@@ -494,7 +494,7 @@ TEST_F(RTDEAllocationTest, typing_a_package_on_the_first_read_does_not_allocate)
 
   // Warm up on a package of its own so the measured read is the first one for data_pkg
   auto warmup_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getDataPackageBlocking(warmup_pkg));
   }
@@ -524,7 +524,7 @@ TEST_F(RTDEAllocationTest, repairing_wrong_types_on_the_first_read_does_not_allo
   ASSERT_TRUE(client_->start(false));
 
   auto warmup_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getDataPackageBlocking(warmup_pkg));
   }
@@ -572,7 +572,7 @@ TEST_F(RTDEAllocationTest, copying_the_latest_background_package_does_not_alloca
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   const std::chrono::milliseconds read_timeout{ 100 };
 
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
   }
@@ -583,7 +583,7 @@ TEST_F(RTDEAllocationTest, copying_the_latest_background_package_does_not_alloca
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    for (int i = 0; i < g_MEASURED_CYCLES; ++i)
+    for (int i = 0; i < MEASURED_CYCLES; ++i)
     {
       if (!client_->getDataPackage(data_pkg, read_timeout))
       {
@@ -612,7 +612,7 @@ TEST_F(RTDEAllocationTest, copying_input_data_into_the_store_buffer_does_not_all
   rtde_interface::DataPackage input_pkg = client_->createInputDataPackage();
   ASSERT_TRUE(input_pkg.setData("speed_slider_mask", static_cast<uint32_t>(1)));
 
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getWriter().sendSpeedSlider(0.5));
   }
@@ -621,7 +621,7 @@ TEST_F(RTDEAllocationTest, copying_input_data_into_the_store_buffer_does_not_all
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    for (int i = 0; i < g_MEASURED_CYCLES; ++i)
+    for (int i = 0; i < MEASURED_CYCLES; ++i)
     {
       all_sent &= input_pkg.setData("speed_slider_fraction", 0.5);
       all_sent &= client_->getWriter().sendPackage(input_pkg);
@@ -644,7 +644,7 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   rtde_interface::DataPackage input_pkg(client_->getInputRecipe());
   ASSERT_TRUE(input_pkg.setData("speed_slider_fraction", 0.5));
 
-  for (int i = 0; i < g_WARMUP_CYCLES; ++i)
+  for (int i = 0; i < WARMUP_CYCLES; ++i)
   {
     ASSERT_TRUE(client_->getWriter().sendPackage(input_pkg));
   }
@@ -653,7 +653,7 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    for (int i = 0; i < g_MEASURED_CYCLES; ++i)
+    for (int i = 0; i < MEASURED_CYCLES; ++i)
     {
       all_sent &= client_->getWriter().sendPackage(input_pkg);
     }
