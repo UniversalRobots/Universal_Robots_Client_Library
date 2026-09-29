@@ -42,11 +42,6 @@ namespace urcl
 {
 namespace primary_interface
 {
-PrimaryClient::PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier)
-  : PrimaryClient(robot_ip, notifier, UR_PRIMARY_PORT)
-{
-}
-
 PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier, const int port)
   : stream_(robot_ip, port)
 {
