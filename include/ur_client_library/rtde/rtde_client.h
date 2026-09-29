@@ -217,13 +217,13 @@ public:
    *
    * This function will block until a new data package is received from the robot and return it.
    *
-   * With start(false), calling this at the start of each loop iteration can pace application work
-   * at the negotiated RTDE output frequency: when no data is buffered, packet arrival releases
-   * the wait. Already buffered packages can return immediately, so the application must keep up
-   * with the stream to avoid lag. Network and scheduling jitter still apply; this does not guarantee
-   * phase synchronization with the robot's internal control cycle or next-cycle command delivery.
-   * getDataPackage() with background reading can also pace a loop, but favors the latest sample
-   * and decouples socket reading from application work.
+   * With \ref urcl::rtde_interface::RTDEClient::start(bool) "start(false)", calling this at the start
+   * of each loop iteration can pace application work at the negotiated RTDE output frequency: when
+   * no data is buffered, packet arrival releases the wait. Already buffered packages can return
+   * immediately, so the application must keep up with the stream to avoid lag. Network and scheduling
+   * jitter still apply; this does not guarantee phase synchronization with the robot's internal
+   * control cycle or next-cycle command delivery. getDataPackage() with background reading can also
+   * pace a loop, but favors the latest sample and decouples socket reading from application work.
    *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
    * For optimal performance, the data package pointer should contain a pre-allocated data package

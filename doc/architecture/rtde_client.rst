@@ -47,7 +47,7 @@ the :ref:`rtde_client_example` for an example of the blocking read method.
   ``getDataPackage()`` and ``getDataPackageBlocking()`` does not allocate.
 
   **Still supported, but not recommended:** The older flow that lets the client allocate a
-  package remains available for compatibility. The deprecated ``getDataPackage(timeout)``
+  package remains available for compatibility. The deprecated ``std::unique_ptr<rtde_interface::DataPackage> getDataPackage(timeout)``
   overload allocates a new package on each call, and passing a null unique pointer to either
   read method also allocates a package. Passing a package with a foreign recipe is supported
   through automatic repair, which may allocate. The null-pointer and foreign-recipe paths log
