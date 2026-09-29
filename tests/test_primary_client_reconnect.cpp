@@ -179,7 +179,12 @@ TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
 
   // Restart-reuse check: bring up a fresh server and start() again. This must reconnect,
   // proving that the deliberate-stop state set by stop() was cleared by connect() on restart.
-  auto server2 = std::make_unique<FakePrimaryServer>(port);
+  // The port was free while the client was stopped, so another process may own it, and some
+  // platforms cannot rebind it immediately. A finite retry count makes that failure end the test
+  // instead of hanging in TCPServer's unlimited bind loop.
+  std::unique_ptr<FakePrimaryServer> server2;
+  ASSERT_NO_THROW(server2 =
+                      std::make_unique<FakePrimaryServer>(port, /*max_num_tries=*/5, std::chrono::milliseconds(100)));
   ASSERT_NO_THROW(client->start(/*max_num_tries=*/0, large_reconnect_timeout));
   EXPECT_TRUE(server2->waitForClient(std::chrono::seconds(3))) << "PrimaryClient did not reconnect after "
                                                                   "stop()/start() — the deliberate-stop state set by "
