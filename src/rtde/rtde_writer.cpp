@@ -139,11 +139,19 @@ void RTDEWriter::init(uint8_t recipe_id)
     data_buffer1_->setRecipeID(recipe_id);
     current_store_buffer_ = data_buffer0_;
     current_send_buffer_ = data_buffer1_;
+    recipe_id_ = recipe_id;
+    new_data_available_ = false;
     running_ = true;
+    try
+    {
+      writer_thread_ = std::thread(&RTDEWriter::run, this);
+    }
+    catch (...)
+    {
+      running_ = false;
+      throw;
+    }
   }
-  recipe_id_ = recipe_id;
-  new_data_available_ = false;
-  writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
 
 void RTDEWriter::run()
