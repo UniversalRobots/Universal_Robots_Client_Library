@@ -117,7 +117,7 @@ public:
   /*!
    * \brief The type a data field can hold.
    *
-   * The typed alternatives are exactly the members of DataType. std::monostate is the state of a
+   * The typed alternatives are exactly the members of rtde_interface::DataType. std::monostate is the state of a
    * field whose type isn't decided yet, which is how a package constructed from a recipe alone
    * starts out.
    */
@@ -397,6 +397,8 @@ public:
 
   /*!
    * \brief Resets a data field to a default-constructed value of its own type.
+   * 
+   * Use initEmpty() to reset all data fields at once.
    *
    * \param name The string identifier for the data field as used in the documentation.
    *
