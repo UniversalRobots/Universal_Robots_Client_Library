@@ -32,8 +32,10 @@
 #include <ur_client_library/primary/primary_client.h>
 #include <ur_client_library/rtde/rtde_client.h>
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
+#include <csignal>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -86,6 +88,33 @@ const std::string MIRROR_PROGRAM = R"(def rtde_register_mirror():
   end
 end)";
 
+// Cleared on Ctrl-C, so the main loop ends and the cleanup below still runs.
+std::atomic<bool> g_running{ true };
+
+void signalHandler(int /*signum*/)
+{
+  g_running = false;
+}
+
+// Reset the input registers and stop the robot program before leaving
+void cleanup(rtde_interface::RTDEClient& rtde_client, rtde_interface::DataPackage& input_pkg,
+             primary_interface::PrimaryClient& primary_client)
+{
+  input_pkg.setData(INPUT_BIT_REGISTER, false);
+  input_pkg.setData(INPUT_INT_REGISTER, static_cast<int32_t>(0));
+  input_pkg.setData(INPUT_DOUBLE_REGISTER, 0.0);
+  rtde_client.getWriter().sendPackage(input_pkg);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  try
+  {
+    primary_client.commandStop(false);
+  }
+  catch (const UrException& e)
+  {
+    URCL_LOG_WARN("Could not stop the robot program: %s", e.what());
+  }
+}
+
 int main(int argc, char* argv[])
 {
   // Parse the ip arguments if given
@@ -101,6 +130,8 @@ int main(int argc, char* argv[])
   {
     second_to_run = std::stoi(argv[2]);
   }
+
+  std::signal(SIGINT, signalHandler);
 
   comm::INotifier notifier;
 
@@ -143,16 +174,24 @@ int main(int argc, char* argv[])
   int32_t last_lag_cycles = 0;
   auto start_time = std::chrono::steady_clock::now();
   auto last_print = start_time;
+  int exit_code = 0;
 
-  while (second_to_run <= 0 ||
-         std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
-             second_to_run)
+  while (g_running &&
+         (second_to_run <= 0 ||
+          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
+              second_to_run))
   {
     // The blocking read is this loop's clock
     if (!my_client.getDataPackageBlocking(output_pkg))
     {
+      // Ctrl-C interrupts the blocking read, which is a normal stop rather than an error.
+      if (!g_running)
+      {
+        break;
+      }
       URCL_LOG_ERROR("Could not get a fresh data package from the robot.");
-      return 1;
+      exit_code = 1;
+      break;
     }
     const auto now = std::chrono::steady_clock::now();
 
@@ -167,7 +206,8 @@ int main(int argc, char* argv[])
         !output_pkg->getData("runtime_state", runtime_state))
     {
       URCL_LOG_ERROR("Could not read the output registers from the received package.");
-      return 1;
+      exit_code = 1;
+      break;
     }
 
     bool verified_this_cycle = false;
@@ -202,7 +242,8 @@ int main(int argc, char* argv[])
     if (!write_ok || !my_client.getWriter().sendPackage(input_pkg))
     {
       URCL_LOG_ERROR("Sending RTDE data failed.");
-      return 1;
+      exit_code = 1;
+      break;
     }
 
     if (now - last_print >= std::chrono::seconds(1))
@@ -228,20 +269,6 @@ int main(int argc, char* argv[])
   URCL_LOG_INFO("Cycles: %zu, average frequency: %f Hz, verified: %zu, mismatches: %zu, last lag: %d cycles", cycles,
                 average_hz, verified, mismatches, last_lag_cycles);
 
-  // Reset the input registers before leaving
-  input_pkg.setData(INPUT_BIT_REGISTER, false);
-  input_pkg.setData(INPUT_INT_REGISTER, static_cast<int32_t>(0));
-  input_pkg.setData(INPUT_DOUBLE_REGISTER, 0.0);
-  my_client.getWriter().sendPackage(input_pkg);
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  try
-  {
-    primary_client.commandStop(false);
-  }
-  catch (const UrException& e)
-  {
-    URCL_LOG_WARN("Could not stop the robot program: %s", e.what());
-  }
-
-  return 0;
+  cleanup(my_client, input_pkg, primary_client);
+  return exit_code;
 }

@@ -47,10 +47,11 @@ the :ref:`rtde_client_example` for an example of the blocking read method.
   ``getDataPackage()`` and ``getDataPackageBlocking()`` does not allocate.
 
   **Still supported, but not recommended:** The older flow that lets the client allocate a
-  package remains available for compatibility. The deprecated ``std::unique_ptr<rtde_interface::DataPackage> getDataPackage(timeout)``
-  overload allocates a new package on each call, and passing a null unique pointer to either
-  read method also allocates a package. Passing a package with a foreign recipe is supported
-  through automatic repair, which may allocate. The null-pointer and foreign-recipe paths log
+  package remains available for compatibility. The
+  ``std::unique_ptr<rtde_interface::DataPackage> getDataPackage(timeout)`` overload (Deprecated,
+  use ``getDataPackage(DataPackage&, timeout)`` instead) allocates a new package on each call, and
+  passing a null unique pointer to either read method also allocates a package. Passing a package
+  with a foreign recipe is supported through automatic repair, which may allocate. The null-pointer and foreign-recipe paths log
   warnings; these warn about allocation, not unsupported usage. Prefer a reusable, matching-recipe
   package for new code, especially in real-time loops.
 
@@ -85,19 +86,32 @@ following will work
 Reading data
 ------------
 
-After calling ``my_client.start()``, data can be read from the
-``RTDEClient`` by calling ``getDataPackage()`` (with background thread running) or ``getDataPackageBlocking()`` (without background thread running) respectively.
+After calling ``my_client.start()``, data can be read from the ``RTDEClient``. Which read method
+to use depends on how the client was started:
+
+With background reading, ``start(true)`` (the default):
+
+- ``bool getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)``:
+  copies the latest package received by the background reader thread into the caller's package.
+- ``bool getDataPackage(std::unique_ptr<DataPackage>& data_package, std::chrono::milliseconds timeout)``:
+  same, for a caller-owned pointer; a null pointer is allocated (with a warning) only on success.
+- ``std::unique_ptr<DataPackage> getDataPackage(std::chrono::milliseconds timeout)``
+  (Deprecated, use ``getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout)``
+  instead): allocates a new package on every call. It will be removed in May 2027.
+
+Without background reading, ``start(false)``:
+
+- ``bool getDataPackageBlocking(std::unique_ptr<DataPackage>& data_package)``:
+  waits for the next package from the robot and parses it straight into the caller's package.
+
+Calling a method from the other group logs an error and returns ``false``.
 
 Remember that, when not using a background thread, data has to be polled regularly, as the robot
 will shutdown RTDE communication if the receiving side doesn't empty its buffer.
 
-Both methods deliver their data into a ``DataPackage`` that the caller owns:
-``getDataPackage()`` copies the background reader's latest package into it, while
-``getDataPackageBlocking()`` parses the next package straight into it. Reusing a package with the
-negotiated recipe keeps the normal data receive path free of memory allocations. The
-older ``getDataPackage(timeout)`` overload, which returns a new package instead, is deprecated but
-still supported. It allocates on every call by design and is not recommended for new code or
-real-time use; prefer an overload that fills an existing, reusable package.
+Reusing a package with the negotiated recipe keeps the normal data receive path free of memory
+allocations; prefer an overload that fills an existing, reusable package, especially for real-time
+use.
 
 Always check the return value before using received data. A background read returns ``false`` on
 timeout or when stopping or reconnecting cancels the pending read; restarting the reader does not

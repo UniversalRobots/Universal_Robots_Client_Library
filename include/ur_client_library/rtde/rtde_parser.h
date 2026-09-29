@@ -50,7 +50,10 @@ public:
   /*!
    * \brief Creates a new RTDEParser object, registering the used recipe.
    *
-   * Register robot-acknowledged types with setExpectedDataPackage() or setExpectedLayoutHash() before parsing data.
+   * Data packages can only be parsed once the robot-acknowledged types are registered with
+   * setExpectedDataPackage() or setExpectedLayoutHash(). Until then, parse() and
+   * parseDataPackage() log an error and return false for data packages; other package types
+   * are unaffected. RTDEClient performs this registration during init().
    *
    * \param recipe The recipe used in RTDE data communication
    */

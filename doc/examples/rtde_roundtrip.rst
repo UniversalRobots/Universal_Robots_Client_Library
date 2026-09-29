@@ -18,8 +18,8 @@ between separate helper calls. It does not guarantee a separate transmission for
 The example's source code can be found in `rtde_roundtrip.cpp
 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/rtde_roundtrip.cpp>`_.
 
-.. note:: The robot has to be powered on and, on an e-Series, in *remote control mode* for the
-   register-processing program to be accepted.
+.. note:: PolyScope 5 and PolyScope X robots have to be powered on and in *remote control mode*
+   for the register-processing program to be accepted.
 
 Recipes as argument lists
 -------------------------
@@ -92,7 +92,7 @@ written to it and are only checked when the package is sent.
    :end-at: my_client.start(false);
 
 ``target_frequency = 0.0`` (the default) requests the robot's maximum: 125 Hz on CB3, 500 Hz on
-e-Series. See :ref:`real time setup` and :ref:`rtde_client`.
+PolyScope 5 and PolyScope X robots. See :ref:`real time setup` and :ref:`rtde_client`.
 
 Both ``DataPackage`` objects are allocated before the loop, so the normal RTDE data receive and
 submission paths reuse their storage without allocation. This does not extend to logging, error
@@ -126,7 +126,7 @@ Separate ``send...()`` calls may be transmitted separately or coalesced; they ar
 update of several fields. A successful return means the buffer update was accepted, not that the
 robot received or processed it.
 
-Without a run duration the loop runs until it is interrupted, so the counter wraps at one million
+Without a run duration the loop runs until Ctrl-C is pressed, so the counter wraps at one million
 rather than growing past what an integer register can hold. Every answer carries the counter value
 it belongs to, so verification is unaffected, and the lag is measured modulo the same period.
 
@@ -166,13 +166,19 @@ Cleanup
 The input registers are reset and the robot program is stopped. A failed stop is only logged,
 because CI runs the example for one second and still requires exit code 0.
 
+The loop ends when the run duration has passed, when an RTDE read or write fails, or when Ctrl-C
+is pressed. A ``SIGINT`` handler only clears ``g_running``, so every one of these paths leaves the
+loop and runs ``cleanup()``, and the program does not keep running on the robot. Ctrl-C can
+interrupt the blocking read, so a failed read after Ctrl-C ends the example normally. Resetting
+the registers may then fail, but the robot program is still stopped.
+
 .. literalinclude:: ../../examples/rtde_roundtrip.cpp
    :language: c++
    :caption: examples/rtde_roundtrip.cpp
    :linenos:
    :lineno-match:
-   :start-at: // Reset the input registers before leaving
-   :end-at: return 0;
+   :start-at: // Cleared on Ctrl-C
+   :end-before: int main(int argc, char* argv[])
 
 Example output
 --------------

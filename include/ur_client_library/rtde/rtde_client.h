@@ -202,14 +202,33 @@ public:
    * print an error message.
    *
    * \param data_package Reference to a DataPackage where the received data package will be stored
-   * if a package was fetched successfully.
-   * Foreign recipes are repaired with a warning; null pointers allocate a package with a warning.
-   * A null pointer is assigned only after a successful read. Stop/reconnect cancels pending reads.
+   *   if a package was fetched successfully.
+   *   - For optimal performance, it should be a package that was built from the same output recipe
+   *     as used in this RTDEClient (see getOutputRecipe()) and is reused on every call.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Stopping or reconnecting cancels a pending read, which then returns false.
    * \param timeout Time to wait if no data package is currently in the queue
    *
    * \returns Whether a data package was received successfully
    */
   bool getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout);
+
+  /*!
+   * \brief Return the latest data package received, into a caller-owned unique pointer.
+   *
+   * Behaves like getDataPackage(DataPackage&, std::chrono::milliseconds).
+   *
+   * \param data_package Reference to a unique ptr where the received data package will be stored.
+   *   - For optimal performance, the pointer should hold a pre-allocated data package that was
+   *     built from the same output recipe as used in this RTDEClient.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Null pointers allocate a package with a warning.
+   *   - The caller retains ownership on failure; a null pointer is assigned only on success.
+   *   - Stopping or reconnecting cancels a pending read, which then returns false.
+   * \param timeout Time to wait if no data package is currently in the queue
+   *
+   * \returns Whether a data package was received successfully
+   */
   bool getDataPackage(std::unique_ptr<DataPackage>& data_package, std::chrono::milliseconds timeout);
 
   /*!
@@ -226,13 +245,14 @@ public:
    * pace a loop, but favors the latest sample and decouples socket reading from application work.
    *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
-   * For optimal performance, the data package pointer should contain a pre-allocated data package
-   * that was built from the same output recipe as used in this RTDEClient. Such a package needs no
-   * data types of its own: the first read applies the ones the robot reported, which allocates
-   * nothing. Use getOutputRecipe() for the recipe; foreign recipes are repaired with a warning and may allocate.
-   * Null pointers allocate a package with a warning.
-   * The caller retains ownership on failure; null pointers are assigned only on success.
-   * Malformed data may partially update an existing package's values before failure.
+   *   - For optimal performance, the data package pointer should contain a pre-allocated data package
+   *     that was built from the same output recipe as used in this RTDEClient (see getOutputRecipe()).
+   *   - The package doesn't have to be fully typed; its data types are applied on the first read,
+   *     which allocates nothing.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Null pointers allocate a package with a warning.
+   *   - The caller retains ownership on failure; null pointers are assigned only on success.
+   *   - Malformed data may partially update an existing package's values before failure.
    *
    * \returns Whether a data package was received successfully
    */
