@@ -138,6 +138,16 @@ bool RTDEClient::init(const size_t max_connection_attempts, const std::chrono::m
   return true;
 }
 
+void RTDEClient::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  stream_.setConnectTimeout(connect_timeout);
+}
+
+std::chrono::milliseconds RTDEClient::getConnectTimeout() const
+{
+  return stream_.getConnectTimeout();
+}
+
 bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   client_state_ = ClientState::UNINITIALIZED;

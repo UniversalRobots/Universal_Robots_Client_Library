@@ -174,6 +174,16 @@ public:
     TCPSocket::setReceiveTimeout(timeout);
   }
 
+  std::chrono::milliseconds getConfiguredConnectTimeout() const override
+  {
+    return TCPSocket::getConnectTimeout();
+  }
+
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout) override
+  {
+    TCPSocket::setConnectTimeout(connect_timeout);
+  }
+
 protected:
   virtual VersionInformation queryPolyScopeVersion();
   void assertHasCommand(const std::string& command) override;

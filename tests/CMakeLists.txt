@@ -207,6 +207,19 @@ set_tests_properties(PrimaryClientReconnectTest.destructor_not_blocked_by_stuck_
 
 
 
+# Robot-free checks that the clients give up on an unresponsive robot after their connect timeout.
+add_executable(client_connect_timeout_tests test_client_connect_timeout.cpp)
+target_link_libraries(client_connect_timeout_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      client_connect_timeout_tests
+)
+# Without a working connect timeout these block until the OS gives up (~2 min on Linux); fail fast instead.
+set_tests_properties(ClientConnectTimeoutTest.rtde_client_init_honors_connect_timeout
+                     ClientConnectTimeoutTest.primary_client_start_honors_connect_timeout
+                     ClientConnectTimeoutTest.dashboard_client_g5_connect_honors_connect_timeout
+                     ClientConnectTimeoutTest.dashboard_client_x_connect_honors_connect_timeout
+                     ClientConnectTimeoutTest.ur_driver_honors_socket_connect_timeout
+                     PROPERTIES TIMEOUT 60)
+
 add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
 target_link_libraries(rtde_data_package_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      rtde_data_package_tests
@@ -304,6 +317,14 @@ gtest_add_tests(TARGET tcp_socket_tests
 # Bound the interruptible-setup regression tests so a hang fails CI fast instead of timing out the job.
 set_tests_properties(TCPSocketTest.setup_interruptible_by_close
                      TCPSocketTest.setup_interruptible_during_blocking_connect
+                     PROPERTIES TIMEOUT 60)
+# Without a working connect timeout these block until the OS gives up (~2 min on Linux); fail fast instead.
+set_tests_properties(TCPSocketTest.connect_timeout_bounds_attempt_to_unresponsive_host
+                     TCPSocketTest.connect_timeout_applies_to_each_attempt
+                     TCPSocketTest.timed_out_connection_is_closed_before_next_attempt
+                     TCPSocketTest.connect_timeout_of_zero_leaves_timeout_to_operating_system
+                     TCPSocketTest.disconnect_interrupts_connect_with_connect_timeout
+                     TCPSocketTest.reconnect_honors_connect_timeout
                      PROPERTIES TIMEOUT 60)
 
 add_executable(unique_fd_tests test_unique_fd.cpp)

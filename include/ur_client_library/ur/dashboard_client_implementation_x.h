@@ -177,6 +177,8 @@ public:
   void setReceiveTimeout(const timeval& timeout) override;
   void setSendTimeout(const timeval& timeout) override;
   timeval getConfiguredSendTimeout() const override;
+  std::chrono::milliseconds getConfiguredConnectTimeout() const override;
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout) override;
 
 protected:
   DashboardResponse performProgramUpload(
@@ -202,6 +204,7 @@ protected:
 
   timeval recv_timeout_ = { 10, 0 };
   timeval send_timeout_ = { 10, 0 };
+  std::chrono::milliseconds connect_timeout_ = std::chrono::seconds(5);
 
   static std::unordered_map<std::string, RobotAPICommand> g_command_list;
   std::atomic<bool> is_connected_{ false };

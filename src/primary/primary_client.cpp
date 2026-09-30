@@ -83,6 +83,16 @@ void PrimaryClient::stop()
   pipeline_->stop();
 }
 
+void PrimaryClient::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  stream_.setConnectTimeout(connect_timeout);
+}
+
+std::chrono::milliseconds PrimaryClient::getConnectTimeout() const
+{
+  return stream_.getConnectTimeout();
+}
+
 void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
 {
   multi_consumer_->addConsumer(primary_consumer);

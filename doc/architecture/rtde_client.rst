@@ -60,6 +60,22 @@ following will work
 .. note::
    ``timestamp`` will always be a part of the output recipe and will be added afterwards, if not defined. As the ``timestamp`` used for verifying the connectivity.
 
+Connection timeout
+------------------
+
+When the robot is switched off, it neither accepts nor refuses connection requests, and each
+connection attempt of ``init()`` waits until the operating system gives up. On Linux this takes
+about two minutes. To give up earlier, set a connect timeout before calling ``init()``. It applies
+to each single connection attempt, including automatic reconnects:
+
+.. code-block:: c++
+
+   rtde_interface::RTDEClient my_client(ROBOT_IP, notifier, OUTPUT_RECIPE, INPUT_RECIPE);
+   my_client.setConnectTimeout(std::chrono::seconds(2));
+   my_client.init(1);  // Throws after about 2 seconds, if the robot does not answer
+
+By default, the connect timeout is disabled and the operating system's timeout applies.
+
 Reading data
 ------------
 

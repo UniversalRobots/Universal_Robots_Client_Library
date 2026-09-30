@@ -20,6 +20,7 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <sstream>
@@ -115,6 +116,19 @@ bool connectInProgress()
 #endif
 }
 
+// A timeout of 0 or one too large to represent means no deadline.
+std::chrono::steady_clock::time_point connectDeadline(const std::chrono::milliseconds connect_timeout)
+{
+  const auto now = std::chrono::steady_clock::now();
+  const auto max_timeout =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::time_point::max() - now);
+  if (connect_timeout <= std::chrono::milliseconds::zero() || connect_timeout >= max_timeout)
+  {
+    return std::chrono::steady_clock::time_point::max();
+  }
+  return now + connect_timeout;
+}
+
 // Waits up to timeout_ms for the socket to become writable (connect resolved).
 // Returns >0 if the socket is ready/has an event, 0 on timeout, <0 on error.
 //
@@ -142,7 +156,10 @@ int waitForSocketWritable(socket_t socket_fd, int timeout_ms)
 }
 }  // namespace
 TCPSocket::TCPSocket()
-  : state_(SocketState::Invalid), target_state_(SocketState::Invalid), reconnection_time_(std::chrono::seconds(10))
+  : state_(SocketState::Invalid)
+  , target_state_(SocketState::Invalid)
+  , reconnection_time_(std::chrono::seconds(10))
+  , connect_timeout_(std::chrono::milliseconds::zero())
 {
 #ifdef _WIN32
   WSAData data;
@@ -177,8 +194,10 @@ void TCPSocket::setupOptions()
   }
 }
 
-bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len)
+bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len,
+                                  const std::chrono::steady_clock::time_point deadline, bool& timed_out)
 {
+  timed_out = false;
   if (!setSocketBlocking(socket_fd, false))
   {
     return false;
@@ -193,7 +212,7 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
   }
   else if (connectInProgress())
   {
-    // Poll in short slices until the connect resolves, the OS connect timeout expires,
+    // Poll in short slices until the connect resolves, the deadline or the OS connect timeout expires,
     // or a concurrent disconnect() asks us to abort.
     while (true)
     {
@@ -201,7 +220,16 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
       {
         return false;
       }
-      int ready = waitForSocketWritable(socket_fd, CONNECT_POLL_SLICE_MS);
+      // Round up to never give up before the deadline.
+      const auto remaining = std::chrono::ceil<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+      if (remaining <= std::chrono::milliseconds::zero())
+      {
+        timed_out = true;
+        return false;
+      }
+      const int slice_ms =
+          static_cast<int>(std::min<std::chrono::milliseconds::rep>(remaining.count(), CONNECT_POLL_SLICE_MS));
+      int ready = waitForSocketWritable(socket_fd, slice_ms);
       if (ready < 0)
       {
         // poll() error (e.g. the fd was closed by disconnect()).
@@ -257,6 +285,8 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
 
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
 
+  const std::chrono::milliseconds connect_timeout = connect_timeout_;
+
   const char* host_name = host.empty() ? nullptr : host.c_str();
   std::string service = std::to_string(port);
   struct addrinfo hints, *result;
@@ -278,28 +308,36 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
       URCL_LOG_ERROR("Failed to get address for %s:%d", host.c_str(), port);
       return false;
     }
+    const auto deadline = connectDeadline(connect_timeout);
+    bool timed_out = false;
     // loop through the list of addresses until we find one that's connectable
-    for (struct addrinfo* p = result; p != nullptr; p = p->ai_next)
+    for (struct addrinfo* p = result; p != nullptr && std::chrono::steady_clock::now() < deadline; p = p->ai_next)
     {
-      // reset() closes the descriptor created by a previous failed attempt before adopting the new
-      // one, so retrying does not leak file descriptors.
       socket_fd_.reset(::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
 
-      if (socket_fd_.get() != -1 && openInterruptible(socket_fd_.get(), p->ai_addr, p->ai_addrlen))
+      if (socket_fd_.get() != -1 && openInterruptible(socket_fd_.get(), p->ai_addr, p->ai_addrlen, deadline, timed_out))
       {
         connected = true;
         break;
       }
 
+      // Close right away, so a timed-out request cannot still be accepted during the back-off.
+      socket_fd_.reset();
+
       if (isStopRequested())
       {
         freeaddrinfo(result);
-        socket_fd_.reset();
         return false;
       }
     }
 
     freeaddrinfo(result);
+
+    if (!connected && timed_out)
+    {
+      URCL_LOG_INFO("Connection attempt to %s:%d timed out after %lld ms", host.c_str(), port,
+                    static_cast<long long>(connect_timeout.count()));
+    }
 
     if (!connected)
     {
@@ -524,6 +562,16 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
   {
     setupOptions();
   }
+}
+
+void TCPSocket::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  if (connect_timeout < std::chrono::milliseconds::zero())
+  {
+    throw std::invalid_argument("Connect timeout must not be negative, got " + std::to_string(connect_timeout.count()) +
+                                " ms");
+  }
+  connect_timeout_ = connect_timeout;
 }
 
 void TCPSocket::setReconnectionTime(const std::chrono::milliseconds reconnection_time)

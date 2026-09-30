@@ -143,6 +143,24 @@ public:
             const std::chrono::milliseconds reconnection_timeout = comm::TCPSocket::DEFAULT_RECONNECTION_TIME,
             const size_t max_initialization_attempts = 3,
             const std::chrono::milliseconds initialization_timeout = std::chrono::seconds(1));
+
+  /*!
+   * \brief Sets the maximum duration of a single socket connection attempt, see
+   * comm::TCPSocket::setConnectTimeout(). Applies to init() and to reconnects.
+   *
+   * \param connect_timeout Connect timeout, 0 (default) leaves it to the operating system
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
+
+  /*!
+   * \brief Getter for the connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConnectTimeout() const;
+
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
