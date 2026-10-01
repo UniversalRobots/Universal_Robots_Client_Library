@@ -69,14 +69,22 @@ public:
    * needed.
    *
    * \param recipe The new recipe to use
+   *
+   * \throws UrException if the writer is already running
    */
   void setInputRecipe(const std::vector<std::string>& recipe);
 
   /*!
-   * \brief Starts the writer thread, which periodically clears the queue to write packages to the
-   * robot.
+   * \brief Starts the writer thread, which sends pending buffer updates to the robot.
+   *
+   * Apply the negotiated protocol version and input field types with setProtocolVersion() and
+   * setRecipeTypes() while stopped, before calling this method. This method does not negotiate
+   * or establish field types. RTDEClient::init() handles that setup for its writer.
    *
    * \param recipe_id The recipe id to use, so the robot correctly identifies the used recipe
+   *
+   * \throws UrException if the writer is already running or if the input buffers have not been
+   * typed with setRecipeTypes()
    */
   void init(uint8_t recipe_id);
   /*!
@@ -92,21 +100,45 @@ public:
   /*!
    * \brief Sends a complete RTDEPackage to the robot.
    *
-   * Use this if multiple values need to be sent at once. When using the other provided functions,
-   * an RTDE data package will be sent each time.
+   * Use this to submit multiple values together in one pending-buffer update. Separate helper
+   * calls may be transmitted separately or coalesced, depending on when the writer thread runs.
+   * Calls are not queued individually: a later update can replace an earlier pending package.
    *
-   * \param package The package to send
+   * Every field of \p package is copied into the pending buffer. Field names and order must match
+   * the input recipe the robot acknowledged. Typed fields must match the negotiated types;
+   * fields that are still untyped are copied as typed zeros. A mismatch returns false.
    *
-   * \returns Success of the package creation
+   * \param package The package to send, constructed from the client's input recipe
+   *
+   * \returns Whether the pending buffer update was accepted, not confirmation of transmission or
+   * processing by the robot. False if the writer is not running (not started, stopped or
+   * reconnecting); the pending buffer is then left unchanged.
    */
   bool sendPackage(const DataPackage& package);
+
+  /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * for it.
+   *
+   * The returned package has all values at zero and is ready to be filled with
+   * DataPackage::setData(). Since it already carries the robot's types, a value written with a wrong
+   * type is reported by setData() itself rather than only when the package is sent, and copying the
+   * package into the send buffer is a single memcpy.
+   *
+   * \returns A package built from the input recipe with the acknowledged data types applied
+   *
+   * \throws UrException if the writer is stopped or its input buffers are not typed. An RTDEClient
+   * with an empty input recipe does not start its writer, so this also throws for read-only clients.
+   */
+  DataPackage createDataPackage();
 
   /*!
    * \brief Creates a package to request setting a new value for the speed slider.
    *
    * \param speed_slider_fraction The new speed slider fraction as a value between 0.0 and 1.0
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendSpeedSlider(double speed_slider_fraction);
   /*!
@@ -115,7 +147,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendStandardDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -124,7 +157,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendConfigurableDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -133,7 +167,8 @@ public:
    * \param output_pin The pin to change
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendToolDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -145,7 +180,8 @@ public:
    * AnalogOutputType::SET_ON_TEACH_PENDANT. In the latter case the domain is left untouched and the domain configured
    * on the teach pendant will be used.
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendStandardAnalogOutput(uint8_t output_pin, double value,
                                 const AnalogOutputType type = AnalogOutputType::SET_ON_TEACH_PENDANT);
@@ -156,7 +192,8 @@ public:
    * \param register_id The id of the register that should be changed [64..127]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputBitRegister(uint32_t register_id, bool value);
 
@@ -166,7 +203,8 @@ public:
    * \param register_id The id of the register that should be changed [24..47]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputIntRegister(uint32_t register_id, int32_t value);
 
@@ -176,7 +214,8 @@ public:
    * \param register_id The id of the register that should be changed [24..47]
    * \param value The new value
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendInputDoubleRegister(uint32_t register_id, double value);
 
@@ -188,9 +227,33 @@ public:
    *
    * \param external_force_torque The new external force/torque as a vector6d_t
    *
-   * \returns Success of the package creation
+   * \returns Success of the package creation. False if the writer is not running (not started,
+   * stopped or reconnecting).
    */
   bool sendExternalForceTorque(const vector6d_t& external_force_torque);
+
+  /*!
+   * \brief Applies the data types the robot reported for the input recipe.
+   *
+   * This is what makes the send buffers usable, and it is also the reference against which values
+   * passed to sendPackage() are checked.
+   *
+   * \param types The data types of the input recipe's fields, in the same order as the recipe
+   *
+   * \throws UrException if the number of types doesn't match the recipe, if a type is unknown, or
+   * if the writer is already running
+   */
+  void setRecipeTypes(const std::vector<std::string>& types);
+
+  /*!
+   * \brief Records the RTDE protocol version negotiated with the robot.
+   *
+   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. Defaults to
+   * version 2. The client sets this after protocol negotiation.
+   *
+   * \throws UrException if the writer is already running
+   */
+  void setProtocolVersion(uint16_t protocol_version);
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
@@ -200,6 +263,7 @@ private:
   comm::URStream<RTDEPackage>* stream_;
   std::vector<std::string> recipe_;
   uint8_t recipe_id_;
+  uint16_t protocol_version_ = 2;
   std::shared_ptr<DataPackage> data_buffer0_;
   std::shared_ptr<DataPackage> data_buffer1_;
   std::shared_ptr<DataPackage> current_store_buffer_;

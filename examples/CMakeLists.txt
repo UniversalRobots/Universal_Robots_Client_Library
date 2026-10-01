@@ -23,6 +23,10 @@ add_executable(rtde_client_example
   rtde_client.cpp)
 target_link_libraries(rtde_client_example ur_client_library::urcl)
 
+add_executable(rtde_roundtrip_example
+  rtde_roundtrip.cpp)
+target_link_libraries(rtde_roundtrip_example ur_client_library::urcl)
+
 add_executable(dashboard_example
   dashboard_example.cpp)
 target_link_libraries(dashboard_example ur_client_library::urcl)

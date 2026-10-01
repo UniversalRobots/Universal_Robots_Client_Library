@@ -38,6 +38,8 @@
 #include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/rtde/rtde_parser.h>
 
+#include "rtde_test_helpers.h"
+
 using namespace urcl;
 
 class ProducerTest : public ::testing::Test
@@ -63,6 +65,7 @@ TEST_F(ProducerTest, get_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
+  parser.setExpectedDataPackage(test::typedPackage(recipe, { "DOUBLE" }));
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
@@ -76,7 +79,8 @@ TEST_F(ProducerTest, get_data_package)
   server_->write(data_package, sizeof(data_package), written);
 
   std::vector<std::unique_ptr<rtde_interface::RTDEPackage>> products;
-  EXPECT_EQ(producer.tryGet(products), true);
+  ASSERT_TRUE(producer.tryGet(products));
+  ASSERT_EQ(products.size(), 1u);
 
   if (rtde_interface::DataPackage* data = dynamic_cast<rtde_interface::DataPackage*>(products[0].get()))
   {
@@ -99,6 +103,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
   parser.setProtocolVersion(2);
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
   auto start = std::chrono::system_clock::now();

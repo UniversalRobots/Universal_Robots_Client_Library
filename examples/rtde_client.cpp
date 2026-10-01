@@ -40,7 +40,6 @@ const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
 const std::string OUTPUT_RECIPE = "examples/resources/rtde_output_recipe.txt";
 const std::string INPUT_RECIPE = "examples/resources/rtde_input_recipe.txt";
 
-// Preallocation of string to avoid allocation in main loop
 const std::string TARGET_SPEED_FRACTION = "target_speed_fraction";
 
 void printFraction(const double fraction, const std::string& label, const size_t width = 20)
@@ -101,7 +100,6 @@ int main(int argc, char* argv[])
     {
       // Data fields in the data package are accessed by their name. Only names present in the
       // output recipe can be accessed. Otherwise this function will return false.
-      // We preallocated the string TARGET_SPEED_FRACTION to avoid allocations in the main loop.
       data_pkg->getData(TARGET_SPEED_FRACTION, target_speed_fraction);
       printFraction(target_speed_fraction, TARGET_SPEED_FRACTION);
     }

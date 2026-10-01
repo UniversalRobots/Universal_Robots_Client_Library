@@ -56,15 +56,20 @@ fetch data synchronously. Hence, we pass ``false`` to the ``start()`` method.
    :start-at: auto data_pkg = std::make_unique<rtde_interface::DataPackage>(my_client.getOutputRecipe());
    :end-before: // Change the speed slider
 
+The loop reuses a package built from the negotiated output recipe, keeping the normal data receive
+path allocation-free. Null pointers allocate a package, and foreign-recipe repair may allocate;
+error handling, non-data messages and reconnection are outside this guarantee. The recipe only
+names the fields, so the first read applies their negotiated types in place without allocation.
+
 In our main loop, we wait for a new data package to arrive using the blocking read method. Once
 received, data from the received package can be accessed using the ``getData()`` method of the
 ``DataPackage`` object. This method takes the key of the data to be accessed as a parameter and
 returns the corresponding value.
 
 .. note:: The key used to access data has to be part of the output recipe used to initialize the RTDE
-   client. Passing a string literal, e.g. ``"actual_q"``, is possible but not recommended as it is
-   converted to an ``std::string`` automatically, causing heap allocations which should be avoided
-   in Real-Time contexts.
+   client. ``getData()`` returns ``false`` for an unknown key. If the type of the passed
+   variable doesn't match the type the robot reported for that field, it throws
+   ``std::bad_variant_access``.
 
 Writing Data to the RTDE client
 -------------------------------
@@ -91,7 +96,9 @@ initialize the RTDE client has to contain the keys necessary to send that specif
    <https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/>`_
    for more information.
 
-.. note:: Every ``send...`` call to the RTDEWriter triggers a package sent to the robot. If you
-   want to modify more than one input at a time, it is recommended to use the ``sendPackage()``
-   method. That allows setting up the complete data package with its input recipe and sending that
-   to the robot at once.
+.. note:: Every successful ``send...`` call updates the pending buffer and notifies the writer
+   thread. Calls may be coalesced before transmission; they are not queued as separate packages.
+   To submit several inputs together, use ``createInputDataPackage()`` after ``init()``, fill the
+   fields and pass the package to ``sendPackage()``. Separate helper calls can otherwise be
+   transmitted between updates. Neither API confirms delivery to the robot; see the
+   :ref:`rtde_roundtrip_example` for verification using robot outputs.
