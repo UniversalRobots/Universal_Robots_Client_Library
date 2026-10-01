@@ -397,7 +397,7 @@ public:
 
   /*!
    * \brief Resets a data field to a default-constructed value of its own type.
-   * 
+   *
    * Use initEmpty() to reset all data fields at once.
    *
    * \param name The string identifier for the data field as used in the documentation.
