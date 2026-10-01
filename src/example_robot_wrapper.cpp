@@ -38,11 +38,13 @@ namespace urcl
 {
 ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std::string& output_recipe_file,
                                          const std::string& input_recipe_file, const bool headless_mode,
-                                         const std::string& autostart_program, const std::string& script_file)
+                                         const std::string& autostart_program, const std::string& script_file,
+                                         const std::string& reverse_ip)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
   UrDriverConfiguration driver_config;
   driver_config.robot_ip = robot_ip;
+  driver_config.reverse_ip = reverse_ip;
   driver_config.script_file = script_file;
   driver_config.output_recipe_file = output_recipe_file;
   driver_config.input_recipe_file = input_recipe_file;
@@ -54,11 +56,13 @@ ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std:
 
 ExampleRobotWrapper::ExampleRobotWrapper(const std::string& robot_ip, const std::vector<std::string> output_recipe,
                                          const std::vector<std::string> input_recipe, const bool headless_mode,
-                                         const std::string& autostart_program, const std::string& script_file)
+                                         const std::string& autostart_program, const std::string& script_file,
+                                         const std::string& reverse_ip)
   : headless_mode_(headless_mode), autostart_program_(autostart_program)
 {
   UrDriverConfiguration driver_config;
   driver_config.robot_ip = robot_ip;
+  driver_config.reverse_ip = reverse_ip;
   driver_config.script_file = script_file;
   driver_config.output_recipe = output_recipe;
   driver_config.input_recipe = input_recipe;
