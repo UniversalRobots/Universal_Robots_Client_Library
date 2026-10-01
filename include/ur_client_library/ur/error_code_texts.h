@@ -38,7 +38,7 @@
  * or directly:
  *   scripts/generate_error_codes.py --overlay scripts/error_code_overrides.json --output <this-file>
  *
- * Source: UR ErrorCodes JSON v42.0.0
+ * Source: UR ErrorCodes JSON v42.1.0
  */
 //----------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ namespace primary_interface
 {
 
 /// Version of the UR ErrorCodes JSON this header was generated from.
-constexpr std::string_view ERROR_CODE_JSON_VERSION = "42.0.0";
+constexpr std::string_view ERROR_CODE_JSON_VERSION = "42.1.0";
 
 /// Returns a static map from packed (code, arg) keys to human-readable
 /// error texts sourced from the UR ErrorCodes JSON.
@@ -764,8 +764,11 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000011400000000), "Uart: Critical error" },  // C276 arg=0
     { UINT64_C(0x0000011500000001), "Memory: Failed to allocate memory" },  // C277 arg=1
     { UINT64_C(0x0000011600000000), "Servo: Critical error" },  // C278 arg=0
+    { UINT64_C(0x0000011600000005), "Servo: Internal device mode check unavailable" },  // C278 arg=5
     { UINT64_C(0x0000011600000012), "Servo: The version of the received control message is not supported. Version received: {unsigned}" },  // C278 arg=18
     { UINT64_C(0x0000011600000014), "Servo: The control-mode state {unsigned} in the received control message is not supported." },  // C278 arg=20
+    { UINT64_C(0x0000011600000015), "Servo: External command usage check unavailable" },  // C278 arg=21
+    { UINT64_C(0x0000011600000016), "Servo: Internal safety state check unavailable" },  // C278 arg=22
     { UINT64_C(0x0000011700000000), "Flash: Critical error" },  // C279 arg=0
     { UINT64_C(0x0000011700000026), "Flash: Timed out waiting for system voltage to reach {float}V" },  // C279 arg=38
     { UINT64_C(0x0000011800000000), "Real-time error: Critical error" },  // C280 arg=0
