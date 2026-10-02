@@ -34,7 +34,8 @@ namespace rtde_interface
 {
 bool TextMessage::parseWith(comm::BinParser& bp)
 {
-  if (protocol_version_ == 2)
+  // Protocol version 3 keeps the version 2 text-message layout.
+  if (protocol_version_ >= 2)
   {
     bp.parse(message_length_);
     bp.parse(message_, message_length_);

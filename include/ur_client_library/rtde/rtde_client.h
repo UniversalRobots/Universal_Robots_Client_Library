@@ -37,6 +37,7 @@
 #include "ur_client_library/rtde/data_package.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
+#include "ur_client_library/rtde/robot_properties.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 static const int UR_RTDE_PORT = 30004;
@@ -45,7 +46,7 @@ namespace urcl
 {
 namespace rtde_interface
 {
-static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 2;
+static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 3;
 static const unsigned MAX_REQUEST_RETRIES = 5;
 
 enum class UrRtdeRobotStatusBits
@@ -366,6 +367,24 @@ public:
     return client_state_.load();
   }
 
+  /*!
+   * \brief Copies the robot properties the client read while setting up communication.
+   *
+   * While setting up communication the client reads v1.software.version and then every catalog
+   * property that version supports. This happens on init() and again on every reconnect. Copying
+   * into the same package again does not allocate. The properties are only read when RTDE protocol
+   * version 3 or higher was negotiated.
+   *
+   * \returns True if the controller sent a value for every property asked for, the software
+   * version included. False if the negotiated protocol version is below 3, the request failed, or
+   * the controller reported any property as NOT_FOUND or NOT_SET and so sent no values. Also false
+   * while not connected, and after init() or a reconnect has failed
+   */
+  bool getRobotProperties(ReadProperties& properties) const
+  {
+    return robot_properties_.get(properties);
+  }
+
   /*! \brief Starts a background thread to read data packages from the robot.
    *
    * After calling this function, getDataPackage() can be used to get the latest data package
@@ -419,6 +438,9 @@ protected:
   std::atomic<ClientState> client_state_;
 
   uint16_t protocol_version_;
+
+  // Filled by setupCommunication() on init() and on every reconnect; read by getRobotProperties().
+  RobotProperties robot_properties_;
 
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;

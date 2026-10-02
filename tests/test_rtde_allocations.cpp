@@ -49,6 +49,7 @@
 #include "rtde_test_helpers.h"
 
 using namespace urcl;
+using urcl::rtde_interface::DataType;
 
 namespace
 {
@@ -199,7 +200,7 @@ TEST(AllocationCounterTest, counts_allocations)
 TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
 {
   rtde_interface::DataPackage package({ "timestamp", "actual_q" });
-  const std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  const std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
 
   std::size_t allocations = 0;
   {
@@ -212,11 +213,29 @@ TEST(DataPackageAllocationTest, applying_types_does_not_allocate)
   EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
 }
 
+// Parse once to size the vectors, then measure a second parse of a list of the same length.
+TEST(DataTypeAllocationTest, parsing_data_types_again_does_not_allocate)
+{
+  std::vector<std::string_view> names;
+  std::vector<std::optional<rtde_interface::DataType>> types;
+  rtde_interface::parseDataTypes("DOUBLE,VECTOR6D", names, types);
+
+  std::size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    rtde_interface::parseDataTypes("UINT32,BOOL", names, types);
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_EQ(types[1], rtde_interface::DataType::BOOL);
+}
+
 // Serialize a valid frame before counting, then parse it 100 times into the same typed package.
 // The borrowed parser must succeed on every iteration without allocating temporary packages.
 TEST(DataPackageAllocationTest, borrowed_parser_reuses_storage)
 {
-  auto output = test::typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto output = test::typedPackage({ "timestamp" }, { DataType::DOUBLE });
   rtde_interface::RTDEParser parser({ "timestamp" });
   parser.setProtocolVersion(2);
   parser.setExpectedDataPackage(output);
@@ -264,8 +283,8 @@ TEST(DataPackageAllocationTest, enabled_failure_diagnostics_are_not_allocation_f
   size_t messages = 0;
   registerLogHandler(std::make_unique<DiagnosticHandler>(messages));
   setLogLevel(LogLevel::DEBUG);
-  auto expected = test::typedPackage({ "timestamp" }, { "DOUBLE" });
-  auto foreign = test::typedPackage({ "other" }, { "DOUBLE" });
+  auto expected = test::typedPackage({ "timestamp" }, { DataType::DOUBLE });
+  auto foreign = test::typedPackage({ "other" }, { DataType::DOUBLE });
   rtde_interface::RTDEParser parser({ "timestamp" });
   parser.setProtocolVersion(2);
   parser.setExpectedDataPackage(expected);
@@ -293,7 +312,7 @@ TEST(DataPackageAllocationTest, parsing_a_preallocated_package_does_not_allocate
   unsigned char raw_data[] = { 0x00, 0x14, 0x55, 0x01, 0x40, 0xd0, 0x07, 0x0d, 0x2f, 0x1a,
                                0x9f, 0xbe, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
-  const std::vector<std::string> types = { "DOUBLE", "DOUBLE" };
+  const std::vector<rtde_interface::DataType> types = { DataType::DOUBLE, DataType::DOUBLE };
   rtde_interface::RTDEParser parser(recipe);
   parser.setProtocolVersion(2);
   parser.setExpectedLayoutHash(test::typedPackage(recipe, types).layoutHash());
@@ -337,7 +356,7 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_is_rejected)
   std::vector<std::string> recipe = { "timestamp", "target_speed_fraction" };
   rtde_interface::RTDEParser parser(recipe);
   parser.setProtocolVersion(2);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE", "DOUBLE" }).layoutHash());
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { DataType::DOUBLE, DataType::DOUBLE }).layoutHash());
   std::unique_ptr<rtde_interface::RTDEPackage> product = std::make_unique<rtde_interface::DataPackage>(recipe);
   const rtde_interface::RTDEPackage* package_address = product.get();
 
@@ -360,7 +379,8 @@ TEST(DataPackageAllocationTest, parsing_into_an_untyped_package_is_rejected)
 // a typed zero. INFO logging remains enabled to catch unexpected allocating chatter on this path.
 TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
 {
-  auto destination = test::typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      test::typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 1 }));
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
@@ -389,7 +409,7 @@ TEST(DataPackageAllocationTest, copying_a_partial_package_does_not_allocate)
 // Require zero allocations and the expected eight-byte frame size: header, recipe ID and payload.
 TEST(DataPackageAllocationTest, serializing_a_typed_package_does_not_allocate)
 {
-  auto package = test::typedPackage({ "speed_slider_mask" }, { "UINT32" });
+  auto package = test::typedPackage({ "speed_slider_mask" }, { DataType::UINT32 });
   ASSERT_TRUE(package.setData("speed_slider_mask", static_cast<uint32_t>(1)));
   package.setRecipeID(1);
   uint8_t buffer[4096];
@@ -414,6 +434,7 @@ protected:
     server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
+    server_->setHighestAcceptedProtocolVersion(3);
 
     client_ = std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, output_recipe_, input_recipe_,
                                                            RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
@@ -533,8 +554,8 @@ TEST_F(RTDEAllocationTest, repairing_wrong_types_on_the_first_read_does_not_allo
   auto data_pkg = std::make_unique<rtde_interface::DataPackage>(client_->getOutputRecipe());
   // Deliberately wrong: joint_mode is a six-element integer vector, not an INT32 scalar.
   // Do not correct this entry: it is the mismatch whose repair this test measures.
-  data_pkg->setTypes(
-      { "DOUBLE", "VECTOR6D", "VECTOR6D", "UINT32", "UINT32", "UINT64", "INT32", "VECTOR3D", "UINT32", "INT32" });
+  data_pkg->setTypes({ DataType::DOUBLE, DataType::VECTOR6D, DataType::VECTOR6D, DataType::UINT32, DataType::UINT32,
+                       DataType::UINT64, DataType::INT32, DataType::VECTOR3D, DataType::UINT32, DataType::INT32 });
 
   ASSERT_TRUE(data_pkg->isTyped());
   ASSERT_EQ(data_pkg->getDataType("joint_mode"), rtde_interface::DataType::INT32);
@@ -664,6 +685,29 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   EXPECT_TRUE(all_sent);
 
   client_->pause();
+}
+
+// The properties are read while the connection is set up. Copying them out afterwards reuses the
+// application's package.
+TEST_F(RTDEAllocationTest, copying_the_robot_properties_does_not_allocate)
+{
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client_->getRobotProperties(properties));
+
+  bool all_copied = true;
+  std::size_t allocations = 0;
+  {
+    AllocationCounter counter;
+    for (int i = 0; i < MEASURED_CYCLES; ++i)
+    {
+      all_copied &= client_->getRobotProperties(properties);
+    }
+    allocations = counter.count();
+  }
+
+  EXPECT_EQ(allocations, 0);
+  EXPECT_TRUE(all_copied);
+  EXPECT_TRUE(properties.getSoftwareVersion().has_value());
 }
 
 int main(int argc, char* argv[])

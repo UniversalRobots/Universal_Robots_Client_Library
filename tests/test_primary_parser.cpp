@@ -493,6 +493,29 @@ TEST_F(PrimaryParserTest, parse_hardware_info_message)
   parse_and_check(14, RobotType::UR18G_950);
 }
 
+TEST_F(PrimaryParserTest, hardware_info_control_box_accepts_both_numberings)
+{
+  static constexpr size_t CONTROL_BOX_OFFSET = 21;
+  const auto control_box = [this](const uint8_t wire) {
+    unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
+    memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
+    raw_data[CONTROL_BOX_OFFSET] = 0x00;
+    raw_data[CONTROL_BOX_OFFSET + 1] = wire;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    std::unique_ptr<primary_interface::PrimaryPackage> product;
+    EXPECT_TRUE(parser_.parse(bp, product));
+    auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
+    EXPECT_NE(data, nullptr);
+    return data == nullptr ? ControlBoxType::UNKNOWN : data->control_box_type_;
+  };
+
+  EXPECT_EQ(control_box(1), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(5), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(2), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(7), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(3), ControlBoxType::UNKNOWN);
+}
+
 TEST_F(PrimaryParserTest, parse_key_message)
 {
   unsigned char raw_data[sizeof(KEY_MESSAGE)];
@@ -777,6 +800,30 @@ TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
   ASSERT_NE(config, nullptr);
   EXPECT_EQ(config->control_box_type_, ControlBoxType::CB7);
   EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::V1);
+}
+
+TEST_F(PrimaryParserTest, configuration_data_control_box_accepts_both_numberings)
+{
+  const auto control_box = [this](const uint8_t wire) {
+    std::vector<uint8_t> payload(CONFIGURATION_DATA_PAYLOAD_BYTES, 0);
+    payload.push_back(0x00);
+    payload.push_back(wire);
+    payload.push_back(0x00);
+    payload.push_back(0x01);
+    std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+    comm::BinParser bp(packet.data(), packet.size());
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    EXPECT_TRUE(parser_.parse(bp, products));
+    EXPECT_EQ(products.size(), 1u);
+    auto* config = products.empty() ? nullptr : dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+    EXPECT_NE(config, nullptr);
+    return config == nullptr ? ControlBoxType::UNKNOWN : config->control_box_type_;
+  };
+
+  EXPECT_EQ(control_box(1), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(5), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(7), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(3), ControlBoxType::UNKNOWN);
 }
 
 TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)

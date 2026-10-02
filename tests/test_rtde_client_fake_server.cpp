@@ -48,6 +48,7 @@
 #include "fake_rtde_server.h"
 
 using namespace urcl;
+using urcl::rtde_interface::DataType;
 
 namespace
 {
@@ -303,8 +304,8 @@ TEST_F(RTDEClientFakeServerTest, protocol_version_is_lowered_when_the_robot_refu
 
   const std::vector<uint16_t> requested = server_->requestedProtocolVersions();
   ASSERT_GE(requested.size(), 2u) << "the client never asked for a second protocol version";
-  EXPECT_EQ(requested[0], 2) << "the client should try the newest version first";
-  EXPECT_EQ(requested[1], 1) << "the client should fall back to the next version down";
+  EXPECT_EQ(requested[0], 3) << "the client should try the newest version first";
+  EXPECT_EQ(requested[1], 2) << "the client should fall back to the next version down";
 }
 
 TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
@@ -313,9 +314,10 @@ TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
 
   ASSERT_TRUE(client_->init());
   const std::vector<uint16_t> requested = server_->requestedProtocolVersions();
-  ASSERT_GE(requested.size(), 2u);
-  EXPECT_EQ(requested[0], 2);
-  EXPECT_EQ(requested[1], 1);
+  ASSERT_GE(requested.size(), 3u);
+  EXPECT_EQ(requested[0], 3);
+  EXPECT_EQ(requested[1], 2);
+  EXPECT_EQ(requested[2], 1);
 
   ASSERT_TRUE(client_->start(true));
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
@@ -674,7 +676,7 @@ public:
   explicit BackgroundReadHarness(comm::INotifier& notifier)
     : RTDEClient("127.0.0.1", notifier, std::vector<std::string>{ "timestamp" }, std::vector<std::string>{})
   {
-    preallocated_data_pkg_.setTypes({ "DOUBLE" });
+    preallocated_data_pkg_.setTypes({ DataType::DOUBLE });
     prepareReader();
   }
 
@@ -985,8 +987,9 @@ TEST_F(RTDEClientFakeServerTest, input_in_use_exhausts_retries_then_recovers)
 {
   server_->setInputTypeReply(std::vector<std::string>{ "IN_USE", "DOUBLE" });
   ASSERT_NO_FATAL_FAILURE(expectFailedNegotiationThenRecovery());
-  // Two failed handshakes and the successful recovery each negotiate v2 exactly once.
-  EXPECT_EQ(server_->requestedProtocolVersions(), (std::vector<uint16_t>{ 2, 2, 2 }));
+  // Two failed handshakes and the successful recovery each try protocol version 3, which this
+  // server refuses, and then settle on version 2.
+  EXPECT_EQ(server_->requestedProtocolVersions(), (std::vector<uint16_t>{ 3, 2, 3, 2, 3, 2 }));
 }
 
 TEST_F(RTDEClientFakeServerTest, unknown_output_field_throws)
@@ -1076,6 +1079,207 @@ TEST_F(RTDEClientFakeServerTest, recipe_files)
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
                                           "/i/do/not/exist/urclrtdetest.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT),
                UrException);
+}
+
+void expectProtocolV3Properties(const rtde_interface::ReadProperties& properties)
+{
+  const std::vector<std::string> names{ "v1.software.version", "v1.control_box.type", "v1.robot_arm.tool_flange.type" };
+  EXPECT_EQ(properties.names(), names);
+  ASSERT_TRUE(properties.hasValues());
+  EXPECT_EQ(properties.getReportedType("v1.software.version"), rtde_interface::DataType::UINT64);
+  EXPECT_EQ(properties.getDataType("v1.control_box.type"), rtde_interface::DataType::UINT32);
+  EXPECT_EQ(properties.getDataType("v1.robot_arm.tool_flange.type"), rtde_interface::DataType::UINT32);
+
+  const std::optional<VersionInformation> version = properties.getSoftwareVersion();
+  ASSERT_TRUE(version.has_value());
+  EXPECT_EQ(version->major, 10u);
+  EXPECT_EQ(version->minor, 15u);
+  EXPECT_EQ(version->bugfix, 0u);
+
+  const std::optional<rtde_interface::ControlBoxProperty> box = properties.getControlBoxType();
+  ASSERT_TRUE(box.has_value());
+  EXPECT_EQ(box->type, ControlBoxType::CB5);
+
+  const std::optional<rtde_interface::ToolFlangeProperty> flange = properties.getToolFlangeType();
+  ASSERT_TRUE(flange.has_value());
+  EXPECT_EQ(flange->type, 1);
+  EXPECT_EQ(flange->revision, 0);
+}
+
+TEST_F(RTDEClientFakeServerTest, protocol_v2_does_not_read_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(2);
+  ASSERT_TRUE(client_->init());
+
+  EXPECT_TRUE(server_->propertyRequests().empty());
+
+  rtde_interface::ReadProperties properties;
+  EXPECT_FALSE(client_->getRobotProperties(properties));
+}
+
+// A real controller sends "SafetySetup has not been confirmed yet" on connect. That is a notice,
+// not an answer to the request, so the answer that follows it still has to be read.
+TEST_F(RTDEClientFakeServerTest, text_message_before_the_answer_does_not_lose_the_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->queueTextMessageBeforeReadProperties("SafetySetup has not been confirmed yet, therefore no data will be "
+                                                "send yet");
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+}
+
+TEST_F(RTDEClientFakeServerTest, five_text_messages_before_the_answer_do_not_lose_the_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  for (int i = 0; i < 5; ++i)
+  {
+    server_->queueTextMessageBeforeReadProperties("SafetySetup has not been confirmed yet");
+  }
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+}
+
+// Past the expected number of notices the answer is still read, so it is not left in the socket
+// for the output setup to take as its acknowledgement.
+TEST_F(RTDEClientFakeServerTest, six_text_messages_before_the_answer_do_not_leave_it_queued)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  for (int i = 0; i < 6; ++i)
+  {
+    server_->queueTextMessageBeforeReadProperties("SafetySetup has not been confirmed yet");
+  }
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
+
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+
+  ASSERT_TRUE(client->start(true));
+  rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
+  EXPECT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
+  client->pause();
+}
+
+// A controller that keeps sending without answering cannot be left mid-exchange, so that attempt
+// fails and the next one starts on a fresh connection.
+TEST_F(RTDEClientFakeServerTest, properties_answer_buried_in_text_messages_restarts_the_handshake)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  for (int i = 0; i < 100; ++i)
+  {
+    server_->queueTextMessageBeforeReadProperties("SafetySetup has not been confirmed yet");
+  }
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init(1, std::chrono::milliseconds(10), 2, std::chrono::milliseconds(200)));
+
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+
+  ASSERT_TRUE(client->start(true));
+  rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
+  EXPECT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
+  client->pause();
+}
+
+// Without a software version it is unknown which other names are safe to ask for, so the client
+// stops after the first request. An answer without values is not a set of properties.
+TEST_F(RTDEClientFakeServerTest, software_version_not_set_provides_no_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setPropertyTypeReply("v1.software.version", "NOT_SET");
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+
+  EXPECT_EQ(server_->propertyRequests(), std::vector<std::string>{ "v1.software.version" });
+  rtde_interface::ReadProperties properties;
+  EXPECT_FALSE(client->getRobotProperties(properties));
+}
+
+// One property the controller has not set makes it drop every value, the software version included.
+TEST_F(RTDEClientFakeServerTest, catalog_property_not_set_provides_no_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setPropertyTypeReply("v1.robot_arm.tool_flange.type", "NOT_SET");
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+
+  EXPECT_EQ(server_->propertyRequests().size(), 2u);
+  rtde_interface::ReadProperties properties;
+  EXPECT_FALSE(client->getRobotProperties(properties));
+}
+
+// The properties are optional, so an answer that cannot be parsed must not stop the handshake.
+TEST_F(RTDEClientFakeServerTest, malformed_properties_answer_does_not_abort_init)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setTruncatePropertyValues(true);
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_NO_THROW(EXPECT_TRUE(client->init()));
+
+  rtde_interface::ReadProperties properties;
+  EXPECT_FALSE(client->getRobotProperties(properties));
+
+  ASSERT_TRUE(client->start(true));
+  rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
+  EXPECT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
+  client->pause();
+}
+
+// The properties are read before the recipes are set up, so a later setup step can still fail.
+TEST_F(RTDEClientFakeServerTest, failed_init_after_reading_properties_provides_no_properties)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setOutputTypeReply(std::vector<std::string>{ "DOUBLE" });
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  EXPECT_THROW(client->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+
+  EXPECT_FALSE(server_->propertyRequests().empty());
+  rtde_interface::ReadProperties properties;
+  EXPECT_FALSE(client->getRobotProperties(properties));
+}
+
+TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
+{
+  server_->setHighestAcceptedProtocolVersion(3);
+  auto client = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
+
+  ASSERT_TRUE(client->init());
+  const std::vector<std::string> init_requests{ "v1.software.version", "v1.software.version,v1.control_box.type,v1."
+                                                                       "robot_arm.tool_flange.type" };
+  EXPECT_EQ(server_->propertyRequests(), init_requests);
+
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+
+  ASSERT_TRUE(client->start(true));
+  rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
+  ASSERT_TRUE(client->getDataPackage(data_pkg, READ_TIMEOUT));
+
+  // Streaming does not read the properties again.
+  EXPECT_EQ(server_->propertyRequests(), init_requests);
+  ASSERT_TRUE(client->getRobotProperties(properties));
+  expectProtocolV3Properties(properties);
+
+  client->pause();
 }
 
 int main(int argc, char* argv[])

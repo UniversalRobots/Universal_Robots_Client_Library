@@ -49,9 +49,9 @@ bool HardwareInfoMessage::parseWith(comm::BinParser& bp)
   bp.parse(reserved_2_);
   bp.parse(tool_flange_type);
 
-  control_box_type_ = static_cast<ControlBoxType>(control_box_type);
-  tool_flange_type_ = static_cast<ToolFlangeType>(tool_flange_type);
-  robot_type_ = static_cast<RobotType>(robot_type);
+  control_box_type_ = controlBoxTypeFromWire(control_box_type);
+  tool_flange_type_ = toolFlangeTypeFromWire(tool_flange_type);
+  robot_type_ = robotTypeFromWire(robot_type);
   return true;
 }
 

@@ -42,6 +42,7 @@
 #include "rtde_test_helpers.h"
 
 using namespace urcl;
+using urcl::rtde_interface::DataType;
 
 class RTDEWriterTest : public ::testing::Test
 {
@@ -144,9 +145,11 @@ protected:
                                              "input_double_register_25",
                                              "external_force_torque" };
   // The data types the robot would report for the recipe above when acknowledging it
-  std::vector<std::string> input_recipe_types_ = { "UINT32", "DOUBLE", "UINT8",  "UINT8",   "UINT8",  "UINT8",
-                                                   "UINT8",  "UINT8",  "UINT8",  "UINT8",   "DOUBLE", "DOUBLE",
-                                                   "BOOL",   "INT32",  "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> input_recipe_types_ = {
+    DataType::UINT32, DataType::DOUBLE, DataType::UINT8,  DataType::UINT8,   DataType::UINT8,  DataType::UINT8,
+    DataType::UINT8,  DataType::UINT8,  DataType::UINT8,  DataType::UINT8,   DataType::DOUBLE, DataType::DOUBLE,
+    DataType::BOOL,   DataType::INT32,  DataType::DOUBLE, DataType::VECTOR6D
+  };
   std::unique_ptr<rtde_interface::RTDEWriter> writer_;
   std::unique_ptr<comm::TCPServer> server_;
   std::unique_ptr<comm::URStream<rtde_interface::RTDEPackage>> stream_;
@@ -709,16 +712,13 @@ TEST_F(RTDEWriterTest, invalid_recipe_types_while_stopped_allow_valid_setup_and_
 {
   writer_->stop();
   writer_->setInputRecipe(input_recipe_);
-  auto too_few = input_recipe_types_;
-  too_few.pop_back();
+  ASSERT_FALSE(input_recipe_types_.empty());
+  const std::vector<DataType> too_few(input_recipe_types_.begin(), input_recipe_types_.end() - 1);
   auto too_many = input_recipe_types_;
-  too_many.push_back("DOUBLE");
-  auto unknown = input_recipe_types_;
-  unknown.back() = "NOT_A_TYPE";
+  too_many.push_back(DataType::DOUBLE);
 
   EXPECT_THROW(writer_->setRecipeTypes(too_few), UrException);
   EXPECT_THROW(writer_->setRecipeTypes(too_many), UrException);
-  EXPECT_THROW(writer_->setRecipeTypes(unknown), UrException);
   ASSERT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
   ASSERT_NO_THROW(writer_->init(1));
 
@@ -801,7 +801,7 @@ TEST_F(RTDEWriterTest, typing_and_retyping_initialize_both_send_buffers)
   writer_->stop();
   // Change the layout while stopped, then restore the fixture's wire types. No sends occur
   // under the temporary recipe types, which the fixture is not configured to parse.
-  writer_->setRecipeTypes(std::vector<std::string>(input_recipe_.size(), "UINT8"));
+  writer_->setRecipeTypes(std::vector<rtde_interface::DataType>(input_recipe_.size(), DataType::UINT8));
   writer_->setRecipeTypes(input_recipe_types_);
   writer_->init(1);
   for (const double value : { -1.25, 2.5 })
@@ -905,7 +905,7 @@ TEST_F(RTDEWriterTest, set_input_recipe_after_stop_succeeds)
   writer_->stop();
 
   const std::vector<std::string> new_recipe{ "speed_slider_mask", "speed_slider_fraction" };
-  const std::vector<std::string> new_types{ "UINT32", "DOUBLE" };
+  const std::vector<rtde_interface::DataType> new_types{ DataType::UINT32, DataType::DOUBLE };
   EXPECT_NO_THROW(writer_->setInputRecipe(new_recipe));
   EXPECT_NO_THROW(writer_->setRecipeTypes(new_types));
   EXPECT_NO_THROW(writer_->init(1));
@@ -946,7 +946,7 @@ TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
   ASSERT_TRUE(stream.connect());
 
   const std::vector<std::string> recipe{ "speed_slider_mask" };
-  const std::vector<std::string> types{ "UINT32" };
+  const std::vector<rtde_interface::DataType> types{ DataType::UINT32 };
   rtde_interface::RTDEWriter writer(&stream, recipe);
   writer.setRecipeTypes(types);
   writer.setProtocolVersion(1);

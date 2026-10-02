@@ -30,46 +30,52 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // -- END LICENSE BLOCK ------------------------------------------------
 
-//----------------------------------------------------------------------
-/*!\file
- *
- * Dynamic error-code text overrides.
- *
- * This file is intentionally NOT generated or overwritten by
- * scripts/generate_error_codes.py.  Add cases here for error codes
- * whose human-readable text must be computed at runtime (e.g. by
- * calling a C++ helper function rather than returning a static string).
- *
- * For purely static additions or text corrections, prefer adding entries
- * to scripts/error_code_overrides.json instead, which will be merged
- * into the generated lookup table by the code-generation script.
- *
- */
-//----------------------------------------------------------------------
+#include <ur_client_library/rtde/rtde_client.h>
 
-#include "ur_client_library/ur/error_code_overrides.h"
-#include "ur_client_library/ur/datatypes.h"
+#include <iostream>
 
-namespace urcl
+using namespace urcl;
+
+const std::string DEFAULT_ROBOT_IP = "192.168.56.101";
+
+int main(int argc, char* argv[])
 {
-namespace primary_interface
-{
-std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg)
-{
-  switch (code)
+  const std::string robot_ip = argc > 1 ? argv[1] : DEFAULT_ROBOT_IP;
+
+  comm::INotifier notifier;
+  rtde_interface::RTDEClient client(robot_ip, notifier, std::vector<std::string>{ "timestamp" },
+                                    std::vector<std::string>{});
+  // The client reads the robot properties as part of init().
+  if (!client.init())
   {
-    // C100: Robot changed mode.
-    // The argument encodes the new RobotMode; use robotModeString() to generate the human-readable
-    // text.
-    case 100:
-    {
-      return "Robot mode changed to: " + robotModeString(robotModeFromWire(arg));
-    }
-
-    default:
-      return std::nullopt;
+    std::cerr << "Could not connect to RTDE on " << robot_ip << std::endl;
+    return 1;
   }
-}
 
-}  // namespace primary_interface
-}  // namespace urcl
+  // The robot properties are first available from software 10.15 (PolyScope X) and 5.26.3 (PolyScope 5).
+  // Older controllers do not provide any. When getRobotProperties() succeeds, the software version
+  // is always there; the other getters depend on the catalog for that version.
+  rtde_interface::ReadProperties properties;
+  if (!client.getRobotProperties(properties))
+  {
+    std::cout << "The controller did not provide any robot properties. They require software 10.15 or 5.26.3 "
+                 "and newer."
+              << std::endl;
+    return 0;
+  }
+
+  if (const auto version = properties.getSoftwareVersion())
+  {
+    std::cout << "Software version: " << version->toString() << std::endl;
+  }
+  if (const auto control_box = properties.getControlBoxType())
+  {
+    std::cout << "Control box: CB" << static_cast<int>(control_box->type) << std::endl;
+  }
+  if (const auto tool_flange = properties.getToolFlangeType())
+  {
+    std::cout << "Tool flange: type " << static_cast<int>(tool_flange->type) << ", revision "
+              << static_cast<int>(tool_flange->revision) << std::endl;
+  }
+  return 0;
+}

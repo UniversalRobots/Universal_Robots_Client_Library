@@ -167,3 +167,13 @@ TEST(TestDatatypes, RobotSeriesString_invalid_throws)
   const RobotSeries also_invalid = static_cast<RobotSeries>(42);
   EXPECT_THROW(robotSeriesString(also_invalid), std::invalid_argument);
 }
+
+TEST(TestDatatypes, robot_series_from_wire)
+{
+  EXPECT_EQ(robotSeriesFromWire(1), RobotSeries::CB3);
+  EXPECT_EQ(robotSeriesFromWire(2), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(3), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(4), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(0), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromWire(42), RobotSeries::UNDEFINED);
+}

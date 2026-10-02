@@ -48,6 +48,9 @@ add_library(urcl
     src/rtde/control_package_start.cpp
     src/rtde/data_package.cpp
     src/rtde/get_urcontrol_version.cpp
+    src/rtde/data_type.cpp
+    src/rtde/read_properties.cpp
+    src/rtde/robot_properties.cpp
     src/rtde/request_protocol_version.cpp
     src/rtde/rtde_package.cpp
     src/rtde/rtde_parser.cpp

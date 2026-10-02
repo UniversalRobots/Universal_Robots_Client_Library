@@ -162,6 +162,25 @@ std::vector<std::string> splitString(const std::string& input, const std::string
   return result;
 }
 
+void splitStringView(const std::string_view input, const std::string_view delimiter,
+                     std::vector<std::string_view>& parts)
+{
+  parts.clear();
+  if (delimiter.empty())
+  {
+    parts.push_back(input);
+    return;
+  }
+  size_t pos = 0;
+  size_t pos_end = 0;
+  while ((pos_end = input.find(delimiter, pos)) != std::string_view::npos)
+  {
+    parts.push_back(input.substr(pos, pos_end - pos));
+    pos = pos_end + delimiter.size();
+  }
+  parts.push_back(input.substr(pos));
+}
+
 RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInformation& version_info)
 {
   switch (type)
@@ -213,6 +232,7 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
     case RobotType::UNDEFINED:
       return RobotSeries::UNDEFINED;
   }
+  URCL_LOG_ERROR("Unknown robot type %d has no series", static_cast<int>(type));
   return RobotSeries::UNDEFINED;
 }
 

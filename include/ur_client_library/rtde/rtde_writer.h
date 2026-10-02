@@ -240,10 +240,10 @@ public:
    *
    * \param types The data types of the input recipe's fields, in the same order as the recipe
    *
-   * \throws UrException if the number of types doesn't match the recipe, if a type is unknown, or
-   * if the writer is already running
+   * \throws UrException if the number of types doesn't match the recipe or if the writer is
+   * already running
    */
-  void setRecipeTypes(const std::vector<std::string>& types);
+  void setRecipeTypes(const std::vector<DataType>& types);
 
   /*!
    * \brief Records the RTDE protocol version negotiated with the robot.

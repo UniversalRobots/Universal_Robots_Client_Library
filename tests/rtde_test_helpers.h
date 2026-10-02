@@ -44,7 +44,7 @@ namespace test
  * data types the robot reported for it.
  */
 inline rtde_interface::DataPackage typedPackage(const std::vector<std::string>& recipe,
-                                                const std::vector<std::string>& types)
+                                                const std::vector<rtde_interface::DataType>& types)
 {
   rtde_interface::DataPackage package(recipe);
   package.setTypes(types);
