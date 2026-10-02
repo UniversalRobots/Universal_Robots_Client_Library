@@ -175,6 +175,8 @@ add_executable(dashboard_client_mock_tests test_dashboard_client.cpp)
 target_link_libraries(dashboard_client_mock_tests PRIVATE ur_client_library::urcl GTest::gmock_main)
 gtest_add_tests(TARGET      dashboard_client_mock_tests
 )
+set_tests_properties(DashboardClientWelcomeTest.disconnect_interrupts_silent_welcome
+                     PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE)
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
