@@ -94,6 +94,23 @@ public:
   void stop();
 
   /*!
+   * \brief Sets the maximum duration of a single socket connection attempt, see
+   * comm::TCPSocket::setConnectTimeout(). Applies to start() and to reconnects.
+   *
+   * \param connect_timeout Connect timeout, 0 (default) leaves it to the operating system
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
+
+  /*!
+   * \brief Getter for the connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConnectTimeout() const;
+
+  /*!
    * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
    * deleted.
    */

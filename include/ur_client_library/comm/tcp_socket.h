@@ -57,14 +57,16 @@ private:
   std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
+  std::atomic<std::chrono::milliseconds> connect_timeout_;
 
   void setupOptions();
 
   // Performs an interruptible, non-blocking connect on an already-created socket.
   // Polls in short slices so that a concurrent disconnect() aborts the attempt
   // promptly on all platforms (POSIX close() of a blocked connect() is reliable,
-  // Winsock's is not). Restores blocking mode on success.
-  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len);
+  // Winsock's is not). Gives up at the deadline and sets timed_out. Restores blocking mode on success.
+  bool openInterruptible(socket_t socket_fd, struct sockaddr* address, size_t address_len,
+                         const std::chrono::steady_clock::time_point deadline, bool& timed_out);
 
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
                      const std::chrono::milliseconds reconnection_time);
@@ -240,6 +242,28 @@ public:
    * \param timeout Timeout used for setting things up
    */
   void setReceiveTimeout(const timeval& timeout);
+
+  /*!
+   * \brief Sets the maximum duration of a single connection attempt.
+   *
+   * An attempt covers all addresses the host resolves to, but not the name resolution. The timeout
+   * applies to all following connect() and reconnect() calls.
+   *
+   * \param connect_timeout Connect timeout, 0 (default) leaves it to the operating system
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
+
+  /*!
+   * \brief Getter for the connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConnectTimeout() const
+  {
+    return connect_timeout_;
+  }
 
   /*!
    * \brief Set reconnection time, if the server is unavailable during connection this will set the time before

@@ -146,6 +146,15 @@ struct UrDriverConfiguration
   double force_mode_damping = 0.025;
   /// @private
   double force_mode_gain_scaling = 0.5;
+
+  // New members go last to keep positional initialization working.
+
+  /*!
+   * \brief Maximum duration of a single connection attempt to sockets such as the primary or RTDE interface.
+   *
+   * If set to 0, the operating system's connect timeout is used.
+   */
+  std::chrono::milliseconds socket_connect_timeout = std::chrono::milliseconds::zero();
 };
 
 /*!
@@ -1138,6 +1147,7 @@ private:
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
+  std::chrono::milliseconds socket_connect_timeout_ = std::chrono::milliseconds::zero();
 
   size_t rtde_initialization_attempts_ = 0;
   std::chrono::milliseconds rtde_initialization_timeout_ = std::chrono::milliseconds(10000);

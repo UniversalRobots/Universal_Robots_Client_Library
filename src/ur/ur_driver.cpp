@@ -72,6 +72,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   in_headless_mode_ = config.headless_mode;
   socket_connection_attempts_ = config.socket_reconnect_attempts;
   socket_reconnection_timeout_ = config.socket_reconnection_timeout;
+  socket_connect_timeout_ = config.socket_connect_timeout;
   rtde_initialization_attempts_ = config.rtde_initialization_attempts;
   rtde_initialization_timeout_ = config.rtde_initialization_timeout;
   force_mode_gain_scale_factor_ = config.force_mode_gain_scaling;
@@ -81,6 +82,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   URCL_LOG_DEBUG("Initializing RTDE client");
 
   primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
+  primary_client_->setConnectTimeout(socket_connect_timeout_);
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
 
@@ -773,6 +775,7 @@ void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const 
 
 void UrDriver::initRTDE()
 {
+  rtde_client_->setConnectTimeout(socket_connect_timeout_);
   if (!rtde_client_->init(socket_connection_attempts_, socket_reconnection_timeout_, rtde_initialization_attempts_,
                           rtde_initialization_timeout_))
   {
