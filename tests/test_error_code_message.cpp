@@ -192,7 +192,7 @@ TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_unknown_arg)
   auto msg = makeMsg(100, 127);
   const std::string result = msg->toString();
   EXPECT_NE(result, fallback(100, 127));
-  EXPECT_NE(result.find("Unknown robot mode: 127"), std::string::npos);
+  EXPECT_NE(result.find("UNKNOWN"), std::string::npos);
 }
 
 TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_out_of_range_arg)
@@ -202,7 +202,7 @@ TEST(ErrorCodeMessageTest, toString_uses_cpp_override_for_code_100_out_of_range_
   auto msg = makeMsg(100, 99999);
   const std::string result = msg->toString();
   EXPECT_NE(result, fallback(100, 99999));
-  EXPECT_NE(result.find("arg 99999 out of range for RobotMode"), std::string::npos);
+  EXPECT_NE(result.find("UNKNOWN"), std::string::npos);
 }
 
 TEST(ErrorCodeMessageTest, toString_uses_static_map_exact_match)

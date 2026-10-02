@@ -80,6 +80,10 @@ TEST(rtde_control_package_setup_inputs, parse_accepted_setup_inputs)
 
   EXPECT_EQ(expected_input_recipe_id, setup_inputs.input_recipe_id_);
   EXPECT_EQ(expected_variable_types, setup_inputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { rtde_interface::DataType::UINT32,
+                                                                                rtde_interface::DataType::DOUBLE };
+  EXPECT_EQ(expected_types, setup_inputs.data_types_);
+  EXPECT_EQ((std::vector<std::string_view>{ "UINT32", "DOUBLE" }), setup_inputs.type_names_);
 }
 
 TEST(rtde_control_package_setup_inputs, parse_not_accepted_setup_inputs)
@@ -97,6 +101,10 @@ TEST(rtde_control_package_setup_inputs, parse_not_accepted_setup_inputs)
 
   EXPECT_EQ(expected_input_recipe_id, setup_inputs.input_recipe_id_);
   EXPECT_EQ(expected_variable_types, setup_inputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { std::nullopt, std::nullopt };
+  EXPECT_EQ(expected_types, setup_inputs.data_types_);
+  EXPECT_EQ((std::vector<std::string_view>{ rtde_interface::IN_USE_NAME, rtde_interface::IN_USE_NAME }),
+            setup_inputs.type_names_);
 }
 
 int main(int argc, char* argv[])

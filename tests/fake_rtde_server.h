@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -51,6 +52,11 @@ public:
   std::vector<uint16_t> requestedProtocolVersions();
 
   /*!
+   * \brief Property-name payloads of RTDE_READ_PROPERTIES requests, in order.
+   */
+  std::vector<std::string> propertyRequests();
+
+  /*!
    * \brief Whether the next RTDE start request is accepted. A refused start must not leave the
    * client believing it is streaming.
    */
@@ -84,6 +90,24 @@ public:
 
   // Inject one frame after init(), while streaming is paused and the connection is stable.
   bool sendTestFrame(const std::vector<uint8_t>& frame);
+
+  /*!
+   * \brief Sends a text message ahead of the next RTDE_READ_PROPERTIES answer, the way a
+   * controller reports "SafetySetup has not been confirmed yet" right after connecting.
+   */
+  void queueTextMessageBeforeReadProperties(const std::string& message);
+
+  /*!
+   * \brief Reports \p token, such as NOT_SET, as the type of property \p name in every following
+   * RTDE_READ_PROPERTIES answer. Like a real controller, the answer then carries no values.
+   */
+  void setPropertyTypeReply(const std::string& name, const std::string& token);
+
+  /*!
+   * \brief Drops the last byte of the values in every following RTDE_READ_PROPERTIES answer. The
+   * header still matches the shortened frame, so only the value parsing runs out of data.
+   */
+  void setTruncatePropertyValues(const bool truncate);
 
 private:
   std::vector<std::string> input_recipe_;
@@ -130,9 +154,13 @@ private:
   std::deque<std::string> pending_setup_inputs_text_messages_;
   std::optional<std::vector<std::string>> output_type_reply_;
   std::optional<std::vector<std::string>> input_type_reply_;
+  std::deque<std::string> pending_read_properties_text_messages_;
   uint16_t highest_accepted_protocol_version_ = 2;
   uint16_t negotiated_protocol_version_ = 2;
   std::vector<uint16_t> requested_protocol_versions_;
+  std::vector<std::string> property_requests_;
+  std::map<std::string, std::string> property_type_replies_;
+  bool truncate_property_values_ = false;
   bool accept_start_ = true;
   bool accept_pause_ = true;
 };
