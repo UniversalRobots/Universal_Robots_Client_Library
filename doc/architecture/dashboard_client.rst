@@ -47,7 +47,7 @@ Connection timeout
 When the robot is switched off, it neither accepts nor refuses connection requests. Use
 ``setConnectTimeout()`` before calling ``connect()`` to limit how long a single connection attempt
 may take. By default, the connect timeout is disabled for CB3 and PolyScope 5, where each attempt
-waits until the operating system gives up (about two minutes on Linux), and set to 5 seconds for
+waits until the operating system gives up (Up to about two minutes on Linux), and set to 5 seconds for
 PolyScope X. For PolyScope X, a timeout of zero selects the HTTP library's built-in limit of 300
 seconds.
 
