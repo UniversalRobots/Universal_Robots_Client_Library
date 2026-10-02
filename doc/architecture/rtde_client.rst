@@ -65,7 +65,7 @@ Connection timeout
 
 When the robot is switched off, it neither accepts nor refuses connection requests, and each
 connection attempt of ``init()`` waits until the operating system gives up. On Linux this takes
-about two minutes. To give up earlier, set a connect timeout before calling ``init()``. It applies
+up to about two minutes. To give up earlier, set a connect timeout before calling ``init()``. It applies
 to each single connection attempt, including automatic reconnects:
 
 .. code-block:: c++
