@@ -42,6 +42,7 @@
 
 #include "ur_client_library/log.h"
 #include "ur_client_library/types.h"
+#include "ur_client_library/rtde/data_type.h"
 #include "ur_client_library/rtde/rtde_package.h"
 
 namespace urcl
@@ -60,34 +61,6 @@ enum class RUNTIME_STATE : uint32_t
   PAUSED = 4,
   RESUMING = 5
 };
-
-/*!
- * \brief The data types an RTDE field can have.
- *
- * This is the complete set the protocol defines. Which one a given field has is decided by the
- * robot when it acknowledges a recipe, so this list is all the type knowledge the library needs to
- * carry; see DataPackage::getDataType().
- */
-enum class DataType : uint8_t
-{
-  BOOL,
-  UINT8,
-  UINT32,
-  UINT64,
-  INT32,
-  DOUBLE,
-  VECTOR3D,
-  VECTOR6D,
-  VECTOR6INT32,
-  VECTOR6UINT32
-};
-
-/*!
- * \brief The name the RTDE protocol uses for a data type, e.g. "VECTOR6D".
- *
- * This is the spelling the robot uses on the wire and the RTDE guide uses in its field tables.
- */
-std::string toString(const DataType type);
 
 /*!
  * \brief The DataPackage class handles communication in the form of RTDE data packages both to and
@@ -121,8 +94,7 @@ public:
    * field whose type isn't decided yet, which is how a package constructed from a recipe alone
    * starts out.
    */
-  using _rtde_type_variant = std::variant<std::monostate, bool, uint8_t, uint32_t, uint64_t, int32_t, double,
-                                          vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
+  using _rtde_type_variant = DataValue;
 
   // A data package is created before the connection exists and then retyped in place from the
   // robot's acknowledgement, so no alternative may own heap memory: retyping has to stay a
@@ -230,7 +202,7 @@ public:
    * \brief Sets the attributes of the package by parsing a serialized representation of the
    * package.
    *
-   * The payload is the bytes after the package header. Version 2 data packages start with a
+   * The payload is the bytes after the package header. Version 2 and later data packages start with a
    * recipe-id byte; version 1 packages do not. That is the same layout serializePackage() writes
    * after the header.
    *
@@ -249,7 +221,7 @@ public:
   /*!
    * \brief Serializes the package.
    *
-   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The writer
+   * Version 2 and later data packages start with a recipe-id byte; version 1 packages do not. The writer
    * records the negotiated version with setProtocolVersion() before serializing.
    *
    * \param buffer Buffer to fill with the serialization
@@ -364,9 +336,10 @@ public:
   /*!
    * \brief Records the RTDE protocol version this package will serialize.
    *
-   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. The
-   * constructor defaults to version 2. The layout hash is always recomputed, including when the
-   * package is still untyped or only partially typed.
+   * Version 2 and later data packages start with a recipe-id byte; version 1 packages do not.
+   * Protocol version 3 keeps the version 2 layout. The constructor defaults to version 2. The
+   * layout hash is always recomputed, including when the package is still untyped or only
+   * partially typed.
    */
   void setProtocolVersion(const uint16_t protocol_version)
   {
@@ -383,10 +356,10 @@ public:
    *
    * \param types The data types of the recipe's fields, in the same order as the recipe
    *
-   * \throws UrException if the number of types doesn't match the recipe or if a type is unknown.
-   * Every name is checked before any field is written, so a failure leaves the package unchanged.
+   * \throws UrException if the number of types doesn't match the recipe. The package is left
+   * unchanged in that case.
    */
-  void setTypes(const std::vector<std::string>& types);
+  void setTypes(const std::vector<DataType>& types);
 
   /*!
    * \brief Copies same-recipe values without allocation; unset source fields become typed zeros.

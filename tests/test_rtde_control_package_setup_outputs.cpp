@@ -107,6 +107,10 @@ TEST(rtde_control_package_setup_outputs, parse_accepted_setup_output_protocolv2)
 
   EXPECT_EQ(expected_output_recipe_id, setup_outputs.output_recipe_id_);
   EXPECT_EQ(expected_variable_types, setup_outputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { rtde_interface::DataType::DOUBLE,
+                                                                                rtde_interface::DataType::VECTOR6D };
+  EXPECT_EQ(expected_types, setup_outputs.data_types_);
+  EXPECT_EQ((std::vector<std::string_view>{ "DOUBLE", "VECTOR6D" }), setup_outputs.type_names_);
 }
 
 TEST(rtde_control_package_setup_outputs, parse_not_accepted_setup_output_protocolv2)
@@ -123,6 +127,10 @@ TEST(rtde_control_package_setup_outputs, parse_not_accepted_setup_output_protoco
 
   EXPECT_EQ(expected_output_recipe_id, setup_outputs.output_recipe_id_);
   EXPECT_EQ(expected_variable_types, setup_outputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { std::nullopt,
+                                                                                rtde_interface::DataType::VECTOR6D };
+  EXPECT_EQ(expected_types, setup_outputs.data_types_);
+  EXPECT_EQ((std::vector<std::string_view>{ rtde_interface::NOT_FOUND_NAME, "VECTOR6D" }), setup_outputs.type_names_);
 }
 
 TEST(rtde_control_package_setup_outputs, parse_accepted_setup_output_protocolv1)
@@ -137,6 +145,9 @@ TEST(rtde_control_package_setup_outputs, parse_accepted_setup_output_protocolv1)
   std::string expected_variable_types = "DOUBLE,VECTOR6D";
 
   EXPECT_EQ(expected_variable_types, setup_outputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { rtde_interface::DataType::DOUBLE,
+                                                                                rtde_interface::DataType::VECTOR6D };
+  EXPECT_EQ(expected_types, setup_outputs.data_types_);
 }
 
 TEST(rtde_control_package_setup_outputs, parse_not_accepted_setup_output_protocolv1)
@@ -151,6 +162,9 @@ TEST(rtde_control_package_setup_outputs, parse_not_accepted_setup_output_protoco
   std::string expected_variable_types = "NOT_FOUND,VECTOR6D";
 
   EXPECT_EQ(expected_variable_types, setup_outputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { std::nullopt,
+                                                                                rtde_interface::DataType::VECTOR6D };
+  EXPECT_EQ(expected_types, setup_outputs.data_types_);
 }
 
 int main(int argc, char* argv[])

@@ -52,7 +52,8 @@ enum class PackageType : uint8_t
   RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS = 79,  // ascii O
   RTDE_CONTROL_PACKAGE_SETUP_INPUTS = 73,   // ascii I
   RTDE_CONTROL_PACKAGE_START = 83,          // ascii S
-  RTDE_CONTROL_PACKAGE_PAUSE = 80           // ascii P
+  RTDE_CONTROL_PACKAGE_PAUSE = 80,          // ascii P
+  RTDE_READ_PROPERTIES = 82                 // ascii R
 };
 
 /*!

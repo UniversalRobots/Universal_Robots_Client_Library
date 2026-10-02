@@ -255,7 +255,7 @@ public:
     {
       return RobotMode::UNKNOWN;
     }
-    return static_cast<RobotMode>(consumer_->getRobotModeData()->robot_mode_);
+    return robotModeFromWire(robot_mode_data->robot_mode_);
   }
 
   /*!

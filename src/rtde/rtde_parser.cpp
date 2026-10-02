@@ -21,6 +21,7 @@
  */
 #include "ur_client_library/rtde/rtde_parser.h"
 #include "ur_client_library/rtde/package_header.h"
+#include "ur_client_library/rtde/read_properties.h"
 #include "ur_client_library/rtde/rtde_package.h"
 
 namespace urcl
@@ -293,6 +294,10 @@ RTDEPackage* RTDEParser::createNewPackageFromType(PackageType type) const
       break;
     case PackageType::RTDE_CONTROL_PACKAGE_START:
       return new ControlPackageStart;
+      break;
+    // Only the answer is parsed here; RobotProperties pairs it with the names it asked for.
+    case PackageType::RTDE_READ_PROPERTIES:
+      return new ReadProperties;
       break;
     default:
       return new RTDEPackage(type);
