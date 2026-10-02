@@ -36,7 +36,11 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <chrono>
+#include <exception>
 #include <memory>
+#include <thread>
+#include "test_utils.h"
 
 using namespace urcl;
 
@@ -400,6 +404,42 @@ TEST_F(DashboardClientTest, X_program_api)
   EXPECT_EQ(prog.lastSavedDate, 789);
   EXPECT_EQ(prog.name, "fake prog");
   EXPECT_EQ(prog.programState, "FINAL");
+}
+
+// A dashboard peer may accept TCP but never send the welcome line. A deliberate
+// disconnect must end that receive without waiting for its ten-second timeout.
+TEST(DashboardClientWelcomeTest, disconnect_interrupts_silent_welcome)
+{
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+  bool connected = false;
+  std::exception_ptr connection_error;
+  std::thread connection([&]() {
+    try
+    {
+      connected = client.connect(1);
+    }
+    catch (...)
+    {
+      connection_error = std::current_exception();
+    }
+  });
+
+  const bool accepted = server.waitForConnectionCallback(5000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  const auto started = std::chrono::steady_clock::now();
+  client.disconnect();
+  connection.join();
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+
+  ASSERT_TRUE(accepted) << "The loopback dashboard server did not accept the connection";
+  if (connection_error)
+  {
+    std::rethrow_exception(connection_error);
+  }
+  EXPECT_FALSE(connected);
+  EXPECT_LT(elapsed, std::chrono::seconds(3));
 }
 
 int main(int argc, char* argv[])

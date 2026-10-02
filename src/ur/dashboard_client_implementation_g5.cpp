@@ -26,6 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <chrono>
 #include <filesystem>
 #include <regex>
 #include <sstream>
@@ -222,16 +223,53 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
     {
       if (TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
       {
-        URCL_LOG_INFO("%s", read().c_str());
+        // The welcome receive must remain interruptible by disconnect(). A ten-second
+        // blocking recv can outlive a shutdown request even after its socket is closed.
+        timeval poll_tv;
+        poll_tv.tv_sec = 0;
+        poll_tv.tv_usec = 100000;
+        TCPSocket::setReceiveTimeout(poll_tv);
+        std::string welcome;
+        auto deadline = std::chrono::steady_clock::now() + 10s;
+        while (!isStopRequested())
+        {
+          char character;
+          size_t read_chars = 0;
+          if (TCPSocket::read(reinterpret_cast<uint8_t*>(&character), 1, read_chars))
+          {
+            welcome.push_back(character);
+            if (character == '\n')
+            {
+              break;
+            }
+            deadline = std::chrono::steady_clock::now() + 10s;
+          }
+          else if (getState() != comm::SocketState::Connected || std::chrono::steady_clock::now() >= deadline)
+          {
+            throw TimeoutException("Did not receive answer from dashboard server in time.", tv);
+          }
+        }
+        if (isStopRequested())
+        {
+          TCPSocket::setReceiveTimeout(configured_tv);
+          return false;
+        }
+        URCL_LOG_INFO("%s", welcome.c_str());
         ret_val = true;
       }
       else
       {
+        TCPSocket::setReceiveTimeout(configured_tv);
         return false;
       }
     }
     catch (const TimeoutException&)
     {
+      TCPSocket::setReceiveTimeout(configured_tv);
+      if (isStopRequested())
+      {
+        return false;
+      }
       URCL_LOG_WARN("Did not receive dashboard bootup message although connection was established. This should not "
                     "happen, please contact the package maintainers. Retrying anyway...");
     }
