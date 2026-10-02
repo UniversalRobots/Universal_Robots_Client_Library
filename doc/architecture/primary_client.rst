@@ -11,7 +11,7 @@ The ``PrimaryClient`` class supports, among other things, sending URScript code 
 Connection timeout
 ------------------
 
-When the robot is switched off, it neither accepts nor refuses connection requests, and each connection attempt of ``start()`` waits until the operating system gives up. On Linux this takes about two minutes.
+When the robot is switched off, it neither accepts nor refuses connection requests, and each connection attempt of ``start()`` waits until the operating system gives up. In some cases on Linux this can take about two minutes.
 To give up earlier, set a connect timeout with ``setConnectTimeout()`` before calling ``start()``. It applies to each single connection attempt, including automatic reconnects.
 By default, the connect timeout is disabled and the operating system's timeout applies.
 
