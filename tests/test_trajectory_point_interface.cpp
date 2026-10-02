@@ -96,7 +96,7 @@ protected:
     }
 
     void readMessage(vector6int32_t& pos, vector6int32_t& vel, vector6int32_t& acc, int32_t& goal_time,
-                     int32_t& blend_radius_or_spline_type, int32_t& motion_type)
+                     int32_t& blend_radius_or_spline_type, int32_t& motion_type, int32_t& move_id)
     {
       // Read message
       uint8_t buf[sizeof(int32_t) * urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH];
@@ -152,66 +152,80 @@ protected:
       // Decode motion type
       std::memcpy(&val, b_pos, sizeof(int32_t));
       motion_type = be32toh(val);
+      b_pos += sizeof(int32_t);
+
+      // Decode the id of the move this point belongs to
+      std::memcpy(&val, b_pos, sizeof(int32_t));
+      move_id = be32toh(val);
     }
 
     vector6int32_t getPosition()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return pos;
     }
 
     vector6int32_t getVelocity()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return vel;
     }
 
     vector6int32_t getAcceleration()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return acc;
     }
 
     int32_t getGoalTime()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return goal_time;
     }
 
     int32_t getBlendRadius()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return blend_radius_or_spline_type;
     }
 
     int32_t getMotionType()
     {
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
       vector6int32_t pos, vel, acc;
-      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type);
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
       return motion_type;
+    }
+
+    int32_t getMoveId()
+    {
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
+      vector6int32_t pos, vel, acc;
+      readMessage(pos, vel, acc, goal_time, blend_radius_or_spline_type, motion_type, move_id);
+      return move_id;
     }
 
     struct TrajData
     {
       vector6int32_t pos, vel, acc;
-      int32_t goal_time, blend_radius_or_spline_type, motion_type;
+      int32_t goal_time, blend_radius_or_spline_type, motion_type, move_id;
     };
 
     TrajData getData()
     {
       TrajData spl;
-      readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type);
+      readMessage(spl.pos, spl.vel, spl.acc, spl.goal_time, spl.blend_radius_or_spline_type, spl.motion_type,
+                  spl.move_id);
       return spl;
     }
 
@@ -685,6 +699,33 @@ TEST_F(TrajectoryPointInterfaceTest, write_blend_radius)
   int32_t received_blend_radius = client_->getBlendRadius();
 
   EXPECT_EQ(send_blend_radius, ((float)received_blend_radius) / traj_point_interface_->MULT_TIME);
+}
+
+TEST_F(TrajectoryPointInterfaceTest, write_move_id)
+{
+  urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
+  const int32_t send_move_id = 3;
+  traj_point_interface_->setMoveId(send_move_id);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
+
+  EXPECT_EQ(send_move_id, client_->getMoveId());
+}
+
+// A point must carry the identifier of the move that is being written at the time, and not one
+// which was captured when the interface was created. If the interface captured it only once, then
+// every point would appear to belong to the first move, and the robot would discard the points of
+// every move after that one.
+TEST_F(TrajectoryPointInterfaceTest, successive_moves_carry_different_move_ids)
+{
+  urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
+
+  traj_point_interface_->setMoveId(1);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
+  EXPECT_EQ(1, client_->getMoveId());
+
+  traj_point_interface_->setMoveId(2);
+  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
+  EXPECT_EQ(2, client_->getMoveId());
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cartesian)
