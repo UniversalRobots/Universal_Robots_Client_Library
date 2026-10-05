@@ -1109,6 +1109,26 @@ std::vector<uint8_t> serializeUint32(const uint32_t value)
   return bytes;
 }
 
+TEST(rtde_parser, control_box_property_to_string)
+{
+  rtde_interface::ControlBoxProperty box;
+  box.type = ControlBoxType::CB5;
+  box.subtype = 2;
+  EXPECT_EQ(box.toString(), "type CB5.2");
+
+  box.type = ControlBoxType::UNKNOWN;
+  box.subtype = 0;
+  EXPECT_EQ(box.toString(), "type UNKNOWN.0");
+}
+
+TEST(rtde_parser, tool_flange_property_to_string)
+{
+  rtde_interface::ToolFlangeProperty flange;
+  flange.type = 2;
+  flange.revision = 4;
+  EXPECT_EQ(flange.toString(), "type 2, revision 4");
+}
+
 TEST(rtde_parser, read_properties_success_response)
 {
   uint8_t values[16];

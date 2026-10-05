@@ -70,12 +70,11 @@ int main(int argc, char* argv[])
   }
   if (const auto control_box = properties.getControlBoxType())
   {
-    std::cout << "Control box: CB" << static_cast<int>(control_box->type) << std::endl;
+    std::cout << "Control box: " << control_box->toString() << std::endl;
   }
   if (const auto tool_flange = properties.getToolFlangeType())
   {
-    std::cout << "Tool flange: type " << static_cast<int>(tool_flange->type) << ", revision "
-              << static_cast<int>(tool_flange->revision) << std::endl;
+    std::cout << "Tool flange: " << tool_flange->toString() << std::endl;
   }
   return 0;
 }

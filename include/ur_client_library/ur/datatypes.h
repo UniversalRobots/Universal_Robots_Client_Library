@@ -501,4 +501,23 @@ inline std::string robotSeriesString(const RobotSeries& series)
   throw std::invalid_argument("Unknown robot series: " + std::to_string(static_cast<int>(series)));
 }
 
+/*!
+ * \brief Converts a control-box type to its name.
+ *
+ * \returns "CB5", "CB7", or "UNKNOWN". A value outside the enum throws std::invalid_argument.
+ */
+inline std::string controlBoxTypeString(const ControlBoxType type)
+{
+  switch (type)
+  {
+    case ControlBoxType::UNKNOWN:
+      return "UNKNOWN";
+    case ControlBoxType::CB5:
+      return "CB5";
+    case ControlBoxType::CB7:
+      return "CB7";
+  }
+  throw std::invalid_argument("Unknown control box type: " + std::to_string(static_cast<int>(type)));
+}
+
 }  // namespace urcl

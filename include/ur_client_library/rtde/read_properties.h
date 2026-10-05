@@ -66,6 +66,14 @@ struct ToolFlangeProperty
 {
   uint8_t type = 0;
   uint8_t revision = 0;
+
+  /*!
+   * \brief Text covering both fields, such as "type 2, revision 4".
+   */
+  std::string toString() const
+  {
+    return "type " + std::to_string(type) + ", revision " + std::to_string(revision);
+  }
 };
 
 /*!
@@ -75,6 +83,14 @@ struct ControlBoxProperty
 {
   ControlBoxType type = ControlBoxType::UNKNOWN;
   uint8_t subtype = 0;
+
+  /*!
+   * \brief Text covering both fields, such as "type CB5.2".
+   */
+  std::string toString() const
+  {
+    return "type " + controlBoxTypeString(type) + "." + std::to_string(subtype);
+  }
 };
 
 /*!

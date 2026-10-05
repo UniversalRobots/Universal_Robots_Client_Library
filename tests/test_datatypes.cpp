@@ -168,6 +168,22 @@ TEST(TestDatatypes, RobotSeriesString_invalid_throws)
   EXPECT_THROW(robotSeriesString(also_invalid), std::invalid_argument);
 }
 
+TEST(TestDatatypes, ControlBoxTypeString_all_values)
+{
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::UNKNOWN), "UNKNOWN");
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::CB5), "CB5");
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::CB7), "CB7");
+}
+
+TEST(TestDatatypes, ControlBoxTypeString_invalid_throws)
+{
+  const ControlBoxType invalid = static_cast<ControlBoxType>(1);
+  EXPECT_THROW(controlBoxTypeString(invalid), std::invalid_argument);
+
+  const ControlBoxType also_invalid = static_cast<ControlBoxType>(42);
+  EXPECT_THROW(controlBoxTypeString(also_invalid), std::invalid_argument);
+}
+
 TEST(TestDatatypes, robot_series_from_wire)
 {
   EXPECT_EQ(robotSeriesFromWire(1), RobotSeries::CB3);

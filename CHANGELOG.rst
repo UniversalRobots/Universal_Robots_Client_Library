@@ -4,6 +4,9 @@ Changelog for package ur_client_library
 
 Forthcoming
 -----------
+* Add ``controlBoxTypeString()`` for printing a ``ControlBoxType``.
+* Add ``ToolFlangeProperty::toString()``, covering the type and revision bytes.
+* Add ``ControlBoxProperty::toString()``, covering the type and subtype.
 * **Breaking:** ``DataPackage::setTypes()`` and ``RTDEWriter::setRecipeTypes()`` take a
   ``std::vector<rtde_interface::DataType>`` instead of type names. Convert names with
   ``rtde_interface::dataTypeFromName()`` or ``rtde_interface::parseDataTypes()``.
