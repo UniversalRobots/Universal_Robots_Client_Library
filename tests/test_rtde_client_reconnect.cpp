@@ -219,6 +219,29 @@ TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
   EXPECT_TRUE(server_->propertyRequests().empty());
 }
 
+TEST_F(RTDEClientReconnectTest, reconnect_to_another_controller_reads_its_properties)
+{
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(3);
+  makeClient();
+  ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
+  rtde_interface::ReadProperties properties;
+  ASSERT_TRUE(client_->getRobotProperties(properties));
+  EXPECT_EQ(properties.getSoftwareVersion()->major, 10u);
+  client_->start();
+
+  server_.reset();
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED)) << "the client did not notice the lost server";
+
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setReportedSoftwareVersion(5, 27, 1);
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
+  ASSERT_TRUE(client_->getRobotProperties(properties));
+  EXPECT_EQ(properties.getSoftwareVersion()->major, 5u);
+  EXPECT_EQ(server_->propertyRequests().size(), 2u);
+}
+
 // The same recovery, but for a client reading synchronously. reconnect() restores whichever read
 // mode was in use, so both need covering.
 TEST_F(RTDEClientReconnectTest, reconnects_when_the_server_comes_back_during_blocking_read)

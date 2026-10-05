@@ -611,6 +611,32 @@ void RTDEServer::setTruncatePropertyValues(const bool truncate)
   truncate_property_values_ = truncate;
 }
 
+void RTDEServer::setReportedSoftwareVersion(const uint16_t major, const uint16_t minor, const uint16_t bugfix)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  software_version_major_ = major;
+  software_version_minor_ = minor;
+  software_version_bugfix_ = bugfix;
+}
+
+void RTDEServer::setSoftwareVersionAsUint32(const bool as_uint32)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  software_version_as_uint32_ = as_uint32;
+}
+
+void RTDEServer::queueStartReplyBeforeReadProperties()
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  ++pending_start_replies_before_read_properties_;
+}
+
+void RTDEServer::queueTextMessageAfterStart(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_after_start_text_messages_.push_back(message);
+}
+
 void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
 {
   comm::PackageSerializer serializer;
@@ -924,9 +950,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
       bool accepted;
+      std::deque<std::string> after_start_text_messages;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         accepted = accept_start_;
+        after_start_text_messages.swap(pending_after_start_text_messages_);
       }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
@@ -939,6 +967,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
       if (accepted)
       {
+        for (const std::string& msg : after_start_text_messages)
+        {
+          sendTextMessage(filedescriptor, msg);
+        }
         startSendingDataPackages();
       }
       break;
@@ -981,8 +1013,8 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       URCL_LOG_WARN("Received Text message which usually shouldn't be sent to the RTDE server.");
       break;
     }
-    // Mimics a 10.15.0 controller on a CB5 with a standard tool flange. Like the real one it
-    // reports NOT_FOUND for unknown names and then sends no values at all, so tests can check the
+    // Mimics a configurable controller (defaults to 10.15.0) on a CB5 with a standard tool flange. Like the
+    // real one it reports NOT_FOUND for unknown names and then sends no values at all, so tests can check the
     // client only asks for names the controller has.
     case rtde_interface::PackageType::RTDE_READ_PROPERTIES:
     {
@@ -991,12 +1023,34 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       std::deque<std::string> text_messages;
       std::map<std::string, std::string> type_replies;
       bool truncate_values = false;
+      uint16_t major = 10;
+      uint16_t minor = 15;
+      uint16_t bugfix = 0;
+      bool as_uint32 = false;
+      unsigned start_replies = 0;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         property_requests_.push_back(names_str);
         text_messages.swap(pending_read_properties_text_messages_);
         type_replies = property_type_replies_;
         truncate_values = truncate_property_values_;
+        major = software_version_major_;
+        minor = software_version_minor_;
+        bugfix = software_version_bugfix_;
+        as_uint32 = software_version_as_uint32_;
+        start_replies = pending_start_replies_before_read_properties_;
+        pending_start_replies_before_read_properties_ = 0;
+      }
+      for (unsigned i = 0; i < start_replies; ++i)
+      {
+        comm::PackageSerializer start_serializer;
+        uint8_t start_buffer[16];
+        size_t start_size = 0;
+        start_size += rtde_interface::PackageHeader::serializeHeader(
+            start_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START, sizeof(uint8_t));
+        start_size += start_serializer.serialize(start_buffer + start_size, true);
+        size_t start_written = 0;
+        server_.writeUnchecked(filedescriptor, start_buffer, start_size, start_written);
       }
       for (const std::string& text_message : text_messages)
       {
@@ -1017,10 +1071,13 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
           types += reply->second;
           all_known = false;
         }
-        else if (name == "v1.software.version" || name == "v1.control_box.type" ||
-                 name == "v1.robot_arm.tool_flange.type")
+        else if (name == "v1.software.version")
         {
-          types += (name == "v1.software.version") ? "UINT64" : "UINT32";
+          types += as_uint32 ? "UINT32" : "UINT64";
+        }
+        else if (name == "v1.control_box.type" || name == "v1.robot_arm.tool_flange.type")
+        {
+          types += "UINT32";
         }
         else
         {
@@ -1041,9 +1098,17 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         {
           if (name == "v1.software.version")
           {
-            // major, minor, patch as 2 bytes each from MSB to LSB. 10.15.0.
-            const uint64_t encoded = (static_cast<uint64_t>(10) << 48) | (static_cast<uint64_t>(15) << 32);
-            values_size += serializer.serialize(values + values_size, encoded);
+            // major, minor, patch as 2 bytes each from MSB to LSB. Configurable software version.
+            const uint64_t encoded = (static_cast<uint64_t>(major) << 48) | (static_cast<uint64_t>(minor) << 32) |
+                                     (static_cast<uint64_t>(bugfix) << 16);
+            if (as_uint32)
+            {
+              values_size += serializer.serialize(values + values_size, static_cast<uint32_t>(encoded >> 32));
+            }
+            else
+            {
+              values_size += serializer.serialize(values + values_size, encoded);
+            }
           }
           else if (name == "v1.control_box.type")
           {

@@ -117,6 +117,28 @@ public:
    */
   void setTruncatePropertyValues(const bool truncate);
 
+  /*!
+   * \brief Software version reported for v1.software.version. Defaults to 10.15.0.
+   */
+  void setReportedSoftwareVersion(const uint16_t major, const uint16_t minor, const uint16_t bugfix);
+
+  /*!
+   * \brief Reports v1.software.version as UINT32 with a 4-byte value instead of UINT64, the way a
+   * controller with a different encoding would. The answer still carries values.
+   */
+  void setSoftwareVersionAsUint32(const bool as_uint32);
+
+  /*!
+   * \brief Sends an accepted RTDE_CONTROL_PACKAGE_START reply ahead of the next RTDE_READ_PROPERTIES
+   * answer: a package that is neither the answer nor a text message.
+   */
+  void queueStartReplyBeforeReadProperties();
+
+  /*!
+   * \brief Sends message right after the next accepted start acknowledgement, before any data package.
+   */
+  void queueTextMessageAfterStart(const std::string& message);
+
 private:
   std::vector<std::string> input_recipe_;
   std::vector<std::string> output_recipe_;
@@ -170,6 +192,12 @@ private:
   std::vector<std::string> property_requests_;
   std::map<std::string, std::string> property_type_replies_;
   bool truncate_property_values_ = false;
+  uint16_t software_version_major_ = 10;
+  uint16_t software_version_minor_ = 15;
+  uint16_t software_version_bugfix_ = 0;
+  bool software_version_as_uint32_ = false;
+  unsigned pending_start_replies_before_read_properties_ = 0;
+  std::deque<std::string> pending_after_start_text_messages_;
   bool accept_start_ = true;
   bool accept_pause_ = true;
 };
