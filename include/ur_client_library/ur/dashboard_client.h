@@ -771,7 +771,7 @@ public:
   /*!
    * \brief Update an existing program on the robot
    *
-   * \param file_path The path to the program file on the machine where the dashboard client is running. This may fail
+   * \param file_path The path to the program file on the machine where the dashboard client is running. This will fail
    * if no program with the name defined inside the program file exists on the robot.
    *
    * \note This command is only available for PolyScope X robots.
