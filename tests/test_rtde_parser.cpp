@@ -1114,11 +1114,11 @@ TEST(rtde_parser, control_box_property_to_string)
   rtde_interface::ControlBoxProperty box;
   box.type = ControlBoxType::CB5;
   box.subtype = 2;
-  EXPECT_EQ(box.toString(), "type CB5.2");
+  EXPECT_EQ(box.toString(), "type CB5");
 
   box.type = ControlBoxType::UNKNOWN;
   box.subtype = 0;
-  EXPECT_EQ(box.toString(), "type UNKNOWN.0");
+  EXPECT_EQ(box.toString(), "type UNKNOWN");
 }
 
 TEST(rtde_parser, tool_flange_property_to_string)

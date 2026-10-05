@@ -85,11 +85,11 @@ struct ControlBoxProperty
   uint8_t subtype = 0;
 
   /*!
-   * \brief Text covering both fields, such as "type CB5.2".
+   * \brief Text naming the control box type, such as "type CB5".
    */
   std::string toString() const
   {
-    return "type " + controlBoxTypeString(type) + "." + std::to_string(subtype);
+    return "type " + controlBoxTypeString(type);
   }
 };
 
