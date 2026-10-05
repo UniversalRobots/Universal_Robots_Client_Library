@@ -1181,6 +1181,52 @@ TEST(rtde_parser, read_properties_success_response)
   ASSERT_TRUE(flange.has_value());
   EXPECT_EQ(flange->type, 2);
   EXPECT_EQ(flange->revision, 4);
+
+  EXPECT_EQ(properties.toString(), "property data types: UINT64 UINT32 UINT32\nproperty values present: true\n");
+}
+
+TEST(rtde_parser, read_properties_getters_return_empty_for_missing_or_mismatched_type)
+{
+  const std::string types = "UINT32,UINT64,UINT64";
+  uint8_t values[24];
+  size_t values_size = 0;
+  values_size += comm::PackageSerializer::serialize(values + values_size, static_cast<uint32_t>(10));
+  values_size += comm::PackageSerializer::serialize(values + values_size, static_cast<uint64_t>(5));
+  values_size += comm::PackageSerializer::serialize(values + values_size, static_cast<uint64_t>(2));
+
+  rtde_interface::RTDEParser parser({ "" });
+  auto product =
+      parseAnswer(parser, serializePropertiesResponse(types, std::vector<uint8_t>(values, values + values_size)));
+  auto* answer = dynamic_cast<rtde_interface::ReadProperties*>(product.get());
+  ASSERT_NE(answer, nullptr);
+
+  rtde_interface::ReadProperties properties(
+      { "v1.software.version", "v1.control_box.type", "v1.robot_arm.tool_flange.type" });
+  ASSERT_TRUE(properties.takeAnswer(*answer));
+
+  // Values exist but hold mismatched types (UINT32 instead of UINT64, etc.).
+  EXPECT_FALSE(properties.getSoftwareVersion().has_value());
+  EXPECT_FALSE(properties.getControlBoxType().has_value());
+  EXPECT_FALSE(properties.getToolFlangeType().has_value());
+  EXPECT_FALSE(properties.getDataType("nonexistent.property").has_value());
+
+  // Values missing or name never requested.
+  rtde_interface::ReadProperties empty_properties;
+  EXPECT_FALSE(empty_properties.getSoftwareVersion().has_value());
+  EXPECT_FALSE(empty_properties.getControlBoxType().has_value());
+  EXPECT_FALSE(empty_properties.getToolFlangeType().has_value());
+
+  rtde_interface::ReadProperties only_version({ "v1.software.version" });
+  uint8_t ver_val[8];
+  comm::PackageSerializer::serialize(ver_val, static_cast<uint64_t>(10));
+  auto ver_product =
+      parseAnswer(parser, serializePropertiesResponse("UINT64", std::vector<uint8_t>(ver_val, ver_val + 8)));
+  auto* ver_answer = dynamic_cast<rtde_interface::ReadProperties*>(ver_product.get());
+  ASSERT_NE(ver_answer, nullptr);
+  ASSERT_TRUE(only_version.takeAnswer(*ver_answer));
+  EXPECT_TRUE(only_version.getSoftwareVersion().has_value());
+  EXPECT_FALSE(only_version.getControlBoxType().has_value());
+  EXPECT_FALSE(only_version.getToolFlangeType().has_value());
 }
 
 TEST(rtde_parser, read_properties_error_token_has_no_values)
@@ -1208,6 +1254,8 @@ TEST(rtde_parser, read_properties_error_token_has_no_values)
   auto* not_set_answer = dynamic_cast<rtde_interface::ReadProperties*>(not_set.get());
   ASSERT_NE(not_set_answer, nullptr);
   EXPECT_FALSE(not_set_answer->hasValues());
+
+  EXPECT_EQ(properties.toString(), "property data types: UINT64 <not a data type>\nproperty values present: false\n");
 }
 
 TEST(rtde_parser, read_properties_answer_must_match_the_names)
