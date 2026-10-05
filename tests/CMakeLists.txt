@@ -177,6 +177,8 @@ gtest_add_tests(TARGET      dashboard_client_mock_tests
 )
 set_tests_properties(DashboardClientWelcomeTest.disconnect_interrupts_silent_welcome
                      PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE)
+set_tests_properties(DashboardClientWelcomeTest.welcome_timeout_allows_external_retry
+                     PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)

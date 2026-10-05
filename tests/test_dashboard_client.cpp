@@ -442,6 +442,75 @@ TEST(DashboardClientWelcomeTest, disconnect_interrupts_silent_welcome)
   EXPECT_LT(elapsed, std::chrono::seconds(3));
 }
 
+// A missing welcome is a failed connection attempt, not a connected socket
+// that leaves every later external connect() unable to try again.
+TEST(DashboardClientWelcomeTest, welcome_timeout_allows_external_retry)
+{
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+
+  const auto first_started = std::chrono::steady_clock::now();
+  const bool first_connected = client.connect(1);
+  const auto first_elapsed = std::chrono::steady_clock::now() - first_started;
+  const bool first_accepted = server.waitForConnectionCallback(1000);
+  const bool first_disconnected = server.waitForDisconnectionCallback(1000);
+
+  bool second_connected = false;
+  std::exception_ptr connection_error;
+  std::thread second_attempt([&]() {
+    try
+    {
+      second_connected = client.connect(1);
+    }
+    catch (...)
+    {
+      connection_error = std::current_exception();
+    }
+  });
+
+  const bool second_accepted = server.waitForConnectionCallback(1000);
+  bool greeting_sent = false;
+  bool version_requested = false;
+  bool version_sent = false;
+  if (second_accepted)
+  {
+    const std::string greeting = "Connected: Universal Robots Dashboard Server\n";
+    size_t written = 0;
+    greeting_sent = server.write(reinterpret_cast<const uint8_t*>(greeting.data()), greeting.size(), written) &&
+                    written == greeting.size();
+    if (greeting_sent)
+    {
+      version_requested = server.waitForMessageCallback(2000);
+    }
+    if (version_requested)
+    {
+      const std::string version = "URSoftware 5.12.0.1 (validation)\n";
+      version_sent = server.write(reinterpret_cast<const uint8_t*>(version.data()), version.size(), written) &&
+                     written == version.size();
+    }
+  }
+  if (!second_accepted || !greeting_sent || !version_requested || !version_sent)
+  {
+    client.disconnect();
+  }
+  second_attempt.join();
+
+  EXPECT_TRUE(first_accepted);
+  EXPECT_FALSE(first_connected);
+  EXPECT_LT(first_elapsed, std::chrono::seconds(13));
+  EXPECT_TRUE(first_disconnected) << "The timed-out welcome left the socket connected";
+  EXPECT_TRUE(second_accepted) << "The next connect() never reached the dashboard server";
+  EXPECT_TRUE(greeting_sent);
+  EXPECT_TRUE(version_requested);
+  EXPECT_TRUE(version_sent);
+  if (connection_error)
+  {
+    std::rethrow_exception(connection_error);
+  }
+  EXPECT_TRUE(second_connected);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

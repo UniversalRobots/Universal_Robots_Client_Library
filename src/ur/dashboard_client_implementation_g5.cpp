@@ -208,71 +208,62 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
     URCL_LOG_ERROR("%s", "Socket is already connected. Refusing to reconnect.");
     return false;
   }
-  bool ret_val = false;
-
   timeval configured_tv = getConfiguredReceiveTimeout();
-
-  while (!ret_val)
+  try
   {
-    timeval tv;
-    // The first read after connection can take more time.
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-    TCPSocket::setReceiveTimeout(tv);
-    try
+    if (TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
     {
-      if (TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
+      // The welcome receive must remain interruptible by disconnect(). A ten-second
+      // blocking recv can outlive a shutdown request even after its socket is closed.
+      timeval poll_tv;
+      poll_tv.tv_sec = 0;
+      poll_tv.tv_usec = 100000;
+      TCPSocket::setReceiveTimeout(poll_tv);
+      const timeval welcome_tv = { 10, 0 };
+      std::string welcome;
+      auto deadline = std::chrono::steady_clock::now() + 10s;
+      while (!isStopRequested())
       {
-        // The welcome receive must remain interruptible by disconnect(). A ten-second
-        // blocking recv can outlive a shutdown request even after its socket is closed.
-        timeval poll_tv;
-        poll_tv.tv_sec = 0;
-        poll_tv.tv_usec = 100000;
-        TCPSocket::setReceiveTimeout(poll_tv);
-        std::string welcome;
-        auto deadline = std::chrono::steady_clock::now() + 10s;
-        while (!isStopRequested())
+        char character;
+        size_t read_chars = 0;
+        if (TCPSocket::read(reinterpret_cast<uint8_t*>(&character), 1, read_chars))
         {
-          char character;
-          size_t read_chars = 0;
-          if (TCPSocket::read(reinterpret_cast<uint8_t*>(&character), 1, read_chars))
+          welcome.push_back(character);
+          if (character == '\n')
           {
-            welcome.push_back(character);
-            if (character == '\n')
-            {
-              break;
-            }
-            deadline = std::chrono::steady_clock::now() + 10s;
+            break;
           }
-          else if (getState() != comm::SocketState::Connected || std::chrono::steady_clock::now() >= deadline)
-          {
-            throw TimeoutException("Did not receive answer from dashboard server in time.", tv);
-          }
+          deadline = std::chrono::steady_clock::now() + 10s;
         }
-        if (isStopRequested())
+        else if (getState() != comm::SocketState::Connected || std::chrono::steady_clock::now() >= deadline)
         {
-          TCPSocket::setReceiveTimeout(configured_tv);
-          return false;
+          throw TimeoutException("Did not receive welcome message from dashboard server in time.", welcome_tv);
         }
-        URCL_LOG_INFO("%s", welcome.c_str());
-        ret_val = true;
       }
-      else
+      if (isStopRequested())
       {
         TCPSocket::setReceiveTimeout(configured_tv);
         return false;
       }
+      URCL_LOG_INFO("%s", welcome.c_str());
     }
-    catch (const TimeoutException&)
+    else
     {
       TCPSocket::setReceiveTimeout(configured_tv);
-      if (isStopRequested())
-      {
-        return false;
-      }
-      URCL_LOG_WARN("Did not receive dashboard bootup message although connection was established. This should not "
-                    "happen, please contact the package maintainers. Retrying anyway...");
+      return false;
     }
+  }
+  catch (const TimeoutException& e)
+  {
+    if (isStopRequested())
+    {
+      TCPSocket::setReceiveTimeout(configured_tv);
+      return false;
+    }
+    URCL_LOG_WARN("%s", e.what());
+    disconnect();
+    TCPSocket::setReceiveTimeout(configured_tv);
+    return false;
   }
 
   // Reset read timeout to configured socket timeout
@@ -280,7 +271,7 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
 
   polyscope_version_ = queryPolyScopeVersion();
 
-  return ret_val;
+  return true;
 }
 
 void DashboardClientImplG5::disconnect()
