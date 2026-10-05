@@ -196,6 +196,12 @@ TEST(TestHelpers, robotSeriesFromTypeAndVersion)
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_x_version), RobotSeries::UNDEFINED);
 }
 
+TEST(TestHelpers, robotSeriesFromTypeAndVersion_of_an_unknown_type_is_undefined)
+{
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(static_cast<RobotType>(99), VersionInformation::fromString("5.12.0.0")),
+            RobotSeries::UNDEFINED);
+}
+
 TEST(TestHelpers, robotSeriesString)
 {
   EXPECT_EQ(robotSeriesString(RobotSeries::CB3), "CB3");

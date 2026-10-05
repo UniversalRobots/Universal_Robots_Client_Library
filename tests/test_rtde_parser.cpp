@@ -1440,6 +1440,14 @@ TEST(rtde_data_type, known_type_names_lists_every_data_type)
                                               "VECTOR6INT32, VECTOR6UINT32");
 }
 
+TEST(rtde_data_type, a_value_outside_the_enum_is_not_a_data_type)
+{
+  const auto invalid = static_cast<DataType>(0xff);
+  EXPECT_FALSE(rtde_interface::isDataType(invalid));
+  EXPECT_THROW(rtde_interface::makeValue(invalid), UrException);
+  EXPECT_TRUE(rtde_interface::isDataType(DataType::VECTOR6UINT32));
+}
+
 TEST(rtde_read_properties, values_after_an_entry_that_is_not_a_data_type_are_rejected)
 {
   rtde_interface::RTDEParser parser({ "" });
