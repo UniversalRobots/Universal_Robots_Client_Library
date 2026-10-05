@@ -133,6 +133,27 @@ TEST(rtde_control_package_setup_outputs, parse_not_accepted_setup_output_protoco
   EXPECT_EQ((std::vector<std::string_view>{ rtde_interface::NOT_FOUND_NAME, "VECTOR6D" }), setup_outputs.type_names_);
 }
 
+TEST(rtde_control_package_setup_outputs, parse_accepted_setup_output_protocolv3)
+{
+  uint8_t setup_outputs_answer[] = { 0x01, 0x44, 0x4f, 0x55, 0x42, 0x4c, 0x45, 0x2c,
+                                     0x56, 0x45, 0x43, 0x54, 0x4f, 0x52, 0x36, 0x44 };
+  comm::BinParser bp(setup_outputs_answer, sizeof(setup_outputs_answer));
+  rtde_interface::ControlPackageSetupOutputs setup_outputs(3);
+
+  EXPECT_TRUE(setup_outputs.parseWith(bp));
+
+  uint8_t expected_output_recipe_id = 1;
+  std::string expected_variable_types = "DOUBLE,VECTOR6D";
+
+  EXPECT_EQ(expected_output_recipe_id, setup_outputs.output_recipe_id_);
+  EXPECT_EQ(expected_variable_types, setup_outputs.variable_types_);
+  const std::vector<std::optional<rtde_interface::DataType>> expected_types = { rtde_interface::DataType::DOUBLE,
+                                                                                rtde_interface::DataType::VECTOR6D };
+  EXPECT_EQ(expected_types, setup_outputs.data_types_);
+  EXPECT_EQ((std::vector<std::string_view>{ "DOUBLE", "VECTOR6D" }), setup_outputs.type_names_);
+  EXPECT_EQ(setup_outputs.toString(), "output recipe id: 1\nvariable types: DOUBLE,VECTOR6D");
+}
+
 TEST(rtde_control_package_setup_outputs, parse_accepted_setup_output_protocolv1)
 {
   uint8_t setup_outputs_answer[] = { 0x44, 0x4f, 0x55, 0x42, 0x4c, 0x45, 0x2c, 0x56,

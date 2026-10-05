@@ -1185,6 +1185,29 @@ TEST(rtde_parser, read_properties_success_response)
   EXPECT_EQ(properties.toString(), "property data types: UINT64 UINT32 UINT32\nproperty values present: true\n");
 }
 
+TEST(rtde_parser, software_version_decodes_the_bugfix_word)
+{
+  const uint64_t wire_val =
+      (static_cast<uint64_t>(5) << 48) | (static_cast<uint64_t>(27) << 32) | (static_cast<uint64_t>(3) << 16) | 0xBEEF;
+  uint8_t val_bytes[8];
+  comm::PackageSerializer::serialize(val_bytes, wire_val);
+
+  rtde_interface::RTDEParser parser({ "" });
+  auto product =
+      parseAnswer(parser, serializePropertiesResponse("UINT64", std::vector<uint8_t>(val_bytes, val_bytes + 8)));
+  auto* answer = dynamic_cast<rtde_interface::ReadProperties*>(product.get());
+  ASSERT_NE(answer, nullptr);
+
+  rtde_interface::ReadProperties properties({ "v1.software.version" });
+  ASSERT_TRUE(properties.takeAnswer(*answer));
+  const std::optional<VersionInformation> version = properties.getSoftwareVersion();
+  ASSERT_TRUE(version.has_value());
+  EXPECT_EQ(version->major, 5u);
+  EXPECT_EQ(version->minor, 27u);
+  EXPECT_EQ(version->bugfix, 3u);
+  EXPECT_EQ(version->build, 0u);
+}
+
 TEST(rtde_parser, read_properties_getters_return_empty_for_missing_or_mismatched_type)
 {
   const std::string types = "UINT32,UINT64,UINT64";
@@ -1492,6 +1515,97 @@ TEST(rtde_read_properties, catalog_follows_each_product_line)
   with_future.push_back("v1.future.property");
   EXPECT_EQ(names_for(5, 28), with_future);
   EXPECT_EQ(names_for(10, 16), with_future);
+}
+
+TEST(rtde_read_properties, catalog_row_for_one_product_line_is_never_asked_on_the_other)
+{
+  VersionInformation polyscope_5_28;
+  polyscope_5_28.major = 5;
+  polyscope_5_28.minor = 28;
+  VersionInformation polyscope_x_16;
+  polyscope_x_16.major = 10;
+  polyscope_x_16.minor = 16;
+
+  const std::vector<rtde_interface::PropertySpec> catalog = {
+    { "v1.ps5.only", polyscope_5_28, std::nullopt },
+    { "v1.psx.only", std::nullopt, polyscope_x_16 },
+  };
+
+  const auto names_for = [&catalog](const uint32_t major, const uint32_t minor, const uint32_t bugfix) {
+    VersionInformation version;
+    version.major = major;
+    version.minor = minor;
+    version.bugfix = bugfix;
+    version.build = 0;
+    return rtde_interface::propertyNamesForSoftwareVersion(version, catalog);
+  };
+
+  EXPECT_EQ(names_for(5, 28, 0), (std::vector<std::string_view>{ "v1.ps5.only" }));
+  EXPECT_EQ(names_for(10, 99, 0), (std::vector<std::string_view>{ "v1.psx.only" }));
+  EXPECT_TRUE(names_for(5, 27, 9).empty());
+  EXPECT_TRUE(names_for(10, 15, 9).empty());
+}
+
+TEST(rtde_read_properties, catalog_minimum_includes_the_bugfix_level)
+{
+  VersionInformation ps5_min;
+  ps5_min.major = 5;
+  ps5_min.minor = 28;
+  ps5_min.bugfix = 1;
+
+  VersionInformation psx_min;
+  psx_min.major = 10;
+  psx_min.minor = 16;
+  psx_min.bugfix = 1;
+
+  const std::vector<rtde_interface::PropertySpec> catalog = {
+    { "v1.x", ps5_min, psx_min },
+  };
+
+  const auto names_for = [&catalog](const uint32_t major, const uint32_t minor, const uint32_t bugfix) {
+    VersionInformation version;
+    version.major = major;
+    version.minor = minor;
+    version.bugfix = bugfix;
+    version.build = 0;
+    return rtde_interface::propertyNamesForSoftwareVersion(version, catalog);
+  };
+
+  EXPECT_TRUE(names_for(5, 28, 0).empty());
+  EXPECT_EQ(names_for(5, 28, 1), (std::vector<std::string_view>{ "v1.x" }));
+  EXPECT_EQ(names_for(5, 29, 0), (std::vector<std::string_view>{ "v1.x" }));
+
+  EXPECT_TRUE(names_for(10, 16, 0).empty());
+  EXPECT_EQ(names_for(10, 16, 1), (std::vector<std::string_view>{ "v1.x" }));
+  EXPECT_EQ(names_for(10, 17, 0), (std::vector<std::string_view>{ "v1.x" }));
+}
+
+TEST(rtde_read_properties, catalog_major_below_10_is_polyscope_5)
+{
+  VersionInformation ps5_min;
+  ps5_min.major = 5;
+  ps5_min.minor = 0;
+
+  VersionInformation psx_min;
+  psx_min.major = 10;
+  psx_min.minor = 0;
+
+  const std::vector<rtde_interface::PropertySpec> catalog = {
+    { "v1.ps5", ps5_min, std::nullopt },
+    { "v1.psx", std::nullopt, psx_min },
+  };
+
+  const auto names_for = [&catalog](const uint32_t major, const uint32_t minor, const uint32_t bugfix) {
+    VersionInformation version;
+    version.major = major;
+    version.minor = minor;
+    version.bugfix = bugfix;
+    version.build = 0;
+    return rtde_interface::propertyNamesForSoftwareVersion(version, catalog);
+  };
+
+  EXPECT_EQ(names_for(9, 0, 0), (std::vector<std::string_view>{ "v1.ps5" }));
+  EXPECT_EQ(names_for(11, 0, 0), (std::vector<std::string_view>{ "v1.psx" }));
 }
 
 TEST(rtde_read_properties, control_box_decoder_accepts_both_numberings)
