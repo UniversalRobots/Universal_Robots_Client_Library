@@ -587,6 +587,12 @@ void RTDEServer::setInputTypeReply(const std::optional<std::vector<std::string>>
   input_type_reply_ = types;
 }
 
+void RTDEServer::setOutputFieldType(const std::string& name, const std::string& type)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  output_field_types_[name] = type;
+}
+
 void RTDEServer::queueTextMessageBeforeReadProperties(const std::string& message)
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -811,7 +817,23 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       std::string variable_types_str;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
-        variable_types_str = joinStrings(output_type_reply_.value_or(variable_types));
+        if (output_type_reply_.has_value())
+        {
+          variable_types_str = joinStrings(*output_type_reply_);
+        }
+        else
+        {
+          std::vector<std::string> types = variable_types;
+          for (size_t i = 0; i < output_recipe_.size(); ++i)
+          {
+            const auto field_type = output_field_types_.find(output_recipe_[i]);
+            if (field_type != output_field_types_.end())
+            {
+              types[i] = field_type->second;
+            }
+          }
+          variable_types_str = joinStrings(types);
+        }
       }
 
       {

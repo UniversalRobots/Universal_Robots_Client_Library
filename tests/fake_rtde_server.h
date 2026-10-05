@@ -84,6 +84,14 @@ public:
   void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
   void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
 
+  /*!
+   * \brief Reports \p type for output field \p name on every following setup acknowledgement.
+   *
+   * Other fields keep the type the robot would report, including NOT_FOUND. A full
+   * setOutputTypeReply() replaces this. The server's own data package is unchanged.
+   */
+  void setOutputFieldType(const std::string& name, const std::string& type);
+
   // Wait until the single-client slot and disconnect cleanup are finished before reconnecting.
   // Call after a handshake has established the connection and the client has disconnected.
   bool waitForDisconnection(const std::chrono::milliseconds timeout);
@@ -153,6 +161,7 @@ private:
   std::deque<std::string> pending_setup_outputs_text_messages_;
   std::deque<std::string> pending_setup_inputs_text_messages_;
   std::optional<std::vector<std::string>> output_type_reply_;
+  std::map<std::string, std::string> output_field_types_;
   std::optional<std::vector<std::string>> input_type_reply_;
   std::deque<std::string> pending_read_properties_text_messages_;
   uint16_t highest_accepted_protocol_version_ = 2;

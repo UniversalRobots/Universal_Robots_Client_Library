@@ -249,7 +249,7 @@ enum class ControlBoxType : uint16_t
  *
  * Primary packets have used both numberings: 1 and 5 are a CB5, 2 and 7 are a CB7.
  * Any other value is unknown.
- * 1 and 2 is added to support an late version of 5.26 and 10.13, though afterwards changed in
+ * 1 and 2 are added to support a late version of 5.26 and 10.13, though afterwards changed in
  * later versions to 5 and 7 to follow the RTDE properties package controlbox convention.
  */
 inline ControlBoxType controlBoxTypeFromWire(const uint16_t wire_value)

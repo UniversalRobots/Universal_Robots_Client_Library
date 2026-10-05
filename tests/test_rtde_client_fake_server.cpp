@@ -1031,6 +1031,26 @@ TEST_F(RTDEClientFakeServerTest, ignore_unavailable_outputs_strips_a_typo_and_an
   EXPECT_EQ(client->getOutputRecipe(), expected_recipe);
 }
 
+// NOT_FOUND is stripped first, but a field the robot typed with a word this library does not know
+// has to stay in the recipe. The retry then fails on that type instead of connecting without it.
+TEST_F(RTDEClientFakeServerTest, ignore_unavailable_outputs_keeps_an_unknown_type)
+{
+  server_->setOutputFieldType("actual_q", "UNKNOWN_TYPE");
+  auto client =
+      makeClient({ "timestamp", "actual_q", "not_a_field_the_robot_knows" }, INPUT_RECIPE, RTDE_FREQUENCY, true);
+
+  try
+  {
+    client->init(1, std::chrono::milliseconds(10), 3, std::chrono::milliseconds(10));
+    FAIL() << "An unknown data type must still fail after NOT_FOUND fields are removed";
+  }
+  catch (const UrException& exception)
+  {
+    EXPECT_NE(std::string(exception.what()).find("UNKNOWN_TYPE"), std::string::npos);
+  }
+  EXPECT_EQ(client->getOutputRecipe(), (std::vector<std::string>{ "timestamp", "actual_q" }));
+}
+
 TEST_F(RTDEClientFakeServerTest, unknown_input_field_throws)
 {
   auto client = makeClient(OUTPUT_RECIPE, { "not_a_field_the_robot_knows" }, RTDE_FREQUENCY);

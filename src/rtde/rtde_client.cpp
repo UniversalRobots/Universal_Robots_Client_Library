@@ -461,9 +461,15 @@ bool RTDEClient::setupOutputs()
         {
           unavailable_variables.push_back(variable_name);
         }
-        else if (!unknown_type.has_value())
+        else
         {
-          unknown_type = type_name;
+          // A NOT_FOUND in the same reply is reported first. This field stays in the recipe so the
+          // retry still reaches the unknown-type error instead of dropping the field.
+          available_variables.push_back(variable_name);
+          if (!unknown_type.has_value())
+          {
+            unknown_type = type_name;
+          }
         }
       }
 
