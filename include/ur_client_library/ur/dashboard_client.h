@@ -758,7 +758,9 @@ public:
    * \brief Upload a new program to the robot
    *
    * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
-   * be uploaded to the root of the programs directory on the robot.
+   * be uploaded to the program database (PolyScope X) on the robot.
+   *
+   * \note This command is only available for PolyScope X robots.
    *
    * Stores the following entries in the data field:
    *
@@ -769,9 +771,10 @@ public:
   /*!
    * \brief Update an existing program on the robot
    *
-   * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
-   * be uploaded to the root of the programs directory on the robot and override an already existing file with the same
-   * name.
+   * \param file_path The path to the program file on the machine where the dashboard client is running. This may fail
+   * if no program with the name defined inside the program file exists on the robot.
+   *
+   * \note This command is only available for PolyScope X robots.
    *
    * Stores the following entries in the data field:
    *
