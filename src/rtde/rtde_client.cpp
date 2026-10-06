@@ -196,7 +196,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   // The properties are only read here, in the setup phase. Doing it before the outputs are set up
   // means no data package can arrive ahead of the answer, and the real-time read path never has
   // to handle RTDE_READ_PROPERTIES. A failed read is not fatal: RTDE works without the
-  // properties, getRobotProperties() just returns false. Only an answer that may still be in the
+  // properties, getRobotProperties() just returns an empty optional. Only an answer that may still be in the
   // stream fails this attempt. RTDE_READ_PROPERTIES only exists on PolyScope software that also
   // supports protocol version 3.
   if (is_rtde_comm_setup && protocol_version_ >= 3)

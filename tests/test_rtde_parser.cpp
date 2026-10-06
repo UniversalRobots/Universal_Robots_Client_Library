@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 #include <cstring>
 #include <initializer_list>
+#include <utility>
 
 #include <ur_client_library/comm/bin_parser.h>
 #include <ur_client_library/comm/package_serializer.h>
@@ -1159,12 +1160,12 @@ TEST(rtde_parser, read_properties_success_response)
 
   rtde_interface::ReadProperties properties(
       { "v1.software.version", "v1.control_box.type", "v1.robot_arm.tool_flange.type" });
-  ASSERT_TRUE(properties.takeAnswer(*answer));
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
   EXPECT_EQ(properties.getDataType("v1.software.version"), rtde_interface::DataType::UINT64);
   EXPECT_EQ(properties.getReportedType("v1.control_box.type"), rtde_interface::DataType::UINT32);
-  uint64_t raw_version = 0;
-  ASSERT_TRUE(properties.getData("v1.software.version", raw_version));
-  EXPECT_EQ(raw_version, software);
+  const std::optional<uint64_t> raw_version = properties.getData<uint64_t>("v1.software.version");
+  ASSERT_TRUE(raw_version.has_value());
+  EXPECT_EQ(*raw_version, software);
 
   const std::optional<VersionInformation> version = properties.getSoftwareVersion();
   ASSERT_TRUE(version.has_value());
@@ -1199,7 +1200,7 @@ TEST(rtde_parser, software_version_decodes_the_bugfix_word)
   ASSERT_NE(answer, nullptr);
 
   rtde_interface::ReadProperties properties({ "v1.software.version" });
-  ASSERT_TRUE(properties.takeAnswer(*answer));
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
   const std::optional<VersionInformation> version = properties.getSoftwareVersion();
   ASSERT_TRUE(version.has_value());
   EXPECT_EQ(version->major, 5u);
@@ -1225,7 +1226,7 @@ TEST(rtde_parser, read_properties_getters_return_empty_for_missing_or_mismatched
 
   rtde_interface::ReadProperties properties(
       { "v1.software.version", "v1.control_box.type", "v1.robot_arm.tool_flange.type" });
-  ASSERT_TRUE(properties.takeAnswer(*answer));
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
 
   // Values exist but hold mismatched types (UINT32 instead of UINT64, etc.).
   EXPECT_FALSE(properties.getSoftwareVersion().has_value());
@@ -1246,7 +1247,7 @@ TEST(rtde_parser, read_properties_getters_return_empty_for_missing_or_mismatched
       parseAnswer(parser, serializePropertiesResponse("UINT64", std::vector<uint8_t>(ver_val, ver_val + 8)));
   auto* ver_answer = dynamic_cast<rtde_interface::ReadProperties*>(ver_product.get());
   ASSERT_NE(ver_answer, nullptr);
-  ASSERT_TRUE(only_version.takeAnswer(*ver_answer));
+  ASSERT_TRUE(only_version.takeAnswer(std::move(*ver_answer)));
   EXPECT_TRUE(only_version.getSoftwareVersion().has_value());
   EXPECT_FALSE(only_version.getControlBoxType().has_value());
   EXPECT_FALSE(only_version.getToolFlangeType().has_value());
@@ -1265,12 +1266,11 @@ TEST(rtde_parser, read_properties_error_token_has_no_values)
   EXPECT_TRUE(answer->values().empty());
 
   rtde_interface::ReadProperties properties({ "v1.software.version", "v1.not.a.property" });
-  ASSERT_TRUE(properties.takeAnswer(*answer));
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
   EXPECT_EQ(properties.getReportedType("v1.software.version"), rtde_interface::DataType::UINT64);
   EXPECT_FALSE(properties.getReportedType("v1.not.a.property").has_value());
   EXPECT_FALSE(properties.getDataType("v1.software.version").has_value());
-  uint64_t raw_version = 0;
-  EXPECT_FALSE(properties.getData("v1.software.version", raw_version));
+  EXPECT_FALSE(properties.getData<uint64_t>("v1.software.version").has_value());
   EXPECT_FALSE(properties.getSoftwareVersion().has_value());
 
   auto not_set = parseAnswer(parser, serializePropertiesResponse("NOT_SET", {}));
@@ -1289,7 +1289,7 @@ TEST(rtde_parser, read_properties_answer_must_match_the_names)
   ASSERT_NE(answer, nullptr);
 
   rtde_interface::ReadProperties properties({ "v1.control_box.type", "v1.robot_arm.tool_flange.type" });
-  EXPECT_FALSE(properties.takeAnswer(*answer));
+  EXPECT_FALSE(properties.takeAnswer(std::move(*answer)));
   EXPECT_EQ(properties.size(), 0u);
   EXPECT_FALSE(properties.hasValues());
 }
@@ -1468,7 +1468,7 @@ TEST(rtde_read_properties, set_names_replaces_the_names_and_drops_the_answer)
   ASSERT_NE(answer, nullptr);
 
   rtde_interface::ReadProperties properties({ "v1.control_box.type" });
-  ASSERT_TRUE(properties.takeAnswer(*answer));
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
   properties.setNames({ "v1.control_box.type" });
   EXPECT_FALSE(properties.hasValues());
   EXPECT_EQ(properties.names(), std::vector<std::string>{ "v1.control_box.type" });
@@ -1630,7 +1630,7 @@ TEST(rtde_read_properties, control_box_decoder_accepts_both_numberings)
     auto* answer = dynamic_cast<rtde_interface::ReadProperties*>(product.get());
     ASSERT_NE(answer, nullptr);
     rtde_interface::ReadProperties properties({ "v1.control_box.type" });
-    ASSERT_TRUE(properties.takeAnswer(*answer));
+    ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
     const std::optional<rtde_interface::ControlBoxProperty> box = properties.getControlBoxType();
     ASSERT_TRUE(box.has_value());
     EXPECT_EQ(box->type, expected) << "wire value " << static_cast<int>(wire);

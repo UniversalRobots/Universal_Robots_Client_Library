@@ -687,27 +687,24 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   client_->pause();
 }
 
-// The properties are read while the connection is set up. Copying them out afterwards reuses the
-// application's package.
-TEST_F(RTDEAllocationTest, copying_the_robot_properties_does_not_allocate)
+// Returning the snapshot copies the cache once; moving that caller-owned value must only transfer
+// its storage.
+TEST_F(RTDEAllocationTest, moving_the_robot_properties_does_not_allocate)
 {
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client_->getRobotProperties(properties));
+  auto properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
 
-  bool all_copied = true;
   std::size_t allocations = 0;
+  std::optional<rtde_interface::ReadProperties> moved;
   {
     AllocationCounter counter;
-    for (int i = 0; i < MEASURED_CYCLES; ++i)
-    {
-      all_copied &= client_->getRobotProperties(properties);
-    }
+    moved.emplace(std::move(*properties));
     allocations = counter.count();
   }
 
   EXPECT_EQ(allocations, 0);
-  EXPECT_TRUE(all_copied);
-  EXPECT_TRUE(properties.getSoftwareVersion().has_value());
+  ASSERT_TRUE(moved.has_value());
+  EXPECT_TRUE(moved->getSoftwareVersion().has_value());
 }
 
 int main(int argc, char* argv[])

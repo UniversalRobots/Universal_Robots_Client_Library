@@ -43,6 +43,7 @@
 #define UR_CLIENT_LIBRARY_RTDE_ROBOT_PROPERTIES_H_INCLUDED
 
 #include <mutex>
+#include <optional>
 
 #include "ur_client_library/comm/producer.h"
 #include "ur_client_library/comm/stream.h"
@@ -56,11 +57,8 @@ namespace rtde_interface
 /*!
  * \brief The robot properties read while setting up RTDE communication.
  *
- * RTDEClient calls fetch() during its handshake. Applications read the result through
+ * RTDEClient calls fetch() during its handshake. Applications read a snapshot through
  * RTDEClient::getRobotProperties().
- *
- * The robot properties are first available from software 10.15 (PolyScope X) and 5.26.3
- * (PolyScope 5). Older controllers do not provide any, so get() returns false for them.
  */
 class RobotProperties
 {
@@ -79,21 +77,20 @@ public:
   bool fetch(comm::URStream<RTDEPackage>& stream, comm::URProducer<RTDEPackage>& producer);
 
   /*!
-   * \brief Forgets any properties fetched earlier, so get() returns false until the next fetch().
+   * \brief Forgets any properties fetched earlier.
    */
   void clear();
 
   /*!
-   * \brief Copies the fetched properties into \p properties, reusing its storage.
+   * \brief Returns an independent snapshot of the fetched properties.
    *
-   * \returns False if no properties were fetched. When true, every property in \p properties has a value.
+   * \returns An empty optional if no properties were fetched.
    */
-  bool get(ReadProperties& properties) const;
+  std::optional<ReadProperties> get() const;
 
 private:
   mutable std::mutex mutex_;
-  ReadProperties properties_;
-  bool valid_ = false;
+  std::optional<ReadProperties> properties_;
 };
 
 }  // namespace rtde_interface

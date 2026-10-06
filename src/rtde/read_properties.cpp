@@ -45,6 +45,7 @@
 #include <cstring>
 #include <limits>
 #include <sstream>
+#include <utility>
 
 #include "ur_client_library/log.h"
 
@@ -110,6 +111,50 @@ ReadProperties::ReadProperties(const std::vector<std::string>& names)
   : RTDEPackage(PackageType::RTDE_READ_PROPERTIES), names_(names)
 {
   reserve(names_.size(), names_.size() * TYPE_NAME_CAPACITY);
+}
+
+ReadProperties::ReadProperties(const ReadProperties& other)
+  : RTDEPackage(PackageType::RTDE_READ_PROPERTIES)
+  , names_(other.names_)
+  , data_types_(other.data_types_)
+  , values_(other.values_)
+  , has_values_(other.has_values_)
+{
+}
+
+ReadProperties::ReadProperties(ReadProperties&& other) noexcept
+  : RTDEPackage(PackageType::RTDE_READ_PROPERTIES)
+  , names_(std::move(other.names_))
+  , data_types_(std::move(other.data_types_))
+  , values_(std::move(other.values_))
+  , has_values_(other.has_values_)
+{
+}
+
+ReadProperties& ReadProperties::operator=(const ReadProperties& other)
+{
+  if (this != &other)
+  {
+    names_ = other.names_;
+    data_types_ = other.data_types_;
+    values_ = other.values_;
+    has_values_ = other.has_values_;
+  }
+  return *this;
+}
+
+ReadProperties& ReadProperties::operator=(ReadProperties&& other) noexcept
+{
+  if (this != &other)
+  {
+    names_ = std::move(other.names_);
+    data_types_ = std::move(other.data_types_);
+    values_ = std::move(other.values_);
+    has_values_ = other.has_values_;
+    type_names_.clear();
+    type_parts_.clear();
+  }
+  return *this;
 }
 
 void ReadProperties::reserve(const size_t properties, const size_t types_length)
@@ -221,7 +266,7 @@ void ReadProperties::setNames(const std::vector<std::string_view>& names)
   reserve(names_.size(), names_.size() * TYPE_NAME_CAPACITY);
 }
 
-bool ReadProperties::takeAnswer(const ReadProperties& answer)
+bool ReadProperties::takeAnswer(ReadProperties&& answer)
 {
   if (answer.size() != names_.size() || (answer.hasValues() && answer.values().size() != names_.size()))
   {
@@ -229,21 +274,10 @@ bool ReadProperties::takeAnswer(const ReadProperties& answer)
     clearAnswer();
     return false;
   }
-  data_types_ = answer.data_types_;
-  values_ = answer.values_;
+  data_types_ = std::move(answer.data_types_);
+  values_ = std::move(answer.values_);
   has_values_ = answer.has_values_;
   return true;
-}
-
-// Member-wise assignment rather than the copy constructor: assigning into existing vectors and
-// strings reuses their capacity, which is what lets RTDEClient::getRobotProperties() hand out the
-// properties without allocating.
-void ReadProperties::copyFrom(const ReadProperties& other)
-{
-  names_ = other.names_;
-  data_types_ = other.data_types_;
-  values_ = other.values_;
-  has_values_ = other.has_values_;
 }
 
 std::optional<size_t> ReadProperties::nameIndex(const std::string_view name) const

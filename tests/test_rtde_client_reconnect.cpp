@@ -203,8 +203,8 @@ TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
   server_->setHighestAcceptedProtocolVersion(3);
   makeClient();
   ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client_->getRobotProperties(properties));
+  const auto properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
   client_->start();
 
   server_.reset();
@@ -215,7 +215,9 @@ TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
   startServer();
   server_->setHighestAcceptedProtocolVersion(2);
   ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
-  EXPECT_FALSE(client_->getRobotProperties(properties));
+  EXPECT_FALSE(client_->getRobotProperties().has_value());
+  EXPECT_TRUE(properties->getSoftwareVersion().has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 10u);
   EXPECT_TRUE(server_->propertyRequests().empty());
 }
 
@@ -225,9 +227,9 @@ TEST_F(RTDEClientReconnectTest, reconnect_to_another_controller_reads_its_proper
   server_->setHighestAcceptedProtocolVersion(3);
   makeClient();
   ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client_->getRobotProperties(properties));
-  EXPECT_EQ(properties.getSoftwareVersion()->major, 10u);
+  auto properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 10u);
   client_->start();
 
   server_.reset();
@@ -237,8 +239,9 @@ TEST_F(RTDEClientReconnectTest, reconnect_to_another_controller_reads_its_proper
   server_->setHighestAcceptedProtocolVersion(3);
   server_->setReportedSoftwareVersion(5, 27, 1);
   ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
-  ASSERT_TRUE(client_->getRobotProperties(properties));
-  EXPECT_EQ(properties.getSoftwareVersion()->major, 5u);
+  properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 5u);
   EXPECT_EQ(server_->propertyRequests().size(), 2u);
 }
 

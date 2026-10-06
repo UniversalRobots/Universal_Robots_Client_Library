@@ -42,6 +42,7 @@
 #include "ur_client_library/rtde/robot_properties.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "ur_client_library/exceptions.h"
@@ -87,9 +88,9 @@ Exchange receiveAnswer(comm::URProducer<RTDEPackage>& producer, ReadProperties& 
       URCL_LOG_ERROR("No answer to RTDE_READ_PROPERTIES was received");
       return Exchange::NOT_ANSWERED;
     }
-    if (const ReadProperties* answer = dynamic_cast<const ReadProperties*>(package.get()))
+    if (ReadProperties* answer = dynamic_cast<ReadProperties*>(package.get()))
     {
-      return properties.takeAnswer(*answer) ? Exchange::ANSWERED : Exchange::NOT_ANSWERED;
+      return properties.takeAnswer(std::move(*answer)) ? Exchange::ANSWERED : Exchange::NOT_ANSWERED;
     }
     if (const TextMessage* text = dynamic_cast<const TextMessage*>(package.get()))
     {
@@ -170,7 +171,7 @@ Exchange readSupportedProperties(comm::URStream<RTDEPackage>& stream, comm::URPr
 
 bool RobotProperties::fetch(comm::URStream<RTDEPackage>& stream, comm::URProducer<RTDEPackage>& producer)
 {
-  // Read into a local package so the mutex is only held for the copy, not for the round trips.
+  // Read into a local package so the mutex is only held while storing it, not for the round trips.
   // Otherwise an application thread calling get() during a reconnect would wait on the network.
   ReadProperties fetched;
   Exchange exchange = Exchange::NOT_ANSWERED;
@@ -183,22 +184,20 @@ bool RobotProperties::fetch(comm::URStream<RTDEPackage>& stream, comm::URProduce
     // The properties are optional, so a malformed answer must not abort the RTDE handshake.
     URCL_LOG_ERROR("Parsing the RTDE_READ_PROPERTIES answer failed: %s", error.what());
   }
-  const bool read = exchange == Exchange::ANSWERED;
-  if (!read)
+  if (exchange != Exchange::ANSWERED)
   {
     URCL_LOG_WARN("Could not read the RTDE robot properties. RTDEClient::getRobotProperties() will not provide any.");
   }
   // A failed read also forgets the previous controller's properties, so after a reconnect to a
   // different controller get() never reports stale data.
   std::lock_guard<std::mutex> lock(mutex_);
-  valid_ = read;
-  if (read)
+  if (exchange == Exchange::ANSWERED)
   {
-    properties_.copyFrom(fetched);
+    properties_ = std::move(fetched);
   }
   else
   {
-    properties_.clearAnswer();
+    properties_.reset();
   }
   return exchange != Exchange::OUT_OF_SYNC;
 }
@@ -206,19 +205,13 @@ bool RobotProperties::fetch(comm::URStream<RTDEPackage>& stream, comm::URProduce
 void RobotProperties::clear()
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  valid_ = false;
-  properties_.clearAnswer();
+  properties_.reset();
 }
 
-bool RobotProperties::get(ReadProperties& properties) const
+std::optional<ReadProperties> RobotProperties::get() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!valid_)
-  {
-    return false;
-  }
-  properties.copyFrom(properties_);
-  return true;
+  return properties_;
 }
 }  // namespace rtde_interface
 }  // namespace urcl

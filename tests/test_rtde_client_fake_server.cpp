@@ -1133,8 +1133,7 @@ TEST_F(RTDEClientFakeServerTest, protocol_v2_does_not_read_properties)
 
   EXPECT_TRUE(server_->propertyRequests().empty());
 
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client_->getRobotProperties(properties));
+  EXPECT_FALSE(client_->getRobotProperties().has_value());
 }
 
 // A real controller sends "SafetySetup has not been confirmed yet" on connect. That is a notice,
@@ -1148,9 +1147,9 @@ TEST_F(RTDEClientFakeServerTest, text_message_before_the_answer_does_not_lose_th
 
   ASSERT_TRUE(client->init());
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 }
 
 TEST_F(RTDEClientFakeServerTest, five_text_messages_before_the_answer_do_not_lose_the_properties)
@@ -1164,9 +1163,9 @@ TEST_F(RTDEClientFakeServerTest, five_text_messages_before_the_answer_do_not_los
 
   ASSERT_TRUE(client->init());
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 }
 
 // Past the expected number of notices the answer is still read, so it is not left in the socket
@@ -1182,9 +1181,9 @@ TEST_F(RTDEClientFakeServerTest, six_text_messages_before_the_answer_do_not_leav
 
   ASSERT_TRUE(client->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
@@ -1205,9 +1204,9 @@ TEST_F(RTDEClientFakeServerTest, properties_answer_buried_in_text_messages_resta
 
   ASSERT_TRUE(client->init(1, std::chrono::milliseconds(10), 2, std::chrono::milliseconds(200)));
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
@@ -1226,8 +1225,7 @@ TEST_F(RTDEClientFakeServerTest, software_version_not_set_provides_no_properties
   ASSERT_TRUE(client->init());
 
   EXPECT_EQ(server_->propertyRequests(), std::vector<std::string>{ "v1.software.version" });
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client->getRobotProperties(properties));
+  EXPECT_FALSE(client->getRobotProperties().has_value());
 }
 
 // One property the controller has not set makes it drop every value, the software version included.
@@ -1240,8 +1238,7 @@ TEST_F(RTDEClientFakeServerTest, catalog_property_not_set_provides_no_properties
   ASSERT_TRUE(client->init());
 
   EXPECT_EQ(server_->propertyRequests().size(), 2u);
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client->getRobotProperties(properties));
+  EXPECT_FALSE(client->getRobotProperties().has_value());
 }
 
 // The properties are optional, so an answer that cannot be parsed must not stop the handshake.
@@ -1253,8 +1250,7 @@ TEST_F(RTDEClientFakeServerTest, malformed_properties_answer_does_not_abort_init
 
   ASSERT_NO_THROW(EXPECT_TRUE(client->init()));
 
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client->getRobotProperties(properties));
+  EXPECT_FALSE(client->getRobotProperties().has_value());
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
@@ -1272,8 +1268,7 @@ TEST_F(RTDEClientFakeServerTest, failed_init_after_reading_properties_provides_n
   EXPECT_THROW(client->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
 
   EXPECT_FALSE(server_->propertyRequests().empty());
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client->getRobotProperties(properties));
+  EXPECT_FALSE(client->getRobotProperties().has_value());
 }
 
 TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
@@ -1286,9 +1281,9 @@ TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
                                                                        "robot_arm.tool_flange.type" };
   EXPECT_EQ(server_->propertyRequests(), init_requests);
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
@@ -1296,8 +1291,9 @@ TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
 
   // Streaming does not read the properties again.
   EXPECT_EQ(server_->propertyRequests(), init_requests);
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 
   client->pause();
 }
@@ -1313,8 +1309,7 @@ TEST_F(RTDEClientFakeServerTest, software_version_with_wrong_type_provides_no_pr
   ASSERT_TRUE(client->init());
 
   EXPECT_EQ(server_->propertyRequests(), std::vector<std::string>{ "v1.software.version" });
-  rtde_interface::ReadProperties properties;
-  EXPECT_FALSE(client->getRobotProperties(properties));
+  EXPECT_FALSE(client->getRobotProperties().has_value());
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
@@ -1330,9 +1325,9 @@ TEST_F(RTDEClientFakeServerTest, unexpected_package_before_properties_answer_is_
 
   ASSERT_TRUE(client->init());
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 }
 
 TEST_F(RTDEClientFakeServerTest, polyscope5_controller_reads_properties_over_protocol_v3)
@@ -1343,11 +1338,11 @@ TEST_F(RTDEClientFakeServerTest, polyscope5_controller_reads_properties_over_pro
 
   ASSERT_TRUE(client->init());
 
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  EXPECT_EQ(properties.names(), (std::vector<std::string>{ "v1.software.version", "v1.control_box.type",
-                                                           "v1.robot_arm.tool_flange.type" }));
-  const std::optional<VersionInformation> version = properties.getSoftwareVersion();
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(properties->names(), (std::vector<std::string>{ "v1.software.version", "v1.control_box.type",
+                                                            "v1.robot_arm.tool_flange.type" }));
+  const std::optional<VersionInformation> version = properties->getSoftwareVersion();
   ASSERT_TRUE(version.has_value());
   EXPECT_EQ(version->major, 5u);
   EXPECT_EQ(version->minor, 27u);
@@ -1370,9 +1365,9 @@ TEST_F(RTDEClientFakeServerTest, pause_and_start_keep_the_properties_without_rea
   }
 
   EXPECT_EQ(server_->propertyRequests(), init_requests);
-  rtde_interface::ReadProperties properties;
-  ASSERT_TRUE(client->getRobotProperties(properties));
-  expectProtocolV3Properties(properties);
+  const auto properties = client->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  expectProtocolV3Properties(*properties);
 }
 
 // The boot check reads data after start. Anything else fails that attempt, and init() reconnects.

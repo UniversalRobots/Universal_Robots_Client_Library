@@ -33,6 +33,7 @@
 #include <ur_client_library/rtde/rtde_client.h>
 
 #include <iostream>
+#include <optional>
 
 using namespace urcl;
 
@@ -55,8 +56,8 @@ int main(int argc, char* argv[])
   // The robot properties are first available from software 10.15 (PolyScope X) and 5.26.3 (PolyScope 5).
   // Older controllers do not provide any. When getRobotProperties() succeeds, the software version
   // is always there; the other getters depend on the catalog for that version.
-  rtde_interface::ReadProperties properties;
-  if (!client.getRobotProperties(properties))
+  const std::optional<rtde_interface::ReadProperties> properties = client.getRobotProperties();
+  if (!properties.has_value())
   {
     std::cout << "The controller did not provide any robot properties. They require software 10.15 or 5.26.3 "
                  "and newer."
@@ -64,15 +65,15 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  if (const auto version = properties.getSoftwareVersion())
+  if (const auto version = properties->getSoftwareVersion())
   {
     std::cout << "Software version: " << version->toString() << std::endl;
   }
-  if (const auto control_box = properties.getControlBoxType())
+  if (const auto control_box = properties->getControlBoxType())
   {
     std::cout << "Control box: " << control_box->toString() << std::endl;
   }
-  if (const auto tool_flange = properties.getToolFlangeType())
+  if (const auto tool_flange = properties->getToolFlangeType())
   {
     std::cout << "Tool flange: " << tool_flange->toString() << std::endl;
   }

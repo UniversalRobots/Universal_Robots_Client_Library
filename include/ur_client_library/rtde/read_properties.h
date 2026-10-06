@@ -154,6 +154,10 @@ public:
    * \brief Creates a package asking for \p names, with room for their answer.
    */
   explicit ReadProperties(const std::vector<std::string>& names);
+  ReadProperties(const ReadProperties& other);
+  ReadProperties(ReadProperties&& other) noexcept;
+  ReadProperties& operator=(const ReadProperties& other);
+  ReadProperties& operator=(ReadProperties&& other) noexcept;
   ~ReadProperties() override = default;
 
   /*!
@@ -187,17 +191,12 @@ public:
    *
    * \returns False if \p answer does not have one entry per name
    */
-  bool takeAnswer(const ReadProperties& answer);
+  bool takeAnswer(ReadProperties&& answer);
 
   /*!
    * \brief Drops the answer and keeps the names.
    */
   void clearAnswer();
-
-  /*!
-   * \brief Copies names and answer from \p other, reusing this package's storage.
-   */
-  void copyFrom(const ReadProperties& other);
 
   const std::vector<std::string>& names() const
   {
@@ -255,15 +254,14 @@ public:
    * \throws std::bad_variant_access if the value does not hold T
    */
   template <typename T>
-  bool getData(const std::string_view name, T& val) const
+  std::optional<T> getData(const std::string_view name) const
   {
     const std::optional<size_t> index = valueIndex(name);
     if (!index.has_value())
     {
-      return false;
+      return std::nullopt;
     }
-    val = std::get<T>(values_[*index]);
-    return true;
+    return std::get<T>(values_[*index]);
   }
 
   /*!

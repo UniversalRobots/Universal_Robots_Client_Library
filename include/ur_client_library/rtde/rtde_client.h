@@ -31,13 +31,15 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #include "ur_client_library/comm/producer.h"
 #include "ur_client_library/comm/stream.h"
 #include "ur_client_library/rtde/data_package.h"
+#include "ur_client_library/rtde/read_properties.h"
+#include "ur_client_library/rtde/robot_properties.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
-#include "ur_client_library/rtde/robot_properties.h"
 #include "ur_client_library/rtde/rtde_writer.h"
 
 static const int UR_RTDE_PORT = 30004;
@@ -368,21 +370,20 @@ public:
   }
 
   /*!
-   * \brief Copies the robot properties the client read while setting up communication.
+   * \brief Returns the robot properties the client read while setting up communication.
    *
    * While setting up communication the client reads v1.software.version and then every catalog
-   * property that version supports. This happens on init() and again on every reconnect. Copying
-   * into the same package again does not allocate. The properties are only read when RTDE protocol
-   * version 3 or higher was negotiated.
+   * property that version supports. This happens on init() and again on every reconnect. The
+   * properties are only read when RTDE protocol version 3 or higher was negotiated.
    *
-   * \returns True if the controller sent a value for every property asked for, the software
-   * version included. False if the negotiated protocol version is below 3, the request failed, or
-   * the controller reported any property as NOT_FOUND or NOT_SET and so sent no values. Also false
-   * while not connected, and after init() or a reconnect has failed
+   * \returns The properties if the controller sent a value for every property asked for, the
+   * software version included. An empty optional if the negotiated protocol version is below 3,
+   * the request failed, or the controller reported any property as NOT_FOUND or NOT_SET and so
+   * sent no values. Also empty while not connected, and after init() or a reconnect has failed.
    */
-  bool getRobotProperties(ReadProperties& properties) const
+  std::optional<ReadProperties> getRobotProperties() const
   {
-    return robot_properties_.get(properties);
+    return robot_properties_.get();
   }
 
   /*! \brief Starts a background thread to read data packages from the robot.
