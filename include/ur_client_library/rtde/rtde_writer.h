@@ -154,17 +154,20 @@ public:
   /*!
    * \brief Creates a package to request setting a new value for one of the configurable digital output pins.
    *
-   * \param output_pin The pin to change
+   * \param output_pin The pin to change. Protocol versions below 3 support pins 0-7; protocol
+   * version 3 supports pins 0-15.
    * \param value The new value
    *
    * \returns Success of the package creation. False if the writer is not running (not started,
    * stopped or reconnecting).
    */
   bool sendConfigurableDigitalOutput(uint8_t output_pin, bool value);
+
   /*!
    * \brief Creates a package to request setting a new value for one of the tool output pins.
    *
-   * \param output_pin The pin to change
+   * \param output_pin The pin to change. RTDE protocol versions 1 and 2 support pins 0-1. Protocol version
+   * 3 additionally supports pins 2-5 on the Smart I/O on v2 tool flanges.
    * \param value The new value
    *
    * \returns Success of the package creation. False if the writer is not running (not started,
@@ -255,6 +258,11 @@ public:
    */
   void setProtocolVersion(uint16_t protocol_version);
 
+  /*!
+   * \brief Returns the RTDE protocol version negotiated with the robot.
+   */
+  uint16_t getProtocolVersion() const;
+
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
   void markStorageToBeSent();
@@ -271,7 +279,7 @@ private:
   std::vector<std::string> used_masks_;
   std::thread writer_thread_;
   std::atomic<bool> running_;
-  std::mutex store_mutex_;
+  mutable std::mutex store_mutex_;
   std::atomic<bool> new_data_available_;
   std::condition_variable data_available_cv_;
 

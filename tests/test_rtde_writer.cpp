@@ -128,6 +128,18 @@ protected:
     return false;
   }
 
+  void useProtocol3ConfigurableDigitalOutputs()
+  {
+    writer_->stop();
+    writer_->setProtocolVersion(3);
+    input_recipe_types_[4] = DataType::UINT32;
+    input_recipe_types_[5] = DataType::UINT32;
+    input_map_types_["configurable_digital_output_mask"] = uint32_t{};
+    input_map_types_["configurable_digital_output"] = uint32_t{};
+    writer_->setRecipeTypes(input_recipe_types_);
+    writer_->init(1);
+  }
+
   std::vector<std::string> input_recipe_ = { "speed_slider_mask",
                                              "speed_slider_fraction",
                                              "standard_digital_output_mask",
@@ -321,6 +333,21 @@ TEST_F(RTDEWriterTest, send_configurable_digital_output)
   EXPECT_EQ(expected_configurable_digital_output_mask, received_configurable_digital_output_mask);
 }
 
+TEST_F(RTDEWriterTest, send_protocol_v3_configurable_digital_output)
+{
+  useProtocol3ConfigurableDigitalOutputs();
+
+  const uint8_t pin = 15;
+  ASSERT_TRUE(writer_->sendConfigurableDigitalOutput(pin, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("configurable_digital_output"));
+  ASSERT_TRUE(dataFieldExist("configurable_digital_output_mask"));
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["configurable_digital_output"]), uint32_t{ 1 } << pin);
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["configurable_digital_output_mask"]), uint32_t{ 1 } << pin);
+  EXPECT_FALSE(writer_->sendConfigurableDigitalOutput(16, true));
+}
+
 TEST_F(RTDEWriterTest, send_tool_digital_output)
 {
   uint8_t expected_tool_digital_output_mask = 1;
@@ -339,17 +366,32 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
   EXPECT_EQ(send_pin_value, received_pin_value);
   EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
 
-  // Changing pins above 1, should return false.
+  // Protocol version 2 only supports tool outputs 0 and 1.
   pin = 2;
   EXPECT_FALSE(writer_->sendToolDigitalOutput(pin, send_pin_value));
-  // Set pin to value false
-  pin = 0;
-  EXPECT_TRUE(writer_->sendToolDigitalOutput(pin, false));
-  waitForMessageCallback(1000);
-  received_pin_value = std::get<uint8_t>(parsed_data_["tool_digital_output"]) != 0;
-  received_tool_digital_output_mask = std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]);
-  EXPECT_EQ(received_pin_value, false);
-  EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
+}
+
+TEST_F(RTDEWriterTest, send_protocol_v3_tool_digital_output)
+{
+  useProtocol3ConfigurableDigitalOutputs();
+
+  const uint8_t pin = 5;
+  const uint8_t expected_tool_digital_output_mask = uint8_t{ 1 } << pin;
+  ASSERT_TRUE(writer_->sendToolDigitalOutput(pin, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("tool_digital_output"));
+  ASSERT_TRUE(dataFieldExist("tool_digital_output_mask"));
+  EXPECT_NE(std::get<uint8_t>(parsed_data_["tool_digital_output"]) & expected_tool_digital_output_mask, 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]), expected_tool_digital_output_mask);
+
+  const uint8_t first_extended_pin = 2;
+  ASSERT_TRUE(writer_->sendToolDigitalOutput(first_extended_pin, false));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output"]) & (uint8_t{ 1 } << first_extended_pin), 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]), uint8_t{ 1 } << first_extended_pin);
+
+  EXPECT_FALSE(writer_->sendToolDigitalOutput(6, true));
 }
 
 TEST_F(RTDEWriterTest, send_standard_analog_output_unknown_domain)
