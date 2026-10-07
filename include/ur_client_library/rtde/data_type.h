@@ -114,9 +114,9 @@ constexpr std::string_view IN_USE_NAME = "IN_USE";
  * logged as a warning. Both vectors are cleared and refilled, so parsing a list no longer than the
  * previous one does not allocate.
  *
- * \param list The comma-separated names. \p names views into it, so it must outlive \p names.
- * \param names The names, one per entry
- * \param types The data types, one per entry
+ * \param[in] list The comma-separated names. \p names views into it, so it must outlive \p names.
+ * \param[out] names The names, one per entry
+ * \param[out] types The data types, one per entry
  *
  * \returns True if every entry is a data type
  */
