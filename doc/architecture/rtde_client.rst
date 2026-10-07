@@ -306,7 +306,9 @@ zeros, while incompatible types cause ``sendPackage()`` to return ``false``. See
 If direct ``RTDEWriter`` use is required instead of the recommended ``RTDEClient`` flow, perform the RTDE handshake
 and configure the stopped writer with ``setProtocolVersion(negotiated_version)`` and
 ``setRecipeTypes(acknowledged_types)`` before calling ``init(recipe_id)`` with the acknowledged
-input recipe ID. Constructing the writer or calling ``init(recipe_id)`` alone does not establish
+input recipe ID. ``acknowledged_types`` is a ``std::vector<rtde_interface::DataType>``; the
+type names of the robot's setup answer are converted with ``rtde_interface::parseDataTypes()``,
+which also keeps the ``NOT_FOUND`` and ``IN_USE`` entries visible. Constructing the writer or calling ``init(recipe_id)`` alone does not establish
 the field types. ``RTDEClient::init()`` handles these steps automatically.
 
 .. note::

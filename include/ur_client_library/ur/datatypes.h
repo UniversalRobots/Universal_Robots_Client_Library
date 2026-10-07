@@ -49,6 +49,41 @@ enum class RobotMode : int8_t
   UPDATING_FIRMWARE = 8
 };
 
+/*!
+ * \brief Maps a robot-mode number from the primary interface.
+ *
+ * Any value that is not a mode the controller defines becomes RobotMode::UNKNOWN.
+ */
+inline RobotMode robotModeFromWire(const int32_t wire_value)
+{
+  switch (wire_value)
+  {
+    case -1:
+      return RobotMode::NO_CONTROLLER;
+    case 0:
+      return RobotMode::DISCONNECTED;
+    case 1:
+      return RobotMode::CONFIRM_SAFETY;
+    case 2:
+      return RobotMode::BOOTING;
+    case 3:
+      return RobotMode::POWER_OFF;
+    case 4:
+      return RobotMode::POWER_ON;
+    case 5:
+      return RobotMode::IDLE;
+    case 6:
+      return RobotMode::BACKDRIVE;
+    case 7:
+      return RobotMode::RUNNING;
+    case 8:
+      return RobotMode::UPDATING_FIRMWARE;
+    default:
+      URCL_LOG_ERROR("Unknown robot mode %d", wire_value);
+      return RobotMode::UNKNOWN;
+  }
+}
+
 enum class SafetyMode : uint8_t
 {
   NORMAL = 1,
@@ -115,6 +150,45 @@ enum class RobotType : int32_t
   UR18G_950 = 14
 };
 
+/*!
+ * \brief Maps a robot-type number from the primary interface.
+ *
+ * Any value that is not a known robot type becomes RobotType::UNDEFINED.
+ */
+inline RobotType robotTypeFromWire(const int32_t wire_value)
+{
+  switch (wire_value)
+  {
+    case 1:
+      return RobotType::UR5;
+    case 2:
+      return RobotType::UR10;
+    case 3:
+      return RobotType::UR3;
+    case 4:
+      return RobotType::UR16;
+    case 5:
+      return RobotType::UR18;
+    case 6:
+      return RobotType::UR8LONG;
+    case 7:
+      return RobotType::UR20;
+    case 8:
+      return RobotType::UR30;
+    case 9:
+      return RobotType::UR15;
+    case 12:
+      return RobotType::UR10G_1750;
+    case 13:
+      return RobotType::UR17G_1300;
+    case 14:
+      return RobotType::UR18G_950;
+    default:
+      URCL_LOG_ERROR("Unknown robot type %d", wire_value);
+      return RobotType::UNDEFINED;
+  }
+}
+
 enum class RobotSeries
 {
   UNDEFINED = -128,
@@ -123,6 +197,29 @@ enum class RobotSeries
   UR_SERIES = 3,
   G_SERIES = 4
 };
+
+/*!
+ * \brief Maps a robot-series number.
+ *
+ * Any value that is not a known series becomes RobotSeries::UNDEFINED.
+ */
+inline RobotSeries robotSeriesFromWire(const int32_t wire_value)
+{
+  switch (wire_value)
+  {
+    case 1:
+      return RobotSeries::CB3;
+    case 2:
+      return RobotSeries::E_SERIES;
+    case 3:
+      return RobotSeries::UR_SERIES;
+    case 4:
+      return RobotSeries::G_SERIES;
+    default:
+      URCL_LOG_ERROR("Unknown robot series %d", wire_value);
+      return RobotSeries::UNDEFINED;
+  }
+}
 
 enum class ReportLevel : int32_t
 {
@@ -143,9 +240,33 @@ enum class ReportLevel : int32_t
 enum class ControlBoxType : uint16_t
 {
   UNKNOWN = 0,
-  CB5 = 1,
-  CB7 = 2
+  CB5 = 5,
+  CB7 = 7
 };
+
+/*!
+ * \brief Maps a control-box type from the primary interface or from RTDE property byte 0.
+ *
+ * Primary packets have used both numberings: 1 and 5 are a CB5, 2 and 7 are a CB7.
+ * Any other value is unknown.
+ * 1 and 2 are added to support a late version of 5.26 and 10.13, though afterwards changed in
+ * later versions to 5 and 7 to follow the RTDE properties package controlbox convention.
+ */
+inline ControlBoxType controlBoxTypeFromWire(const uint16_t wire_value)
+{
+  switch (wire_value)
+  {
+    case 1:
+    case 5:
+      return ControlBoxType::CB5;
+    case 2:
+    case 7:
+      return ControlBoxType::CB7;
+    default:
+      URCL_LOG_ERROR("Unknown control box type %u", static_cast<unsigned>(wire_value));
+      return ControlBoxType::UNKNOWN;
+  }
+}
 
 enum class ToolFlangeType : uint16_t
 {
@@ -153,6 +274,25 @@ enum class ToolFlangeType : uint16_t
   V1 = 1,
   V2 = 2
 };
+
+/*!
+ * \brief Maps a tool-flange type from the primary interface.
+ *
+ * Any value other than 1 or 2 becomes ToolFlangeType::UNKNOWN.
+ */
+inline ToolFlangeType toolFlangeTypeFromWire(const uint16_t wire_value)
+{
+  switch (wire_value)
+  {
+    case 1:
+      return ToolFlangeType::V1;
+    case 2:
+      return ToolFlangeType::V2;
+    default:
+      URCL_LOG_ERROR("Unknown tool flange type %u", static_cast<unsigned>(wire_value));
+      return ToolFlangeType::UNKNOWN;
+  }
+}
 
 inline std::string reportLevelString(const ReportLevel& code)
 {
@@ -359,6 +499,25 @@ inline std::string robotSeriesString(const RobotSeries& series)
       return "UNDEFINED";
   }
   throw std::invalid_argument("Unknown robot series: " + std::to_string(static_cast<int>(series)));
+}
+
+/*!
+ * \brief Converts a control-box type to its name.
+ *
+ * \returns "CB5", "CB7", or "UNKNOWN". A value outside the enum throws std::invalid_argument.
+ */
+inline std::string controlBoxTypeString(const ControlBoxType type)
+{
+  switch (type)
+  {
+    case ControlBoxType::UNKNOWN:
+      return "UNKNOWN";
+    case ControlBoxType::CB5:
+      return "CB5";
+    case ControlBoxType::CB7:
+      return "CB7";
+  }
+  throw std::invalid_argument("Unknown control box type: " + std::to_string(static_cast<int>(type)));
 }
 
 }  // namespace urcl

@@ -105,7 +105,7 @@ void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
   }
 }
 
-void RTDEWriter::setRecipeTypes(const std::vector<std::string>& types)
+void RTDEWriter::setRecipeTypes(const std::vector<DataType>& types)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
   if (running_)

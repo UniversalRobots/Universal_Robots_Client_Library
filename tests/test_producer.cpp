@@ -41,6 +41,7 @@
 #include "rtde_test_helpers.h"
 
 using namespace urcl;
+using urcl::rtde_interface::DataType;
 
 class ProducerTest : public ::testing::Test
 {
@@ -65,7 +66,7 @@ TEST_F(ProducerTest, get_data_package)
   comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
-  parser.setExpectedDataPackage(test::typedPackage(recipe, { "DOUBLE" }));
+  parser.setExpectedDataPackage(test::typedPackage(recipe, { DataType::DOUBLE }));
   parser.setProtocolVersion(2);
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
@@ -103,7 +104,7 @@ TEST_F(ProducerTest, connect_non_connected_robot)
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
   parser.setProtocolVersion(2);
-  parser.setExpectedLayoutHash(test::typedPackage(recipe, { "DOUBLE" }).layoutHash());
+  parser.setExpectedLayoutHash(test::typedPackage(recipe, { DataType::DOUBLE }).layoutHash());
   comm::URProducer<rtde_interface::RTDEPackage> producer(stream, parser);
 
   auto start = std::chrono::system_clock::now();

@@ -485,12 +485,66 @@ TEST_F(PrimaryParserTest, parse_hardware_info_message)
     EXPECT_EQ(data->control_box_type_, ControlBoxType::CB7);
     EXPECT_EQ(data->reserved_2_, 0);
     EXPECT_EQ(data->tool_flange_type_, ToolFlangeType::V1);
+    EXPECT_NE(data->toString().find("robot type: " + robotTypeString(expected_robot_type)), std::string::npos);
   };
 
+  parse_and_check(1, RobotType::UR5);
+  parse_and_check(2, RobotType::UR10);
+  parse_and_check(3, RobotType::UR3);
+  parse_and_check(4, RobotType::UR16);
+  parse_and_check(5, RobotType::UR18);
+  parse_and_check(6, RobotType::UR8LONG);
   parse_and_check(7, RobotType::UR20);
+  parse_and_check(8, RobotType::UR30);
+  parse_and_check(9, RobotType::UR15);
   parse_and_check(12, RobotType::UR10G_1750);
   parse_and_check(13, RobotType::UR17G_1300);
   parse_and_check(14, RobotType::UR18G_950);
+  parse_and_check(42, RobotType::UNDEFINED);
+}
+
+TEST_F(PrimaryParserTest, hardware_info_control_box_accepts_both_numberings)
+{
+  static constexpr size_t CONTROL_BOX_OFFSET = 21;
+  const auto control_box = [this](const uint8_t wire) {
+    unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
+    memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
+    raw_data[CONTROL_BOX_OFFSET] = 0x00;
+    raw_data[CONTROL_BOX_OFFSET + 1] = wire;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    std::unique_ptr<primary_interface::PrimaryPackage> product;
+    EXPECT_TRUE(parser_.parse(bp, product));
+    auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
+    EXPECT_NE(data, nullptr);
+    return data == nullptr ? ControlBoxType::UNKNOWN : data->control_box_type_;
+  };
+
+  EXPECT_EQ(control_box(1), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(5), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(2), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(7), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(3), ControlBoxType::UNKNOWN);
+}
+
+TEST_F(PrimaryParserTest, hardware_info_tool_flange_accepts_wire_values)
+{
+  static constexpr size_t TOOL_FLANGE_OFFSET = 25;
+  const auto tool_flange = [this](const uint8_t wire) {
+    unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
+    memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
+    raw_data[TOOL_FLANGE_OFFSET] = 0x00;
+    raw_data[TOOL_FLANGE_OFFSET + 1] = wire;
+    comm::BinParser bp(raw_data, sizeof(raw_data));
+    std::unique_ptr<primary_interface::PrimaryPackage> product;
+    EXPECT_TRUE(parser_.parse(bp, product));
+    auto* data = dynamic_cast<primary_interface::HardwareInfoMessage*>(product.get());
+    EXPECT_NE(data, nullptr);
+    return data == nullptr ? ToolFlangeType::UNKNOWN : data->tool_flange_type_;
+  };
+
+  EXPECT_EQ(tool_flange(1), ToolFlangeType::V1);
+  EXPECT_EQ(tool_flange(2), ToolFlangeType::V2);
+  EXPECT_EQ(tool_flange(3), ToolFlangeType::UNKNOWN);
 }
 
 TEST_F(PrimaryParserTest, parse_key_message)
@@ -777,6 +831,54 @@ TEST_F(PrimaryParserTest, parse_configuration_data_with_reserved_fields)
   ASSERT_NE(config, nullptr);
   EXPECT_EQ(config->control_box_type_, ControlBoxType::CB7);
   EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::V1);
+
+  // Big-endian uint16 control box type (CB5) and tool flange type (V2).
+  payload[payload.size() - 3] = 0x01;
+  payload.back() = 0x02;
+  packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+  comm::BinParser bp_v2(packet.data(), packet.size());
+  products.clear();
+  ASSERT_TRUE(parser_.parse(bp_v2, products));
+  ASSERT_EQ(products.size(), 1u);
+  config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+  ASSERT_NE(config, nullptr);
+  EXPECT_EQ(config->control_box_type_, ControlBoxType::CB5);
+  EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::V2);
+
+  // Tool flange type unknown.
+  payload.back() = 0x03;
+  packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+  comm::BinParser bp_unknown(packet.data(), packet.size());
+  products.clear();
+  ASSERT_TRUE(parser_.parse(bp_unknown, products));
+  ASSERT_EQ(products.size(), 1u);
+  config = dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+  ASSERT_NE(config, nullptr);
+  EXPECT_EQ(config->tool_flange_type_, ToolFlangeType::UNKNOWN);
+}
+
+TEST_F(PrimaryParserTest, configuration_data_control_box_accepts_both_numberings)
+{
+  const auto control_box = [this](const uint8_t wire) {
+    std::vector<uint8_t> payload(CONFIGURATION_DATA_PAYLOAD_BYTES, 0);
+    payload.push_back(0x00);
+    payload.push_back(wire);
+    payload.push_back(0x00);
+    payload.push_back(0x01);
+    std::vector<uint8_t> packet = makeRobotStatePacketWithConfigurationSubmessage(payload);
+    comm::BinParser bp(packet.data(), packet.size());
+    std::vector<std::unique_ptr<primary_interface::PrimaryPackage>> products;
+    EXPECT_TRUE(parser_.parse(bp, products));
+    EXPECT_EQ(products.size(), 1u);
+    auto* config = products.empty() ? nullptr : dynamic_cast<primary_interface::ConfigurationData*>(products[0].get());
+    EXPECT_NE(config, nullptr);
+    return config == nullptr ? ControlBoxType::UNKNOWN : config->control_box_type_;
+  };
+
+  EXPECT_EQ(control_box(1), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(5), ControlBoxType::CB5);
+  EXPECT_EQ(control_box(7), ControlBoxType::CB7);
+  EXPECT_EQ(control_box(3), ControlBoxType::UNKNOWN);
 }
 
 TEST_F(PrimaryParserTest, parse_masterboard_data_without_immi)

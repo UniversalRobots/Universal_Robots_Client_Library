@@ -98,13 +98,13 @@ bool ConfigurationData::parseWith(comm::BinParser& bp)
   {
     uint16_t control_box_type;
     bp.parse(control_box_type);
-    control_box_type_ = static_cast<ControlBoxType>(control_box_type);
+    control_box_type_ = controlBoxTypeFromWire(control_box_type);
   }
   if (bp.checkSize<uint16_t>())
   {
     uint16_t tool_flange_type;
     bp.parse(tool_flange_type);
-    tool_flange_type_ = static_cast<ToolFlangeType>(tool_flange_type);
+    tool_flange_type_ = toolFlangeTypeFromWire(tool_flange_type);
   }
 
   return true;

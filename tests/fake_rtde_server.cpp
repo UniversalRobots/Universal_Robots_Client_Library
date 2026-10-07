@@ -1,5 +1,6 @@
 #include "fake_rtde_server.h"
 #include "rtde_test_helpers.h"
+#include <cstring>
 #include <stdexcept>
 #include <unordered_map>
 #include "ur_client_library/comm/package_serializer.h"
@@ -482,9 +483,20 @@ bool allVariablesFound(const std::vector<std::string>& types)
 // Unlike a client, the server side knows the data types up front, so it applies them itself right
 // after allocating the package.
 std::unique_ptr<rtde_interface::DataPackage> makeTypedDataPackage(const std::vector<std::string>& recipe,
-                                                                  const std::vector<std::string>& types,
+                                                                  const std::vector<std::string>& type_names,
                                                                   const uint16_t protocol_version = 2)
 {
+  std::vector<rtde_interface::DataType> types;
+  types.reserve(type_names.size());
+  for (const auto& type_name : type_names)
+  {
+    const std::optional<rtde_interface::DataType> type = rtde_interface::dataTypeFromName(type_name);
+    if (!type.has_value())
+    {
+      throw UrException("The fake RTDE server's type table has an unknown data type '" + type_name + "'");
+    }
+    types.push_back(*type);
+  }
   auto package = std::make_unique<rtde_interface::DataPackage>(recipe);
   package->setTypes(types);
   package->setProtocolVersion(protocol_version);
@@ -533,6 +545,12 @@ std::vector<uint16_t> RTDEServer::requestedProtocolVersions()
   return requested_protocol_versions_;
 }
 
+std::vector<std::string> RTDEServer::propertyRequests()
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  return property_requests_;
+}
+
 void RTDEServer::setAcceptStart(const bool accept)
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -567,6 +585,56 @@ void RTDEServer::setInputTypeReply(const std::optional<std::vector<std::string>>
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
   input_type_reply_ = types;
+}
+
+void RTDEServer::setOutputFieldType(const std::string& name, const std::string& type)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  output_field_types_[name] = type;
+}
+
+void RTDEServer::queueTextMessageBeforeReadProperties(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_read_properties_text_messages_.push_back(message);
+}
+
+void RTDEServer::setPropertyTypeReply(const std::string& name, const std::string& token)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  property_type_replies_[name] = token;
+}
+
+void RTDEServer::setTruncatePropertyValues(const bool truncate)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  truncate_property_values_ = truncate;
+}
+
+void RTDEServer::setReportedSoftwareVersion(const uint16_t major, const uint16_t minor, const uint16_t bugfix)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  software_version_major_ = major;
+  software_version_minor_ = minor;
+  software_version_bugfix_ = bugfix;
+}
+
+void RTDEServer::setSoftwareVersionAsUint32(const bool as_uint32)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  software_version_as_uint32_ = as_uint32;
+}
+
+void RTDEServer::queueStartReplyBeforeReadProperties()
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  ++pending_start_replies_before_read_properties_;
+}
+
+void RTDEServer::queueTextMessageAfterStart(const std::string& message)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  pending_after_start_text_messages_.push_back(message);
 }
 
 void RTDEServer::sendTextMessage(const socket_t filedescriptor, const std::string& message)
@@ -759,7 +827,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         protocol_version = negotiated_protocol_version_;
       }
-      if (protocol_version == 2)
+      if (protocol_version >= 2)
       {
         bp.parse(output_frequency_);
       }
@@ -775,7 +843,23 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       std::string variable_types_str;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
-        variable_types_str = joinStrings(output_type_reply_.value_or(variable_types));
+        if (output_type_reply_.has_value())
+        {
+          variable_types_str = joinStrings(*output_type_reply_);
+        }
+        else
+        {
+          std::vector<std::string> types = variable_types;
+          for (size_t i = 0; i < output_recipe_.size(); ++i)
+          {
+            const auto field_type = output_field_types_.find(output_recipe_[i]);
+            if (field_type != output_field_types_.end())
+            {
+              types[i] = field_type->second;
+            }
+          }
+          variable_types_str = joinStrings(types);
+        }
       }
 
       {
@@ -791,13 +875,13 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       uint8_t send_buffer[4096];
       size_t send_size = 0;
       uint16_t payload_size = static_cast<uint16_t>(variable_types_str.length());
-      if (protocol_version == 2)
+      if (protocol_version >= 2)
       {
         payload_size = static_cast<uint16_t>(variable_types_str.length() + sizeof(uint8_t));
       }
       send_size += rtde_interface::PackageHeader::serializeHeader(
           send_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS, payload_size);
-      if (protocol_version == 2)
+      if (protocol_version >= 2)
       {
         uint8_t recipe_id = 1;
         send_size += serializer.serialize(send_buffer + send_size, recipe_id);
@@ -866,9 +950,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
       bool accepted;
+      std::deque<std::string> after_start_text_messages;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         accepted = accept_start_;
+        after_start_text_messages.swap(pending_after_start_text_messages_);
       }
       comm::PackageSerializer serializer;
       uint8_t send_buffer[4096];
@@ -881,6 +967,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
       if (accepted)
       {
+        for (const std::string& msg : after_start_text_messages)
+        {
+          sendTextMessage(filedescriptor, msg);
+        }
         startSendingDataPackages();
       }
       break;
@@ -921,6 +1011,133 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     case rtde_interface::PackageType::RTDE_TEXT_MESSAGE:
     {
       URCL_LOG_WARN("Received Text message which usually shouldn't be sent to the RTDE server.");
+      break;
+    }
+    // Mimics a configurable controller (defaults to 10.15.0) on a CB5 with a standard tool flange. Like the
+    // real one it reports NOT_FOUND for unknown names and then sends no values at all, so tests can check the
+    // client only asks for names the controller has.
+    case rtde_interface::PackageType::RTDE_READ_PROPERTIES:
+    {
+      std::string names_str;
+      bp.parseRemainder(names_str);
+      std::deque<std::string> text_messages;
+      std::map<std::string, std::string> type_replies;
+      bool truncate_values = false;
+      uint16_t major = 10;
+      uint16_t minor = 15;
+      uint16_t bugfix = 0;
+      bool as_uint32 = false;
+      unsigned start_replies = 0;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        property_requests_.push_back(names_str);
+        text_messages.swap(pending_read_properties_text_messages_);
+        type_replies = property_type_replies_;
+        truncate_values = truncate_property_values_;
+        major = software_version_major_;
+        minor = software_version_minor_;
+        bugfix = software_version_bugfix_;
+        as_uint32 = software_version_as_uint32_;
+        start_replies = pending_start_replies_before_read_properties_;
+        pending_start_replies_before_read_properties_ = 0;
+      }
+      for (unsigned i = 0; i < start_replies; ++i)
+      {
+        comm::PackageSerializer start_serializer;
+        uint8_t start_buffer[16];
+        size_t start_size = 0;
+        start_size += rtde_interface::PackageHeader::serializeHeader(
+            start_buffer, rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START, sizeof(uint8_t));
+        start_size += start_serializer.serialize(start_buffer + start_size, true);
+        size_t start_written = 0;
+        server_.writeUnchecked(filedescriptor, start_buffer, start_size, start_written);
+      }
+      for (const std::string& text_message : text_messages)
+      {
+        sendTextMessage(filedescriptor, text_message);
+      }
+      const std::vector<std::string> names = splitString(names_str);
+      std::string types;
+      bool all_known = true;
+      for (const auto& name : names)
+      {
+        if (!types.empty())
+        {
+          types += ",";
+        }
+        const auto reply = type_replies.find(name);
+        if (reply != type_replies.end())
+        {
+          types += reply->second;
+          all_known = false;
+        }
+        else if (name == "v1.software.version")
+        {
+          types += as_uint32 ? "UINT32" : "UINT64";
+        }
+        else if (name == "v1.control_box.type" || name == "v1.robot_arm.tool_flange.type")
+        {
+          types += "UINT32";
+        }
+        else
+        {
+          types += "NOT_FOUND";
+          all_known = false;
+        }
+      }
+
+      comm::PackageSerializer serializer;
+      uint8_t send_buffer[4096];
+      size_t send_size = 0;
+      uint16_t payload_size = static_cast<uint16_t>(sizeof(uint16_t) + types.size());
+      uint8_t values[256];
+      size_t values_size = 0;
+      if (all_known)
+      {
+        for (const auto& name : names)
+        {
+          if (name == "v1.software.version")
+          {
+            // major, minor, patch as 2 bytes each from MSB to LSB. Configurable software version.
+            const uint64_t encoded = (static_cast<uint64_t>(major) << 48) | (static_cast<uint64_t>(minor) << 32) |
+                                     (static_cast<uint64_t>(bugfix) << 16);
+            if (as_uint32)
+            {
+              values_size += serializer.serialize(values + values_size, static_cast<uint32_t>(encoded >> 32));
+            }
+            else
+            {
+              values_size += serializer.serialize(values + values_size, encoded);
+            }
+          }
+          else if (name == "v1.control_box.type")
+          {
+            const uint32_t encoded = static_cast<uint32_t>(5) << 24;
+            values_size += serializer.serialize(values + values_size, encoded);
+          }
+          else if (name == "v1.robot_arm.tool_flange.type")
+          {
+            const uint32_t encoded = static_cast<uint32_t>(1) << 24;
+            values_size += serializer.serialize(values + values_size, encoded);
+          }
+        }
+        if (truncate_values && values_size > 0)
+        {
+          --values_size;
+        }
+        payload_size = static_cast<uint16_t>(payload_size + values_size);
+      }
+      send_size += rtde_interface::PackageHeader::serializeHeader(
+          send_buffer, rtde_interface::PackageType::RTDE_READ_PROPERTIES, payload_size);
+      send_size += serializer.serialize(send_buffer + send_size, static_cast<uint16_t>(types.size()));
+      send_size += serializer.serialize(send_buffer + send_size, types);
+      if (values_size > 0)
+      {
+        std::memcpy(send_buffer + send_size, values, values_size);
+        send_size += values_size;
+      }
+      size_t written = 0;
+      server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
       break;
     }
     default:

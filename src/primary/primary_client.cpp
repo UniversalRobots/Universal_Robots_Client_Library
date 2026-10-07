@@ -746,7 +746,7 @@ RobotType PrimaryClient::getRobotType()
   {
     return RobotType::UNDEFINED;
   }
-  return static_cast<RobotType>(configuration_data->robot_type_);
+  return robotTypeFromWire(configuration_data->robot_type_);
 }
 
 RobotSeries PrimaryClient::getRobotSeries()

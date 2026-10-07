@@ -33,43 +33,67 @@
 //----------------------------------------------------------------------
 /*!\file
  *
- * Dynamic error-code text overrides.
- *
- * This file is intentionally NOT generated or overwritten by
- * scripts/generate_error_codes.py.  Add cases here for error codes
- * whose human-readable text must be computed at runtime (e.g. by
- * calling a C++ helper function rather than returning a static string).
- *
- * For purely static additions or text corrections, prefer adding entries
- * to scripts/error_code_overrides.json instead, which will be merged
- * into the generated lookup table by the code-generation script.
+ * \author  Universal Robots A/S
+ * \date    2026-09-25
  *
  */
 //----------------------------------------------------------------------
 
-#include "ur_client_library/ur/error_code_overrides.h"
-#include "ur_client_library/ur/datatypes.h"
+#ifndef UR_CLIENT_LIBRARY_RTDE_ROBOT_PROPERTIES_H_INCLUDED
+#define UR_CLIENT_LIBRARY_RTDE_ROBOT_PROPERTIES_H_INCLUDED
+
+#include <mutex>
+#include <optional>
+
+#include "ur_client_library/comm/producer.h"
+#include "ur_client_library/comm/stream.h"
+#include "ur_client_library/rtde/read_properties.h"
+#include "ur_client_library/rtde/rtde_package.h"
 
 namespace urcl
 {
-namespace primary_interface
+namespace rtde_interface
 {
-std::optional<std::string> getErrorCodeTextOverride(int32_t code, int32_t arg)
+/*!
+ * \brief The robot properties read while setting up RTDE communication.
+ *
+ * RTDEClient calls fetch() during its handshake. Applications read a snapshot through
+ * RTDEClient::getRobotProperties().
+ */
+class RobotProperties
 {
-  switch (code)
-  {
-    // C100: Robot changed mode.
-    // The argument encodes the new RobotMode; use robotModeString() to generate the human-readable
-    // text.
-    case 100:
-    {
-      return "Robot mode changed to: " + robotModeString(robotModeFromWire(arg));
-    }
+public:
+  /*!
+   * \brief Reads v1.software.version and then every catalog property that version supports.
+   *
+   * Only for the setup phase, before any data is streamed: nothing else may read from \p producer
+   * meanwhile. The read only succeeds if the controller sends a value for every name, the software
+   * version included. A failed read forgets any properties fetched earlier.
+   *
+   * \returns False if the controller kept sending other packages without answering. The answer
+   * may then still be in the stream, so the connection has to be set up again. A read that fails
+   * in any other way returns true, since the properties are optional.
+   */
+  bool fetch(comm::URStream<RTDEPackage>& stream, comm::URProducer<RTDEPackage>& producer);
 
-    default:
-      return std::nullopt;
-  }
-}
+  /*!
+   * \brief Forgets any properties fetched earlier.
+   */
+  void clear();
 
-}  // namespace primary_interface
+  /*!
+   * \brief Returns an independent snapshot of the fetched properties.
+   *
+   * \returns An empty optional if no properties were fetched.
+   */
+  std::optional<ReadProperties> get() const;
+
+private:
+  mutable std::mutex mutex_;
+  std::optional<ReadProperties> properties_;
+};
+
+}  // namespace rtde_interface
 }  // namespace urcl
+
+#endif  // UR_CLIENT_LIBRARY_RTDE_ROBOT_PROPERTIES_H_INCLUDED

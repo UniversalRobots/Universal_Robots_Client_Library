@@ -48,29 +48,6 @@ namespace
 template <typename T>
 constexpr bool is_untyped_v = std::is_same_v<std::decay_t<T>, std::monostate>;
 
-/*!
- * \brief The RTDE protocol's name for each data type.
- *
- * The single place the spellings live. Both directions of the name conversion read from it, so a
- * name can never disagree with itself.
- */
-constexpr struct
-{
-  DataType type;
-  std::string_view name;
-} TYPE_NAMES[] = {
-  { DataType::BOOL, "BOOL" },
-  { DataType::UINT8, "UINT8" },
-  { DataType::UINT32, "UINT32" },
-  { DataType::UINT64, "UINT64" },
-  { DataType::INT32, "INT32" },
-  { DataType::DOUBLE, "DOUBLE" },
-  { DataType::VECTOR3D, "VECTOR3D" },
-  { DataType::VECTOR6D, "VECTOR6D" },
-  { DataType::VECTOR6INT32, "VECTOR6INT32" },
-  { DataType::VECTOR6UINT32, "VECTOR6UINT32" },
-};
-
 constexpr uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 constexpr uint64_t FNV_PRIME = 1099511628211ULL;
 
@@ -118,113 +95,6 @@ uint64_t hashLayout(const uint64_t recipe_hash, const uint16_t protocol_version,
   return hash;
 }
 
-/*!
- * \brief The data type a field holds, or an empty optional if it has none yet.
- */
-std::optional<DataType> typeOf(const DataPackage::_rtde_type_variant& field)
-{
-  if (std::holds_alternative<bool>(field))
-  {
-    return DataType::BOOL;
-  }
-  if (std::holds_alternative<uint8_t>(field))
-  {
-    return DataType::UINT8;
-  }
-  if (std::holds_alternative<uint32_t>(field))
-  {
-    return DataType::UINT32;
-  }
-  if (std::holds_alternative<uint64_t>(field))
-  {
-    return DataType::UINT64;
-  }
-  if (std::holds_alternative<int32_t>(field))
-  {
-    return DataType::INT32;
-  }
-  if (std::holds_alternative<double>(field))
-  {
-    return DataType::DOUBLE;
-  }
-  if (std::holds_alternative<vector3d_t>(field))
-  {
-    return DataType::VECTOR3D;
-  }
-  if (std::holds_alternative<vector6d_t>(field))
-  {
-    return DataType::VECTOR6D;
-  }
-  if (std::holds_alternative<vector6int32_t>(field))
-  {
-    return DataType::VECTOR6INT32;
-  }
-  if (std::holds_alternative<vector6uint32_t>(field))
-  {
-    return DataType::VECTOR6UINT32;
-  }
-  return std::nullopt;
-}
-
-/*!
- * \brief Creates an empty value of the given data type.
- *
- * Switching over the enum rather than testing names in sequence means the compiler points at this
- * function if a data type is ever added to the protocol.
- */
-DataPackage::_rtde_type_variant variantFor(const DataType type)
-{
-  switch (type)
-  {
-    case DataType::BOOL:
-      return bool();
-    case DataType::UINT8:
-      return uint8_t();
-    case DataType::UINT32:
-      return uint32_t();
-    case DataType::UINT64:
-      return uint64_t();
-    case DataType::INT32:
-      return int32_t();
-    case DataType::DOUBLE:
-      return double();
-    case DataType::VECTOR3D:
-      return vector3d_t();
-    case DataType::VECTOR6D:
-      return vector6d_t();
-    case DataType::VECTOR6INT32:
-      return vector6int32_t();
-    case DataType::VECTOR6UINT32:
-      return vector6uint32_t();
-  }
-  throw UrException("Unhandled RTDE data type.");
-}
-
-/*!
- * \brief The protocol data type with the given name.
- *
- * \param type_name One of the RTDE data type names as reported by the robot in a setup
- * acknowledgement
- *
- * \throws UrException if the name is not a known RTDE data type
- */
-DataType typeFromName(const std::string_view type_name)
-{
-  for (const auto& entry : TYPE_NAMES)
-  {
-    if (entry.name == type_name)
-    {
-      return entry.type;
-    }
-  }
-
-  std::stringstream ss;
-  ss << "'" << type_name
-     << "' is not a known RTDE data type. Expected one of BOOL, UINT8, UINT32, UINT64, INT32, "
-        "DOUBLE, VECTOR3D, VECTOR6D, VECTOR6INT32 or VECTOR6UINT32.";
-  throw UrException(ss.str());
-}
-
 void copyValues(std::vector<DataPackage::_rtde_type_variant>& destination,
                 const std::vector<DataPackage::_rtde_type_variant>& source)
 {
@@ -235,18 +105,6 @@ void copyValues(std::vector<DataPackage::_rtde_type_variant>& destination,
   std::memcpy(destination.data(), source.data(), destination.size() * sizeof(DataPackage::_rtde_type_variant));
 }
 }  // namespace
-
-std::string toString(const DataType type)
-{
-  for (const auto& entry : TYPE_NAMES)
-  {
-    if (entry.type == type)
-    {
-      return std::string(entry.name);
-    }
-  }
-  throw UrException("Unhandled RTDE data type.");
-}
 
 void rtde_interface::DataPackage::rebuildFieldIndex()
 {
@@ -275,7 +133,7 @@ std::optional<rtde_interface::DataType> rtde_interface::DataPackage::getDataType
   {
     return std::nullopt;
   }
-  return typeOf(values_[*index]);
+  return dataTypeOf(values_[*index]);
 }
 
 void rtde_interface::DataPackage::initStorage()
@@ -295,7 +153,7 @@ void rtde_interface::DataPackage::updateLayoutHash()
   });
 }
 
-void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types)
+void rtde_interface::DataPackage::setTypes(const std::vector<DataType>& types)
 {
   if (types.size() != recipe_.size())
   {
@@ -304,18 +162,14 @@ void rtde_interface::DataPackage::setTypes(const std::vector<std::string>& types
        << recipe_.size() << " fields.";
     throw UrException(ss.str());
   }
-
-  // Confirm every name before writing any field. variantFor cannot fail once the name is known, so
-  // a later unknown type cannot leave earlier fields retyped while layout_hash_ still describes
-  // the old layout.
-  for (const auto& type_name : types)
+  if (!std::all_of(types.begin(), types.end(), rtde_interface::isDataType))
   {
-    typeFromName(type_name);
+    throw UrException("Unhandled RTDE data type.");
   }
 
   for (size_t i = 0; i < recipe_.size(); ++i)
   {
-    values_[i] = variantFor(typeFromName(types[i]));
+    values_[i] = makeValue(types[i]);
     zeros_[i] = values_[i];
   }
   updateLayoutHash();
@@ -392,9 +246,9 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
     return false;
   }
 
-  // Same contract as serializePackage(): the bytes after the package header, so a version 2
-  // payload starts with the recipe-id byte.
-  if (protocol_version_ == 2)
+  // Same contract as serializePackage(): the bytes after the package header, so a version 2 or
+  // later payload starts with the recipe-id byte. Protocol version 3 keeps that layout.
+  if (protocol_version_ >= 2)
   {
     bp.parse(recipe_id_);
   }
@@ -453,7 +307,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   }
 
   uint16_t payload_size = 0;
-  if (protocol_version_ == 2)
+  if (protocol_version_ >= 2)
   {
     payload_size += sizeof(recipe_id_);
   }
@@ -475,7 +329,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   }
   size_t size = 0;
   size += PackageHeader::serializeHeader(buffer, PackageType::RTDE_DATA_PACKAGE, payload_size);
-  if (protocol_version_ == 2)
+  if (protocol_version_ >= 2)
   {
     size += comm::PackageSerializer::serialize(buffer + size, recipe_id_);
   }

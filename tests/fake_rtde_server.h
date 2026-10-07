@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -51,6 +52,11 @@ public:
   std::vector<uint16_t> requestedProtocolVersions();
 
   /*!
+   * \brief Property-name payloads of RTDE_READ_PROPERTIES requests, in order.
+   */
+  std::vector<std::string> propertyRequests();
+
+  /*!
    * \brief Whether the next RTDE start request is accepted. A refused start must not leave the
    * client believing it is streaming.
    */
@@ -78,12 +84,60 @@ public:
   void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
   void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
 
+  /*!
+   * \brief Reports \p type for output field \p name on every following setup acknowledgement.
+   *
+   * Other fields keep the type the robot would report, including NOT_FOUND. A full
+   * setOutputTypeReply() replaces this. The server's own data package is unchanged.
+   */
+  void setOutputFieldType(const std::string& name, const std::string& type);
+
   // Wait until the single-client slot and disconnect cleanup are finished before reconnecting.
   // Call after a handshake has established the connection and the client has disconnected.
   bool waitForDisconnection(const std::chrono::milliseconds timeout);
 
   // Inject one frame after init(), while streaming is paused and the connection is stable.
   bool sendTestFrame(const std::vector<uint8_t>& frame);
+
+  /*!
+   * \brief Sends a text message ahead of the next RTDE_READ_PROPERTIES answer, the way a
+   * controller reports "SafetySetup has not been confirmed yet" right after connecting.
+   */
+  void queueTextMessageBeforeReadProperties(const std::string& message);
+
+  /*!
+   * \brief Reports \p token, such as NOT_SET, as the type of property \p name in every following
+   * RTDE_READ_PROPERTIES answer. Like a real controller, the answer then carries no values.
+   */
+  void setPropertyTypeReply(const std::string& name, const std::string& token);
+
+  /*!
+   * \brief Drops the last byte of the values in every following RTDE_READ_PROPERTIES answer. The
+   * header still matches the shortened frame, so only the value parsing runs out of data.
+   */
+  void setTruncatePropertyValues(const bool truncate);
+
+  /*!
+   * \brief Software version reported for v1.software.version. Defaults to 10.15.0.
+   */
+  void setReportedSoftwareVersion(const uint16_t major, const uint16_t minor, const uint16_t bugfix);
+
+  /*!
+   * \brief Reports v1.software.version as UINT32 with a 4-byte value instead of UINT64, the way a
+   * controller with a different encoding would. The answer still carries values.
+   */
+  void setSoftwareVersionAsUint32(const bool as_uint32);
+
+  /*!
+   * \brief Sends an accepted RTDE_CONTROL_PACKAGE_START reply ahead of the next RTDE_READ_PROPERTIES
+   * answer: a package that is neither the answer nor a text message.
+   */
+  void queueStartReplyBeforeReadProperties();
+
+  /*!
+   * \brief Sends message right after the next accepted start acknowledgement, before any data package.
+   */
+  void queueTextMessageAfterStart(const std::string& message);
 
 private:
   std::vector<std::string> input_recipe_;
@@ -129,10 +183,21 @@ private:
   std::deque<std::string> pending_setup_outputs_text_messages_;
   std::deque<std::string> pending_setup_inputs_text_messages_;
   std::optional<std::vector<std::string>> output_type_reply_;
+  std::map<std::string, std::string> output_field_types_;
   std::optional<std::vector<std::string>> input_type_reply_;
+  std::deque<std::string> pending_read_properties_text_messages_;
   uint16_t highest_accepted_protocol_version_ = 2;
   uint16_t negotiated_protocol_version_ = 2;
   std::vector<uint16_t> requested_protocol_versions_;
+  std::vector<std::string> property_requests_;
+  std::map<std::string, std::string> property_type_replies_;
+  bool truncate_property_values_ = false;
+  uint16_t software_version_major_ = 10;
+  uint16_t software_version_minor_ = 15;
+  uint16_t software_version_bugfix_ = 0;
+  bool software_version_as_uint32_ = false;
+  unsigned pending_start_replies_before_read_properties_ = 0;
+  std::deque<std::string> pending_after_start_text_messages_;
   bool accept_start_ = true;
   bool accept_pause_ = true;
 };

@@ -40,6 +40,19 @@ namespace urcl
 {
 namespace rtde_interface
 {
+namespace
+{
+// For setupOutputs() and setupInputs(): the robot acknowledged a field with a word that is neither a
+// data type nor NOT_FOUND / IN_USE, e.g. a data type of a newer controller this library cannot
+// decode. The field cannot be typed, so setup fails; init() does not retry this error.
+[[noreturn]] void throwUnknownDataType(const std::string_view type_name)
+{
+  std::stringstream ss;
+  ss << "'" << type_name << "' is not a known RTDE data type. Expected one of " << knownTypeNames() << ".";
+  throw UrException(ss.str());
+}
+}  // namespace
+
 // The pre-allocated package gets its storage here, but the field types are only known once the
 // robot has acknowledged the output recipe, which is when setupOutputs() applies them.
 RTDEClient::RTDEClient(std::string robot_ip, comm::INotifier& notifier, const std::string& output_recipe_file,
@@ -164,6 +177,8 @@ std::chrono::milliseconds RTDEClient::getConnectTimeout() const
 bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chrono::milliseconds reconnection_time)
 {
   client_state_ = ClientState::UNINITIALIZED;
+  // Forget the previous controller's properties before any step of the handshake can fail.
+  robot_properties_.clear();
   prod_->setupProducer(max_num_tries, reconnection_time);
   client_state_ = ClientState::INITIALIZING;
 
@@ -177,6 +192,17 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
 
   bool is_rtde_comm_setup = true;
   is_rtde_comm_setup = queryURControlVersion();
+
+  // The properties are only read here, in the setup phase. Doing it before the outputs are set up
+  // means no data package can arrive ahead of the answer, and the real-time read path never has
+  // to handle RTDE_READ_PROPERTIES. A failed read is not fatal: RTDE works without the
+  // properties, getRobotProperties() just returns an empty optional. Only an answer that may still be in the
+  // stream fails this attempt. RTDE_READ_PROPERTIES only exists on PolyScope software that also
+  // supports protocol version 3.
+  if (is_rtde_comm_setup && protocol_version_ >= 3)
+  {
+    is_rtde_comm_setup = robot_properties_.fetch(stream_, *prod_);
+  }
 
   if (is_rtde_comm_setup)
   {
@@ -373,7 +399,8 @@ bool RTDEClient::setupOutputs()
   while (num_retries < MAX_REQUEST_RETRIES)
   {
     URCL_LOG_DEBUG("Sending output recipe");
-    if (protocol_version_ == 2)
+    // Protocol version 3 keeps the version 2 setup-outputs request, including the frequency.
+    if (protocol_version_ >= 2)
     {
       size = ControlPackageSetupOutputsRequest::generateSerializedRequest(buffer, target_frequency_, output_recipe_);
     }
@@ -405,28 +432,44 @@ bool RTDEClient::setupOutputs()
             dynamic_cast<rtde_interface::ControlPackageSetupOutputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitString(tmp_output->variable_types_, ",");
+      const std::vector<std::optional<DataType>>& data_types = tmp_output->data_types_;
+      std::vector<DataType> types;
+      // Unavailable fields are reported first, as they are the error the user can fix in the recipe.
+      std::optional<std::string_view> unknown_type;
       std::vector<std::string> available_variables;
       std::vector<std::string> unavailable_variables;
-      if (output_recipe_.size() != variable_types.size())
+      if (output_recipe_.size() != data_types.size())
       {
         URCL_LOG_ERROR("The robot acknowledged the output recipe with %zu data types while the recipe contains %zu "
                        "fields. Cannot set up the RTDE outputs.",
-                       variable_types.size(), output_recipe_.size());
+                       data_types.size(), output_recipe_.size());
         return false;
       }
-      for (std::size_t i = 0; i < variable_types.size(); ++i)
+      for (std::size_t i = 0; i < data_types.size(); ++i)
       {
-        const std::string variable_name = output_recipe_[i];
-        URCL_LOG_DEBUG("%s confirmed as datatype: %s", variable_name.c_str(), variable_types[i].c_str());
+        const std::string& variable_name = output_recipe_[i];
+        const std::string_view type_name = tmp_output->type_names_[i];
+        URCL_LOG_DEBUG("%s confirmed as datatype: %.*s", variable_name.c_str(), static_cast<int>(type_name.size()),
+                       type_name.data());
 
-        if (variable_types[i] == "NOT_FOUND")
+        if (data_types[i].has_value())
+        {
+          types.push_back(*data_types[i]);
+          available_variables.push_back(variable_name);
+        }
+        else if (type_name == NOT_FOUND_NAME)
         {
           unavailable_variables.push_back(variable_name);
         }
         else
         {
+          // A NOT_FOUND in the same reply is reported first. This field stays in the recipe so the
+          // retry still reaches the unknown-type error instead of dropping the field.
           available_variables.push_back(variable_name);
+          if (!unknown_type.has_value())
+          {
+            unknown_type = type_name;
+          }
         }
       }
 
@@ -458,7 +501,11 @@ bool RTDEClient::setupOutputs()
       }
       else
       {
-        preallocated_data_pkg_.setTypes(variable_types);
+        if (unknown_type.has_value())
+        {
+          throwUnknownDataType(*unknown_type);
+        }
+        preallocated_data_pkg_.setTypes(types);
         // Register typed template so parser can allocate for null pointers or deprecated vector calls.
         parser_.setExpectedDataPackage(preallocated_data_pkg_);
         return true;
@@ -506,29 +553,47 @@ bool RTDEClient::setupInputs()
             dynamic_cast<rtde_interface::ControlPackageSetupInputs*>(package.get()))
 
     {
-      std::vector<std::string> variable_types = splitString(tmp_input->variable_types_, ",");
-      if (input_recipe_.size() != variable_types.size())
+      const std::vector<std::optional<DataType>>& data_types = tmp_input->data_types_;
+      if (input_recipe_.size() != data_types.size())
       {
         URCL_LOG_ERROR("The robot acknowledged the input recipe with %zu data types while the recipe contains %zu "
                        "fields. Cannot set up the RTDE inputs.",
-                       variable_types.size(), input_recipe_.size());
+                       data_types.size(), input_recipe_.size());
         return false;
       }
-      for (std::size_t i = 0; i < variable_types.size(); ++i)
+      std::vector<DataType> types;
+      types.reserve(data_types.size());
+      // A field the robot does not know or another client holds is reported before an unknown type.
+      std::optional<std::string_view> unknown_type;
+      for (std::size_t i = 0; i < data_types.size(); ++i)
       {
-        URCL_LOG_DEBUG("%s confirmed as datatype: %s", input_recipe_[i].c_str(), variable_types[i].c_str());
-        if (variable_types[i] == "NOT_FOUND")
+        const std::string_view type_name = tmp_input->type_names_[i];
+        URCL_LOG_DEBUG("%s confirmed as datatype: %.*s", input_recipe_[i].c_str(), static_cast<int>(type_name.size()),
+                       type_name.data());
+        if (data_types[i].has_value())
+        {
+          types.push_back(*data_types[i]);
+        }
+        else if (type_name == NOT_FOUND_NAME)
         {
           std::string message = "Variable '" + input_recipe_[i] +
                                 "' not recognized by the robot. Probably your input recipe contains errors";
           throw RTDEInvalidKeyException(message);
         }
-        else if (variable_types[i] == "IN_USE")
+        else if (type_name == IN_USE_NAME)
         {
           throw RTDEInputConflictException(input_recipe_[i]);
         }
+        else if (!unknown_type.has_value())
+        {
+          unknown_type = type_name;
+        }
       }
-      writer_.setRecipeTypes(variable_types);
+      if (unknown_type.has_value())
+      {
+        throwUnknownDataType(*unknown_type);
+      }
+      writer_.setRecipeTypes(types);
       writer_.init(tmp_input->input_recipe_id_);
 
       return true;
@@ -557,6 +622,7 @@ void RTDEClient::disconnect()
   client_state_ = ClientState::UNINITIALIZED;
   prod_->stopProducer();
   stopBackgroundRead();
+  robot_properties_.clear();
   notifier_.stopped("RTDE communication stopped");
 }
 
@@ -584,6 +650,12 @@ bool RTDEClient::isRobotBooted()
     if (prod_->tryGet(package))
     {
       rtde_interface::DataPackage* tmp_input = dynamic_cast<rtde_interface::DataPackage*>(package.get());
+      if (tmp_input == nullptr)
+      {
+        URCL_LOG_ERROR("Expected RTDE data while checking that the robot has booted. Received instead:\n%s",
+                       package->toString().c_str());
+        return false;
+      }
       tmp_input->getData("timestamp", timestamp);
       reading_count++;
     }

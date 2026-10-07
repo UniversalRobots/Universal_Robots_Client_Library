@@ -41,12 +41,13 @@
 #include "rtde_test_helpers.h"
 
 using namespace urcl;
+using urcl::rtde_interface::DataType;
 using urcl::test::typedPackage;
 
 TEST(rtde_data_package, serialize_pkg)
 {
   std::vector<std::string> recipe{ "speed_slider_mask" };
-  std::vector<std::string> types{ "UINT32" };
+  std::vector<rtde_interface::DataType> types{ DataType::UINT32 };
   auto package = typedPackage(recipe, types);
 
   uint32_t value = 1;
@@ -69,7 +70,7 @@ TEST(rtde_data_package, serialize_pkg)
 TEST(rtde_data_package, parse_pkg_protocolv2)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
   auto package = typedPackage(recipe, types);
 
   // Payload after the package header: recipe-id byte, then the fields.
@@ -104,7 +105,7 @@ TEST(rtde_data_package, parse_pkg_protocolv2)
 TEST(rtde_data_package, parse_pkg_protocolv1)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
   auto package = typedPackage(recipe, types);
   package.setProtocolVersion(1);
 
@@ -139,7 +140,7 @@ TEST(rtde_data_package, parse_pkg_protocolv1)
 TEST(rtde_data_package, serialize_pkg_protocolv1)
 {
   std::vector<std::string> recipe{ "speed_slider_mask" };
-  std::vector<std::string> types{ "UINT32" };
+  std::vector<rtde_interface::DataType> types{ DataType::UINT32 };
   auto package = typedPackage(recipe, types);
 
   uint32_t value = 1;
@@ -162,7 +163,7 @@ TEST(rtde_data_package, serialize_pkg_protocolv1)
 TEST(rtde_data_package, get_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
   auto package = typedPackage(recipe, types);
 
   uint32_t speed_slider_mask;
@@ -172,7 +173,7 @@ TEST(rtde_data_package, get_data_not_part_of_recipe)
 TEST(rtde_data_package, set_data_not_part_of_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
   auto package = typedPackage(recipe, types);
 
   uint32_t speed_slider_mask = 1;
@@ -182,7 +183,7 @@ TEST(rtde_data_package, set_data_not_part_of_recipe)
 TEST(rtde_data_package, parse_and_get_bitset_data)
 {
   std::vector<std::string> recipe{ "robot_status_bits" };
-  std::vector<std::string> types{ "UINT32" };
+  std::vector<rtde_interface::DataType> types{ DataType::UINT32 };
   auto package = typedPackage(recipe, types);
 
   uint8_t data_package[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x40, 0xb2, 0x3d, 0xa9, 0xfb, 0xe7, 0x6c, 0x8b };
@@ -200,7 +201,7 @@ TEST(rtde_data_package, parse_and_get_bitset_data)
 TEST(rtde_data_package, parse_incorrect_data_size)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
-  std::vector<std::string> types{ "DOUBLE", "VECTOR6D" };
+  std::vector<rtde_interface::DataType> types{ DataType::DOUBLE, DataType::VECTOR6D };
   auto package = typedPackage(recipe, types);
 
   // Data package with incorrect size (should be 56 bytes for the given recipe)
@@ -215,7 +216,8 @@ TEST(rtde_data_package, data_package_to_string)
 {
   std::vector<std::string> recipe{ "speed_slider_mask", "speed_slider_fraction", "external_force_torque",
                                    "standard_digital_output_mask", "actual_digital_output_bits" };
-  std::vector<std::string> types{ "UINT32", "DOUBLE", "VECTOR6D", "UINT8", "UINT64" };
+  std::vector<rtde_interface::DataType> types{ DataType::UINT32, DataType::DOUBLE, DataType::VECTOR6D, DataType::UINT8,
+                                               DataType::UINT64 };
   auto package = typedPackage(recipe, types);
   ASSERT_TRUE(package.setData<uint32_t>("speed_slider_mask", 1));
   ASSERT_TRUE(package.setData<double>("speed_slider_fraction", 0.5));
@@ -240,8 +242,10 @@ TEST(rtde_data_package, every_rtde_data_type_can_be_applied)
   // carries, so check that each one maps onto the C++ type an application expects to read.
   std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
                                    "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
-  std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
-                                  "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+  std::vector<rtde_interface::DataType> types{ DataType::BOOL,         DataType::UINT8,    DataType::UINT32,
+                                               DataType::UINT64,       DataType::INT32,    DataType::DOUBLE,
+                                               DataType::VECTOR3D,     DataType::VECTOR6D, DataType::VECTOR6INT32,
+                                               DataType::VECTOR6UINT32 };
   auto package = typedPackage(recipe, types);
 
   // Every field reports back the type the robot named for it
@@ -249,7 +253,7 @@ TEST(rtde_data_package, every_rtde_data_type_can_be_applied)
   {
     const auto type = package.getDataType(recipe[i]);
     ASSERT_TRUE(type.has_value()) << "for field " << recipe[i];
-    EXPECT_EQ(rtde_interface::toString(*type), types[i]) << "for field " << recipe[i];
+    EXPECT_EQ(*type, types[i]) << "for field " << recipe[i];
   }
 
   bool bool_value;
@@ -294,8 +298,10 @@ TEST(rtde_data_package, every_rtde_data_type_survives_a_serialize_parse_round_tr
 {
   const std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
                                          "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
-  const std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
-                                        "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+  const std::vector<rtde_interface::DataType> types{ DataType::BOOL,         DataType::UINT8,    DataType::UINT32,
+                                                     DataType::UINT64,       DataType::INT32,    DataType::DOUBLE,
+                                                     DataType::VECTOR3D,     DataType::VECTOR6D, DataType::VECTOR6INT32,
+                                                     DataType::VECTOR6UINT32 };
 
   const bool bool_value = true;
   const uint8_t uint8_value = 0xa5;
@@ -384,37 +390,25 @@ TEST(rtde_data_package, every_rtde_data_type_survives_a_serialize_parse_round_tr
   EXPECT_EQ(v6uint32_read, v6uint32_value);
 }
 
-TEST(rtde_data_package, unknown_data_types_are_rejected)
-{
-  std::vector<std::string> recipe{ "timestamp" };
-  rtde_interface::DataPackage package(recipe);
-
-  // A field the robot doesn't know about is reported as NOT_FOUND, one that is already used by
-  // another recipe as IN_USE. Neither is a data type.
-  EXPECT_THROW(package.setTypes({ "NOT_FOUND" }), UrException);
-  EXPECT_THROW(package.setTypes({ "IN_USE" }), UrException);
-  EXPECT_THROW(package.setTypes({ "double" }), UrException);
-}
-
 TEST(rtde_data_package, every_data_type_obeys_get_set_invariants)
 {
   using Value = rtde_interface::DataPackage::_rtde_type_variant;
-  const std::vector<std::pair<std::string, Value>> cases{
-    { "BOOL", true },
-    { "UINT8", uint8_t{ 0xa5 } },
-    { "UINT32", uint32_t{ 0x12345678 } },
-    { "UINT64", uint64_t{ 0x0123456789abcdef } },
-    { "INT32", int32_t{ -12345 } },
-    { "DOUBLE", -12.5 },
-    { "VECTOR3D", vector3d_t{ 1.5, -2.5, 3.5 } },
-    { "VECTOR6D", vector6d_t{ 1, -2, 3, -4, 5, -6 } },
-    { "VECTOR6INT32", vector6int32_t{ -1, 2, -3, 4, -5, 6 } },
-    { "VECTOR6UINT32", vector6uint32_t{ 1, 2, 3, 4, 5, 0xffffffffu } },
+  const std::vector<std::pair<DataType, Value>> cases{
+    { DataType::BOOL, true },
+    { DataType::UINT8, uint8_t{ 0xa5 } },
+    { DataType::UINT32, uint32_t{ 0x12345678 } },
+    { DataType::UINT64, uint64_t{ 0x0123456789abcdef } },
+    { DataType::INT32, int32_t{ -12345 } },
+    { DataType::DOUBLE, -12.5 },
+    { DataType::VECTOR3D, vector3d_t{ 1.5, -2.5, 3.5 } },
+    { DataType::VECTOR6D, vector6d_t{ 1, -2, 3, -4, 5, -6 } },
+    { DataType::VECTOR6INT32, vector6int32_t{ -1, 2, -3, 4, -5, 6 } },
+    { DataType::VECTOR6UINT32, vector6uint32_t{ 1, 2, 3, 4, 5, 0xffffffffu } },
   };
 
   for (const auto& entry : cases)
   {
-    SCOPED_TRACE(entry.first);
+    SCOPED_TRACE(rtde_interface::toString(entry.first));
     rtde_interface::DataPackage untyped({ "field" });
     auto typed = typedPackage({ "field" }, { entry.first });
     std::visit(
@@ -471,11 +465,12 @@ TEST(rtde_data_package, every_data_type_obeys_get_set_invariants)
 
 TEST(rtde_data_package, failed_set_types_leaves_the_package_unchanged)
 {
-  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto package = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
   const uint64_t layout = package.layoutHash();
 
-  EXPECT_THROW(package.setTypes({ "UINT64", "NOT_A_TYPE" }), UrException);
+  EXPECT_THROW(package.setTypes({ DataType::UINT64 }), UrException);
+  EXPECT_THROW(package.setTypes({ DataType::UINT64, static_cast<DataType>(0xff) }), UrException);
 
   EXPECT_EQ(package.layoutHash(), layout);
   EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
@@ -484,19 +479,23 @@ TEST(rtde_data_package, failed_set_types_leaves_the_package_unchanged)
   ASSERT_TRUE(package.getData("timestamp", timestamp));
   EXPECT_DOUBLE_EQ(timestamp, 42.0);
 
-  auto other = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto other = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(other.setData("timestamp", 1.0));
   ASSERT_TRUE(package.copyFrom(other));
   ASSERT_TRUE(package.getData("timestamp", timestamp));
   EXPECT_DOUBLE_EQ(timestamp, 1.0);
+
+  package.initEmpty();
+  EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
+  EXPECT_EQ(package.layoutHash(), layout);
 }
 
 TEST(rtde_data_package, type_count_has_to_match_recipe)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage package(recipe);
-  EXPECT_THROW(package.setTypes({ "DOUBLE" }), UrException);
-  EXPECT_THROW(package.setTypes({ "DOUBLE", "VECTOR6D", "DOUBLE" }), UrException);
+  EXPECT_THROW(package.setTypes({ DataType::DOUBLE }), UrException);
+  EXPECT_THROW(package.setTypes({ DataType::DOUBLE, DataType::VECTOR6D, DataType::DOUBLE }), UrException);
 }
 
 TEST(rtde_data_package, untyped_package_cannot_be_parsed_or_serialized)
@@ -521,7 +520,7 @@ TEST(rtde_data_package, untyped_package_gets_typed_by_assignment)
 {
   std::vector<std::string> recipe{ "timestamp", "actual_q" };
   rtde_interface::DataPackage untyped_package(recipe);
-  auto typed_package = typedPackage(recipe, { "DOUBLE", "VECTOR6D" });
+  auto typed_package = typedPackage(recipe, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(typed_package.setData("timestamp", 42.0));
 
   untyped_package = typed_package;
@@ -542,7 +541,7 @@ TEST(rtde_data_package, applying_types_makes_the_package_usable)
   double timestamp = 0.0;
   EXPECT_THROW(package.getData("timestamp", timestamp), std::bad_variant_access);
 
-  package.setTypes({ "DOUBLE", "VECTOR6D" });
+  package.setTypes({ DataType::DOUBLE, DataType::VECTOR6D });
 
   EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
   ASSERT_TRUE(package.setData("timestamp", 42.0));
@@ -572,7 +571,7 @@ TEST(rtde_data_package, set_data_establishes_the_type_of_an_untyped_field)
 
 TEST(rtde_data_package, get_data_type_reports_unknown_fields_and_untyped_fields)
 {
-  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
 
   EXPECT_FALSE(package.getDataType("not_in_the_recipe").has_value());
 
@@ -591,7 +590,7 @@ TEST(rtde_data_package, set_data_checks_against_an_established_type)
 
   EXPECT_FALSE(package.setData("speed_slider_fraction", static_cast<uint32_t>(1)));
 
-  auto typed_package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto typed_package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   EXPECT_FALSE(typed_package.setData("timestamp", static_cast<uint32_t>(1)));
 }
 
@@ -623,7 +622,7 @@ TEST(rtde_data_package, writing_every_field_makes_a_package_serializable)
 // wrong field sizes.
 TEST(rtde_data_package, init_empty_keeps_types)
 {
-  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto package = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
 
   package.initEmpty();
@@ -638,7 +637,7 @@ TEST(rtde_data_package, init_empty_keeps_types)
 // must not leak into the copy and the copy must keep the same hashes.
 TEST(rtde_data_package, empty_copy_keeps_the_layout_and_zeroes_the_values)
 {
-  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto package = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
   const uint64_t recipe = package.recipeHash();
   const uint64_t layout = package.layoutHash();
@@ -674,7 +673,7 @@ TEST(rtde_data_package, empty_copy_of_an_untyped_package_is_untyped)
 
 TEST(rtde_data_package, copy_keeps_types_and_values)
 {
-  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto package = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
 
   rtde_interface::DataPackage copy(package);
@@ -687,7 +686,7 @@ TEST(rtde_data_package, copy_keeps_types_and_values)
 
 TEST(rtde_data_package, get_data_with_wrong_type_throws)
 {
-  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
 
   uint32_t timestamp = 0;
@@ -700,7 +699,7 @@ TEST(rtde_data_package, layout_hash_changes_when_types_are_set)
   const uint64_t untyped = package.layoutHash();
   const uint64_t recipe = package.recipeHash();
 
-  package.setTypes({ "DOUBLE", "VECTOR6D" });
+  package.setTypes({ DataType::DOUBLE, DataType::VECTOR6D });
 
   EXPECT_EQ(package.recipeHash(), recipe);
   EXPECT_NE(package.layoutHash(), untyped);
@@ -708,7 +707,7 @@ TEST(rtde_data_package, layout_hash_changes_when_types_are_set)
 
 TEST(rtde_data_package, layout_hash_changes_when_protocol_version_changes)
 {
-  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   const uint64_t version_two = package.layoutHash();
 
   package.setProtocolVersion(1);
@@ -756,7 +755,7 @@ TEST(rtde_data_package, layout_hash_changes_on_first_set_data_to_an_untyped_fiel
 
 TEST(rtde_data_package, layout_hash_does_not_change_on_reset_init_empty_or_parse)
 {
-  auto package = typedPackage({ "timestamp", "target_speed_fraction" }, { "DOUBLE", "DOUBLE" });
+  auto package = typedPackage({ "timestamp", "target_speed_fraction" }, { DataType::DOUBLE, DataType::DOUBLE });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
   const uint64_t hash = package.layoutHash();
 
@@ -775,8 +774,9 @@ TEST(rtde_data_package, layout_hash_does_not_change_on_reset_init_empty_or_parse
 
 TEST(rtde_data_package, copy_from_overwrites_every_field)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
-  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
+  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(source.setData("speed_slider_mask", static_cast<uint32_t>(1)));
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
   ASSERT_TRUE(destination.copyFrom(source));
@@ -799,13 +799,14 @@ TEST(rtde_data_package, copy_from_overwrites_every_field)
 
 TEST(rtde_data_package, copy_from_rejects_a_source_whose_types_changed)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
-  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
+  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(source.setData("speed_slider_mask", static_cast<uint32_t>(1)));
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
   ASSERT_TRUE(destination.copyFrom(source));
 
-  auto wrong = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT8", "DOUBLE" });
+  auto wrong = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT8, DataType::DOUBLE });
   ASSERT_TRUE(wrong.setData("speed_slider_mask", static_cast<uint8_t>(1)));
   ASSERT_TRUE(wrong.setData("speed_slider_fraction", 0.9));
   EXPECT_FALSE(destination.copyFrom(wrong));
@@ -817,7 +818,8 @@ TEST(rtde_data_package, copy_from_rejects_a_source_whose_types_changed)
 
 TEST(rtde_data_package, copy_from_fills_untyped_fields_with_zeros)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(destination.setData("speed_slider_mask", static_cast<uint32_t>(7)));
 
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
@@ -835,7 +837,8 @@ TEST(rtde_data_package, copy_from_fills_untyped_fields_with_zeros)
 
 TEST(rtde_data_package, partial_copy_validates_all_fields_before_writing)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 7 }));
   ASSERT_TRUE(destination.setData("speed_slider_fraction", 0.5));
   rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
@@ -852,7 +855,8 @@ TEST(rtde_data_package, partial_copy_validates_all_fields_before_writing)
 
 TEST(rtde_data_package, copying_unset_fields_preserves_destination_layout_and_source)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   destination.setRecipeID(7);
   const auto layout = destination.layoutHash();
   ASSERT_TRUE(destination.setData("speed_slider_mask", uint32_t{ 1 }));
@@ -876,25 +880,26 @@ TEST(rtde_data_package, copying_unset_fields_preserves_destination_layout_and_so
 
 TEST(rtde_data_package, copy_from_rejects_when_the_destination_is_retyped)
 {
-  auto destination = typedPackage({ "timestamp" }, { "DOUBLE" });
-  auto source = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto destination = typedPackage({ "timestamp" }, { DataType::DOUBLE });
+  auto source = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   ASSERT_TRUE(source.setData("timestamp", 1.0));
   ASSERT_TRUE(destination.copyFrom(source));
 
-  destination.setTypes({ "UINT32" });
+  destination.setTypes({ DataType::UINT32 });
   EXPECT_FALSE(destination.copyFrom(source));
 }
 
 TEST(rtde_data_package, failed_copy_from_does_not_overwrite)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(destination.setData("speed_slider_fraction", 0.5));
 
-  auto wrong = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT8", "DOUBLE" });
+  auto wrong = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT8, DataType::DOUBLE });
   ASSERT_TRUE(wrong.setData("speed_slider_fraction", 0.9));
   EXPECT_FALSE(destination.copyFrom(wrong));
 
-  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.25));
   ASSERT_TRUE(destination.copyFrom(source));
 
@@ -905,8 +910,9 @@ TEST(rtde_data_package, failed_copy_from_does_not_overwrite)
 
 TEST(rtde_data_package, copy_from_a_different_recipe_fails_after_a_successful_copy)
 {
-  auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
-  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+  auto destination =
+      typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
+  auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
   ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
   ASSERT_TRUE(destination.copyFrom(source));
 
@@ -917,10 +923,10 @@ TEST(rtde_data_package, copy_from_a_different_recipe_fails_after_a_successful_co
 
 TEST(rtde_data_package, same_recipe_assignment_keeps_name_lookup)
 {
-  auto source = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto source = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(source.setData("timestamp", 42.0));
 
-  auto destination = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto destination = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   destination = source;
 
   double timestamp = 0.0;
@@ -931,10 +937,10 @@ TEST(rtde_data_package, same_recipe_assignment_keeps_name_lookup)
 
 TEST(rtde_data_package, assignment_from_a_different_recipe_rebuilds_name_lookup)
 {
-  auto source = typedPackage({ "actual_q" }, { "VECTOR6D" });
+  auto source = typedPackage({ "actual_q" }, { DataType::VECTOR6D });
   ASSERT_TRUE(source.setData("actual_q", vector6d_t{ 1, 2, 3, 4, 5, 6 }));
 
-  auto destination = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto destination = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   destination = source;
 
   vector6d_t actual_q{};
@@ -947,7 +953,7 @@ TEST(rtde_data_package, assignment_from_a_different_recipe_rebuilds_name_lookup)
 // succeed without taking that path.
 TEST(rtde_data_package, copy_from_the_same_package_succeeds)
 {
-  auto package = typedPackage({ "timestamp", "actual_q" }, { "DOUBLE", "VECTOR6D" });
+  auto package = typedPackage({ "timestamp", "actual_q" }, { DataType::DOUBLE, DataType::VECTOR6D });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
   ASSERT_TRUE(package.setData("actual_q", vector6d_t{ 1, 2, 3, 4, 5, 6 }));
 
@@ -963,7 +969,7 @@ TEST(rtde_data_package, copy_from_the_same_package_succeeds)
 
 TEST(rtde_data_package, reset_data_unknown_name_fails)
 {
-  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   EXPECT_FALSE(package.resetData("not_in_the_recipe"));
 }
 
@@ -976,7 +982,7 @@ TEST(rtde_data_package, reset_data_on_an_untyped_field_keeps_it_untyped)
 
 TEST(rtde_data_package, reset_data_on_a_typed_field_keeps_the_type)
 {
-  auto package = typedPackage({ "timestamp" }, { "DOUBLE" });
+  auto package = typedPackage({ "timestamp" }, { DataType::DOUBLE });
   ASSERT_TRUE(package.setData("timestamp", 42.0));
 
   ASSERT_TRUE(package.resetData("timestamp"));
@@ -1013,7 +1019,7 @@ TEST(rtde_data_package, bitset_get_data_fails_on_an_untyped_field)
 
 TEST(rtde_data_package, bitset_get_data_missing_field_preserves_value)
 {
-  auto package = typedPackage({ "robot_status_bits" }, { "UINT32" });
+  auto package = typedPackage({ "robot_status_bits" }, { DataType::UINT32 });
   const std::bitset<8> expected(0xa5);
   auto bits = expected;
 
@@ -1062,7 +1068,7 @@ TEST(rtde_data_package, distinct_empty_packages_copy_and_init_empty_preserve_lay
 
 TEST(rtde_data_package, bitset_get_data_fails_when_the_underlying_type_is_wrong)
 {
-  auto package = typedPackage({ "robot_status_bits" }, { "UINT32" });
+  auto package = typedPackage({ "robot_status_bits" }, { DataType::UINT32 });
   ASSERT_TRUE(package.setData("robot_status_bits", static_cast<uint32_t>(0x5)));
 
   std::bitset<8> bits;
@@ -1093,7 +1099,7 @@ TEST(rtde_data_package, to_string_rejects_invalid_data_type)
 TEST(rtde_data_package, duplicate_field_name_keeps_the_first_index)
 {
   rtde_interface::DataPackage package({ "timestamp", "timestamp" });
-  package.setTypes({ "DOUBLE", "UINT32" });
+  package.setTypes({ DataType::DOUBLE, DataType::UINT32 });
 
   ASSERT_TRUE(package.setData("timestamp", 42.0));
   EXPECT_EQ(package.getDataType("timestamp"), rtde_interface::DataType::DOUBLE);
@@ -1112,7 +1118,7 @@ TEST(rtde_data_package, get_data_type_reports_the_stored_type_after_set_data)
   EXPECT_FALSE(package.getDataType("speed_slider_mask").has_value());
   EXPECT_FALSE(package.getDataType("not_in_the_recipe").has_value());
 
-  package.setTypes({ "UINT32", "DOUBLE" });
+  package.setTypes({ DataType::UINT32, DataType::DOUBLE });
   EXPECT_EQ(package.getDataType("speed_slider_mask"), rtde_interface::DataType::UINT32);
   EXPECT_EQ(package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
 }
@@ -1143,8 +1149,10 @@ TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
   setLogLevel(LogLevel::WARN);
 
   {
-    auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
-    auto source = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+    auto destination =
+        typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
+    auto source =
+        typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
     ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
     ASSERT_TRUE(destination.copyFrom(source));
   }
@@ -1162,7 +1170,8 @@ TEST(rtde_data_package, copy_from_a_partial_package_does_not_warn)
   setLogLevel(LogLevel::WARN);
 
   {
-    auto destination = typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { "UINT32", "DOUBLE" });
+    auto destination =
+        typedPackage({ "speed_slider_mask", "speed_slider_fraction" }, { DataType::UINT32, DataType::DOUBLE });
     rtde_interface::DataPackage source({ "speed_slider_mask", "speed_slider_fraction" });
     ASSERT_TRUE(source.setData("speed_slider_fraction", 0.5));
     EXPECT_TRUE(destination.copyFrom(source));
@@ -1179,8 +1188,10 @@ TEST(rtde_data_package, each_data_type_has_the_documented_wire_size)
 {
   const std::vector<std::string> recipe{ "f_bool",   "f_uint8",    "f_uint32",   "f_uint64",  "f_int32",
                                          "f_double", "f_vector3d", "f_vector6d", "f_v6int32", "f_v6uint32" };
-  const std::vector<std::string> types{ "BOOL",   "UINT8",    "UINT32",   "UINT64",       "INT32",
-                                        "DOUBLE", "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32" };
+  const std::vector<rtde_interface::DataType> types{ DataType::BOOL,         DataType::UINT8,    DataType::UINT32,
+                                                     DataType::UINT64,       DataType::INT32,    DataType::DOUBLE,
+                                                     DataType::VECTOR3D,     DataType::VECTOR6D, DataType::VECTOR6INT32,
+                                                     DataType::VECTOR6UINT32 };
   auto package = typedPackage(recipe, types);
   package.setRecipeID(1);
 

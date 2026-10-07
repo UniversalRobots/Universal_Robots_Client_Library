@@ -196,6 +196,55 @@ TEST_F(RTDEClientReconnectTest, deprecated_get_data_package_survives_a_reconnect
   EXPECT_TRUE(data_pkg->getData("timestamp", timestamp));
 }
 
+// The robot properties belong to the controller the client is connected to, so a reconnect reads them again.
+TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
+{
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(3);
+  makeClient();
+  ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
+  const auto properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  client_->start();
+
+  server_.reset();
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED)) << "the client did not notice the lost server";
+
+  // The controller that comes back only offers protocol version 2, which has no
+  // RTDE_READ_PROPERTIES. The first controller's properties must not be reported for it.
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(2);
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
+  EXPECT_FALSE(client_->getRobotProperties().has_value());
+  EXPECT_TRUE(properties->getSoftwareVersion().has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 10u);
+  EXPECT_TRUE(server_->propertyRequests().empty());
+}
+
+TEST_F(RTDEClientReconnectTest, reconnect_to_another_controller_reads_its_properties)
+{
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(3);
+  makeClient();
+  ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
+  auto properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 10u);
+  client_->start();
+
+  server_.reset();
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::UNINITIALIZED)) << "the client did not notice the lost server";
+
+  startServer();
+  server_->setHighestAcceptedProtocolVersion(3);
+  server_->setReportedSoftwareVersion(5, 27, 1);
+  ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
+  properties = client_->getRobotProperties();
+  ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(properties->getSoftwareVersion()->major, 5u);
+  EXPECT_EQ(server_->propertyRequests().size(), 2u);
+}
+
 // The same recovery, but for a client reading synchronously. reconnect() restores whichever read
 // mode was in use, so both need covering.
 TEST_F(RTDEClientReconnectTest, reconnects_when_the_server_comes_back_during_blocking_read)
@@ -376,10 +425,10 @@ TEST_F(RTDEClientReconnectTest, reconnect_gives_up_when_the_handshake_keeps_fail
   startServer();
   server_->setHighestAcceptedProtocolVersion(0);
 
-  // Each failed handshake tries protocol versions 2 and 1. Wait for both attempts rather
+  // Each failed handshake tries protocol versions 3, 2 and 1. Wait for both attempts rather
   // than assuming they finish within a fixed delay: reconnect() waits in 250 ms increments
   // even with a 50 ms initialization timeout, and scheduling can delay either attempt.
-  const std::vector<uint16_t> expected_requests{ 2, 1, 2, 1 };
+  const std::vector<uint16_t> expected_requests{ 3, 2, 1, 3, 2, 1 };
   const auto deadline = std::chrono::steady_clock::now() + STATE_CHANGE_TIMEOUT;
   while (server_->requestedProtocolVersions().size() < expected_requests.size() &&
          std::chrono::steady_clock::now() < deadline)
