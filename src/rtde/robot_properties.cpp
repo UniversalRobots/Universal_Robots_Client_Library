@@ -112,7 +112,7 @@ Exchange readProperties(comm::URStream<RTDEPackage>& stream, comm::URProducer<RT
   const size_t size = properties.serializeRequest(buffer, sizeof(buffer));
   if (size == 0)
   {
-    URCL_LOG_ERROR("RTDE_READ_PROPERTIES requires a non-empty list of non-blank property names");
+    URCL_LOG_ERROR("RTDE_READ_PROPERTIES requires a non-empty list of non-blank property names without commas");
     return Exchange::NOT_ANSWERED;
   }
   size_t written = 0;

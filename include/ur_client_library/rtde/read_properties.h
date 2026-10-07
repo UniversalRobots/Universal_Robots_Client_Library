@@ -179,7 +179,7 @@ public:
   /*!
    * \brief Serializes the request for names(), comma-separated.
    *
-   * \returns The package size, or 0 when there are no names, a name is blank, or the request does
+   * \returns The package size, or 0 when there are no names, a name is blank or contains a comma, or the request does
    * not fit in \p buffer_size bytes
    */
   size_t serializeRequest(uint8_t* buffer, size_t buffer_size) const;

@@ -1343,6 +1343,11 @@ TEST(rtde_parser, read_properties_request_is_a_raw_name_list)
   EXPECT_EQ(rtde_interface::ReadProperties(std::vector<std::string>{}).serializeRequest(buffer, sizeof(buffer)), 0u);
   EXPECT_EQ(rtde_interface::ReadProperties({ "v1.software.version", " " }).serializeRequest(buffer, sizeof(buffer)),
             0u);
+  EXPECT_EQ(rtde_interface::ReadProperties({ "v1.software.version,v1.control_box.type" })
+                .serializeRequest(buffer, sizeof(buffer)),
+            0u);
+  EXPECT_EQ(rtde_interface::ReadProperties({ "v1.software.version", "," }).serializeRequest(buffer, sizeof(buffer)),
+            0u);
 }
 
 TEST(rtde_parser, read_properties_request_that_does_not_fit_is_not_serialized)

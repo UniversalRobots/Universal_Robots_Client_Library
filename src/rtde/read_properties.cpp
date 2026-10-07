@@ -61,9 +61,10 @@ constexpr std::string_view TOOL_FLANGE_TYPE = "v1.robot_arm.tool_flange.type";
 // Longest type name, VECTOR6UINT32, plus its comma.
 constexpr size_t TYPE_NAME_CAPACITY = 14;
 
-bool isBlank(const std::string_view name)
+// The request is a plain comma-separated list with no escaping.
+bool isValidName(const std::string_view name)
 {
-  return name.find_first_not_of(" \t\r\n") == std::string_view::npos;
+  return name.find_first_not_of(" \t\r\n") != std::string_view::npos && name.find(',') == std::string_view::npos;
 }
 }  // namespace
 
@@ -228,7 +229,7 @@ size_t ReadProperties::serializeRequest(uint8_t* buffer, const size_t buffer_siz
   size_t payload_size = names_.size() - 1;
   for (const auto& name : names_)
   {
-    if (isBlank(name))
+    if (!isValidName(name))
     {
       return 0;
     }
