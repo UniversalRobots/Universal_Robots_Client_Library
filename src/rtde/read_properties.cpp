@@ -129,6 +129,8 @@ ReadProperties::ReadProperties(ReadProperties&& other) noexcept
   , values_(std::move(other.values_))
   , has_values_(other.has_values_)
 {
+  other.names_.clear();
+  other.clearAnswer();
 }
 
 ReadProperties& ReadProperties::operator=(const ReadProperties& other)
@@ -151,8 +153,8 @@ ReadProperties& ReadProperties::operator=(ReadProperties&& other) noexcept
     data_types_ = std::move(other.data_types_);
     values_ = std::move(other.values_);
     has_values_ = other.has_values_;
-    type_names_.clear();
-    type_parts_.clear();
+    other.names_.clear();
+    other.clearAnswer();
   }
   return *this;
 }
@@ -277,6 +279,7 @@ bool ReadProperties::takeAnswer(ReadProperties&& answer)
   data_types_ = std::move(answer.data_types_);
   values_ = std::move(answer.values_);
   has_values_ = answer.has_values_;
+  answer.clearAnswer();
   return true;
 }
 

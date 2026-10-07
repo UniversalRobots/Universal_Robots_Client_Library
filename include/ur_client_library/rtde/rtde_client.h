@@ -376,6 +376,9 @@ public:
    * property that version supports. This happens on init() and again on every reconnect. The
    * properties are only read when RTDE protocol version 3 or higher was negotiated.
    *
+   * Each call copies the properties, which allocates. Read them once after init() or a reconnect,
+   * not from a real-time loop.
+   *
    * \returns The properties if the controller sent a value for every property asked for, the
    * software version included. An empty optional if the negotiated protocol version is below 3,
    * the request failed, or the controller reported any property as NOT_FOUND or NOT_SET and so

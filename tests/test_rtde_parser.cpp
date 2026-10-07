@@ -1294,6 +1294,39 @@ TEST(rtde_parser, read_properties_answer_must_match_the_names)
   EXPECT_FALSE(properties.hasValues());
 }
 
+TEST(rtde_parser, read_properties_moved_from_has_no_answer)
+{
+  rtde_interface::RTDEParser parser({ "" });
+  auto product = parseAnswer(parser, serializePropertiesResponse("UINT32", serializeUint32(1)));
+  auto* answer = dynamic_cast<rtde_interface::ReadProperties*>(product.get());
+  ASSERT_NE(answer, nullptr);
+
+  rtde_interface::ReadProperties properties({ "v1.control_box.type" });
+  ASSERT_TRUE(properties.takeAnswer(std::move(*answer)));
+  EXPECT_EQ(answer->size(), 0u);
+  EXPECT_FALSE(answer->hasValues());
+  EXPECT_TRUE(answer->values().empty());
+
+  const rtde_interface::ReadProperties copied(properties);
+  EXPECT_TRUE(properties.hasValues());
+  EXPECT_TRUE(copied.hasValues());
+  EXPECT_EQ(copied.names(), properties.names());
+
+  rtde_interface::ReadProperties constructed(std::move(properties));
+  EXPECT_TRUE(constructed.hasValues());
+  EXPECT_EQ(properties.size(), 0u);
+  EXPECT_FALSE(properties.hasValues());
+  EXPECT_TRUE(properties.names().empty());
+
+  rtde_interface::ReadProperties assigned;
+  assigned = std::move(constructed);
+  EXPECT_TRUE(assigned.hasValues());
+  EXPECT_EQ(assigned.names(), copied.names());
+  EXPECT_EQ(constructed.size(), 0u);
+  EXPECT_FALSE(constructed.hasValues());
+  EXPECT_TRUE(constructed.names().empty());
+}
+
 TEST(rtde_parser, read_properties_request_is_a_raw_name_list)
 {
   uint8_t buffer[128];

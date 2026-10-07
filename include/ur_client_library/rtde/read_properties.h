@@ -154,6 +154,12 @@ public:
    * \brief Creates a package asking for \p names, with room for their answer.
    */
   explicit ReadProperties(const std::vector<std::string>& names);
+
+  /*!
+   * \brief Copies and moves carry the names and the answer, but not the parsing scratch space.
+   *
+   * A moved-from package has no names and no answer.
+   */
   ReadProperties(const ReadProperties& other);
   ReadProperties(ReadProperties&& other) noexcept;
   ReadProperties& operator=(const ReadProperties& other);
@@ -249,7 +255,10 @@ public:
   /*!
    * \brief Gets the value of property \p name.
    *
-   * \returns True on success, false if \p name was not asked for or the answer carried no values
+   * Unlike DataPackage::getData(), this returns the value rather than writing to a reference: the
+   * properties are only read outside the real-time path, so returning by value costs nothing that matters.
+   *
+   * \returns The value, or an empty optional if \p name was not asked for or the answer carried no values
    *
    * \throws std::bad_variant_access if the value does not hold T
    */

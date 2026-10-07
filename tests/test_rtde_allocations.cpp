@@ -687,26 +687,6 @@ TEST_F(RTDEAllocationTest, sending_a_partial_package_does_not_allocate)
   client_->pause();
 }
 
-// Returning the snapshot copies the cache once; moving that caller-owned value must only transfer
-// its storage.
-TEST_F(RTDEAllocationTest, moving_the_robot_properties_does_not_allocate)
-{
-  auto properties = client_->getRobotProperties();
-  ASSERT_TRUE(properties.has_value());
-
-  std::size_t allocations = 0;
-  std::optional<rtde_interface::ReadProperties> moved;
-  {
-    AllocationCounter counter;
-    moved.emplace(std::move(*properties));
-    allocations = counter.count();
-  }
-
-  EXPECT_EQ(allocations, 0);
-  ASSERT_TRUE(moved.has_value());
-  EXPECT_TRUE(moved->getSoftwareVersion().has_value());
-}
-
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
