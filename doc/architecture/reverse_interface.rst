@@ -51,6 +51,7 @@ meaning:
 
              - field 1: Trajectory control mode (1: TRAJECTORY_MODE_RECEIVE, 2: TRAJECTORY_MODE_STREAM_START, 3: TRAJECTORY_MODE_STREAM_END, -1: TRAJECTORY_MODE_CANCEL). See :ref:`streaming_trajectories` for the streaming modes.
              - field 2: Trajectory point count. Its interpretation depends on the control mode in field 1.
+             - field 3: The identifier of the move that is being started, for the two control modes which start one. The robot adopts this identifier and then executes only those trajectory points which carry it, and that is what prevents points left over from a move that has already ended from running as part of the next one. The remaining control modes do not start a move, and the robot ignores the field for them. See :ref:`trajectory_point_interface` for the point record which carries the identifier back.
 
            - Cartesian velocities (SPEEDL)
            - Cartesian pose (POSE)
