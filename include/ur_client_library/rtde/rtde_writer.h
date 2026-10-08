@@ -167,8 +167,8 @@ public:
   /*!
    * \brief Creates a package to request setting a new value for one of the tool output pins.
    *
-   * \param output_pin The pin to change. RTDE protocol versions 1 and 2 support pins 0-1. Protocol version
-   * 3 additionally supports pins 2-5 on the Smart I/O on v2 tool flanges.
+   * \param output_pin The pin to change. V1 and unknown tool flanges support pins 0-1;
+   * V2 tool flanges additionally support pins 2-5 on the Smart I/O.
    * \param value The new value
    *
    * \returns Success of the package creation. False if the writer is not running (not started,
