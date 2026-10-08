@@ -365,7 +365,7 @@ std::optional<ToolFlangeProperty> ReadProperties::getToolFlangeType() const
     return std::nullopt;
   }
   ToolFlangeProperty tool_flange;
-  tool_flange.type = static_cast<uint8_t>((*wire >> 24) & 0xFF);
+  tool_flange.type = toolFlangeTypeFromWire(static_cast<uint16_t>((*wire >> 24) & 0xFF));
   tool_flange.revision = static_cast<uint8_t>((*wire >> 16) & 0xFF);
   return tool_flange;
 }

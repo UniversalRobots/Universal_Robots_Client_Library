@@ -1125,9 +1125,9 @@ TEST(rtde_parser, control_box_property_to_string)
 TEST(rtde_parser, tool_flange_property_to_string)
 {
   rtde_interface::ToolFlangeProperty flange;
-  flange.type = 2;
+  flange.type = ToolFlangeType::V2;
   flange.revision = 4;
-  EXPECT_EQ(flange.toString(), "type 2, revision 4");
+  EXPECT_EQ(flange.toString(), "type V2, revision 4");
 }
 
 TEST(rtde_parser, read_properties_success_response)
@@ -1180,7 +1180,7 @@ TEST(rtde_parser, read_properties_success_response)
 
   const std::optional<rtde_interface::ToolFlangeProperty> flange = properties.getToolFlangeType();
   ASSERT_TRUE(flange.has_value());
-  EXPECT_EQ(flange->type, 2);
+  EXPECT_EQ(flange->type, ToolFlangeType::V2);
   EXPECT_EQ(flange->revision, 4);
 
   EXPECT_EQ(properties.toString(), "property data types: UINT64 UINT32 UINT32\nproperty values present: true\n");

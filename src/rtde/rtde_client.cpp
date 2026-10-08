@@ -179,6 +179,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   client_state_ = ClientState::UNINITIALIZED;
   // Forget the previous controller's properties before any step of the handshake can fail.
   robot_properties_.clear();
+  writer_.setToolFlangeType(ToolFlangeType::UNKNOWN);
   prod_->setupProducer(max_num_tries, reconnection_time);
   client_state_ = ClientState::INITIALIZING;
 
@@ -202,6 +203,18 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   if (is_rtde_comm_setup && protocol_version_ >= 3)
   {
     is_rtde_comm_setup = robot_properties_.fetch(stream_, *prod_);
+    if (is_rtde_comm_setup)
+    {
+      const std::optional<ReadProperties> properties = robot_properties_.get();
+      if (properties.has_value())
+      {
+        const std::optional<ToolFlangeProperty> tool_flange = properties->getToolFlangeType();
+        if (tool_flange.has_value())
+        {
+          writer_.setToolFlangeType(tool_flange->type);
+        }
+      }
+    }
   }
 
   if (is_rtde_comm_setup)

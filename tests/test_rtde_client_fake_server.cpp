@@ -1145,7 +1145,7 @@ void expectProtocolV3Properties(const rtde_interface::ReadProperties& properties
 
   const std::optional<rtde_interface::ToolFlangeProperty> flange = properties.getToolFlangeType();
   ASSERT_TRUE(flange.has_value());
-  EXPECT_EQ(flange->type, 1);
+  EXPECT_EQ(flange->type, ToolFlangeType::V1);
   EXPECT_EQ(flange->revision, 0);
 }
 
@@ -1307,6 +1307,7 @@ TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
   auto properties = client->getRobotProperties();
   ASSERT_TRUE(properties.has_value());
   expectProtocolV3Properties(*properties);
+  EXPECT_EQ(client->getWriter().getToolFlangeType(), ToolFlangeType::V1);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());

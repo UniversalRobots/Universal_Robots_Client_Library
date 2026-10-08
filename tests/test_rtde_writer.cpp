@@ -140,6 +140,13 @@ protected:
     writer_->init(1);
   }
 
+  void useV2ToolFlange()
+  {
+    writer_->stop();
+    writer_->setToolFlangeType(ToolFlangeType::V2);
+    writer_->init(1);
+  }
+
   std::vector<std::string> input_recipe_ = { "speed_slider_mask",
                                              "speed_slider_fraction",
                                              "standard_digital_output_mask",
@@ -366,14 +373,14 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
   EXPECT_EQ(send_pin_value, received_pin_value);
   EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
 
-  // Protocol version 2 only supports tool outputs 0 and 1.
+  // An unknown flange conservatively supports only tool outputs 0 and 1.
   pin = 2;
   EXPECT_FALSE(writer_->sendToolDigitalOutput(pin, send_pin_value));
 }
 
-TEST_F(RTDEWriterTest, send_protocol_v3_tool_digital_output)
+TEST_F(RTDEWriterTest, send_v2_tool_flange_digital_output)
 {
-  useProtocol3ConfigurableDigitalOutputs();
+  useV2ToolFlange();
 
   const uint8_t pin = 5;
   const uint8_t expected_tool_digital_output_mask = uint8_t{ 1 } << pin;
@@ -929,11 +936,13 @@ TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
 {
   EXPECT_THROW(writer_->setRecipeTypes(input_recipe_types_), UrException);
   EXPECT_THROW(writer_->setProtocolVersion(1), UrException);
+  EXPECT_THROW(writer_->setToolFlangeType(ToolFlangeType::V2), UrException);
 
   writer_->stop();
 
   EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
   EXPECT_NO_THROW(writer_->setProtocolVersion(1));
+  EXPECT_NO_THROW(writer_->setToolFlangeType(ToolFlangeType::V2));
 }
 
 TEST_F(RTDEWriterTest, create_data_package_after_stop_throws)
@@ -968,6 +977,16 @@ TEST_F(RTDEWriterTest, get_protocol_version_returns_the_set_value)
   EXPECT_EQ(writer_->getProtocolVersion(), 2);
   writer_->setProtocolVersion(3);
   EXPECT_EQ(writer_->getProtocolVersion(), 3);
+}
+
+TEST_F(RTDEWriterTest, get_tool_flange_type_returns_the_set_value)
+{
+  writer_->stop();
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::UNKNOWN);
+  writer_->setToolFlangeType(ToolFlangeType::V1);
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V1);
+  writer_->setToolFlangeType(ToolFlangeType::V2);
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V2);
 }
 
 TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)

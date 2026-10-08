@@ -111,6 +111,22 @@ uint16_t RTDEWriter::getProtocolVersion() const
   return protocol_version_;
 }
 
+void RTDEWriter::setToolFlangeType(const ToolFlangeType tool_flange_type)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the tool-flange type while the writer is running.");
+  }
+  tool_flange_type_ = tool_flange_type;
+}
+
+ToolFlangeType RTDEWriter::getToolFlangeType() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return tool_flange_type_;
+}
+
 void RTDEWriter::setRecipeTypes(const std::vector<DataType>& types)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
@@ -345,12 +361,12 @@ bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
   {
     return false;
   }
-  const uint8_t maximum_pin = protocol_version_ >= 3 ? 5 : 1;
+  const uint8_t maximum_pin = tool_flange_type_ == ToolFlangeType::V2 ? 5 : 1;
   if (output_pin > maximum_pin)
   {
     std::stringstream ss;
-    ss << "Tool digital output pins go from 0 to " << static_cast<int>(maximum_pin) << " with RTDE protocol version "
-       << protocol_version_ << ". The output pin to change is " << static_cast<int>(output_pin);
+    ss << "Tool digital output pins go from 0 to " << static_cast<int>(maximum_pin) << " with tool-flange type "
+       << toolFlangeTypeString(tool_flange_type_) << ". The output pin to change is " << static_cast<int>(output_pin);
     URCL_LOG_ERROR("%s", ss.str().c_str());
     return false;
   }

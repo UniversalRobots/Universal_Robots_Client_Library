@@ -77,9 +77,10 @@ public:
   /*!
    * \brief Starts the writer thread, which sends pending buffer updates to the robot.
    *
-   * Apply the negotiated protocol version and input field types with setProtocolVersion() and
-   * setRecipeTypes() while stopped, before calling this method. This method does not negotiate
-   * or establish field types. RTDEClient::init() handles that setup for its writer.
+   * Apply the negotiated protocol version, tool-flange type and input field types with
+   * setProtocolVersion(), setToolFlangeType() and setRecipeTypes() while stopped, before calling
+   * this method. This method does not negotiate or establish those properties. RTDEClient::init()
+   * handles that setup for its writer.
    *
    * \param recipe_id The recipe id to use, so the robot correctly identifies the used recipe
    *
@@ -263,6 +264,21 @@ public:
    */
   uint16_t getProtocolVersion() const;
 
+  /*!
+   * \brief Records the robot's tool-flange type.
+   *
+   * A V2 flange has six tool digital outputs; V1 and unknown flanges have two. Defaults to
+   * ToolFlangeType::UNKNOWN.
+   *
+   * \throws UrException if the writer is already running
+   */
+  void setToolFlangeType(ToolFlangeType tool_flange_type);
+
+  /*!
+   * \brief Returns the robot's configured tool-flange type.
+   */
+  ToolFlangeType getToolFlangeType() const;
+
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
   void markStorageToBeSent();
@@ -272,6 +288,7 @@ private:
   std::vector<std::string> recipe_;
   uint8_t recipe_id_;
   uint16_t protocol_version_ = 2;
+  ToolFlangeType tool_flange_type_ = ToolFlangeType::UNKNOWN;
   std::shared_ptr<DataPackage> data_buffer0_;
   std::shared_ptr<DataPackage> data_buffer1_;
   std::shared_ptr<DataPackage> current_store_buffer_;
