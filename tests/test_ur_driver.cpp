@@ -409,6 +409,27 @@ TEST_F(UrDriverTest, set_target_payload)
   EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
 }
 
+TEST_F(UrDriverTest, set_tool_t2_voltage_flange_v1_rejected)
+{
+  if (g_my_robot->getUrDriver()->getRTDEWriter().getToolFlangeType() != ToolFlangeType::V1)
+  {
+    GTEST_SKIP() << "The robot does not report Tool Flange V1.";
+  }
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltageT2(ToolVoltage::_48V));
+}
+
+TEST_F(UrDriverTest, set_tool_t2_voltage_invalid_voltage)
+{
+  // T2 only supports 0, 24, 48 V. 12 V is invalid for T2.
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltageT2(ToolVoltage::_12V));
+}
+
+TEST_F(UrDriverTest, set_tool_voltage_t0_rejects_48v)
+{
+  // T0 only supports 0, 12, 24 V. 48 V is invalid for T0.
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltage(ToolVoltage::_48V));
+}
+
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)
 {
   UrDriverConfiguration config;

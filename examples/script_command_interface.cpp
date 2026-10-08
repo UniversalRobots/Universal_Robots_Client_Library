@@ -46,6 +46,7 @@ std::unique_ptr<ExampleRobotWrapper> g_my_robot;
 bool g_HEADLESS = true;
 bool g_running = false;
 bool g_support_set_friction_scales = false;
+bool g_support_set_tool_t2_voltage = false;
 
 void sendScriptCommands()
 {
@@ -83,6 +84,14 @@ void sendScriptCommands()
     run_cmd("Setting payload to 2.0kg with custom inertia and 0.5s transition time", []() {
       g_my_robot->getUrDriver()->setTargetPayload(2.0, { 0.0, 0.0, 0.1 }, { 0.003, 0.003, 0.003, 0.0, 0.0, 0.0 }, 0.5);
     });
+
+    if (g_support_set_tool_t2_voltage)
+    {
+      run_cmd("Setting tool T2 voltage to 48V",
+              []() { g_my_robot->getUrDriver()->setToolVoltageT2(urcl::ToolVoltage::_48V); });
+      run_cmd("Setting tool T2 voltage to 0V",
+              []() { g_my_robot->getUrDriver()->setToolVoltageT2(urcl::ToolVoltage::OFF); });
+    }
 
     if (g_support_set_friction_scales)
     {
@@ -133,6 +142,13 @@ int main(int argc, char* argv[])
     URCL_LOG_INFO("Setting friction scales is not supported on this robot (version %s). "
                   "Requires at least 5.25.1 / 10.12.1. Skipping friction scale commands.",
                   version.toString().c_str());
+  }
+
+  // Connector T2 only exists on Tool Flange V2
+  g_support_set_tool_t2_voltage = g_my_robot->getUrDriver()->getRTDEWriter().getToolFlangeType() == ToolFlangeType::V2;
+  if (!g_support_set_tool_t2_voltage)
+  {
+    URCL_LOG_INFO("This robot does not report Tool Flange V2. Skipping tool T2 voltage commands.");
   }
 
   if (!g_my_robot->isHealthy())

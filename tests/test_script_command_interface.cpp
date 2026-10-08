@@ -298,6 +298,49 @@ TEST_F(ScriptCommandInterfaceTest, test_set_tool_voltage)
   EXPECT_EQ(message_sum, expected_message_sum);
 }
 
+TEST_F(ScriptCommandInterfaceTest, test_set_tool_voltage_rejects_invalid_voltage)
+{
+  waitForClientConnection();
+
+  EXPECT_FALSE(script_command_interface_->setToolVoltage(ToolVoltage::_48V));
+  EXPECT_FALSE(script_command_interface_->setToolVoltage(static_cast<ToolVoltage>(5)));
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_tool_t2_voltage_rejects_invalid_voltage)
+{
+  waitForClientConnection();
+
+  EXPECT_FALSE(script_command_interface_->setToolVoltageT2(ToolVoltage::_12V));
+  EXPECT_FALSE(script_command_interface_->setToolVoltageT2(static_cast<ToolVoltage>(5)));
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_tool_t2_voltage)
+{
+  // Wait for the client to connect to the server
+  waitForClientConnection();
+
+  ToolVoltage voltage = ToolVoltage::_48V;
+  bool result = script_command_interface_->setToolVoltageT2(voltage);
+  ASSERT_TRUE(result);
+  int32_t command;
+  std::vector<int32_t> message;
+  client_->readMessage(command, message);
+
+  // 13 is set tool T2 voltage
+  int32_t expected_command = 13;
+  EXPECT_EQ(command, expected_command);
+
+  // Test tool T2 voltage
+  ASSERT_FALSE(message.empty());
+  int received_voltage = message[0] / script_command_interface_->MULT_JOINTSTATE;
+  EXPECT_EQ(received_voltage, toUnderlying(voltage));
+
+  // The rest of the message should be zero
+  int32_t message_sum = std::accumulate(std::begin(message) + 1, std::end(message), 0);
+  int32_t expected_message_sum = 0;
+  EXPECT_EQ(message_sum, expected_message_sum);
+}
+
 TEST_F(ScriptCommandInterfaceTest, test_force_mode)
 {
   // Wait for the client to connect to the server
@@ -682,6 +725,29 @@ TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old
   EXPECT_FALSE(result);
 
   old_client->close();
+}
+
+TEST_F(ScriptCommandInterfaceTest, test_set_tool_t2_voltage_returns_false_on_unsupported_version)
+{
+  // PolyScope 5 has no connector T2 in any version, PolyScope X from 10.15.0
+  const std::vector<std::pair<std::string, uint32_t>> unsupported{ { "10.14.0", 50006 },
+                                                                   { "5.26.0", 50007 },
+                                                                   { "5.99.0", 50008 } };
+  for (const auto& [version, port] : unsupported)
+  {
+    control::ReverseInterfaceConfig config;
+    config.port = port;
+    config.robot_software_version = VersionInformation::fromString(version);
+    control::ScriptCommandInterface old_version_interface(config);
+    std::unique_ptr<Client> old_client(new Client(port));
+
+    waitFor([&old_version_interface]() { return old_version_interface.clientConnected(); },
+            std::chrono::milliseconds(1000));
+
+    EXPECT_FALSE(old_version_interface.setToolVoltageT2(ToolVoltage::_48V)) << "version " << version;
+
+    old_client->close();
+  }
 }
 
 int main(int argc, char* argv[])

@@ -116,13 +116,26 @@ public:
   bool setGravity(const vector3d_t* gravity);
 
   /*!
-   * \brief Set the tool voltage.
+   * \brief Set the tool voltage on connector T0.
    *
-   * \param voltage Tool voltage
+   * \param voltage Tool voltage (OFF = 0V, _12V = 12V, _24V = 24V)
    *
-   * \returns True, if the write was performed successfully, false otherwise.
+   * \returns True, if the write was performed successfully, false if the voltage is invalid or the write fails.
    */
   bool setToolVoltage(const ToolVoltage voltage);
+
+  /*!
+   * \brief Set the tool voltage on connector T2 (Tool Flange V2).
+   *
+   * Requires PolyScope X 10.15.0 or later; PolyScope 5 does not support connector T2. This does not
+   * check the tool flange; UrDriver::setToolVoltageT2() does.
+   *
+   * \param voltage Tool voltage (OFF = 0V, _24V = 24V, _48V = 48V)
+   *
+   * \returns True, if the write was performed successfully, false if the voltage is invalid, the version is
+   * unsupported, or the write fails.
+   */
+  bool setToolVoltageT2(const ToolVoltage voltage);
 
   /*!
    * \brief Set robot to be controlled in force mode.
@@ -279,6 +292,7 @@ private:
     SET_TCP_OFFSET = 10,            ///< Set TCP offset
     SET_FRICTION_SCALES = 11,       ///< Set viscous and Coulomb friction scales for direct_torque
     SET_TARGET_PAYLOAD = 12,        ///< Set target payload
+    SET_TOOL_T2_VOLTAGE = 13,       ///< Set tool voltage on connector T2
   };
 
   /*!
@@ -299,6 +313,20 @@ private:
    */
   bool robotVersionSupportsCommandOrWarn(const VersionInformation& min_polyscope5,
                                          const VersionInformation& min_polyscopeX, const std::string& command_name);
+
+  /*!
+   * \brief Checks if the robot runs PolyScope X of at least \p min_polyscopeX, for commands that PolyScope 5
+   * does not support in any version.
+   *
+   * If not, this function will log a warning message.
+   *
+   * \param min_polyscopeX Minimum required version for PolyScope X
+   * \param command_name Name of the command being checked, used for logging
+   *
+   * \returns True if the robot version is at least \p min_polyscopeX, false otherwise.
+   */
+  bool robotVersionSupportsPolyscopeXCommandOrWarn(const VersionInformation& min_polyscopeX,
+                                                   const std::string& command_name);
 
   std::atomic<bool> client_connected_;
   static const int MAX_MESSAGE_LENGTH = 28;
