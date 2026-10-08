@@ -105,6 +105,28 @@ void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
   }
 }
 
+uint16_t RTDEWriter::getProtocolVersion() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return protocol_version_;
+}
+
+void RTDEWriter::setToolFlangeType(const ToolFlangeType tool_flange_type)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the tool-flange type while the writer is running.");
+  }
+  tool_flange_type_ = tool_flange_type;
+}
+
+ToolFlangeType RTDEWriter::getToolFlangeType() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return tool_flange_type_;
+}
+
 void RTDEWriter::setRecipeTypes(const std::vector<DataType>& types)
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
@@ -287,15 +309,6 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 {
-  if (output_pin > 7)
-  {
-    std::stringstream ss;
-    ss << "Configurable digital output pins goes from 0 to 7. The output pin to change is "
-       << static_cast<int>(output_pin);
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
-  }
-
   static const std::string key_mask = "configurable_digital_output_mask";
   static const std::string key_output = "configurable_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
@@ -303,19 +316,34 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
   {
     return false;
   }
-  uint8_t mask = pinToMask(output_pin);
-  bool success = true;
-  uint8_t digital_output;
-  if (value)
+
+  const std::optional<DataType> type = current_store_buffer_->getDataType(key_mask);
+  if (!type.has_value())
   {
-    digital_output = 255;
+    URCL_LOG_ERROR("Configurable digital output mask is not available with the negotiated RTDE recipe");
+    return false;
+  }
+  bool success = false;
+  if (type == DataType::UINT8 && output_pin <= 7)
+  {
+    const uint8_t mask = pinToMask(output_pin);
+    success = current_store_buffer_->setData(key_mask, mask);
+    success = success && current_store_buffer_->setData(key_output, value ? mask : uint8_t{ 0 });
+  }
+  else if (type == DataType::UINT32 && output_pin <= 15)
+  {
+    const uint32_t mask = uint32_t{ 1 } << output_pin;
+    success = current_store_buffer_->setData(key_mask, mask);
+    success = success && current_store_buffer_->setData(key_output, value ? mask : uint32_t{ 0 });
   }
   else
   {
-    digital_output = 0;
+    std::stringstream ss;
+    ss << "Configurable digital output pin " << static_cast<int>(output_pin)
+       << " is not available with the negotiated RTDE recipe";
+    URCL_LOG_ERROR("%s", ss.str().c_str());
+    return false;
   }
-  success = current_store_buffer_->setData(key_mask, mask);
-  success = success && current_store_buffer_->setData(key_output, digital_output);
   if (success)
   {
     markStorageToBeSent();
@@ -326,19 +354,20 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
 {
-  if (output_pin > 1)
-  {
-    std::stringstream ss;
-    ss << "Tool digital output pins goes from 0 to 1. The output pin to change is " << static_cast<int>(output_pin);
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
-  }
-
   static const std::string key_mask = "tool_digital_output_mask";
   static const std::string key_output = "tool_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
   if (!running_)
   {
+    return false;
+  }
+  const uint8_t maximum_pin = tool_flange_type_ == ToolFlangeType::V2 ? 5 : 1;
+  if (output_pin > maximum_pin)
+  {
+    std::stringstream ss;
+    ss << "Tool digital output pins go from 0 to " << static_cast<int>(maximum_pin) << " with tool-flange type "
+       << toolFlangeTypeString(tool_flange_type_) << ". The output pin to change is " << static_cast<int>(output_pin);
+    URCL_LOG_ERROR("%s", ss.str().c_str());
     return false;
   }
   uint8_t mask = pinToMask(output_pin);

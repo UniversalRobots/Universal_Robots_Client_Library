@@ -519,4 +519,18 @@ inline std::string controlBoxTypeString(const ControlBoxType type)
   throw std::invalid_argument("Unknown control box type: " + std::to_string(static_cast<int>(type)));
 }
 
+inline std::string toolFlangeTypeString(const ToolFlangeType type)
+{
+  switch (type)
+  {
+    case ToolFlangeType::UNKNOWN:
+      return "UNKNOWN";
+    case ToolFlangeType::V1:
+      return "V1";
+    case ToolFlangeType::V2:
+      return "V2";
+  }
+  throw std::invalid_argument("Unknown tool flange type: " + std::to_string(static_cast<int>(type)));
+}
+
 }  // namespace urcl

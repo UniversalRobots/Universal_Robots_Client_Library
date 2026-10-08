@@ -913,18 +913,30 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       std::string variable_names_str;
       bp.parseRemainder(variable_names_str);
       input_recipe_ = splitString(variable_names_str);
-      const std::vector<std::string> variable_types = variableTypesFor(input_recipe_);
-      std::string variable_types_str;
-      {
-        std::lock_guard<std::mutex> lock(negotiation_mutex_);
-        variable_types_str = joinStrings(input_type_reply_.value_or(variable_types));
-      }
 
       uint16_t protocol_version = 2;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         protocol_version = negotiated_protocol_version_;
       }
+      std::vector<std::string> variable_types = variableTypesFor(input_recipe_);
+      if (protocol_version >= 3)
+      {
+        for (size_t i = 0; i < input_recipe_.size(); ++i)
+        {
+          if (input_recipe_[i] == "configurable_digital_output_mask" || input_recipe_[i] == "configurable_digital_"
+                                                                                            "output")
+          {
+            variable_types[i] = "UINT32";
+          }
+        }
+      }
+      std::string variable_types_str;
+      {
+        std::lock_guard<std::mutex> lock(negotiation_mutex_);
+        variable_types_str = joinStrings(input_type_reply_.value_or(variable_types));
+      }
+
       input_data_package_.reset();
       if (allVariablesFound(variable_types))
       {

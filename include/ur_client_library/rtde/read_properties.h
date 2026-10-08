@@ -58,13 +58,11 @@ namespace urcl
 namespace rtde_interface
 {
 /*!
- * \brief Tool-flange type byte and revision byte from v1.robot_arm.tool_flange.type.
- *
- * These are the bytes from the RTDE property, not ToolFlangeType from the primary interface.
+ * \brief Tool-flange type and revision byte from v1.robot_arm.tool_flange.type.
  */
 struct ToolFlangeProperty
 {
-  uint8_t type = 0;
+  ToolFlangeType type = ToolFlangeType::UNKNOWN;
   uint8_t revision = 0;
 
   /*!
@@ -72,7 +70,7 @@ struct ToolFlangeProperty
    */
   std::string toString() const
   {
-    return "type " + std::to_string(type) + ", revision " + std::to_string(revision);
+    return "type " + toolFlangeTypeString(type) + ", revision " + std::to_string(revision);
   }
 };
 

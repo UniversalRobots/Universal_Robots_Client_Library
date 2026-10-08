@@ -128,6 +128,25 @@ protected:
     return false;
   }
 
+  void useProtocol3ConfigurableDigitalOutputs()
+  {
+    writer_->stop();
+    writer_->setProtocolVersion(3);
+    input_recipe_types_[4] = DataType::UINT32;
+    input_recipe_types_[5] = DataType::UINT32;
+    input_map_types_["configurable_digital_output_mask"] = uint32_t{};
+    input_map_types_["configurable_digital_output"] = uint32_t{};
+    writer_->setRecipeTypes(input_recipe_types_);
+    writer_->init(1);
+  }
+
+  void useV2ToolFlange()
+  {
+    writer_->stop();
+    writer_->setToolFlangeType(ToolFlangeType::V2);
+    writer_->init(1);
+  }
+
   std::vector<std::string> input_recipe_ = { "speed_slider_mask",
                                              "speed_slider_fraction",
                                              "standard_digital_output_mask",
@@ -321,6 +340,21 @@ TEST_F(RTDEWriterTest, send_configurable_digital_output)
   EXPECT_EQ(expected_configurable_digital_output_mask, received_configurable_digital_output_mask);
 }
 
+TEST_F(RTDEWriterTest, send_protocol_v3_configurable_digital_output)
+{
+  useProtocol3ConfigurableDigitalOutputs();
+
+  const uint8_t pin = 15;
+  ASSERT_TRUE(writer_->sendConfigurableDigitalOutput(pin, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("configurable_digital_output"));
+  ASSERT_TRUE(dataFieldExist("configurable_digital_output_mask"));
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["configurable_digital_output"]), uint32_t{ 1 } << pin);
+  EXPECT_EQ(std::get<uint32_t>(parsed_data_["configurable_digital_output_mask"]), uint32_t{ 1 } << pin);
+  EXPECT_FALSE(writer_->sendConfigurableDigitalOutput(16, true));
+}
+
 TEST_F(RTDEWriterTest, send_tool_digital_output)
 {
   uint8_t expected_tool_digital_output_mask = 1;
@@ -339,17 +373,32 @@ TEST_F(RTDEWriterTest, send_tool_digital_output)
   EXPECT_EQ(send_pin_value, received_pin_value);
   EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
 
-  // Changing pins above 1, should return false.
+  // An unknown flange conservatively supports only tool outputs 0 and 1.
   pin = 2;
   EXPECT_FALSE(writer_->sendToolDigitalOutput(pin, send_pin_value));
-  // Set pin to value false
-  pin = 0;
-  EXPECT_TRUE(writer_->sendToolDigitalOutput(pin, false));
-  waitForMessageCallback(1000);
-  received_pin_value = std::get<uint8_t>(parsed_data_["tool_digital_output"]) != 0;
-  received_tool_digital_output_mask = std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]);
-  EXPECT_EQ(received_pin_value, false);
-  EXPECT_EQ(expected_tool_digital_output_mask, received_tool_digital_output_mask);
+}
+
+TEST_F(RTDEWriterTest, send_v2_tool_flange_digital_output)
+{
+  useV2ToolFlange();
+
+  const uint8_t pin = 5;
+  const uint8_t expected_tool_digital_output_mask = uint8_t{ 1 } << pin;
+  ASSERT_TRUE(writer_->sendToolDigitalOutput(pin, true));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+
+  ASSERT_TRUE(dataFieldExist("tool_digital_output"));
+  ASSERT_TRUE(dataFieldExist("tool_digital_output_mask"));
+  EXPECT_NE(std::get<uint8_t>(parsed_data_["tool_digital_output"]) & expected_tool_digital_output_mask, 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]), expected_tool_digital_output_mask);
+
+  const uint8_t first_extended_pin = 2;
+  ASSERT_TRUE(writer_->sendToolDigitalOutput(first_extended_pin, false));
+  ASSERT_TRUE(waitForMessageCallback(1000));
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output"]) & (uint8_t{ 1 } << first_extended_pin), 0);
+  EXPECT_EQ(std::get<uint8_t>(parsed_data_["tool_digital_output_mask"]), uint8_t{ 1 } << first_extended_pin);
+
+  EXPECT_FALSE(writer_->sendToolDigitalOutput(6, true));
 }
 
 TEST_F(RTDEWriterTest, send_standard_analog_output_unknown_domain)
@@ -887,11 +936,13 @@ TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
 {
   EXPECT_THROW(writer_->setRecipeTypes(input_recipe_types_), UrException);
   EXPECT_THROW(writer_->setProtocolVersion(1), UrException);
+  EXPECT_THROW(writer_->setToolFlangeType(ToolFlangeType::V2), UrException);
 
   writer_->stop();
 
   EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
   EXPECT_NO_THROW(writer_->setProtocolVersion(1));
+  EXPECT_NO_THROW(writer_->setToolFlangeType(ToolFlangeType::V2));
 }
 
 TEST_F(RTDEWriterTest, create_data_package_after_stop_throws)
@@ -915,6 +966,27 @@ TEST_F(RTDEWriterTest, set_input_recipe_after_stop_succeeds)
   EXPECT_EQ(data_package.getDataType("speed_slider_fraction"), rtde_interface::DataType::DOUBLE);
   ASSERT_TRUE(data_package.setData("speed_slider_fraction", 0.4));
   EXPECT_FALSE(data_package.getDataType("standard_digital_output").has_value());
+}
+
+TEST_F(RTDEWriterTest, get_protocol_version_returns_the_set_value)
+{
+  writer_->stop();
+  writer_->setProtocolVersion(1);
+  EXPECT_EQ(writer_->getProtocolVersion(), 1);
+  writer_->setProtocolVersion(2);
+  EXPECT_EQ(writer_->getProtocolVersion(), 2);
+  writer_->setProtocolVersion(3);
+  EXPECT_EQ(writer_->getProtocolVersion(), 3);
+}
+
+TEST_F(RTDEWriterTest, get_tool_flange_type_returns_the_set_value)
+{
+  writer_->stop();
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::UNKNOWN);
+  writer_->setToolFlangeType(ToolFlangeType::V1);
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V1);
+  writer_->setToolFlangeType(ToolFlangeType::V2);
+  EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V2);
 }
 
 TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)

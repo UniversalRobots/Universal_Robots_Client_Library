@@ -158,6 +158,29 @@ TEST_F(RTDEClientFakeServerTest, timestamp_is_added_to_the_output_recipe)
   EXPECT_EQ(client->getOutputRecipe(), expected_recipe);
 }
 
+TEST_F(RTDEClientFakeServerTest, configurable_digital_output_width_follows_the_protocol_version)
+{
+  const std::vector<std::string> inputs{ "configurable_digital_output_mask", "configurable_digital_output" };
+  for (const uint16_t protocol_version : std::vector<uint16_t>{ 2, 3 })
+  {
+    client_.reset();
+    server_->setHighestAcceptedProtocolVersion(protocol_version);
+    client_ = makeClient({ "timestamp" }, inputs, RTDE_FREQUENCY);
+
+    ASSERT_TRUE(client_->init()) << "protocol version " << protocol_version;
+    ASSERT_TRUE(client_->start(true));
+    EXPECT_TRUE(client_->getWriter().sendConfigurableDigitalOutput(7, true));
+    EXPECT_EQ(client_->getWriter().sendConfigurableDigitalOutput(15, true), protocol_version >= 3);
+    ASSERT_TRUE(client_->pause());
+
+    if (protocol_version == 2)
+    {
+      client_.reset();
+      ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
+    }
+  }
+}
+
 TEST_F(RTDEClientFakeServerTest, read_recipe_from_file)
 {
   const std::vector<std::string> recipe = rtde_interface::RTDEClient::readRecipe("resources/rtde_input_recipe.txt");
@@ -1122,7 +1145,7 @@ void expectProtocolV3Properties(const rtde_interface::ReadProperties& properties
 
   const std::optional<rtde_interface::ToolFlangeProperty> flange = properties.getToolFlangeType();
   ASSERT_TRUE(flange.has_value());
-  EXPECT_EQ(flange->type, 1);
+  EXPECT_EQ(flange->type, ToolFlangeType::V1);
   EXPECT_EQ(flange->revision, 0);
 }
 
@@ -1284,6 +1307,7 @@ TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
   auto properties = client->getRobotProperties();
   ASSERT_TRUE(properties.has_value());
   expectProtocolV3Properties(*properties);
+  EXPECT_EQ(client->getWriter().getToolFlangeType(), ToolFlangeType::V1);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
