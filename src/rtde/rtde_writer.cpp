@@ -302,6 +302,11 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
   }
 
   const std::optional<DataType> type = current_store_buffer_->getDataType(key_mask);
+  if (!type.has_value())
+  {
+    URCL_LOG_ERROR("Configurable digital output mask is not available with the negotiated RTDE recipe");
+    return false;
+  }
   bool success = false;
   if (type == DataType::UINT8 && output_pin <= 7)
   {

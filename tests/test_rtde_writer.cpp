@@ -959,6 +959,17 @@ TEST_F(RTDEWriterTest, set_input_recipe_after_stop_succeeds)
   EXPECT_FALSE(data_package.getDataType("standard_digital_output").has_value());
 }
 
+TEST_F(RTDEWriterTest, get_protocol_version_returns_the_set_value)
+{
+  writer_->stop();
+  writer_->setProtocolVersion(1);
+  EXPECT_EQ(writer_->getProtocolVersion(), 1);
+  writer_->setProtocolVersion(2);
+  EXPECT_EQ(writer_->getProtocolVersion(), 2);
+  writer_->setProtocolVersion(3);
+  EXPECT_EQ(writer_->getProtocolVersion(), 3);
+}
+
 TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
 {
   comm::TCPServer server(60014);

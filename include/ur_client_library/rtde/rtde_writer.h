@@ -251,7 +251,7 @@ public:
   /*!
    * \brief Records the RTDE protocol version negotiated with the robot.
    *
-   * Version 2 data packages start with a recipe-id byte; version 1 packages do not. Defaults to
+   * Version 2 and later data packages start with a recipe-id byte; version 1 packages do not. Defaults to
    * version 2. The client sets this after protocol negotiation.
    *
    * \throws UrException if the writer is already running
