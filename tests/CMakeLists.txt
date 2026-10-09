@@ -274,6 +274,15 @@ set_tests_properties(RTDEClientReconnectTest.destructor_not_blocked_by_stuck_rec
                      RTDEClientReconnectTest.reconnect_gives_up_when_the_handshake_keeps_failing
                      PROPERTIES TIMEOUT 60)
 
+# Covers UrDriver's tool voltage handling against the in-process fake primary and RTDE servers, so it
+# runs without a robot.
+add_executable(ur_driver_tool_voltage_tests test_ur_driver_tool_voltage.cpp fake_primary_server.cpp
+                                            fake_rtde_server.cpp)
+target_link_libraries(ur_driver_tool_voltage_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      ur_driver_tool_voltage_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_executable(tcp_server_tests test_tcp_server.cpp)
 if (MSVC)
   target_compile_options(tcp_server_tests PRIVATE /Zc:lambda)

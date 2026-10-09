@@ -627,6 +627,19 @@ void RTDEServer::setSoftwareVersionAsUint32(const bool as_uint32)
   software_version_as_uint32_ = as_uint32;
 }
 
+void RTDEServer::setReportedToolFlangeType(const ToolFlangeType type)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  tool_flange_type_ = type;
+}
+
+void RTDEServer::setReportedUrControlVersion(const uint32_t major, const uint32_t minor, const uint32_t bugfix,
+                                             const uint32_t build)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  urcontrol_version_ = { major, minor, bugfix, build };
+}
+
 void RTDEServer::queueStartReplyBeforeReadProperties()
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -781,9 +794,11 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     {
       // The client only asks once, so every queued message has to go out now for it to see them all
       std::deque<std::string> text_messages;
+      std::array<uint32_t, 4> version;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         text_messages.swap(pending_text_messages_);
+        version = urcontrol_version_;
       }
       for (const std::string& text_message : text_messages)
       {
@@ -795,11 +810,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       size_t send_size = 0;
       send_size += rtde_interface::PackageHeader::serializeHeader(
           send_buffer, rtde_interface::PackageType::RTDE_GET_URCONTROL_VERSION, 4 * sizeof(uint32_t));
-      uint32_t version = 10;
-      send_size += serializer.serialize(send_buffer + send_size, version);  // major
-      send_size += serializer.serialize(send_buffer + send_size, version);  // minor
-      send_size += serializer.serialize(send_buffer + send_size, version);  // bugfix
-      send_size += serializer.serialize(send_buffer + send_size, version);  // build
+      for (const uint32_t part : version)  // major, minor, bugfix, build
+      {
+        send_size += serializer.serialize(send_buffer + send_size, part);
+      }
 
       size_t written = 0;
       server_.writeUnchecked(filedescriptor, send_buffer, send_size, written);
@@ -1027,7 +1041,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       URCL_LOG_WARN("Received Text message which usually shouldn't be sent to the RTDE server.");
       break;
     }
-    // Mimics a configurable controller (defaults to 10.15.0) on a CB5 with a standard tool flange. Like the
+    // Mimics a configurable controller (defaults to 10.15.0) on a CB5 with a configurable tool flange. Like the
     // real one it reports NOT_FOUND for unknown names and then sends no values at all, so tests can check the
     // client only asks for names the controller has.
     case rtde_interface::PackageType::RTDE_READ_PROPERTIES:
@@ -1041,6 +1055,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
       uint16_t minor = 15;
       uint16_t bugfix = 0;
       bool as_uint32 = false;
+      ToolFlangeType tool_flange_type = ToolFlangeType::V1;
       unsigned start_replies = 0;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -1052,6 +1067,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         minor = software_version_minor_;
         bugfix = software_version_bugfix_;
         as_uint32 = software_version_as_uint32_;
+        tool_flange_type = tool_flange_type_;
         start_replies = pending_start_replies_before_read_properties_;
         pending_start_replies_before_read_properties_ = 0;
       }
@@ -1131,7 +1147,7 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
           }
           else if (name == "v1.robot_arm.tool_flange.type")
           {
-            const uint32_t encoded = static_cast<uint32_t>(1) << 24;
+            const uint32_t encoded = static_cast<uint32_t>(tool_flange_type) << 24;
             values_size += serializer.serialize(values + values_size, encoded);
           }
         }
