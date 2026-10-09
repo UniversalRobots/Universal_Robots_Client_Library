@@ -677,14 +677,29 @@ public:
   bool setGravity(const vector3d_t& gravity);
 
   /*!
-   * \brief Set the tool voltage. Note: It requires the external control script to be running or the robot to be in
-   * headless mode.
+   * \brief Set the tool voltage on connector T0. Note: It requires the external control script to be running or the
+   * robot to be in headless mode.
    *
-   * \param voltage tool voltage.
+   * \param voltage tool voltage (OFF = 0V, _12V = 12V, _24V = 24V).
    *
    * \returns True on successful write.
    */
   bool setToolVoltage(const ToolVoltage voltage);
+
+  /*!
+   * \brief Set the tool voltage on connector T2 (Tool Flange V2).
+   *
+   * Requires PolyScope X 10.15.0 or later and a robot whose RTDE robot properties report Tool Flange V2. PolyScope 5
+   * does not support connector T2.
+   * Note: It requires the external control script to be running or the robot to be in remote_control / headless mode.
+   * State can be read back via RTDE output fields tool_output_voltage_2 and tool_output_current_2.
+   *
+   * \param voltage Tool voltage (OFF = 0V, _24V = 24V, _48V = 48V).
+   *
+   * \returns True on successful write, false if voltage is invalid, the RTDE robot properties do not report Tool
+   * Flange V2, or the write fails.
+   */
+  bool setToolVoltageT2(const ToolVoltage voltage);
 
   /*!
    * \brief Start the robot to be controlled in force mode.
