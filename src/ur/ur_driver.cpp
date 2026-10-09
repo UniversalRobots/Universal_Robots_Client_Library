@@ -137,6 +137,18 @@ void UrDriver::init(const UrDriverConfiguration& config)
     begin_replace << "set_tool_voltage("
                   << static_cast<std::underlying_type<ToolVoltage>::type>(config.tool_comm_setup->getToolVoltage())
                   << ")\n";
+    const std::optional<ToolVoltage> tool_voltage_t2 = config.tool_comm_setup->getToolVoltageT2();
+    if (tool_voltage_t2.has_value())
+    {
+      const ToolFlangeType flange = rtde_client_->getWriter().getToolFlangeType();
+      if (flange != ToolFlangeType::V2)
+      {
+        throw UrException("Tool voltage on connector T2 requested, but it is only available on Tool Flange V2. The "
+                          "robot properties report " +
+                          toolFlangeTypeString(flange) + ". Please check your configuration.");
+      }
+      begin_replace << "set_power_output(\"T2_V\", " << toUnderlying(*tool_voltage_t2) << ")\n";
+    }
     begin_replace << "set_tool_communication(" << "True" << ", " << config.tool_comm_setup->getBaudRate() << ", "
                   << static_cast<std::underlying_type<Parity>::type>(config.tool_comm_setup->getParity()) << ", "
                   << config.tool_comm_setup->getStopBits() << ", " << config.tool_comm_setup->getRxIdleChars() << ", "
@@ -388,13 +400,10 @@ bool UrDriver::setGravity(const vector3d_t& gravity)
 
 bool UrDriver::setToolVoltage(const ToolVoltage voltage)
 {
-  // Test that the tool voltage is either 0, 12 or 24.
   switch (voltage)
   {
     case ToolVoltage::OFF:
-      break;
     case ToolVoltage::_12V:
-      break;
     case ToolVoltage::_24V:
       break;
     default:
@@ -404,7 +413,7 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
       return false;
   }
 
-  if (script_command_interface_->clientConnected())
+  if (script_command_interface_ != nullptr && script_command_interface_->clientConnected())
   {
     return script_command_interface_->setToolVoltage(voltage);
   }

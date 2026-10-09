@@ -416,6 +416,11 @@ target_link_libraries(types_tests PRIVATE ur_client_library::urcl GTest::gtest_m
 gtest_add_tests(TARGET types_tests
 )
 
+add_executable(tool_communication_tests test_tool_communication.cpp)
+target_link_libraries(tool_communication_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET tool_communication_tests
+)
+
 add_executable(datatypes_tests test_datatypes.cpp)
 target_link_libraries(datatypes_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET datatypes_tests

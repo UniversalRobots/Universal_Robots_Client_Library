@@ -31,6 +31,7 @@
 #define UR_CLIENT_LIBRARY_UR_TOOL_COMMUNICATION_H_INCLUDED
 
 #include "ur_client_library/types.h"
+#include <optional>
 #include <set>
 
 namespace urcl
@@ -128,13 +129,13 @@ public:
   using TxIdleCharsT = Limited<float>;
 
   /*!
-   * \brief Setup the tool voltage that will be configured on the robot. This will not immediately
+   * \brief Setup the tool voltage on connector T0 that will be configured on the robot. This will not immediately
    * change values on the robot, it will only be stored inside the ToolCommSetup object.
+   *
+   * \param tool_voltage must be OFF, _12V or _24V or an exception will be thrown. Connector T0 does not support
+   * _48V.
    */
-  void setToolVoltage(const ToolVoltage tool_voltage)
-  {
-    tool_voltage_ = tool_voltage;
-  }
+  void setToolVoltage(const ToolVoltage tool_voltage);
 
   /*!
    * \brief Return the tool voltage currently stored
@@ -142,6 +143,25 @@ public:
   ToolVoltage getToolVoltage() const
   {
     return tool_voltage_;
+  }
+
+  /*!
+   * \brief Setup the tool voltage on connector T2 that will be configured on the robot. This will not immediately
+   * change values on the robot, it will only be stored inside the ToolCommSetup object.
+   *
+   * Connector T2 requires PolyScope X 10.15.0 or later and a robot whose RTDE robot properties report Tool Flange
+   * V2. If it is set and the robot does not report Tool Flange V2, the UrDriver constructor will throw.
+   *
+   * \param tool_voltage must be OFF, _24V or _48V or an exception will be thrown.
+   */
+  void setToolVoltageT2(const ToolVoltage tool_voltage);
+
+  /*!
+   * \brief Return the tool voltage on connector T2 currently stored, or no value if it has not been set.
+   */
+  std::optional<ToolVoltage> getToolVoltageT2() const
+  {
+    return tool_voltage_t2_;
   }
 
   /*!
@@ -240,6 +260,7 @@ private:
                                                 static_cast<uint32_t>(5e6) };
 
   ToolVoltage tool_voltage_;
+  std::optional<ToolVoltage> tool_voltage_t2_;
   Parity parity_;
   uint32_t baud_rate_;
   StopBitsT stop_bits_;
