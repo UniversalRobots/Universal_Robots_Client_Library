@@ -260,7 +260,7 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
       TCPSocket::setReceiveTimeout(configured_tv);
       return false;
     }
-    URCL_LOG_WARN("%s", e.what());
+    URCL_LOG_ERROR("%s", e.what());
     disconnect();
     TCPSocket::setReceiveTimeout(configured_tv);
     return false;
