@@ -156,15 +156,10 @@ bool ScriptCommandInterface::setGravity(const vector3d_t* gravity)
 
 bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
 {
-  switch (voltage)
+  if (!isAllowedToolVoltage(voltage, T0_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_12V:
-    case ToolVoltage::_24V:
-      break;
-    default:
-      URCL_LOG_ERROR("The tool voltage should be 0, 12 or 24. The tool voltage is %d", toUnderlying(voltage));
-      return false;
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool", voltage, T0_TOOL_VOLTAGES).c_str());
+    return false;
   }
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
@@ -188,15 +183,10 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
 
 bool ScriptCommandInterface::setToolVoltageT2(const ToolVoltage voltage)
 {
-  switch (voltage)
+  if (!isAllowedToolVoltage(voltage, T2_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_24V:
-    case ToolVoltage::_48V:
-      break;
-    default:
-      URCL_LOG_ERROR("The tool T2 voltage should be 0, 24 or 48. The voltage is %d", toUnderlying(voltage));
-      return false;
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool T2", voltage, T2_TOOL_VOLTAGES).c_str());
+    return false;
   }
   if (!robotVersionSupportsPolyscopeXCommandOrWarn(urcl::VersionInformation::fromString("10.15.0"), __func__))
   {

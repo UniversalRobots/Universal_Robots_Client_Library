@@ -400,17 +400,10 @@ bool UrDriver::setGravity(const vector3d_t& gravity)
 
 bool UrDriver::setToolVoltage(const ToolVoltage voltage)
 {
-  switch (voltage)
+  if (!isAllowedToolVoltage(voltage, T0_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_12V:
-    case ToolVoltage::_24V:
-      break;
-    default:
-      std::stringstream ss;
-      ss << "The tool voltage should be 0, 12 or 24. The tool voltage is " << toUnderlying(voltage);
-      URCL_LOG_ERROR(ss.str().c_str());
-      return false;
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool", voltage, T0_TOOL_VOLTAGES).c_str());
+    return false;
   }
 
   if (script_command_interface_ != nullptr && script_command_interface_->clientConnected())
@@ -429,17 +422,10 @@ bool UrDriver::setToolVoltage(const ToolVoltage voltage)
 
 bool UrDriver::setToolVoltageT2(const ToolVoltage voltage)
 {
-  switch (voltage)
+  if (!isAllowedToolVoltage(voltage, T2_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_24V:
-    case ToolVoltage::_48V:
-      break;
-    default:
-      std::stringstream ss;
-      ss << "The tool T2 voltage should be 0, 24 or 48. The voltage is " << toUnderlying(voltage);
-      URCL_LOG_ERROR(ss.str().c_str());
-      return false;
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool T2", voltage, T2_TOOL_VOLTAGES).c_str());
+    return false;
   }
 
   const ToolFlangeType flange = rtde_client_->getWriter().getToolFlangeType();

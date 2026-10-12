@@ -42,30 +42,20 @@ ToolCommSetup::ToolCommSetup()
 
 void ToolCommSetup::setToolVoltage(const ToolVoltage tool_voltage)
 {
-  switch (tool_voltage)
+  if (!isAllowedToolVoltage(tool_voltage, T0_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_12V:
-    case ToolVoltage::_24V:
-      tool_voltage_ = tool_voltage;
-      break;
-    default:
-      throw std::runtime_error("Provided tool voltage is not allowed. The tool voltage should be 0, 12 or 24.");
+    throw std::runtime_error(toolVoltageNotAllowedMessage("tool", tool_voltage, T0_TOOL_VOLTAGES));
   }
+  tool_voltage_ = tool_voltage;
 }
 
 void ToolCommSetup::setToolVoltageT2(const ToolVoltage tool_voltage)
 {
-  switch (tool_voltage)
+  if (!isAllowedToolVoltage(tool_voltage, T2_TOOL_VOLTAGES))
   {
-    case ToolVoltage::OFF:
-    case ToolVoltage::_24V:
-    case ToolVoltage::_48V:
-      tool_voltage_t2_ = tool_voltage;
-      break;
-    default:
-      throw std::runtime_error("Provided tool T2 voltage is not allowed. The tool T2 voltage should be 0, 24 or 48.");
+    throw std::runtime_error(toolVoltageNotAllowedMessage("tool T2", tool_voltage, T2_TOOL_VOLTAGES));
   }
+  tool_voltage_t2_ = tool_voltage;
 }
 
 void ToolCommSetup::setBaudRate(const uint32_t baud_rate)

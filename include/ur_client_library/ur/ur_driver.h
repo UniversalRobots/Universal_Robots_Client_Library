@@ -680,7 +680,7 @@ public:
    * \brief Set the tool voltage on connector T0. Note: It requires the external control script to be running or the
    * robot to be in headless mode.
    *
-   * \param voltage tool voltage (OFF = 0V, _12V = 12V, _24V = 24V).
+   * \param voltage Tool voltage. Must be one of \ref T0_TOOL_VOLTAGES.
    *
    * \returns True on successful write.
    */
@@ -694,7 +694,7 @@ public:
    * Note: It requires the external control script to be running or the robot to be in remote_control / headless mode.
    * State can be read back via RTDE output fields tool_output_voltage_2 and tool_output_current_2.
    *
-   * \param voltage Tool voltage (OFF = 0V, _24V = 24V, _48V = 48V).
+   * \param voltage Tool voltage. Must be one of \ref T2_TOOL_VOLTAGES.
    *
    * \returns True on successful write, false if voltage is invalid, the RTDE robot properties do not report Tool
    * Flange V2, or the write fails.

@@ -31,8 +31,13 @@
 #define UR_CLIENT_LIBRARY_UR_TOOL_COMMUNICATION_H_INCLUDED
 
 #include "ur_client_library/types.h"
+#include <algorithm>
+#include <array>
+#include <iterator>
 #include <optional>
 #include <set>
+#include <string>
+#include <string_view>
 
 namespace urcl
 {
@@ -46,6 +51,61 @@ enum class ToolVoltage : int
   _24V = 24,  ///< 24V
   _48V = 48   ///< 48V
 };
+
+/*!
+ * \brief Voltages the standard tool connector (T0) accepts.
+ *
+ * Connector T0 does not support 48 V.
+ */
+inline constexpr std::array<ToolVoltage, 3> T0_TOOL_VOLTAGES{ ToolVoltage::OFF, ToolVoltage::_12V, ToolVoltage::_24V };
+
+/*!
+ * \brief Voltages connector T2 accepts.
+ */
+inline constexpr std::array<ToolVoltage, 3> T2_TOOL_VOLTAGES{ ToolVoltage::OFF, ToolVoltage::_24V, ToolVoltage::_48V };
+
+/*!
+ * \brief Decimal voltage of a \ref ToolVoltage, including values outside the enum.
+ */
+inline std::string toString(const ToolVoltage voltage)
+{
+  return std::to_string(toUnderlying(voltage));
+}
+
+/*!
+ * \brief True when \p voltage is one of \p allowed.
+ */
+template <typename Range>
+bool isAllowedToolVoltage(const ToolVoltage voltage, const Range& allowed)
+{
+  return std::any_of(std::begin(allowed), std::end(allowed),
+                     [voltage](const ToolVoltage candidate) { return candidate == voltage; });
+}
+
+/*!
+ * \brief Rejection text for a voltage that is not in \p allowed.
+ *
+ * The allowed values are rendered with \ref toString, so the message stays in step with the list.
+ */
+template <typename Range>
+std::string toolVoltageNotAllowedMessage(const std::string_view connector, const ToolVoltage voltage,
+                                         const Range& allowed)
+{
+  std::string allowed_text;
+  const std::size_t count = static_cast<std::size_t>(std::distance(std::begin(allowed), std::end(allowed)));
+  std::size_t index = 0;
+  for (const ToolVoltage candidate : allowed)
+  {
+    if (index > 0)
+    {
+      allowed_text += (index + 1 == count) ? " or " : ", ";
+    }
+    allowed_text += toString(candidate);
+    ++index;
+  }
+  return "The " + std::string(connector) + " voltage should be " + allowed_text + ". The voltage is " +
+         toString(voltage) + ".";
+}
 
 /*!
  * \brief Possible values for th parity flag
@@ -132,8 +192,7 @@ public:
    * \brief Setup the tool voltage on connector T0 that will be configured on the robot. This will not immediately
    * change values on the robot, it will only be stored inside the ToolCommSetup object.
    *
-   * \param tool_voltage must be OFF, _12V or _24V or an exception will be thrown. Connector T0 does not support
-   * _48V.
+   * \param tool_voltage must be one of \ref T0_TOOL_VOLTAGES or an exception will be thrown.
    */
   void setToolVoltage(const ToolVoltage tool_voltage);
 
@@ -152,7 +211,7 @@ public:
    * Connector T2 requires PolyScope X 10.15.0 or later and a robot whose RTDE robot properties report Tool Flange
    * V2. If it is set and the robot does not report Tool Flange V2, the UrDriver constructor will throw.
    *
-   * \param tool_voltage must be OFF, _24V or _48V or an exception will be thrown.
+   * \param tool_voltage must be one of \ref T2_TOOL_VOLTAGES or an exception will be thrown.
    */
   void setToolVoltageT2(const ToolVoltage tool_voltage);
 

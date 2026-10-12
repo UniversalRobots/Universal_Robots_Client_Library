@@ -118,7 +118,7 @@ public:
   /*!
    * \brief Set the tool voltage on connector T0.
    *
-   * \param voltage Tool voltage (OFF = 0V, _12V = 12V, _24V = 24V)
+   * \param voltage Tool voltage. Must be one of \ref T0_TOOL_VOLTAGES.
    *
    * \returns True, if the write was performed successfully, false if the voltage is invalid or the write fails.
    */
@@ -130,7 +130,7 @@ public:
    * Requires PolyScope X 10.15.0 or later; PolyScope 5 does not support connector T2. This does not
    * check the tool flange; UrDriver::setToolVoltageT2() does.
    *
-   * \param voltage Tool voltage (OFF = 0V, _24V = 24V, _48V = 48V)
+   * \param voltage Tool voltage. Must be one of \ref T2_TOOL_VOLTAGES.
    *
    * \returns True, if the write was performed successfully, false if the voltage is invalid, the version is
    * unsupported, or the write fails.

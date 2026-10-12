@@ -464,7 +464,7 @@ TEST_F(UrDriverTest, set_tool_voltage_t2)
   ToolVoltageT2Reader reader;
   ASSERT_TRUE(reader.start());
 
-  for (const ToolVoltage voltage : { ToolVoltage::_24V, ToolVoltage::_48V, ToolVoltage::OFF })
+  for (const ToolVoltage voltage : T2_TOOL_VOLTAGES)
   {
     ASSERT_TRUE(g_my_robot->getUrDriver()->setToolVoltageT2(voltage));
     EXPECT_TRUE(reader.waitFor(voltage)) << "Expected " << toUnderlying(voltage) << " V on T2, the robot reports "
