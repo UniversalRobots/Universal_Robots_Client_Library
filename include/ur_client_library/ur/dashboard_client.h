@@ -28,6 +28,8 @@
 #ifndef UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
 #define UR_ROBOT_DRIVER_DASHBOARD_CLIENT_DASHBOARD_CLIENT_H_INCLUDED
 
+#include <chrono>
+
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/ur/version_information.h>
 #include <ur_client_library/ur/dashboard_client_implementation.h>
@@ -756,7 +758,9 @@ public:
    * \brief Upload a new program to the robot
    *
    * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
-   * be uploaded to the root of the programs directory on the robot.
+   * be uploaded to the program database (PolyScope X) on the robot.
+   *
+   * \note This command is only available for PolyScope X robots.
    *
    * Stores the following entries in the data field:
    *
@@ -767,9 +771,10 @@ public:
   /*!
    * \brief Update an existing program on the robot
    *
-   * \param file_path The path to the program file on the machine where the dashboard client is running. The file will
-   * be uploaded to the root of the programs directory on the robot and override an already existing file with the same
-   * name.
+   * \param file_path The path to the program file on the machine where the dashboard client is running. This will fail
+   * if no program with the name defined inside the program file exists on the robot.
+   *
+   * \note This command is only available for PolyScope X robots.
    *
    * Stores the following entries in the data field:
    *
@@ -814,6 +819,24 @@ public:
    * \param timeout Timeout used for setting things up
    */
   void setReceiveTimeout(const timeval& timeout);
+
+  /*!
+   * \brief Gets the configured connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConfiguredConnectTimeout() const;
+
+  /*!
+   * \brief Sets the maximum duration of a single connection attempt. Defaults to 0 for
+   * ClientPolicy::G5 and 5 seconds for ClientPolicy::POLYSCOPE_X.
+   *
+   * \param connect_timeout Connect timeout, 0 leaves it to the operating system (G5) or to
+   * cpp-httplib's default of 300 seconds (PolyScope X)
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
 
 protected:
   std::shared_ptr<DashboardClientImpl> impl_;

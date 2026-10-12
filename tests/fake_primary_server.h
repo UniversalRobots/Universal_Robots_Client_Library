@@ -78,11 +78,14 @@ public:
   /*!
    * \brief Construct a new fake primary server bound to \p port.
    *
-   * If 0 is passed, the OS picks a free port that can be queried via \ref getPort.
+   * If 0 is passed, bind() selects an available port that can be queried via \ref getPort.
    *
    * \param port Port to bind the server to. Defaults to the standard UR primary interface port.
+   * \param max_num_tries How many times to retry a failed bind. 0 retries indefinitely.
+   * \param reconnection_time Wait time between bind attempts.
    */
-  explicit FakePrimaryServer(const int port = primary_interface::UR_PRIMARY_PORT);
+  explicit FakePrimaryServer(const int port = primary_interface::UR_PRIMARY_PORT, const size_t max_num_tries = 0,
+                             const std::chrono::milliseconds reconnection_time = std::chrono::seconds(1));
 
   ~FakePrimaryServer();
 

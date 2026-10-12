@@ -167,7 +167,7 @@ public:
 
   virtual bool consume(RobotModeData& pkg) override
   {
-    URCL_LOG_DEBUG("Robot mode is now %s", robotModeString(static_cast<RobotMode>(pkg.robot_mode_)).c_str());
+    URCL_LOG_DEBUG("Robot mode is now %s", robotModeString(robotModeFromWire(pkg.robot_mode_)).c_str());
     std::scoped_lock lock(robot_mode_mutex_);
     robot_mode_ = std::make_unique<RobotModeData>(pkg);
     return true;

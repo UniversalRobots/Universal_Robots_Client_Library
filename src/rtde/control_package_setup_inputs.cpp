@@ -36,6 +36,7 @@ bool ControlPackageSetupInputs::parseWith(comm::BinParser& bp)
 {
   bp.parse(input_recipe_id_);
   bp.parseRemainder(variable_types_);
+  parseDataTypes(variable_types_, type_names_, data_types_);
 
   return true;
 }

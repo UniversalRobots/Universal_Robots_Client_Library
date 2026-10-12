@@ -45,7 +45,8 @@ using namespace urcl;
 // producer thread is stuck in its reconnect loop at teardown time.
 //
 // This is the PrimaryClient counterpart of
-// RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread (test_rtde_client.cpp).
+// RTDEClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+// (test_rtde_client_reconnect.cpp).
 //
 // Root cause: when the robot drops the primary connection, TCPSocket::read()
 // returns false and leaves the socket in SocketState::LostConnection. URProducer's
@@ -74,8 +75,10 @@ TEST(PrimaryClientReconnectTest, destructor_not_blocked_by_stuck_reconnect_threa
 {
   comm::INotifier notifier;
 
-  auto server = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
-  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+  // Passing 0 makes bind() select an available port. A fixed port can already be in use, and
+  // TCPServer retries that bind forever.
+  auto server = std::make_unique<FakePrimaryServer>(0);
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier, server->getPort());
 
   // Unlimited reconnect attempts with a large reconnection time: if the fix is
   // absent, the producer's reconnect path keeps the destructor blocked.
@@ -131,8 +134,11 @@ TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
 {
   comm::INotifier notifier;
 
-  auto server = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
-  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier);
+  // Passing 0 makes bind() select an available port, so the initial bind cannot collide. The
+  // client reconnects to that same port, so the replacement server below has to bind it again.
+  auto server = std::make_unique<FakePrimaryServer>(0);
+  const int port = server->getPort();
+  auto client = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier, port);
 
   // Unlimited reconnect attempts with a large reconnection time: if the fix is
   // absent, the producer's reconnect path keeps stop()'s pipeline join blocked.
@@ -173,7 +179,12 @@ TEST(PrimaryClientReconnectTest, stop_not_blocked_by_stuck_reconnect_thread)
 
   // Restart-reuse check: bring up a fresh server and start() again. This must reconnect,
   // proving that the deliberate-stop state set by stop() was cleared by connect() on restart.
-  auto server2 = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+  // The port was free while the client was stopped, so another process may own it, and some
+  // platforms cannot rebind it immediately. A finite retry count makes that failure end the test
+  // instead of hanging in TCPServer's unlimited bind loop.
+  std::unique_ptr<FakePrimaryServer> server2;
+  ASSERT_NO_THROW(server2 =
+                      std::make_unique<FakePrimaryServer>(port, /*max_num_tries=*/5, std::chrono::milliseconds(100)));
   ASSERT_NO_THROW(client->start(/*max_num_tries=*/0, large_reconnect_timeout));
   EXPECT_TRUE(server2->waitForClient(std::chrono::seconds(3))) << "PrimaryClient did not reconnect after "
                                                                   "stop()/start() — the deliberate-stop state set by "

@@ -42,8 +42,8 @@ namespace urcl
 {
 namespace primary_interface
 {
-PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier)
-  : stream_(robot_ip, UR_PRIMARY_PORT)
+PrimaryClient::PrimaryClient(const std::string& robot_ip, [[maybe_unused]] comm::INotifier& notifier, const int port)
+  : stream_(robot_ip, port)
 {
   parser_.setStrictMode(COMPILE_OPTIONS.PRIMARY_CLIENT_STRICT_PARSING);
   prod_.reset(new comm::URProducer<PrimaryPackage>(stream_, parser_));
@@ -81,6 +81,16 @@ void PrimaryClient::stop()
 {
   stream_.disconnect();
   pipeline_->stop();
+}
+
+void PrimaryClient::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  stream_.setConnectTimeout(connect_timeout);
+}
+
+std::chrono::milliseconds PrimaryClient::getConnectTimeout() const
+{
+  return stream_.getConnectTimeout();
 }
 
 void PrimaryClient::addPrimaryConsumer(std::shared_ptr<comm::IConsumer<PrimaryPackage>> primary_consumer)
@@ -736,7 +746,7 @@ RobotType PrimaryClient::getRobotType()
   {
     return RobotType::UNDEFINED;
   }
-  return static_cast<RobotType>(configuration_data->robot_type_);
+  return robotTypeFromWire(configuration_data->robot_type_);
 }
 
 RobotSeries PrimaryClient::getRobotSeries()

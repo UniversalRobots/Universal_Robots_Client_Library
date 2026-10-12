@@ -66,7 +66,14 @@ class PrimaryClient
 {
 public:
   PrimaryClient() = delete;
-  PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier);
+  /*!
+   * \brief Creates a new PrimaryClient object.
+   *
+   * \param robot_ip The IP of the robot
+   * \param notifier The notifier to notify of start and stop events
+   * \param port Optionally specify a different port
+   */
+  PrimaryClient(const std::string& robot_ip, comm::INotifier& notifier, const int port = UR_PRIMARY_PORT);
   ~PrimaryClient();
 
   /*!
@@ -85,6 +92,23 @@ public:
   void start(const size_t max_connection_attempts = 0,
              const std::chrono::milliseconds reconnection_timeout = urcl::comm::TCPSocket::DEFAULT_RECONNECTION_TIME);
   void stop();
+
+  /*!
+   * \brief Sets the maximum duration of a single socket connection attempt, see
+   * comm::TCPSocket::setConnectTimeout(). Applies to start() and to reconnects.
+   *
+   * \param connect_timeout Connect timeout, 0 (default) leaves it to the operating system
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
+
+  /*!
+   * \brief Getter for the connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConnectTimeout() const;
 
   /*!
    * \brief Retrieves previously raised error codes from PrimaryClient. After calling this, recorded errors will be
@@ -231,7 +255,7 @@ public:
     {
       return RobotMode::UNKNOWN;
     }
-    return static_cast<RobotMode>(consumer_->getRobotModeData()->robot_mode_);
+    return robotModeFromWire(robot_mode_data->robot_mode_);
   }
 
   /*!

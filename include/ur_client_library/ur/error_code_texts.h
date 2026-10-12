@@ -38,7 +38,7 @@
  * or directly:
  *   scripts/generate_error_codes.py --overlay scripts/error_code_overrides.json --output <this-file>
  *
- * Source: UR ErrorCodes JSON v40.121.0
+ * Source: UR ErrorCodes JSON v42.1.0
  */
 //----------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ namespace primary_interface
 {
 
 /// Version of the UR ErrorCodes JSON this header was generated from.
-constexpr std::string_view ERROR_CODE_JSON_VERSION = "40.121.0";
+constexpr std::string_view ERROR_CODE_JSON_VERSION = "42.1.0";
 
 /// Returns a static map from packed (code, arg) keys to human-readable
 /// error texts sourced from the UR ErrorCodes JSON.
@@ -355,13 +355,13 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000009F00000005), "Position deviates from path: Wrist 3. The user specified payload is 0kg, please make sure this is correct." },  // C159 arg=5
     { UINT64_C(0x000000A0FFFFFFFF), "The robot was powered off last time due to a joint position disagreement" },  // C160 no arg
     { UINT64_C(0x000000A1FFFFFFFF), "Large movement of the robot detected while it was powered off. The joints were moved while it was powered off, or the encoders do not function" },  // C161 no arg
-    { UINT64_C(0x000000A2FFFFFFFF), "The protective stop was likely caused by incorrectly specified payload mass and/or center of gravity." },  // C162 no arg
-    { UINT64_C(0x000000A300000000), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Base joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=0
-    { UINT64_C(0x000000A300000001), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Shoulder joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=1
-    { UINT64_C(0x000000A300000002), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Elbow joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=2
-    { UINT64_C(0x000000A300000003), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Wrist 1 joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=3
-    { UINT64_C(0x000000A300000004), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Wrist 2 joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=4
-    { UINT64_C(0x000000A300000005), "More than 50 Protective Stops are detected on the same joint within 8 hours of operation.: Wrist 3 joint. Something is wrong in the application. Recurring protective stops should be resolved, ignoring it can void warranty." },  // C163 arg=5
+    { UINT64_C(0x000000A2FFFFFFFF), "The robot stop was likely caused by incorrectly specified payload mass and/or center of gravity." },  // C162 no arg
+    { UINT64_C(0x000000A300000000), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Base joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=0
+    { UINT64_C(0x000000A300000001), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Shoulder joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=1
+    { UINT64_C(0x000000A300000002), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Elbow joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=2
+    { UINT64_C(0x000000A300000003), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Wrist 1 joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=3
+    { UINT64_C(0x000000A300000004), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Wrist 2 joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=4
+    { UINT64_C(0x000000A300000005), "More than 50 Robot Stops are detected on the same joint within 8 hours of operation.: Wrist 3 joint. Something is wrong in the application. Recurring robot stops should be resolved, ignoring it can void warranty." },  // C163 arg=5
     { UINT64_C(0x000000A400000000), "Wrist position close to safety plane limits: Wrist 1 is too close to safety plane" },  // C164 arg=0
     { UINT64_C(0x000000A400000001), "Wrist position close to safety plane limits: Wrist 2 is too close to safety plane" },  // C164 arg=1
     { UINT64_C(0x000000A400000002), "Wrist position close to safety plane limits: Wrist 3 is too close to safety plane" },  // C164 arg=2
@@ -577,7 +577,7 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x000000CE00000005), "Sanity check failed: Target joint speed does not match target joint position change - Wrist 3" },  // C206 arg=5
     { UINT64_C(0x000000CFFFFFFFFF), "Fieldbus input disconnected" },  // C207 no arg
     { UINT64_C(0x000000D0FFFFFFFF), "Debug Assertion failed" },  // C208 no arg
-    { UINT64_C(0x000000D1FFFFFFFF), "A protective stop was triggered (for test purposes only)" },  // C209 no arg
+    { UINT64_C(0x000000D1FFFFFFFF), "A robot stop was triggered (for test purposes only)" },  // C209 no arg
     { UINT64_C(0x000000D2FFFFFFFF), "Socket is read-only when the robot is in local (Teach pendant) control" },  // C210 no arg
     { UINT64_C(0x000000D300000000), "Operational mode changed: Disabled" },  // C211 arg=0
     { UINT64_C(0x000000D300000001), "Operational mode changed: Automatic" },  // C211 arg=1
@@ -764,8 +764,11 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000011400000000), "Uart: Critical error" },  // C276 arg=0
     { UINT64_C(0x0000011500000001), "Memory: Failed to allocate memory" },  // C277 arg=1
     { UINT64_C(0x0000011600000000), "Servo: Critical error" },  // C278 arg=0
+    { UINT64_C(0x0000011600000005), "Servo: Internal device mode check unavailable" },  // C278 arg=5
     { UINT64_C(0x0000011600000012), "Servo: The version of the received control message is not supported. Version received: {unsigned}" },  // C278 arg=18
     { UINT64_C(0x0000011600000014), "Servo: The control-mode state {unsigned} in the received control message is not supported." },  // C278 arg=20
+    { UINT64_C(0x0000011600000015), "Servo: External command usage check unavailable" },  // C278 arg=21
+    { UINT64_C(0x0000011600000016), "Servo: Internal safety state check unavailable" },  // C278 arg=22
     { UINT64_C(0x0000011700000000), "Flash: Critical error" },  // C279 arg=0
     { UINT64_C(0x0000011700000026), "Flash: Timed out waiting for system voltage to reach {float}V" },  // C279 arg=38
     { UINT64_C(0x0000011800000000), "Real-time error: Critical error" },  // C280 arg=0
@@ -947,6 +950,10 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000011B000000DF), "Safety system: The angular velocity of {float} rad/s is outside the limits of the active scanner monitoring case" },  // C283 arg=223
     { UINT64_C(0x0000011B000000E6), "Safety system: Mismatch on Safety Field Configuration CRC between the safety system and the configuration" },  // C283 arg=230
     { UINT64_C(0x0000011B000000E7), "Safety system: Audio/visual motion warning violation" },  // C283 arg=231
+    { UINT64_C(0x0000011B000000EE), "Safety system: Operational mode disabled is not allowed" },  // C283 arg=238
+    { UINT64_C(0x0000011B000000EF), "Safety system: Teach Pendants without a 3-Position Enabling Device are not allowed" },  // C283 arg=239
+    { UINT64_C(0x0000011B000000F0), "Safety system: The robot turned without indicating the turn" },  // C283 arg=240
+    { UINT64_C(0x0000011B000000F4), "Safety system: This system does not support hot pluggable teach pendant." },  // C283 arg=244
     { UINT64_C(0x0000011C00000000), "Brake Release: Critical error" },  // C284 arg=0
     { UINT64_C(0x0000011C00000015), "Brake Release: Brake release count reached limit" },  // C284 arg=21
     { UINT64_C(0x0000011C00000016), "Brake Release: Brake release count is close to the limit, remaining brake releases: {unsigned}" },  // C284 arg=22
@@ -974,6 +981,11 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000012100000010), "Tool Connector: The M8-power current exceeded the the allowed limit of {float}A for more than 2 seconds during the last 10 seconds" },  // C289 arg=16
     { UINT64_C(0x0000012100000011), "Tool Connector: The zero current of the IO M8 power current sensor exceeds maximum allowed offset. The measured offset was {float}A" },  // C289 arg=17
     { UINT64_C(0x0000012100000012), "Tool Connector: The zero current of the IO M8 digital output current sensor exceeds maximum allowed offset. The measured offset was {float}A" },  // C289 arg=18
+    { UINT64_C(0x0000012100000013), "Tool Connector: Current of {float} A on the tool connector supply pins is outside of the allowed limited range." },  // C289 arg=19
+    { UINT64_C(0x0000012100000014), "Tool Connector: The momentary M8-power current of {float}A exceeded the allowed limited current." },  // C289 arg=20
+    { UINT64_C(0x0000012100000015), "Tool Connector: Voltage limit exceeded for the Power M8 PSU when the PSU should be off, but measured voltage was {float}V." },  // C289 arg=21
+    { UINT64_C(0x0000012100000016), "Tool Connector: Voltage limit exceeded for the Power M8 PSU when the voltage is set to 24V, but measured was {float}V" },  // C289 arg=22
+    { UINT64_C(0x0000012100000017), "Tool Connector: Voltage limit exceeded for the Power M8 PSU when the voltage is set to 48V, but measured was {float}V" },  // C289 arg=23
     { UINT64_C(0x0000012400000000), "Online RAM test: Critical error" },  // C292 arg=0
     { UINT64_C(0x0000012600000000), "ADC: Critical error" },  // C294 arg=0
     { UINT64_C(0x000001260000000C), "ADC: The single ended ADC calibration timed out" },  // C294 arg=12
@@ -1109,6 +1121,7 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000015400000002), "Energy Monitoring: Energy burst period exceeded, average power: {float}W" },  // C340 arg=2
     { UINT64_C(0x0000015400000003), "Energy Monitoring: The Energy Removal Device peak power exceeded" },  // C340 arg=3
     { UINT64_C(0x0000015400000004), "Energy Monitoring: The Energy Removal Device drew too much power over a period" },  // C340 arg=4
+    { UINT64_C(0x0000015400000008), "Energy Monitoring: Voltage Limiter on-time exceeded, duty cycle: {float}%" },  // C340 arg=8
     { UINT64_C(0x0000015500000000), "Motor encoder: Critical error" },  // C341 arg=0
     { UINT64_C(0x0000015500000009), "Motor encoder: The scheduled motor encoder SPI package transfer did not complete before the deadline." },  // C341 arg=9
     { UINT64_C(0x000001550000000A), "Motor encoder: CRC error in CH0 transfer, frame: {hex}" },  // C341 arg=10
@@ -1306,6 +1319,12 @@ inline const std::unordered_map<uint64_t, const char*>& getErrorCodeTexts()
     { UINT64_C(0x0000017500000005), "Power Interface Board: Power Interface Board revision {unsigned} is not supported" },  // C373 arg=5
     { UINT64_C(0x0000017700000000), "Motor encoder: Critical error" },  // C375 arg=0
     { UINT64_C(0x0000017900000000), "Charging system: The motors are active while charging is enabled" },  // C377 arg=0
+    { UINT64_C(0x0000017A00000000), "Robot Cable: Failed to measure the robot cable resistance, current too low during measurement" },  // C378 arg=0
+    { UINT64_C(0x0000017A00000001), "Robot Cable: The measured robot cable resistance of {float} Ohm is too high" },  // C378 arg=1
+    { UINT64_C(0x0000017A00000002), "Robot Cable: The maximum allowed robot cable resistance is {float} Ohm" },  // C378 arg=2
+    { UINT64_C(0x0000017B00000001), "Robot powered off: Robot power button being pressed" },  // C379 arg=1
+    { UINT64_C(0x0000017B00000002), "Robot powered off: PC S5 indicating shutdown" },  // C379 arg=2
+    { UINT64_C(0x0000017B00000003), "Robot powered off: Robot powered off." },  // C379 arg=3
     { UINT64_C(0x00000190FFFFFFFF), "Elbow position close to safety plane limits" },  // C400 no arg
     { UINT64_C(0x00000191FFFFFFFF), "Exceeding user safety settings for stopping time" },  // C401 no arg
     { UINT64_C(0x00000192FFFFFFFF), "Exceeding user safety settings for stopping distance" },  // C402 no arg

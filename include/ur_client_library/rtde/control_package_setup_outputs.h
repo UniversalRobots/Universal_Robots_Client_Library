@@ -29,8 +29,11 @@
 #ifndef UR_CLIENT_LIBRARY_CONTROL_PACKAGE_SETUP_OUTPUTS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_CONTROL_PACKAGE_SETUP_OUTPUTS_H_INCLUDED
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
+#include "ur_client_library/rtde/data_type.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/package_header.h"
 
@@ -53,6 +56,9 @@ public:
     : RTDEPackage(PackageType::RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS), protocol_version_(protocol_version)
   {
   }
+  // type_names_ views variable_types_, so a copy would view the original package's string.
+  ControlPackageSetupOutputs(const ControlPackageSetupOutputs&) = delete;
+  ControlPackageSetupOutputs& operator=(const ControlPackageSetupOutputs&) = delete;
   virtual ~ControlPackageSetupOutputs() = default;
 
   /*!
@@ -73,6 +79,10 @@ public:
 
   uint8_t output_recipe_id_;
   std::string variable_types_;
+  /// One entry per field, empty where the robot answered with something other than a data type.
+  std::vector<std::optional<DataType>> data_types_;
+  /// The words of variable_types_, one per field, e.g. to tell NOT_FOUND from an unknown type.
+  std::vector<std::string_view> type_names_;
   uint16_t protocol_version_;
 };
 

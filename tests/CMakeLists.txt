@@ -41,9 +41,6 @@ if (INTEGRATION_TESTS)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
-  # Bound this teardown regression test so a hang fails CI fast instead of timing out the job.
-  set_tests_properties(RTDEClientTest.destructor_not_blocked_by_stuck_reconnect_thread
-                       PROPERTIES TIMEOUT 60)
   if (CHECK_RTDE_DOCS_RECIPE)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
@@ -178,6 +175,10 @@ add_executable(dashboard_client_mock_tests test_dashboard_client.cpp)
 target_link_libraries(dashboard_client_mock_tests PRIVATE ur_client_library::urcl GTest::gmock_main)
 gtest_add_tests(TARGET      dashboard_client_mock_tests
 )
+set_tests_properties(DashboardClientWelcomeTest.disconnect_interrupts_silent_welcome
+                     PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE)
+set_tests_properties(DashboardClientWelcomeTest.welcome_timeout_allows_external_retry
+                     PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
@@ -207,6 +208,19 @@ set_tests_properties(PrimaryClientReconnectTest.destructor_not_blocked_by_stuck_
 
 
 
+# Robot-free checks that the clients give up on an unresponsive robot after their connect timeout.
+add_executable(client_connect_timeout_tests test_client_connect_timeout.cpp)
+target_link_libraries(client_connect_timeout_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      client_connect_timeout_tests
+)
+# Without a working connect timeout these block until the OS gives up (~2 min on Linux); fail fast instead.
+set_tests_properties(ClientConnectTimeoutTest.rtde_client_init_honors_connect_timeout
+                     ClientConnectTimeoutTest.primary_client_start_honors_connect_timeout
+                     ClientConnectTimeoutTest.dashboard_client_g5_connect_honors_connect_timeout
+                     ClientConnectTimeoutTest.dashboard_client_x_connect_honors_connect_timeout
+                     ClientConnectTimeoutTest.ur_driver_honors_socket_connect_timeout
+                     PROPERTIES TIMEOUT 60)
+
 add_executable(rtde_data_package_tests test_rtde_data_package.cpp)
 target_link_libraries(rtde_data_package_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      rtde_data_package_tests
@@ -216,6 +230,53 @@ add_executable(rtde_parser_tests test_rtde_parser.cpp)
 target_link_libraries(rtde_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET      rtde_parser_tests
 )
+
+# Checks that exchanging RTDE data doesn't allocate once the recipes have been set up. Uses the
+# in-process fake RTDE server, so it runs without a robot.
+add_executable(rtde_allocation_tests test_rtde_allocations.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_allocation_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_allocation_tests
+)
+
+# Covers RTDEClient's public interface against the in-process fake RTDE server. The tests in
+# test_rtde_client.cpp go further but need a reachable robot, so they only run with INTEGRATION_TESTS.
+add_executable(rtde_client_fake_server_tests test_rtde_client_fake_server.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_client_fake_server_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_client_fake_server_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_idempotent
+                     RTDEClientFakeServerTest.blocking_failures_preserve_caller_ownership
+                     RTDEBackgroundReadTest.notifications_without_data_do_not_succeed
+                     RTDEBackgroundReadTest.stop_and_reconnect_cancel_pending_reads
+                     RTDEClientFakeServerTest.server_sender_start_and_stop_are_serialized
+                     RTDEClientFakeServerTest.too_few_output_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_many_output_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_few_input_types_fail_then_recover
+                     RTDEClientFakeServerTest.too_many_input_types_fail_then_recover
+                     RTDEClientFakeServerTest.unknown_output_type_fails_then_recovers
+                     RTDEClientFakeServerTest.unknown_input_type_fails_then_recovers
+                     RTDEClientFakeServerTest.disconnection_wait_tracks_each_connection
+                     RTDEClientFakeServerTest.repeated_output_negotiation_failures_recover
+                     RTDEClientFakeServerTest.input_in_use_exhausts_retries_then_recovers
+                     PROPERTIES TIMEOUT 60)
+
+# Covers RTDEClient::reconnect() by taking the fake RTDE server away and giving it back, so it runs
+# without a robot. Kept apart from the tests above because these wait on retry timing and are
+# therefore slower.
+add_executable(rtde_client_reconnect_tests test_rtde_client_reconnect.cpp fake_rtde_server.cpp)
+target_link_libraries(rtde_client_reconnect_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      rtde_client_reconnect_tests
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+# Bound these so a hang fails CI fast instead of timing out the job.
+set_tests_properties(RTDEClientReconnectTest.destructor_not_blocked_by_stuck_reconnect_thread
+                     RTDEClientReconnectTest.destroying_the_server_immediately_after_start
+                     RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_background_read
+                     RTDEClientReconnectTest.reconnects_when_the_server_comes_back_during_blocking_read
+                     RTDEClientReconnectTest.destroying_the_client_while_the_server_is_silent
+                     RTDEClientReconnectTest.reconnect_gives_up_when_the_handshake_keeps_failing
+                     PROPERTIES TIMEOUT 60)
 
 add_executable(tcp_server_tests test_tcp_server.cpp)
 if (MSVC)
@@ -304,6 +365,14 @@ gtest_add_tests(TARGET tcp_socket_tests
 # Bound the interruptible-setup regression tests so a hang fails CI fast instead of timing out the job.
 set_tests_properties(TCPSocketTest.setup_interruptible_by_close
                      TCPSocketTest.setup_interruptible_during_blocking_connect
+                     PROPERTIES TIMEOUT 60)
+# Without a working connect timeout these block until the OS gives up (~2 min on Linux); fail fast instead.
+set_tests_properties(TCPSocketTest.connect_timeout_bounds_attempt_to_unresponsive_host
+                     TCPSocketTest.connect_timeout_applies_to_each_attempt
+                     TCPSocketTest.timed_out_connection_is_closed_before_next_attempt
+                     TCPSocketTest.connect_timeout_of_zero_leaves_timeout_to_operating_system
+                     TCPSocketTest.disconnect_interrupts_connect_with_connect_timeout
+                     TCPSocketTest.reconnect_honors_connect_timeout
                      PROPERTIES TIMEOUT 60)
 
 add_executable(unique_fd_tests test_unique_fd.cpp)

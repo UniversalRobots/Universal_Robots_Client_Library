@@ -8,6 +8,13 @@ PrimaryClient
 The Primary Client serves as an interface to the robot's `primary interface <https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/primary-secondary-guide.html>`_, present on port 30001.
 The ``PrimaryClient`` class supports, among other things, sending URScript code for execution on the robot through the primary interface. Currently it offers two methods of script execution: ``sendScript`` and ``sendScriptBlocking``.
 
+Connection timeout
+------------------
+
+When the robot is switched off, it neither accepts nor refuses connection requests, and each connection attempt of ``start()`` waits until the operating system gives up. In some cases on Linux this can take about two minutes.
+To give up earlier, set a connect timeout with ``setConnectTimeout()`` before calling ``start()``. It applies to each single connection attempt, including automatic reconnects.
+By default, the connect timeout is disabled and the operating system's timeout applies.
+
 Script execution without feedback
 ---------------------------------
 Method signature:

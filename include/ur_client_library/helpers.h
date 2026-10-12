@@ -30,8 +30,10 @@
 #define UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED
 
 #include <string>
+#include <string_view>
 #include <chrono>
 #include <functional>
+#include <vector>
 
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/ur/datatypes.h"
@@ -141,6 +143,21 @@ bool parseBoolean(const std::string& str);
 std::vector<std::string> splitString(const std::string& string_to_split, const std::string& delimiter = ",");
 
 /*!
+ * \brief Splits \p input at each \p delimiter without copying the parts.
+ *
+ * Splits the same way as splitString(), including empty parts. The views point into \p input,
+ * so they are only valid for as long as the string \p input views is.
+ *
+ * \p parts is cleared and refilled, so a caller that reuses it with enough capacity reserved does
+ * not allocate. If \p delimiter is empty, \p input is the only part.
+ *
+ * \param input String to split
+ * \param delimiter Chars at which \p input is split
+ * \param parts Receives the parts between the delimiters
+ */
+void splitStringView(std::string_view input, std::string_view delimiter, std::vector<std::string_view>& parts);
+
+/*!
  * \brief Clamps every element of a container to the range [0, 1] in-place.
  *
  * \tparam T The type of the elements in the array.
@@ -178,7 +195,7 @@ RobotSeries robotSeriesFromTypeAndVersion(const RobotType type, const VersionInf
  *
  * \param robot_type_str The string representation of the robot type as used in the start_ursim.sh
  * script. Must be all lower-case, e.g. "ur3e", "ur5", "ur10e", "ur16e", "ur7e", "ur15", "ur30",
- * "ur8long".
+ * "ur8long", "ur10g-1750", "ur17g-1300", "ur18g-950".
  *
  * \throws std::invalid_argument if \p robot_type_str does not match a known robot type.
  *

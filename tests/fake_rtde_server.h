@@ -1,8 +1,13 @@
 #pragma once
 
+#include <condition_variable>
+#include <deque>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "ur_client_library/comm/bin_parser.h"
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
@@ -16,12 +21,123 @@ public:
   RTDEServer() = delete;
   explicit RTDEServer(const int port);
 
-  ~RTDEServer();
+  virtual ~RTDEServer();
 
   void startSendingDataPackages();
   void stopSendingDataPackages();
 
   void setStartTime(const std::chrono::steady_clock::time_point& start_time);
+
+  /*!
+   * \brief Makes the server send \p message ahead of its answer to the URControl version query.
+   *
+   * Real controllers do this: a PolyScope X simulator reports "SafetySetup has not been confirmed
+   * yet" on every connect until it has been switched on. Queue more messages than the client is
+   * willing to retry and it will give up on the query.
+   */
+  void queueTextMessageBeforeVersionReply(const std::string& message);
+
+  /*!
+   * \brief Makes the server refuse every protocol version above \p highest_accepted.
+   *
+   * Lets a test drive the client's fallback to an older protocol version, the way a controller too
+   * old for the newest version would.
+   */
+  void setHighestAcceptedProtocolVersion(const uint16_t highest_accepted);
+
+  /*!
+   * \brief The protocol versions the client asked for, in the order it asked, so a test can see it
+   * work its way down.
+   */
+  std::vector<uint16_t> requestedProtocolVersions();
+
+  /*!
+   * \brief Property-name payloads of RTDE_READ_PROPERTIES requests, in order.
+   */
+  std::vector<std::string> propertyRequests();
+
+  /*!
+   * \brief Whether the next RTDE start request is accepted. A refused start must not leave the
+   * client believing it is streaming.
+   */
+  void setAcceptStart(const bool accept);
+
+  /*!
+   * \brief Whether the next RTDE pause request is accepted.
+   */
+  void setAcceptPause(const bool accept);
+
+  /*!
+   * \brief Answers the next output-recipe setup with a text message instead of the acknowledgement.
+   *
+   * Queue more messages than the client is willing to retry and setupOutputs() gives up.
+   */
+  void queueTextMessageBeforeSetupOutputs(const std::string& message);
+
+  /*!
+   * \brief Answers the next input-recipe setup with a text message instead of the acknowledgement.
+   */
+  void queueTextMessageBeforeSetupInputs(const std::string& message);
+
+  // Override only the wire acknowledgement, not the server's internal typed data. Overrides
+  // persist across reconnects so retries see the same fault; nullopt restores normal replies.
+  void setOutputTypeReply(const std::optional<std::vector<std::string>>& types);
+  void setInputTypeReply(const std::optional<std::vector<std::string>>& types);
+
+  /*!
+   * \brief Reports \p type for output field \p name on every following setup acknowledgement.
+   *
+   * Other fields keep the type the robot would report, including NOT_FOUND. A full
+   * setOutputTypeReply() replaces this. The server's own data package is unchanged.
+   */
+  void setOutputFieldType(const std::string& name, const std::string& type);
+
+  // Wait until the single-client slot and disconnect cleanup are finished before reconnecting.
+  // Call after a handshake has established the connection and the client has disconnected.
+  bool waitForDisconnection(const std::chrono::milliseconds timeout);
+
+  // Inject one frame after init(), while streaming is paused and the connection is stable.
+  bool sendTestFrame(const std::vector<uint8_t>& frame);
+
+  /*!
+   * \brief Sends a text message ahead of the next RTDE_READ_PROPERTIES answer, the way a
+   * controller reports "SafetySetup has not been confirmed yet" right after connecting.
+   */
+  void queueTextMessageBeforeReadProperties(const std::string& message);
+
+  /*!
+   * \brief Reports \p token, such as NOT_SET, as the type of property \p name in every following
+   * RTDE_READ_PROPERTIES answer. Like a real controller, the answer then carries no values.
+   */
+  void setPropertyTypeReply(const std::string& name, const std::string& token);
+
+  /*!
+   * \brief Drops the last byte of the values in every following RTDE_READ_PROPERTIES answer. The
+   * header still matches the shortened frame, so only the value parsing runs out of data.
+   */
+  void setTruncatePropertyValues(const bool truncate);
+
+  /*!
+   * \brief Software version reported for v1.software.version. Defaults to 10.15.0.
+   */
+  void setReportedSoftwareVersion(const uint16_t major, const uint16_t minor, const uint16_t bugfix);
+
+  /*!
+   * \brief Reports v1.software.version as UINT32 with a 4-byte value instead of UINT64, the way a
+   * controller with a different encoding would. The answer still carries values.
+   */
+  void setSoftwareVersionAsUint32(const bool as_uint32);
+
+  /*!
+   * \brief Sends an accepted RTDE_CONTROL_PACKAGE_START reply ahead of the next RTDE_READ_PROPERTIES
+   * answer: a package that is neither the answer nor a text message.
+   */
+  void queueStartReplyBeforeReadProperties();
+
+  /*!
+   * \brief Sends message right after the next accepted start acknowledgement, before any data package.
+   */
+  void queueTextMessageAfterStart(const std::string& message);
 
 private:
   std::vector<std::string> input_recipe_;
@@ -39,6 +155,8 @@ private:
 
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
+  void handlePackage(const socket_t filedescriptor, rtde_interface::PackageType type, comm::BinParser& bp);
+
   void sendDataLoop();
   std::atomic<bool> send_loop_running_;
 
@@ -47,11 +165,41 @@ private:
   std::chrono::steady_clock::time_point start_time_;
 
   socket_t client_socket_;
+  std::vector<uint8_t> receive_buffer_;
 
   void actOnInput();
 
+  void sendTextMessage(const socket_t filedescriptor, const std::string& message);
+
   std::mutex output_data_mutex_;
   std::mutex thread_control_mutex_;
+
+  std::mutex connection_mutex_;
+  std::condition_variable connection_cv_;
+  bool client_connected_ = false;
+
+  std::mutex negotiation_mutex_;
+  std::deque<std::string> pending_text_messages_;
+  std::deque<std::string> pending_setup_outputs_text_messages_;
+  std::deque<std::string> pending_setup_inputs_text_messages_;
+  std::optional<std::vector<std::string>> output_type_reply_;
+  std::map<std::string, std::string> output_field_types_;
+  std::optional<std::vector<std::string>> input_type_reply_;
+  std::deque<std::string> pending_read_properties_text_messages_;
+  uint16_t highest_accepted_protocol_version_ = 2;
+  uint16_t negotiated_protocol_version_ = 2;
+  std::vector<uint16_t> requested_protocol_versions_;
+  std::vector<std::string> property_requests_;
+  std::map<std::string, std::string> property_type_replies_;
+  bool truncate_property_values_ = false;
+  uint16_t software_version_major_ = 10;
+  uint16_t software_version_minor_ = 15;
+  uint16_t software_version_bugfix_ = 0;
+  bool software_version_as_uint32_ = false;
+  unsigned pending_start_replies_before_read_properties_ = 0;
+  std::deque<std::string> pending_after_start_text_messages_;
+  bool accept_start_ = true;
+  bool accept_pause_ = true;
 };
 
 }  // namespace urcl

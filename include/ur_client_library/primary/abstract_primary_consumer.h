@@ -33,6 +33,7 @@
 #include "ur_client_library/comm/pipeline.h"
 #include "ur_client_library/primary/robot_message/version_message.h"
 #include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_message/hardware_info_message.h"
 #include "ur_client_library/primary/robot_state/kinematics_info.h"
 #include "ur_client_library/primary/robot_state/robot_mode_data.h"
 #include "ur_client_library/primary/robot_state/configuration_data.h"
@@ -87,6 +88,10 @@ public:
   virtual bool consume(SafetyModeMessage& pkg) = 0;
   virtual bool consume(KeyMessage& pkg) = 0;
   virtual bool consume(RuntimeExceptionMessage& pkg) = 0;
+  virtual bool consume(HardwareInfoMessage& pkg)
+  {
+    return consume(static_cast<RobotMessage&>(pkg));
+  }
 
 private:
   /* data */

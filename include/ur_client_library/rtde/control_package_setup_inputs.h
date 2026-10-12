@@ -29,8 +29,11 @@
 #ifndef UR_CLIENT_LIBRARY_CONTROL_PACKAGE_SETUP_INPUTS_H_INCLUDED
 #define UR_CLIENT_LIBRARY_CONTROL_PACKAGE_SETUP_INPUTS_H_INCLUDED
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
+#include "ur_client_library/rtde/data_type.h"
 #include "ur_client_library/rtde/rtde_package.h"
 
 namespace urcl
@@ -49,6 +52,9 @@ public:
   ControlPackageSetupInputs() : RTDEPackage(PackageType::RTDE_CONTROL_PACKAGE_SETUP_INPUTS)
   {
   }
+  // type_names_ views variable_types_, so a copy would view the original package's string.
+  ControlPackageSetupInputs(const ControlPackageSetupInputs&) = delete;
+  ControlPackageSetupInputs& operator=(const ControlPackageSetupInputs&) = delete;
   virtual ~ControlPackageSetupInputs() = default;
 
   /*!
@@ -69,6 +75,10 @@ public:
 
   uint8_t input_recipe_id_;
   std::string variable_types_;
+  /// One entry per field, empty where the robot answered with something other than a data type.
+  std::vector<std::optional<DataType>> data_types_;
+  /// The words of variable_types_, one per field, e.g. to tell NOT_FOUND from IN_USE.
+  std::vector<std::string_view> type_names_;
 };
 
 /*!

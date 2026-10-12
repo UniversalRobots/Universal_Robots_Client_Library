@@ -38,7 +38,9 @@
 namespace urcl
 {
 
-FakePrimaryServer::FakePrimaryServer(const int port) : server_(port)
+FakePrimaryServer::FakePrimaryServer(const int port, const size_t max_num_tries,
+                                     const std::chrono::milliseconds reconnection_time)
+  : server_(port, max_num_tries, reconnection_time)
 {
   server_.setMessageCallback(std::bind(&FakePrimaryServer::messageCallback, this, std::placeholders::_1,
                                        std::placeholders::_2, std::placeholders::_3));

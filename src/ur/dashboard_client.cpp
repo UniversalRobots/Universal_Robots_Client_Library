@@ -29,6 +29,8 @@
 #include <filesystem>
 #include <iostream>
 #include <regex>
+#include <stdexcept>
+#include <string>
 #include <thread>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client.h>
@@ -620,5 +622,20 @@ timeval DashboardClient::getConfiguredReceiveTimeout() const
 void DashboardClient::setReceiveTimeout(const timeval& timeout)
 {
   impl_->setReceiveTimeout(timeout);
+}
+
+std::chrono::milliseconds DashboardClient::getConfiguredConnectTimeout() const
+{
+  return impl_->getConfiguredConnectTimeout();
+}
+
+void DashboardClient::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  if (connect_timeout < std::chrono::milliseconds::zero())
+  {
+    throw std::invalid_argument("Connect timeout must not be negative, got " + std::to_string(connect_timeout.count()) +
+                                " ms");
+  }
+  impl_->setConnectTimeout(connect_timeout);
 }
 }  // namespace urcl

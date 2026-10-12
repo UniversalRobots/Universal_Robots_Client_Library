@@ -156,6 +156,23 @@ public:
   virtual void setSendTimeout([[maybe_unused]] const timeval& timeout) {};
 
   /*!
+   * \brief Gets the configured connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  virtual std::chrono::milliseconds getConfiguredConnectTimeout() const
+  {
+    return std::chrono::milliseconds::zero();
+  }
+
+  /*!
+   * \brief Sets the maximum duration of a single connection attempt.
+   *
+   * \param connect_timeout Connect timeout, not negative
+   */
+  virtual void setConnectTimeout([[maybe_unused]] const std::chrono::milliseconds connect_timeout) {};
+
+  /*!
    * \brief Sends command and verifies that a valid answer is received.
    *
    * \param command Command that will be sent to the server.

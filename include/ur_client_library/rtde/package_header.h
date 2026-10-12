@@ -31,6 +31,7 @@
 #define UR_CLIENT_LIBRARY_RTDE__HEADER_H_INCLUDED
 
 #include <cstddef>
+#include <cstring>
 #include <urcl_3rdparty/portable_endian.h>
 #include "ur_client_library/types.h"
 #include "ur_client_library/comm/package_serializer.h"
@@ -51,7 +52,8 @@ enum class PackageType : uint8_t
   RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS = 79,  // ascii O
   RTDE_CONTROL_PACKAGE_SETUP_INPUTS = 73,   // ascii I
   RTDE_CONTROL_PACKAGE_START = 83,          // ascii S
-  RTDE_CONTROL_PACKAGE_PAUSE = 80           // ascii P
+  RTDE_CONTROL_PACKAGE_PAUSE = 80,          // ascii P
+  RTDE_READ_PROPERTIES = 82                 // ascii R
 };
 
 /*!
@@ -73,7 +75,11 @@ public:
    */
   static size_t getPackageLength(uint8_t* buf)
   {
-    return be16toh(*(reinterpret_cast<_package_size_type*>(buf)));
+    // Copy the bytes out instead of casting: buf can point anywhere inside a byte stream, and an
+    // unaligned _package_size_type access is undefined behavior.
+    _package_size_type package_size;
+    std::memcpy(&package_size, buf, sizeof(package_size));
+    return be16toh(package_size);
   }
 
   /*!

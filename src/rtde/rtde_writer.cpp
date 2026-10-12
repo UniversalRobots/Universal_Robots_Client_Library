@@ -28,6 +28,7 @@
 
 #include "ur_client_library/rtde/rtde_writer.h"
 #include <mutex>
+#include "ur_client_library/exceptions.h"
 #include "ur_client_library/log.h"
 
 namespace urcl
@@ -59,26 +60,82 @@ RTDEWriter::RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<st
 
 void RTDEWriter::setInputRecipe(const std::vector<std::string>& recipe)
 {
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
   if (running_)
   {
     throw UrException("Requesting to change the input recipe while the RTDEWriter is running. The writer has to be "
                       "stopped before setting the recipe.");
   }
-  std::lock_guard<std::mutex> lock_guard(store_mutex_);
   recipe_ = recipe;
   used_masks_.clear();
   for (const auto& field : recipe)
   {
-    if (field.size() >= 5 && field.substr(field.size() - 5) == "_mask")
+    if (field.size() >= 5 && field.compare(field.size() - 5, 5, "_mask") == 0)
     {
       used_masks_.push_back(field);
     }
   }
+  // All storage the send path needs is allocated here. The buffers stay unusable until the robot
+  // has reported the data types of the recipe's fields, which setRecipeTypes() then applies without
+  // allocating again.
   data_buffer0_ = std::make_shared<DataPackage>(recipe_);
   data_buffer1_ = std::make_shared<DataPackage>(recipe_);
+  data_buffer0_->setProtocolVersion(protocol_version_);
+  data_buffer1_->setProtocolVersion(protocol_version_);
 
   current_store_buffer_ = data_buffer0_;
   current_send_buffer_ = data_buffer1_;
+}
+
+void RTDEWriter::setProtocolVersion(uint16_t protocol_version)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the RTDE protocol version while the writer is running.");
+  }
+  protocol_version_ = protocol_version;
+  if (data_buffer0_ != nullptr)
+  {
+    data_buffer0_->setProtocolVersion(protocol_version);
+  }
+  if (data_buffer1_ != nullptr)
+  {
+    data_buffer1_->setProtocolVersion(protocol_version);
+  }
+}
+
+uint16_t RTDEWriter::getProtocolVersion() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return protocol_version_;
+}
+
+void RTDEWriter::setToolFlangeType(const ToolFlangeType tool_flange_type)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the tool-flange type while the writer is running.");
+  }
+  tool_flange_type_ = tool_flange_type;
+}
+
+ToolFlangeType RTDEWriter::getToolFlangeType() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return tool_flange_type_;
+}
+
+void RTDEWriter::setRecipeTypes(const std::vector<DataType>& types)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot apply RTDE recipe types while the writer is running.");
+  }
+  data_buffer0_->setTypes(types);
+  data_buffer1_->setTypes(types);
 }
 
 void RTDEWriter::init(uint8_t recipe_id)
@@ -90,13 +147,33 @@ void RTDEWriter::init(uint8_t recipe_id)
   }
   {
     std::lock_guard<std::mutex> lock_guard(store_mutex_);
+    if (running_)
+    {
+      throw UrException("Requesting to init a RTDEWriter while it is running. The writer has to be "
+                        "stopped before initializing it.");
+    }
+    if (!data_buffer0_->isTyped() || !data_buffer1_->isTyped())
+    {
+      throw UrException("Cannot start the RTDEWriter before the data types the robot acknowledged for the input "
+                        "recipe have been applied with setRecipeTypes().");
+    }
     data_buffer0_->setRecipeID(recipe_id);
     data_buffer1_->setRecipeID(recipe_id);
+    current_store_buffer_ = data_buffer0_;
+    current_send_buffer_ = data_buffer1_;
+    recipe_id_ = recipe_id;
+    new_data_available_ = false;
+    running_ = true;
+    try
+    {
+      writer_thread_ = std::thread(&RTDEWriter::run, this);
+    }
+    catch (...)
+    {
+      running_ = false;
+      throw;
+    }
   }
-  recipe_id_ = recipe_id;
-  new_data_available_ = false;
-  running_ = true;
-  writer_thread_ = std::thread(&RTDEWriter::run, this);
 }
 
 void RTDEWriter::run()
@@ -143,9 +220,23 @@ void RTDEWriter::stop()
 bool RTDEWriter::sendPackage(const DataPackage& package)
 {
   std::lock_guard<std::mutex> guard(store_mutex_);
-  *current_store_buffer_ = package;
+  if (!running_ || !current_store_buffer_->copyFrom(package))
+  {
+    return false;
+  }
   markStorageToBeSent();
   return true;
+}
+
+DataPackage RTDEWriter::createDataPackage()
+{
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  if (current_store_buffer_ == nullptr || !running_ || !current_store_buffer_->isTyped())
+  {
+    throw UrException("Cannot create an RTDE input data package before the robot has acknowledged the input recipe. "
+                      "That happens during the RTDE handshake, so call this after RTDEClient::init().");
+  }
+  return current_store_buffer_->emptyCopy();
 }
 
 bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
@@ -162,6 +253,10 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
   static const std::string key = "speed_slider_fraction";
   static const std::string mask_key = "speed_slider_mask";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint32_t mask = 1;
   bool success = true;
   success = current_store_buffer_->setData(mask_key, mask);
@@ -187,6 +282,10 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
   static const std::string key_mask = "standard_digital_output_mask";
   static const std::string key_output = "standard_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -210,31 +309,41 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 {
-  if (output_pin > 7)
-  {
-    std::stringstream ss;
-    ss << "Configurable digital output pins goes from 0 to 7. The output pin to change is "
-       << static_cast<int>(output_pin);
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
-  }
-
   static const std::string key_mask = "configurable_digital_output_mask";
   static const std::string key_output = "configurable_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
-  uint8_t mask = pinToMask(output_pin);
-  bool success = true;
-  uint8_t digital_output;
-  if (value)
+  if (!running_)
   {
-    digital_output = 255;
+    return false;
+  }
+
+  const std::optional<DataType> type = current_store_buffer_->getDataType(key_mask);
+  if (!type.has_value())
+  {
+    URCL_LOG_ERROR("Configurable digital output mask is not available with the negotiated RTDE recipe");
+    return false;
+  }
+  bool success = false;
+  if (type == DataType::UINT8 && output_pin <= 7)
+  {
+    const uint8_t mask = pinToMask(output_pin);
+    success = current_store_buffer_->setData(key_mask, mask);
+    success = success && current_store_buffer_->setData(key_output, value ? mask : uint8_t{ 0 });
+  }
+  else if (type == DataType::UINT32 && output_pin <= 15)
+  {
+    const uint32_t mask = uint32_t{ 1 } << output_pin;
+    success = current_store_buffer_->setData(key_mask, mask);
+    success = success && current_store_buffer_->setData(key_output, value ? mask : uint32_t{ 0 });
   }
   else
   {
-    digital_output = 0;
+    std::stringstream ss;
+    ss << "Configurable digital output pin " << static_cast<int>(output_pin)
+       << " is not available with the negotiated RTDE recipe";
+    URCL_LOG_ERROR("%s", ss.str().c_str());
+    return false;
   }
-  success = current_store_buffer_->setData(key_mask, mask);
-  success = success && current_store_buffer_->setData(key_output, digital_output);
   if (success)
   {
     markStorageToBeSent();
@@ -245,17 +354,22 @@ bool RTDEWriter::sendConfigurableDigitalOutput(uint8_t output_pin, bool value)
 
 bool RTDEWriter::sendToolDigitalOutput(uint8_t output_pin, bool value)
 {
-  if (output_pin > 1)
-  {
-    std::stringstream ss;
-    ss << "Tool digital output pins goes from 0 to 1. The output pin to change is " << static_cast<int>(output_pin);
-    URCL_LOG_ERROR(ss.str().c_str());
-    return false;
-  }
-
   static const std::string key_mask = "tool_digital_output_mask";
   static const std::string key_output = "tool_digital_output";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
+  const uint8_t maximum_pin = tool_flange_type_ == ToolFlangeType::V2 ? 5 : 1;
+  if (output_pin > maximum_pin)
+  {
+    std::stringstream ss;
+    ss << "Tool digital output pins go from 0 to " << static_cast<int>(maximum_pin) << " with tool-flange type "
+       << toolFlangeTypeString(tool_flange_type_) << ". The output pin to change is " << static_cast<int>(output_pin);
+    URCL_LOG_ERROR("%s", ss.str().c_str());
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
   bool success = true;
   uint8_t digital_output;
@@ -295,6 +409,10 @@ bool RTDEWriter::sendStandardAnalogOutput(uint8_t output_pin, double value, cons
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   uint8_t mask = pinToMask(output_pin);
 
   bool success = true;
@@ -339,6 +457,10 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_bit_register_keys[register_id], value);
   if (success)
   {
@@ -359,6 +481,10 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_int_register_keys[register_id], value);
   if (success)
   {
@@ -379,6 +505,10 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
   }
 
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(g_preallocated_input_double_register_keys[register_id], value);
   if (success)
   {
@@ -392,6 +522,10 @@ bool RTDEWriter::sendExternalForceTorque(const vector6d_t& external_force_torque
 {
   static const std::string key = "external_force_torque";
   std::lock_guard<std::mutex> guard(store_mutex_);
+  if (!running_)
+  {
+    return false;
+  }
   bool success = current_store_buffer_->setData(key, external_force_torque);
   if (success)
   {
@@ -404,19 +538,7 @@ void RTDEWriter::resetMasks(const std::shared_ptr<DataPackage>& buffer)
 {
   for (const auto& mask_name : used_masks_)
   {
-    // "speed_slider_mask" is uint32_t, all others are uint8_t
-    // If we reset it to the wrong type, serialization will be wrong
-    if (mask_name == "speed_slider_mask")
-
-    {
-      uint32_t mask = 0;
-      buffer->setData<uint32_t>(mask_name, mask);
-    }
-    else
-    {
-      uint8_t mask = 0;
-      buffer->setData<uint8_t>(mask_name, mask);
-    }
+    buffer->resetData(mask_name);
   }
 }
 

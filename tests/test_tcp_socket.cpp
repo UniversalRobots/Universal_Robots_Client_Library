@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <cstddef>
+#include <stdexcept>
 #include <thread>
 #include "test_utils.h"
 
@@ -109,6 +110,12 @@ protected:
                    const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
     {
       return TCPSocket::reconnect(ip_, port_, max_num_tries, reconnection_time);
+    }
+
+    bool reconnectTo(const std::string& ip, const int port, const size_t max_num_tries = 0,
+                     const std::chrono::milliseconds reconnection_time = std::chrono::seconds(10))
+    {
+      return TCPSocket::reconnect(ip, port, max_num_tries, reconnection_time);
     }
 
     bool setTargetStateUnlessStopRequested(comm::SocketState desired)
@@ -424,6 +431,199 @@ TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
   EXPECT_LT(elapsed, std::chrono::seconds(2)) << "TCPSocket::setup() was not interrupted while blocked in connect() "
                                                  "within 2 s; "
                                                  "the connect attempt is not interruptible";
+}
+
+TEST_F(TCPSocketTest, connect_timeout_is_disabled_by_default)
+{
+  EXPECT_EQ(client_->getConnectTimeout(), std::chrono::milliseconds::zero());
+}
+
+TEST_F(TCPSocketTest, set_connect_timeout)
+{
+  client_->setConnectTimeout(std::chrono::milliseconds(750));
+  EXPECT_EQ(client_->getConnectTimeout(), std::chrono::milliseconds(750));
+
+  client_->setConnectTimeout(std::chrono::milliseconds::zero());
+  EXPECT_EQ(client_->getConnectTimeout(), std::chrono::milliseconds::zero());
+}
+
+TEST_F(TCPSocketTest, set_connect_timeout_rejects_negative_values)
+{
+  client_->setConnectTimeout(std::chrono::milliseconds(750));
+  EXPECT_THROW(client_->setConnectTimeout(std::chrono::milliseconds(-1)), std::invalid_argument);
+  EXPECT_EQ(client_->getConnectTimeout(), std::chrono::milliseconds(750));
+}
+
+TEST_F(TCPSocketTest, connect_with_connect_timeout)
+{
+  client_->setConnectTimeout(std::chrono::seconds(1));
+  ASSERT_TRUE(client_->connect());
+  EXPECT_EQ(client_->getState(), comm::SocketState::Connected);
+
+  // Blocking mode has to be restored after the connect.
+  std::string message = "test message";
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(message.c_str());
+  size_t written;
+  ASSERT_TRUE(client_->write(data, message.size(), written));
+  EXPECT_TRUE(server_->waitForMessageCallback());
+  EXPECT_EQ(message, server_->getReceivedMessage());
+}
+
+TEST_F(TCPSocketTest, connect_timeout_does_not_delay_refused_connection)
+{
+  const std::chrono::milliseconds connect_timeout(5000);
+  Client client(12324, "127.0.0.1");
+  client.setConnectTimeout(connect_timeout);
+
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(client.connect(1));
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_LT(elapsed, connect_timeout);
+}
+
+TEST_F(TCPSocketTest, connect_timeout_bounds_attempt_to_unresponsive_host)
+{
+  UnresponsiveServer unresponsive_server;
+  if (!unresponsive_server.isUnresponsive())
+  {
+    GTEST_SKIP() << "This operating system refuses connection requests to a full accept queue";
+  }
+  const std::chrono::milliseconds connect_timeout(500);
+  Client client(unresponsive_server.getPort());
+  client.setConnectTimeout(connect_timeout);
+
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(client.connect(1));
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_GE(elapsed, connect_timeout);
+  EXPECT_LT(elapsed, std::chrono::seconds(3));
+  EXPECT_EQ(client.getState(), comm::SocketState::Closed);
+}
+
+TEST_F(TCPSocketTest, connect_timeout_applies_to_each_attempt)
+{
+  UnresponsiveServer unresponsive_server;
+  if (!unresponsive_server.isUnresponsive())
+  {
+    GTEST_SKIP() << "This operating system refuses connection requests to a full accept queue";
+  }
+  const std::chrono::milliseconds connect_timeout(300);
+  const std::chrono::milliseconds reconnection_time(100);
+  const int max_num_tries = 3;
+  Client client(unresponsive_server.getPort());
+  client.setConnectTimeout(connect_timeout);
+
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(client.connect(max_num_tries, reconnection_time));
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_GE(elapsed, connect_timeout * max_num_tries + reconnection_time * (max_num_tries - 1));
+  EXPECT_LT(elapsed, std::chrono::seconds(5));
+}
+
+TEST_F(TCPSocketTest, timed_out_connection_is_closed_before_next_attempt)
+{
+  UnresponsiveServer unresponsive_server;
+  if (!unresponsive_server.isUnresponsive())
+  {
+    GTEST_SKIP() << "This operating system refuses connection requests to a full accept queue";
+  }
+  Client client(unresponsive_server.getPort());
+  client.setConnectTimeout(std::chrono::milliseconds(200));
+
+  bool connected = false;
+  std::thread connect_thread([&client, &connected]() { connected = client.connect(2, std::chrono::seconds(2)); });
+
+  // Free the accept queue after the first attempt timed out. A still pending request would be
+  // retransmitted after about one second and accepted.
+  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  unresponsive_server.acceptPending();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  EXPECT_EQ(unresponsive_server.acceptPending(), 0u) << "The timed-out connection request was still pending during the "
+                                                        "wait before the next attempt";
+
+  connect_thread.join();
+  EXPECT_TRUE(connected);
+}
+
+TEST_F(TCPSocketTest, connect_timeout_of_zero_leaves_timeout_to_operating_system)
+{
+  UnresponsiveServer unresponsive_server;
+  if (!unresponsive_server.isUnresponsive())
+  {
+    GTEST_SKIP() << "This operating system refuses connection requests to a full accept queue";
+  }
+  Client client(unresponsive_server.getPort());
+  client.setConnectTimeout(std::chrono::milliseconds(200));
+  client.setConnectTimeout(std::chrono::milliseconds::zero());
+
+  std::atomic<bool> done(false);
+  std::thread connect_thread([&client, &done]() {
+    client.connect(1);
+    done = true;
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  EXPECT_FALSE(done);
+  EXPECT_EQ(client.getState(), comm::SocketState::Connecting);
+
+  client.disconnect();
+  connect_thread.join();
+}
+
+TEST_F(TCPSocketTest, disconnect_interrupts_connect_with_connect_timeout)
+{
+  UnresponsiveServer unresponsive_server;
+  Client client(unresponsive_server.getPort());
+  client.setConnectTimeout(std::chrono::seconds(10));
+
+  std::thread connect_thread([&client]() { client.connect(0, std::chrono::seconds(5)); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  const auto start = std::chrono::steady_clock::now();
+  client.disconnect();
+  connect_thread.join();
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_LT(elapsed, std::chrono::seconds(2));
+}
+
+TEST_F(TCPSocketTest, reconnect_honors_connect_timeout)
+{
+  UnresponsiveServer unresponsive_server;
+  if (!unresponsive_server.isUnresponsive())
+  {
+    GTEST_SKIP() << "This operating system refuses connection requests to a full accept queue";
+  }
+
+  ASSERT_TRUE(client_->connect());
+  ASSERT_TRUE(server_->waitForConnectionCallback());
+  timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100000;
+  client_->setReceiveTimeout(tv);
+  server_.reset();
+  uint8_t buffer[64];
+  size_t read_chars = 0;
+  ASSERT_NO_THROW(waitFor(
+      [this, &buffer, &read_chars]() {
+        client_->read(buffer, sizeof(buffer), read_chars);
+        return client_->getState() == comm::SocketState::LostConnection;
+      },
+      std::chrono::seconds(2)));
+
+  const std::chrono::milliseconds connect_timeout(500);
+  client_->setConnectTimeout(connect_timeout);
+
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(client_->reconnectTo("127.0.0.1", unresponsive_server.getPort(), 1));
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_GE(elapsed, connect_timeout);
+  EXPECT_LT(elapsed, std::chrono::seconds(3));
+  EXPECT_EQ(client_->getState(), comm::SocketState::LostConnection);
 }
 
 TEST_F(TCPSocketTest, test_deprecated_reconnection_time_interface)

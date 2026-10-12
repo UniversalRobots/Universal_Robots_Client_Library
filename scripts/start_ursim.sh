@@ -43,7 +43,7 @@ help()
   echo
   echo "Syntax: `basename "$0"` [-m|s|h]"
   echo "options:"
-  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur7e, ur8long, ur10e, ur12e, ur16e, ur15, ur18, ur20, ur30]. Defaults to ur5e."
+  echo "    -m <model>     Robot model. One of [ur3, ur3e, ur5, ur5e, ur7e, ur8long, ur10e, ur12e, ur16e, ur15, ur18, ur20, ur30, ur10g-1750, ur17g-1300, ur18g-950]. Defaults to ur5e."
   echo "    -v <version>   URSim version that should be used.
                    See https://hub.docker.com/r/universalrobots/ursim_e-series/tags
                    for available versions. Defaults to 'latest'"
@@ -97,6 +97,9 @@ get_series_from_model()
     ur8long|ur15|ur18|ur20|ur30)
       ROBOT_SERIES=e-series
       ;;
+    ur10g-1750|ur17g-1300|ur18g-950)
+      ROBOT_SERIES=polyscopex
+      ;;
     *)
       echo "Not a valid robot model: $robot_model"
       exit 1
@@ -133,7 +136,7 @@ strip_robot_model()
     ROBOT_MODEL=${robot_model^^}
   else
     ROBOT_MODEL=${robot_model^^}
-    # UR8LONG, UR15, UR18, UR20 and UR30 need no further adjustment
+    # UR8LONG, UR15, UR18, UR20, UR30 and g-Series models need no further adjustment
     if [[ "$robot_model" = @(ur3e|ur5e|ur10e|ur16e) ]]; then
       ROBOT_MODEL=$(echo "${ROBOT_MODEL:0:$((${#ROBOT_MODEL}-1))}")
     elif [[ "$robot_model" = @(ur7e|ur12e) ]]; then
@@ -165,6 +168,7 @@ validate_parameters()
   local MIN_UR7e_X="10.9.0" # and UR12e
   local MIN_UR8LONG="5.23.0" # and UR18
   local MIN_UR8LONG_X="10.11.0" # and UR18
+  local MIN_G_SERIES="10.15.0"
 
   local URSIM_VERSION_CHECK="$URSIM_VERSION"
   if [[ "$URSIM_VERSION" == "latest" ]]; then
@@ -173,7 +177,11 @@ validate_parameters()
     elif [[ "$ROBOT_SERIES" == "e-series" ]]; then
       URSIM_VERSION_CHECK="$MIN_UR15"
     elif [[ "$ROBOT_SERIES" == "polyscopex" ]]; then
-      URSIM_VERSION_CHECK="MIN_UR15_X"
+      if [[ $ROBOT_MODEL == @(ur10g-1750|ur17g-1300|ur18g-950) ]]; then
+        URSIM_VERSION_CHECK="$MIN_G_SERIES"
+      else
+        URSIM_VERSION_CHECK="$MIN_UR15_X"
+      fi
     fi
   fi
 
@@ -216,8 +224,10 @@ validate_parameters()
         echo "PolyscopeX is only supported from version $MIN_POLYSCOPE_X onwards"
         exit 1
       fi
-      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur8long|ur10e|ur12e|ur16e|ur15|ur18|ur20|ur30) ]]; then
+      if [[ $ROBOT_MODEL != @(ur3e|ur5e|ur7e|ur8long|ur10e|ur12e|ur16e|ur15|ur18|ur20|ur30|ur10g-1750|ur17g-1300|ur18g-950) ]]; then
         echo "$ROBOT_MODEL is no valid PolyscopeX model!" && exit 1
+      elif [[ $ROBOT_MODEL == @(ur10g-1750|ur17g-1300|ur18g-950) ]]; then
+          MIN_VERSION=$MIN_G_SERIES
       elif [[ $ROBOT_MODEL == "ur7e" || $ROBOT_MODEL == "ur12e" ]]; then
           MIN_VERSION=$MIN_UR7e_X
       elif [[ $ROBOT_MODEL == "ur8long" || $ROBOT_MODEL == "ur18" ]]; then

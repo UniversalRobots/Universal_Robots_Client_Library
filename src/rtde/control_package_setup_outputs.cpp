@@ -34,7 +34,8 @@ namespace rtde_interface
 {
 bool ControlPackageSetupOutputs::parseWith(comm::BinParser& bp)
 {
-  if (protocol_version_ == 2)
+  // Protocol version 3 keeps the version 2 setup-outputs layout.
+  if (protocol_version_ >= 2)
   {
     bp.parse(output_recipe_id_);
     bp.parseRemainder(variable_types_);
@@ -51,12 +52,13 @@ bool ControlPackageSetupOutputs::parseWith(comm::BinParser& bp)
     return false;
   }
 
+  parseDataTypes(variable_types_, type_names_, data_types_);
   return true;
 }
 std::string ControlPackageSetupOutputs::toString() const
 {
   std::stringstream ss;
-  if (protocol_version_ == 2)
+  if (protocol_version_ >= 2)
   {
     ss << "output recipe id: " << static_cast<int>(output_recipe_id_) << std::endl;
     ss << "variable types: " << variable_types_;

@@ -102,8 +102,10 @@ class PrimaryClientFakeTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<FakePrimaryServer>(30001);
-    client_ = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier_);
+    // Passing 0 makes bind() select an available port. A fixed port can already be in use, and
+    // TCPServer retries that bind forever.
+    server_ = std::make_unique<FakePrimaryServer>(0);
+    client_ = std::make_unique<primary_interface::PrimaryClient>("127.0.0.1", notifier_, server_->getPort());
     EXPECT_NO_THROW(client_->start());
     EXPECT_TRUE(server_->waitForClient());
   }

@@ -72,10 +72,13 @@ public:
    * headless mode. This flag is ignored in headless mode.
    * \param script_file URScript file to send to the robot. That should be script code
    * communicating to the driver's reverse interface and trajectory interface.
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
    */
   ExampleRobotWrapper(const std::string& robot_ip, const std::string& output_recipe_file,
                       const std::string& input_recipe_file, const bool headless_mode = true,
-                      const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE);
+                      const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE,
+                      const std::string& reverse_ip = "");
   /*!
    * \brief Construct a new Example Robot Wrapper object
    *
@@ -92,10 +95,13 @@ public:
    * headless mode. This flag is ignored in headless mode.
    * \param script_file URScript file to send to the robot. That should be script code
    * communicating to the driver's reverse interface and trajectory interface.
+   * \param reverse_ip IP address that the reverse_port will get bound to. If not specified, the IP
+   * address of the interface that is used for connecting to the robot's RTDE port will be used.
    */
   ExampleRobotWrapper(const std::string& robot_ip, const std::vector<std::string> output_recipe,
                       const std::vector<std::string> input_recipe, const bool headless_mode = true,
-                      const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE);
+                      const std::string& autostart_program = "", const std::string& script_file = SCRIPT_FILE,
+                      const std::string& reverse_ip = "");
   ~ExampleRobotWrapper();
 
   /**

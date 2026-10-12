@@ -31,6 +31,7 @@
 #pragma once
 
 #include "ur_client_library/types.h"
+#include "ur_client_library/ur/datatypes.h"
 #include "ur_client_library/primary/robot_state.h"
 #include <iostream>
 
@@ -63,9 +64,7 @@ public:
    *
    * \param type The type of RobotState message received
    */
-  ConfigurationData(const RobotStateType type) : RobotState(type)
-  {
-  }
+  ConfigurationData(const RobotStateType type);
 
   /*!
    * \brief Creates a copy of a ConfigurationData object.
@@ -114,11 +113,14 @@ public:
   urcl::vector6d_t dh_alpha_;
   urcl::vector6d_t dh_theta_;
   int32_t masterboard_version_;
+  // This reserved field is not the control box type after PolyScope 5.25 / 10.12
+  // (see control_box_type_ below).
+  [[deprecated("Deprecated in PolyScope 5.26.0 / 10.13.0.")]]
   int32_t controller_box_type_;
   int32_t robot_type_;
   int32_t robot_sub_type_;
-  int16_t reserved_1_{ 0 };
-  int16_t reserved_2_{ 0 };
+  ControlBoxType control_box_type_{ ControlBoxType::UNKNOWN };
+  ToolFlangeType tool_flange_type_{ ToolFlangeType::UNKNOWN };
 };
 
 }  // namespace primary_interface

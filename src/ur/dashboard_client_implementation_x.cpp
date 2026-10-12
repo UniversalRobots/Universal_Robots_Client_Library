@@ -28,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <limits>
 #include <string>
 
 #ifdef _WIN32
@@ -134,7 +135,7 @@ DashboardClientImplX::DashboardClientImplX(const std::string& host) : DashboardC
   // (write), commandUpdateProgram (write), commandDownloadProgram (read) — without forcing
   // each one to plumb its own timeout. commandPowerOn already accepts its own (longer)
   // timeout parameter. Callers needing different limits can override via setReceiveTimeout.
-  cli_->set_connection_timeout(std::chrono::seconds(5));
+  setConnectTimeout(connect_timeout_);
   cli_->set_read_timeout(std::chrono::seconds(recv_timeout_.tv_sec) + std::chrono::microseconds(recv_timeout_.tv_usec));
   cli_->set_write_timeout(std::chrono::seconds(send_timeout_.tv_sec) +
                           std::chrono::microseconds(send_timeout_.tv_usec));
@@ -207,6 +208,27 @@ timeval DashboardClientImplX::getConfiguredReceiveTimeout() const
 timeval DashboardClientImplX::getConfiguredSendTimeout() const
 {
   return send_timeout_;
+}
+
+std::chrono::milliseconds DashboardClientImplX::getConfiguredConnectTimeout() const
+{
+  return connect_timeout_;
+}
+
+void DashboardClientImplX::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
+{
+  connect_timeout_ = connect_timeout;
+  if (cli_)
+  {
+    // cpp-httplib fails at once on 0 and handles the timeout as int milliseconds.
+    const std::chrono::milliseconds max_timeout(std::numeric_limits<int>::max());
+    std::chrono::milliseconds httplib_timeout = connect_timeout > max_timeout ? max_timeout : connect_timeout;
+    if (httplib_timeout <= std::chrono::milliseconds::zero())
+    {
+      httplib_timeout = std::chrono::seconds(CPPHTTPLIB_CONNECTION_TIMEOUT_SECOND);
+    }
+    cli_->set_connection_timeout(httplib_timeout);
+  }
 }
 
 void DashboardClientImplX::assertHasCommand(const std::string& command)

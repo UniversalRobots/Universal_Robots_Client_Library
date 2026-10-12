@@ -29,11 +29,15 @@
 #ifndef UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 #define UR_CLIENT_LIBRARY_RTDE_CLIENT_H_INCLUDED
 
+#include <atomic>
 #include <memory>
+#include <optional>
 
 #include "ur_client_library/comm/producer.h"
 #include "ur_client_library/comm/stream.h"
 #include "ur_client_library/rtde/data_package.h"
+#include "ur_client_library/rtde/read_properties.h"
+#include "ur_client_library/rtde/robot_properties.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
 #include "ur_client_library/rtde/rtde_writer.h"
@@ -44,7 +48,7 @@ namespace urcl
 {
 namespace rtde_interface
 {
-static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 2;
+static const uint16_t MAX_RTDE_PROTOCOL_VERSION = 3;
 static const unsigned MAX_REQUEST_RETRIES = 5;
 
 enum class UrRtdeRobotStatusBits
@@ -143,6 +147,24 @@ public:
             const std::chrono::milliseconds reconnection_timeout = comm::TCPSocket::DEFAULT_RECONNECTION_TIME,
             const size_t max_initialization_attempts = 3,
             const std::chrono::milliseconds initialization_timeout = std::chrono::seconds(1));
+
+  /*!
+   * \brief Sets the maximum duration of a single socket connection attempt, see
+   * comm::TCPSocket::setConnectTimeout(). Applies to init() and to reconnects.
+   *
+   * \param connect_timeout Connect timeout, 0 (default) leaves it to the operating system
+   *
+   * \throws std::invalid_argument if \p connect_timeout is negative
+   */
+  void setConnectTimeout(const std::chrono::milliseconds connect_timeout);
+
+  /*!
+   * \brief Getter for the connect timeout.
+   *
+   * \returns The connect timeout, 0 if disabled
+   */
+  std::chrono::milliseconds getConnectTimeout() const;
+
   /*!
    * \brief Triggers the robot to start sending RTDE data packages in the negotiated format.
    *
@@ -190,16 +212,44 @@ public:
    * received from the robot can be fetched with this. When no new data has been received since the last call to this
    * function, it will wait for the time specified in the \p timeout parameter.
    *
+   * This wait can pace an application loop at the negotiated RTDE output frequency. If a newer
+   * sample is already available, the call returns immediately. The background reader keeps only
+   * the latest sample, so intermediate samples may be skipped when the application is slower.
+   * Allow a timeout covering the expected period and scheduling jitter, and check the return value.
+   * For more direct packet-arrival pacing without a background-reader handoff, use start(false)
+   * and getDataPackageBlocking(). Neither mode guarantees phase synchronization with robot control.
+   *
    * When packages are not read from the background thread, this function will return false and
    * print an error message.
    *
    * \param data_package Reference to a DataPackage where the received data package will be stored
-   * if a package was fetched successfully.
+   *   if a package was fetched successfully.
+   *   - For optimal performance, it should be a package that was built from the same output recipe
+   *     as used in this RTDEClient (see getOutputRecipe()) and is reused on every call.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Stopping or reconnecting cancels a pending read, which then returns false.
    * \param timeout Time to wait if no data package is currently in the queue
    *
    * \returns Whether a data package was received successfully
    */
   bool getDataPackage(DataPackage& data_package, std::chrono::milliseconds timeout);
+
+  /*!
+   * \brief Return the latest data package received, into a caller-owned unique pointer.
+   *
+   * Behaves like getDataPackage(DataPackage&, std::chrono::milliseconds).
+   *
+   * \param data_package Reference to a unique ptr where the received data package will be stored.
+   *   - For optimal performance, the pointer should hold a pre-allocated data package that was
+   *     built from the same output recipe as used in this RTDEClient.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Null pointers allocate a package with a warning.
+   *   - The caller retains ownership on failure; a null pointer is assigned only on success.
+   *   - Stopping or reconnecting cancels a pending read, which then returns false.
+   * \param timeout Time to wait if no data package is currently in the queue
+   *
+   * \returns Whether a data package was received successfully
+   */
   bool getDataPackage(std::unique_ptr<DataPackage>& data_package, std::chrono::milliseconds timeout);
 
   /*!
@@ -207,11 +257,23 @@ public:
    *
    * This function will block until a new data package is received from the robot and return it.
    *
+   * With \ref urcl::rtde_interface::RTDEClient::start(bool) "start(false)", calling this at the start
+   * of each loop iteration can pace application work at the negotiated RTDE output frequency: when
+   * no data is buffered, packet arrival releases the wait. Already buffered packages can return
+   * immediately, so the application must keep up with the stream to avoid lag. Network and scheduling
+   * jitter still apply; this does not guarantee phase synchronization with the robot's internal
+   * control cycle or next-cycle command delivery. getDataPackage() with background reading can also
+   * pace a loop, but favors the latest sample and decouples socket reading from application work.
+   *
    * \param data_package Reference to a unique ptr where the received data package will be stored.
-   * For optimal performance, the data package pointer should contain a pre-allocated data package
-   * that was initialized with the same output recipe as used in this RTDEClient. If it is not an
-   * initialized data package, a new one will be allocated internally which will have a negative
-   * performance impact and print a warning.
+   *   - For optimal performance, the data package pointer should contain a pre-allocated data package
+   *     that was built from the same output recipe as used in this RTDEClient (see getOutputRecipe()).
+   *   - The package doesn't have to be fully typed; its data types are applied on the first read,
+   *     which allocates nothing.
+   *   - Foreign recipes are repaired with a warning and may allocate.
+   *   - Null pointers allocate a package with a warning.
+   *   - The caller retains ownership on failure; null pointers are assigned only on success.
+   *   - Malformed data may partially update an existing package's values before failure.
    *
    * \returns Whether a data package was received successfully
    */
@@ -282,13 +344,49 @@ public:
     return input_recipe_;
   }
 
+  /*!
+   * \brief Creates a data package for the input recipe, carrying the data types the robot reported
+   * during the RTDE handshake.
+   *
+   * Fill it with DataPackage::setData() and hand it to RTDEWriter::sendPackage() to write several
+   * inputs in a single package. Has to be called after successful init() with a non-empty input
+   * recipe. The new package contains zeros; reusing it retains previously written values.
+   *
+   * \throws UrException if the writer is stopped or input types have not been negotiated, including
+   * when the client has an empty input recipe.
+   */
+  DataPackage createInputDataPackage()
+  {
+    return writer_.createDataPackage();
+  }
+
   /// Reads output or input recipe from a file and parses it into a vector of strings where each
   /// string is a line from the file.
   static std::vector<std::string> readRecipe(const std::string& recipe_file);
 
   ClientState getClientState() const
   {
-    return client_state_;
+    return client_state_.load();
+  }
+
+  /*!
+   * \brief Returns the robot properties the client read while setting up communication.
+   *
+   * While setting up communication the client reads v1.software.version and then every catalog
+   * property that version supports. This happens on init() and again on every reconnect. The
+   * properties are only read when RTDE protocol version 3 or higher was negotiated.
+   *
+   * Each call copies the properties, which allocates. Read them once after init() or a reconnect,
+   * not from a real-time loop.
+   *
+   * \returns The properties if the controller sent a value for every property asked for, the
+   * software version included. An empty optional if the negotiated protocol version is below 3,
+   * the request failed, or the controller reported any property as NOT_FOUND or NOT_SET and so
+   * sent no values. Also empty while not connected, and after init() or a reconnect has failed.
+   */
+  std::optional<ReadProperties> getRobotProperties() const
+  {
+    return robot_properties_.get();
   }
 
   /*! \brief Starts a background thread to read data packages from the robot.
@@ -335,12 +433,18 @@ protected:
   std::atomic<bool> background_read_running_ = false;
   std::thread background_read_thread_;
   std::condition_variable background_read_cv_;
+  // Protected by read_mutex_; prevents a waiter from crossing a stop/restart or reconnect.
+  uint64_t background_read_session_id_ = 0;
 
   DataPackage preallocated_data_pkg_;
 
-  ClientState client_state_;
+  // Written by reconnect() on its own thread and read by getClientState() / start / pause.
+  std::atomic<ClientState> client_state_;
 
   uint16_t protocol_version_;
+
+  // Filled by setupCommunication() on init() and on every reconnect; read by getRobotProperties().
+  RobotProperties robot_properties_;
 
   constexpr static const double CB3_MAX_FREQUENCY = 125.0;
   constexpr static const double URE_MAX_FREQUENCY = 500.0;
@@ -379,6 +483,15 @@ protected:
   bool isRobotBooted();
   bool sendStart();
   bool sendPause();
+
+  /*!
+   * \brief Repairs foreign or untyped packages by assigning the negotiated output template.
+   */
+  void ensureOutputLayout(DataPackage& data_package, const DataPackage& output_template) const;
+  /*!
+   * \brief Allocates a package with the negotiated output layout if null, or delegates to reference repair.
+   */
+  void ensureOutputLayout(std::unique_ptr<DataPackage>& data_package) const;
 
   /*!
    * \brief Reconnects to the RTDE interface and set the input and output recipes again.

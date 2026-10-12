@@ -30,6 +30,7 @@ add_library(urcl
     src/primary/primary_client.cpp
     src/primary/robot_message.cpp
     src/primary/robot_message/error_code_message.cpp
+    src/primary/robot_message/hardware_info_message.cpp
     src/ur/error_code_overrides.cpp
     src/primary/robot_message/key_message.cpp
     src/primary/robot_message/runtime_exception_message.cpp
@@ -47,6 +48,9 @@ add_library(urcl
     src/rtde/control_package_start.cpp
     src/rtde/data_package.cpp
     src/rtde/get_urcontrol_version.cpp
+    src/rtde/data_type.cpp
+    src/rtde/read_properties.cpp
+    src/rtde/robot_properties.cpp
     src/rtde/request_protocol_version.cpp
     src/rtde/rtde_package.cpp
     src/rtde/rtde_parser.cpp

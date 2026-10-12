@@ -89,6 +89,54 @@ TEST(TestHelpers, splitString)
   EXPECT_EQ(expected, splitString(version_string1, "."));
 }
 
+TEST(TestHelpers, splitStringView)
+{
+  using Parts = std::vector<std::string_view>;
+  const auto split = [](const std::string_view input, const std::string_view delimiter) {
+    Parts parts;
+    splitStringView(input, delimiter, parts);
+    return parts;
+  };
+
+  const std::vector<std::pair<std::string, std::string>> same_as_split_string = {
+    { "this,is,very,simple", "," },
+    { "this--?--is--?--very--?--simple", "--?--" },
+    { "5.12.0.1101319", "." },
+  };
+  for (const auto& [input, delimiter] : same_as_split_string)
+  {
+    const std::vector<std::string> copies = splitString(input, delimiter);
+    EXPECT_EQ(Parts(copies.begin(), copies.end()), split(input, delimiter)) << input;
+  }
+
+  EXPECT_EQ(split("", ","), Parts{ "" });
+  EXPECT_EQ(split("a,", ","), (Parts{ "a", "" }));
+  EXPECT_EQ(split(",a", ","), (Parts{ "", "a" }));
+  EXPECT_EQ(split("a,,b", ","), (Parts{ "a", "", "b" }));
+  EXPECT_EQ(split(",", ","), (Parts{ "", "" }));
+
+  EXPECT_EQ(split("a,b", ""), Parts{ "a,b" });
+
+  const std::string input = "UINT64,UINT32,DOUBLE";
+  const Parts parts = split(input, ",");
+  ASSERT_EQ(parts.size(), 3u);
+  for (const std::string_view part : parts)
+  {
+    EXPECT_GE(part.data(), input.data());
+    EXPECT_LE(part.data() + part.size(), input.data() + input.size());
+  }
+  EXPECT_EQ(parts[1].data(), input.data() + 7);
+}
+
+TEST(TestHelpers, splitStringView_reuses_the_parts_vector)
+{
+  std::vector<std::string_view> parts{ "stale", "stale", "stale", "stale" };
+  const std::string_view* storage = parts.data();
+  splitStringView("a,b", ",", parts);
+  EXPECT_EQ(parts, (std::vector<std::string_view>{ "a", "b" }));
+  EXPECT_EQ(parts.data(), storage);
+}
+
 TEST(TestHelpers, robotSeriesFromTypeAndVersion)
 {
   const VersionInformation cb3_version = VersionInformation::fromString("3.15.0.0");
@@ -132,10 +180,26 @@ TEST(TestHelpers, robotSeriesFromTypeAndVersion)
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR30, cb3_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR8LONG, cb3_version), RobotSeries::UNDEFINED);
 
+  // g-Series: version >= 10.15.0 -> G_SERIES, otherwise UNDEFINED
+  const VersionInformation before_g_series = VersionInformation::fromString("10.14.99.0");
+  const VersionInformation first_g_series = VersionInformation::fromString("10.15.0.0");
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10G_1750, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR17G_1300, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18G_950, before_g_series), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR10G_1750, first_g_series), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR17G_1300, first_g_series), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UR18G_950, first_g_series), RobotSeries::G_SERIES);
+
   // UNDEFINED robot type yields UNDEFINED series
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_5_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, cb3_version), RobotSeries::UNDEFINED);
   EXPECT_EQ(robotSeriesFromTypeAndVersion(RobotType::UNDEFINED, polyscope_x_version), RobotSeries::UNDEFINED);
+}
+
+TEST(TestHelpers, robotSeriesFromTypeAndVersion_of_an_unknown_type_is_undefined)
+{
+  EXPECT_EQ(robotSeriesFromTypeAndVersion(static_cast<RobotType>(99), VersionInformation::fromString("5.12.0.0")),
+            RobotSeries::UNDEFINED);
 }
 
 TEST(TestHelpers, robotSeriesString)
@@ -143,7 +207,19 @@ TEST(TestHelpers, robotSeriesString)
   EXPECT_EQ(robotSeriesString(RobotSeries::CB3), "CB3");
   EXPECT_EQ(robotSeriesString(RobotSeries::E_SERIES), "E_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
+  EXPECT_EQ(robotSeriesString(RobotSeries::G_SERIES), "G_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UNDEFINED), "UNDEFINED");
+}
+
+TEST(TestHelpers, robotTypeFromString)
+{
+  EXPECT_EQ(robotTypeFromString("ur10g-1750"), RobotType::UR10G_1750);
+  EXPECT_EQ(robotTypeFromString("ur17g-1300"), RobotType::UR17G_1300);
+  EXPECT_EQ(robotTypeFromString("ur18g-950"), RobotType::UR18G_950);
+  EXPECT_THROW(robotTypeFromString("ur10g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur17g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur18g"), std::invalid_argument);
+  EXPECT_THROW(robotTypeFromString("ur10g_1750"), std::invalid_argument);
 }
 
 TEST(TestHelpers, stringFromMotionTarget)

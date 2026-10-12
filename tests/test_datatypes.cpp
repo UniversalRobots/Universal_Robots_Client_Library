@@ -133,12 +133,18 @@ TEST(TestDatatypes, RobotTypeString_all_values)
   EXPECT_EQ(robotTypeString(RobotType::UR18), "UR18");
   EXPECT_EQ(robotTypeString(RobotType::UR20), "UR20");
   EXPECT_EQ(robotTypeString(RobotType::UR30), "UR30");
+  EXPECT_EQ(robotTypeString(RobotType::UR10G_1750), "UR10g-1750");
+  EXPECT_EQ(robotTypeString(RobotType::UR17G_1300), "UR17g-1300");
+  EXPECT_EQ(robotTypeString(RobotType::UR18G_950), "UR18g-950");
 }
 
 TEST(TestDatatypes, RobotTypeString_invalid_throws)
 {
   const RobotType invalid = static_cast<RobotType>(0);
   EXPECT_THROW(robotTypeString(invalid), std::invalid_argument);
+
+  EXPECT_THROW(robotTypeString(static_cast<RobotType>(10)), std::invalid_argument);
+  EXPECT_THROW(robotTypeString(static_cast<RobotType>(11)), std::invalid_argument);
 
   const RobotType also_invalid = static_cast<RobotType>(99);
   EXPECT_THROW(robotTypeString(also_invalid), std::invalid_argument);
@@ -150,6 +156,7 @@ TEST(TestDatatypes, RobotSeriesString_all_values)
   EXPECT_EQ(robotSeriesString(RobotSeries::CB3), "CB3");
   EXPECT_EQ(robotSeriesString(RobotSeries::E_SERIES), "E_SERIES");
   EXPECT_EQ(robotSeriesString(RobotSeries::UR_SERIES), "UR_SERIES");
+  EXPECT_EQ(robotSeriesString(RobotSeries::G_SERIES), "G_SERIES");
 }
 
 TEST(TestDatatypes, RobotSeriesString_invalid_throws)
@@ -159,4 +166,30 @@ TEST(TestDatatypes, RobotSeriesString_invalid_throws)
 
   const RobotSeries also_invalid = static_cast<RobotSeries>(42);
   EXPECT_THROW(robotSeriesString(also_invalid), std::invalid_argument);
+}
+
+TEST(TestDatatypes, ControlBoxTypeString_all_values)
+{
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::UNKNOWN), "UNKNOWN");
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::CB5), "CB5");
+  EXPECT_EQ(controlBoxTypeString(ControlBoxType::CB7), "CB7");
+}
+
+TEST(TestDatatypes, ControlBoxTypeString_invalid_throws)
+{
+  const ControlBoxType invalid = static_cast<ControlBoxType>(1);
+  EXPECT_THROW(controlBoxTypeString(invalid), std::invalid_argument);
+
+  const ControlBoxType also_invalid = static_cast<ControlBoxType>(42);
+  EXPECT_THROW(controlBoxTypeString(also_invalid), std::invalid_argument);
+}
+
+TEST(TestDatatypes, robot_series_from_wire)
+{
+  EXPECT_EQ(robotSeriesFromWire(1), RobotSeries::CB3);
+  EXPECT_EQ(robotSeriesFromWire(2), RobotSeries::E_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(3), RobotSeries::UR_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(4), RobotSeries::G_SERIES);
+  EXPECT_EQ(robotSeriesFromWire(0), RobotSeries::UNDEFINED);
+  EXPECT_EQ(robotSeriesFromWire(42), RobotSeries::UNDEFINED);
 }

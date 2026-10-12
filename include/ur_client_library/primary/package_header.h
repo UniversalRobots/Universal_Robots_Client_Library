@@ -32,6 +32,7 @@
 
 #include <inttypes.h>
 #include <cstddef>
+#include <cstring>
 #include <urcl_3rdparty/portable_endian.h>
 #include "ur_client_library/types.h"
 
@@ -76,7 +77,11 @@ public:
    */
   static size_t getPackageLength(uint8_t* buf)
   {
-    return be32toh(*(reinterpret_cast<_package_size_type*>(buf)));
+    // Copy the bytes out instead of casting: buf can point anywhere inside a byte stream, and an
+    // unaligned _package_size_type access is undefined behavior.
+    _package_size_type package_size;
+    std::memcpy(&package_size, buf, sizeof(package_size));
+    return be32toh(package_size);
   }
 };
 }  // namespace primary_interface
