@@ -33,6 +33,7 @@
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
+#include <ur_client_library/helpers.h>
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
@@ -410,50 +411,41 @@ TEST_F(UrDriverTest, set_target_payload)
   EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
 }
 
-// Older controllers reject tool_output_voltage_2 in a recipe, so it cannot be part of OUTPUT_RECIPE_VECTOR.
-class ToolVoltageT2Reader
+// Older controllers reject tool_output_voltage_2, so it stays out of OUTPUT_RECIPE_VECTOR.
+// The value is measured: on a robot it reads e.g. 23 V for 24 V, and with nothing connected it takes
+// seconds to decay after switching off. 5 V still tells 0, 24 and 48 V apart.
+template <typename Voltages>
+void expectToolOutputVoltages2(const Voltages& voltages)
 {
-public:
-  ToolVoltageT2Reader()
-    : client_(g_ROBOT_IP, notifier_, std::vector<std::string>{ "timestamp", "tool_output_voltage_2" },
-              std::vector<std::string>{})
-  {
-  }
+  std::vector<std::string> output_recipe = OUTPUT_RECIPE_VECTOR;
+  output_recipe.emplace_back("tool_output_voltage_2");
+  g_my_robot->getUrDriver()->resetRTDEClient(output_recipe, INPUT_RECIPE_VECTOR);
+  g_my_robot->getUrDriver()->startRTDECommunication(true);
 
-  bool start()
+  const int32_t tolerance = 5;
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  for (const ToolVoltage voltage : voltages)
   {
-    return client_.init() && client_.start();
-  }
-
-  // tool_output_voltage_2 is measured: on a robot it reads e.g. 23 V for 24 V, and with nothing connected it takes
-  // seconds to decay after switching off. 5 V still tells 0, 24 and 48 V apart.
-  bool waitFor(const ToolVoltage expected, const std::chrono::milliseconds timeout = std::chrono::seconds(5))
-  {
-    const int32_t tolerance = 5;
-    rtde_interface::DataPackage data_pkg(client_.getOutputRecipe());
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    while (std::chrono::steady_clock::now() < deadline)
+    ASSERT_TRUE(g_my_robot->getUrDriver()->setToolVoltageT2(voltage));
+    int32_t reported = -1;
+    bool reached = false;
+    try
     {
-      if (client_.getDataPackage(data_pkg, std::chrono::milliseconds(100)) &&
-          data_pkg.getData("tool_output_voltage_2", last_voltage_) &&
-          std::abs(last_voltage_ - toUnderlying(expected)) <= tolerance)
-      {
-        return true;
-      }
+      urcl::waitFor(
+          [&]() {
+            return g_my_robot->getUrDriver()->getDataPackage(data_pkg) &&
+                   data_pkg.getData("tool_output_voltage_2", reported) &&
+                   std::abs(reported - toUnderlying(voltage)) <= tolerance;
+          },
+          std::chrono::seconds(5));
+      reached = true;
     }
-    return false;
+    catch (const TimeoutException&)
+    {
+    }
+    EXPECT_TRUE(reached) << "Expected " << toUnderlying(voltage) << " V on T2, the robot reports " << reported << " V";
   }
-
-  int32_t lastVoltage() const
-  {
-    return last_voltage_;
-  }
-
-private:
-  comm::INotifier notifier_;
-  rtde_interface::RTDEClient client_;
-  int32_t last_voltage_ = -1;
-};
+}
 
 TEST_F(UrDriverTest, set_tool_voltage_t2)
 {
@@ -461,15 +453,7 @@ TEST_F(UrDriverTest, set_tool_voltage_t2)
   {
     GTEST_SKIP() << "The robot does not report Tool Flange V2.";
   }
-  ToolVoltageT2Reader reader;
-  ASSERT_TRUE(reader.start());
-
-  for (const ToolVoltage voltage : T2_TOOL_VOLTAGES)
-  {
-    ASSERT_TRUE(g_my_robot->getUrDriver()->setToolVoltageT2(voltage));
-    EXPECT_TRUE(reader.waitFor(voltage)) << "Expected " << toUnderlying(voltage) << " V on T2, the robot reports "
-                                         << reader.lastVoltage() << " V";
-  }
+  expectToolOutputVoltages2(T2_TOOL_VOLTAGES);
 }
 
 TEST_F(UrDriverTest, set_tool_voltage_t2_fallback_script)
@@ -478,20 +462,12 @@ TEST_F(UrDriverTest, set_tool_voltage_t2_fallback_script)
   {
     GTEST_SKIP() << "The robot does not report Tool Flange V2.";
   }
-  ToolVoltageT2Reader reader;
-  ASSERT_TRUE(reader.start());
-
   g_my_robot->getUrDriver()->stopControl();
   ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
   // See set_tcp_offset: the script command interface disconnects shortly after the program stops.
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  for (const ToolVoltage voltage : { ToolVoltage::_24V, ToolVoltage::OFF })
-  {
-    ASSERT_TRUE(g_my_robot->getUrDriver()->setToolVoltageT2(voltage));
-    EXPECT_TRUE(reader.waitFor(voltage)) << "Expected " << toUnderlying(voltage) << " V on T2, the robot reports "
-                                         << reader.lastVoltage() << " V";
-  }
+  expectToolOutputVoltages2(std::array{ ToolVoltage::_24V, ToolVoltage::OFF });
 }
 
 TEST_F(UrDriverTest, set_tool_voltage_t2_rejected_without_flange_v2)

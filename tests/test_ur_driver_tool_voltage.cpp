@@ -72,8 +72,8 @@ constexpr std::chrono::seconds SCRIPT_TIMEOUT{ 5 };
 class UrDriverToolVoltageTest : public ::testing::Test
 {
 protected:
-  // UrDriver always connects to the default ports, so another robot or simulator listening on them (such as a
-  // URSim container publishing its ports) makes these tests impossible rather than failed.
+  // UrDriver always connects to the default ports. If one is already taken, the fake robot cannot
+  // be started and the test fails.
   void SetUp() override
   {
     for (const int port : { static_cast<int>(UR_RTDE_PORT), primary_interface::UR_PRIMARY_PORT })
@@ -84,7 +84,7 @@ protected:
       }
       catch (const std::system_error&)
       {
-        GTEST_SKIP() << "Port " << port << " is in use, so the fake robot cannot be started.";
+        FAIL() << "Port " << port << " is in use, so the fake robot cannot be started.";
       }
     }
   }
