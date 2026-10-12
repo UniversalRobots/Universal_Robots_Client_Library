@@ -489,6 +489,13 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
   if (state_ != SocketState::Connected)
     return false;
 
+  const auto mark_lost_connection = [this]() {
+    // A concurrent close() may have deliberately moved the socket to Disconnecting or Closed
+    // while recv() was blocked. Do not overwrite that state with LostConnection.
+    SocketState expected = SocketState::Connected;
+    state_.compare_exchange_strong(expected, SocketState::LostConnection);
+  };
+
 #ifdef _WIN32
   ssize_t res = ::recv(socket_fd_.get(), reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
 #else
@@ -497,7 +504,7 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
 
   if (res == 0)
   {
-    state_ = SocketState::LostConnection;
+    mark_lost_connection();
     return false;
   }
   else if (res < 0)
@@ -507,13 +514,13 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
     int code = ::WSAGetLastError();
     if (code != WSAETIMEDOUT && code != WSAEWOULDBLOCK)
     {
-      state_ = SocketState::LostConnection;
+      mark_lost_connection();
     }
 #else
     if (!(errno == EAGAIN || errno == EWOULDBLOCK))
     {
       // any permanent error should be detected early
-      state_ = SocketState::LostConnection;
+      mark_lost_connection();
     }
 #endif
     return false;
