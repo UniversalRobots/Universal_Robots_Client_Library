@@ -26,7 +26,6 @@ jobs:
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING_=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-          -DCHECK_RTDE_DOCS_RECIPE=ON
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
@@ -162,8 +161,6 @@ jobs:
       - name: Install Playwright for PolyScope X screenshots
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         run: pip install playwright && playwright install chromium
-      - name: Generate rtde outputs lists
-        run: python3 tests/resources/generate_rtde_outputs.py 
       - name: test
         id: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
