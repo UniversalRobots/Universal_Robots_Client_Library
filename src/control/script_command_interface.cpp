@@ -154,20 +154,15 @@ bool ScriptCommandInterface::setGravity(const vector3d_t* gravity)
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
+bool ScriptCommandInterface::writeCommandWithArgument(const ScriptCommand command, const int32_t argument)
 {
-  if (!isAllowedToolVoltage(voltage, T0_TOOL_VOLTAGES))
-  {
-    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool", voltage, T0_TOOL_VOLTAGES).c_str());
-    return false;
-  }
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
-  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TOOL_VOLTAGE));
+  int32_t val = htobe32(toUnderlying(command));
   b_pos += append(b_pos, val);
 
-  val = htobe32(toUnderlying(voltage) * MULT_JOINTSTATE);
+  val = htobe32(argument);
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
@@ -181,6 +176,16 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
+bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
+{
+  if (!isAllowedToolVoltage(voltage, T0_TOOL_VOLTAGES))
+  {
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool", voltage, T0_TOOL_VOLTAGES).c_str());
+    return false;
+  }
+  return writeCommandWithArgument(ScriptCommand::SET_TOOL_VOLTAGE, toUnderlying(voltage) * MULT_JOINTSTATE);
+}
+
 bool ScriptCommandInterface::setToolVoltageT2(const ToolVoltage voltage)
 {
   if (!isAllowedToolVoltage(voltage, T2_TOOL_VOLTAGES))
@@ -192,24 +197,7 @@ bool ScriptCommandInterface::setToolVoltageT2(const ToolVoltage voltage)
   {
     return false;
   }
-  const int message_length = 2;
-  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
-  uint8_t* b_pos = buffer;
-  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TOOL_T2_VOLTAGE));
-  b_pos += append(b_pos, val);
-
-  val = htobe32(toUnderlying(voltage) * MULT_JOINTSTATE);
-  b_pos += append(b_pos, val);
-
-  // writing zeros to allow usage with other script commands
-  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
-  {
-    val = htobe32(0);
-    b_pos += append(b_pos, val);
-  }
-  size_t written;
-
-  return server_.write(client_fd_, buffer, sizeof(buffer), written);
+  return writeCommandWithArgument(ScriptCommand::SET_TOOL_T2_VOLTAGE, toUnderlying(voltage) * MULT_JOINTSTATE);
 }
 
 bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const vector6uint32_t* selection_vector,

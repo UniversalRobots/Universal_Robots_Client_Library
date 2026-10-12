@@ -328,6 +328,16 @@ private:
   bool robotVersionSupportsPolyscopeXCommandOrWarn(const VersionInformation& min_polyscopeX,
                                                    const std::string& command_name);
 
+  /*!
+   * \brief Write a script command and one integer argument, padded with zeros to \ref MAX_MESSAGE_LENGTH.
+   *
+   * \param command Script command id
+   * \param argument Argument already scaled the way the external control script expects it
+   *
+   * \returns True if the write was performed successfully, false otherwise.
+   */
+  bool writeCommandWithArgument(const ScriptCommand command, const int32_t argument);
+
   std::atomic<bool> client_connected_;
   static const int MAX_MESSAGE_LENGTH = 28;
 
