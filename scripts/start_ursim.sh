@@ -36,6 +36,11 @@ PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004 -p 127.0.0.1:8000:
 CONTAINER_NAME="ursim"
 TEST_RUN=false
 
+get_container_name()
+{
+  printf '%s\n' "$CONTAINER_NAME"
+}
+
 help()
 {
   # Display Help
