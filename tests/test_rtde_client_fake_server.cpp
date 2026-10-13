@@ -1405,6 +1405,26 @@ TEST_F(RTDEClientFakeServerTest, non_data_package_during_boot_check_retries_the_
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
 }
 
+TEST_F(RTDEClientFakeServerTest, setup_outputs_with_tool_power_t2_fields)
+{
+  const std::vector<std::string> output_recipe{ "timestamp", "tool_output_voltage_2", "tool_output_current_2" };
+  auto client = makeClient(output_recipe, INPUT_RECIPE, RTDE_FREQUENCY);
+  ASSERT_TRUE(client->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
+  ASSERT_TRUE(client->start(true));
+
+  rtde_interface::DataPackage output(output_recipe);
+  ASSERT_TRUE(client->getDataPackage(output, std::chrono::seconds(1)));
+  EXPECT_TRUE(output.isTyped());
+  EXPECT_EQ(output.getDataType("tool_output_voltage_2"), rtde_interface::DataType::INT32);
+  EXPECT_EQ(output.getDataType("tool_output_current_2"), rtde_interface::DataType::DOUBLE);
+
+  int32_t voltage = 0;
+  double current = 0.0;
+  EXPECT_TRUE(output.getData("tool_output_voltage_2", voltage));
+  EXPECT_TRUE(output.getData("tool_output_current_2", current));
+  EXPECT_TRUE(client->pause());
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
