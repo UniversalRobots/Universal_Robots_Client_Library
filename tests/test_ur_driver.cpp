@@ -33,7 +33,9 @@
 #include <ur_client_library/ur/dashboard_client.h>
 #include <ur_client_library/ur/ur_driver.h>
 #include <ur_client_library/example_robot_wrapper.h>
+#include <ur_client_library/helpers.h>
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <thread>
@@ -407,6 +409,86 @@ TEST_F(UrDriverTest, set_target_payload)
 
   // restore empty payload
   EXPECT_TRUE(g_my_robot->getUrDriver()->setTargetPayload(0, { 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, 0.002));
+}
+
+// Older controllers reject tool_output_voltage_2, so it stays out of OUTPUT_RECIPE_VECTOR.
+// The value is measured: on a robot it reads e.g. 23 V for 24 V, and with nothing connected it takes
+// seconds to decay after switching off. 5 V still tells 0, 24 and 48 V apart.
+template <typename Voltages>
+void expectToolOutputVoltages2(const Voltages& voltages)
+{
+  std::vector<std::string> output_recipe = OUTPUT_RECIPE_VECTOR;
+  output_recipe.emplace_back("tool_output_voltage_2");
+  g_my_robot->getUrDriver()->resetRTDEClient(output_recipe, INPUT_RECIPE_VECTOR);
+  g_my_robot->getUrDriver()->startRTDECommunication(true);
+
+  const int32_t tolerance = 5;
+  rtde_interface::DataPackage data_pkg(g_my_robot->getUrDriver()->getRTDEOutputRecipe());
+  for (const ToolVoltage voltage : voltages)
+  {
+    ASSERT_TRUE(g_my_robot->getUrDriver()->setToolVoltageT2(voltage));
+    int32_t reported = -1;
+    bool reached = false;
+    try
+    {
+      urcl::waitFor(
+          [&]() {
+            return g_my_robot->getUrDriver()->getDataPackage(data_pkg) &&
+                   data_pkg.getData("tool_output_voltage_2", reported) &&
+                   std::abs(reported - toUnderlying(voltage)) <= tolerance;
+          },
+          std::chrono::seconds(5));
+      reached = true;
+    }
+    catch (const TimeoutException&)
+    {
+    }
+    EXPECT_TRUE(reached) << "Expected " << toUnderlying(voltage) << " V on T2, the robot reports " << reported << " V";
+  }
+}
+
+TEST_F(UrDriverTest, set_tool_voltage_t2)
+{
+  if (g_my_robot->getUrDriver()->getRTDEWriter().getToolFlangeType() != ToolFlangeType::V2)
+  {
+    GTEST_SKIP() << "The robot does not report Tool Flange V2.";
+  }
+  expectToolOutputVoltages2(T2_TOOL_VOLTAGES);
+}
+
+TEST_F(UrDriverTest, set_tool_voltage_t2_fallback_script)
+{
+  if (g_my_robot->getUrDriver()->getRTDEWriter().getToolFlangeType() != ToolFlangeType::V2)
+  {
+    GTEST_SKIP() << "The robot does not report Tool Flange V2.";
+  }
+  g_my_robot->getUrDriver()->stopControl();
+  ASSERT_TRUE(g_my_robot->waitForProgramNotRunning(1000));
+  // See set_tcp_offset: the script command interface disconnects shortly after the program stops.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  expectToolOutputVoltages2(std::array{ ToolVoltage::_24V, ToolVoltage::OFF });
+}
+
+TEST_F(UrDriverTest, set_tool_voltage_t2_rejected_without_flange_v2)
+{
+  if (g_my_robot->getUrDriver()->getRTDEWriter().getToolFlangeType() == ToolFlangeType::V2)
+  {
+    GTEST_SKIP() << "The robot reports Tool Flange V2.";
+  }
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltageT2(ToolVoltage::_24V));
+}
+
+TEST_F(UrDriverTest, set_tool_t2_voltage_invalid_voltage)
+{
+  // T2 only supports 0, 24, 48 V. 12 V is invalid for T2.
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltageT2(ToolVoltage::_12V));
+}
+
+TEST_F(UrDriverTest, set_tool_voltage_t0_rejects_48v)
+{
+  // T0 only supports 0, 12, 24 V. 48 V is invalid for T0.
+  EXPECT_FALSE(g_my_robot->getUrDriver()->setToolVoltage(ToolVoltage::_48V));
 }
 
 TEST(UrDriverInitTest, setting_connection_limits_works_correctly)

@@ -79,6 +79,7 @@ SET_GRAVITY = 9
 SET_TCP_OFFSET = 10
 SET_FRICTION_SCALES = 11
 SET_TARGET_PAYLOAD = 12
+SET_TOOL_T2_VOLTAGE = 13
 SCRIPT_COMMAND_DATA_DIMENSION = 28
 
 FREEDRIVE_MODE_START = 1
@@ -1011,6 +1012,13 @@ thread script_commands():
       elif command == SET_TCP_OFFSET:
         tcp_offset = p[raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate, raw_command[6] / MULT_jointstate, raw_command[7] / MULT_jointstate]
         set_tcp(tcp_offset)
+      elif command == SET_TOOL_T2_VOLTAGE:
+        tool_voltage_t2 = raw_command[2] / MULT_jointstate
+        {% if ROBOT_SOFTWARE_VERSION >= v10.15.0 %}
+        set_power_output("T2_V", tool_voltage_t2)
+        {% else %}
+        textmsg("Tool voltage T2 requires PolyScope X 10.15.0 or later. Ignored.")
+        {% endif %}
       end
     end
   end
