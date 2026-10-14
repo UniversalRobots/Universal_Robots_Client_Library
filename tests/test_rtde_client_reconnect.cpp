@@ -205,6 +205,7 @@ TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
   ASSERT_TRUE(client_->init(0, std::chrono::milliseconds(123), 3, std::chrono::milliseconds(100)));
   const auto properties = client_->getRobotProperties();
   ASSERT_TRUE(properties.has_value());
+  EXPECT_EQ(client_->getWriter().getToolFlangeType(), ToolFlangeType::V1);
   client_->start();
 
   server_.reset();
@@ -216,6 +217,7 @@ TEST_F(RTDEClientReconnectTest, reconnect_reads_the_robot_properties_again)
   server_->setHighestAcceptedProtocolVersion(2);
   ASSERT_TRUE(waitForState(rtde_interface::ClientState::RUNNING)) << "the client did not reconnect";
   EXPECT_FALSE(client_->getRobotProperties().has_value());
+  EXPECT_EQ(client_->getWriter().getToolFlangeType(), ToolFlangeType::UNKNOWN);
   EXPECT_TRUE(properties->getSoftwareVersion().has_value());
   EXPECT_EQ(properties->getSoftwareVersion()->major, 10u);
   EXPECT_TRUE(server_->propertyRequests().empty());

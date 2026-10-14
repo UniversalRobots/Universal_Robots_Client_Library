@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <condition_variable>
 #include <deque>
 #include <map>
@@ -11,6 +12,7 @@
 #include "ur_client_library/comm/tcp_server.h"
 #include "ur_client_library/rtde/rtde_package.h"
 #include "ur_client_library/rtde/rtde_parser.h"
+#include "ur_client_library/ur/datatypes.h"
 
 namespace urcl
 {
@@ -129,6 +131,17 @@ public:
   void setSoftwareVersionAsUint32(const bool as_uint32);
 
   /*!
+   * \brief Tool flange type reported for v1.robot_arm.tool_flange.type. Defaults to V1.
+   */
+  void setReportedToolFlangeType(const ToolFlangeType type);
+
+  /*!
+   * \brief Version reported in the RTDE_GET_URCONTROL_VERSION answer. Defaults to 10.10.10.10.
+   */
+  void setReportedUrControlVersion(const uint32_t major, const uint32_t minor, const uint32_t bugfix,
+                                   const uint32_t build);
+
+  /*!
    * \brief Sends an accepted RTDE_CONTROL_PACKAGE_START reply ahead of the next RTDE_READ_PROPERTIES
    * answer: a package that is neither the answer nor a text message.
    */
@@ -196,6 +209,8 @@ private:
   uint16_t software_version_minor_ = 15;
   uint16_t software_version_bugfix_ = 0;
   bool software_version_as_uint32_ = false;
+  ToolFlangeType tool_flange_type_ = ToolFlangeType::V1;
+  std::array<uint32_t, 4> urcontrol_version_{ 10, 10, 10, 10 };
   unsigned pending_start_replies_before_read_properties_ = 0;
   std::deque<std::string> pending_after_start_text_messages_;
   bool accept_start_ = true;

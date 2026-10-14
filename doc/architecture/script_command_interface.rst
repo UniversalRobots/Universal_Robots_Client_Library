@@ -13,7 +13,7 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 
 - ``zeroFTSensor()``: Zeros the force/torque sensor.
 - ``setPayload()``: Set the active payload mass and center of gravity.
-- ``setToolVoltage()``: Set the voltage of the tool output.
+- ``setToolVoltage()``: Set the voltage of the tool output on connector T0.
 - ``startForceMode()`` / ``endForceMode()``: Start and end a force mode. See the `force mode
   example <https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/master/examples/force_mode_example.cpp>`_ for more information.
 - ``startToolContact()`` / ``endToolContact()``: Start and end a tool contact mode. See the `tool
@@ -26,6 +26,8 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 - ``setTcpOffset()``: Set the TCP offset of the robot.
 - ``setFrictionScales()``: Set viscous and Coulomb friction scale factors for direct torque control.
 - ``setTargetPayload()``: Set the active payload mass, center of gravity, inertia matrix and transition time.
+- ``setToolVoltageT2()``: Set the tool voltage on connector T2. Requires PolyScope X 10.15.0 or later and Tool Flange
+  V2, as reported by the RTDE robot properties. PolyScope 5 does not support connector T2.
 
 Communication protocol
 ----------------------
@@ -60,6 +62,7 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
            - 10: setTcpOffset
            - 11: setFrictionScales
            - 12: setTargetPayload
+           - 13: setToolVoltageT2
    1-27   data fields specific to the command
    =====  =====
 
@@ -192,6 +195,15 @@ The robot reads from the "script_command_socket" expecting a 32 bit integer repr
    2-4    Payload center of gravity in m, displacement from the tool mount (floating point)
    5-10   Payload inertia matrix [Ixx, Iyy, Izz, Ixy, Ixz, Iyz] in kg·m² (floating point)
    11     Payload transition time in seconds (floating point)
+   =====  =====
+
+.. table:: With setToolVoltageT2 command
+   :widths: auto
+
+   =====  =====
+   index  meaning
+   =====  =====
+   1      Voltage in V (Has to be 0, 24 or 48)
    =====  =====
 
 .. note::

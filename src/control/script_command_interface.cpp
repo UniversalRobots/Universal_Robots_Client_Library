@@ -154,15 +154,15 @@ bool ScriptCommandInterface::setGravity(const vector3d_t* gravity)
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
-bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
+bool ScriptCommandInterface::writeCommandWithArgument(const ScriptCommand command, const int32_t argument)
 {
   const int message_length = 2;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
-  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_TOOL_VOLTAGE));
+  int32_t val = htobe32(toUnderlying(command));
   b_pos += append(b_pos, val);
 
-  val = htobe32(toUnderlying(voltage) * MULT_JOINTSTATE);
+  val = htobe32(argument);
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
@@ -174,6 +174,30 @@ bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
   size_t written;
 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+bool ScriptCommandInterface::setToolVoltage(const ToolVoltage voltage)
+{
+  if (!isAllowedToolVoltage(voltage, T0_TOOL_VOLTAGES))
+  {
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool", voltage, T0_TOOL_VOLTAGES).c_str());
+    return false;
+  }
+  return writeCommandWithArgument(ScriptCommand::SET_TOOL_VOLTAGE, toUnderlying(voltage) * MULT_JOINTSTATE);
+}
+
+bool ScriptCommandInterface::setToolVoltageT2(const ToolVoltage voltage)
+{
+  if (!isAllowedToolVoltage(voltage, T2_TOOL_VOLTAGES))
+  {
+    URCL_LOG_ERROR("%s", toolVoltageNotAllowedMessage("tool T2", voltage, T2_TOOL_VOLTAGES).c_str());
+    return false;
+  }
+  if (!robotVersionSupportsPolyscopeXCommandOrWarn(urcl::VersionInformation::fromString("10.15.0"), __func__))
+  {
+    return false;
+  }
+  return writeCommandWithArgument(ScriptCommand::SET_TOOL_T2_VOLTAGE, toUnderlying(voltage) * MULT_JOINTSTATE);
 }
 
 bool ScriptCommandInterface::startForceMode(const vector6d_t* task_frame, const vector6uint32_t* selection_vector,
@@ -486,6 +510,19 @@ bool ScriptCommandInterface::robotVersionSupportsCommandOrWarn(const VersionInfo
                   "later. This robot's version is %s. This command will have no effect.",
                   command_name.c_str(), min_polyscope5.toString().c_str(), min_polyscopeX.toString().c_str(),
                   robot_software_version_.toString().c_str());
+    return false;
+  }
+  return true;
+}
+
+bool ScriptCommandInterface::robotVersionSupportsPolyscopeXCommandOrWarn(const VersionInformation& min_polyscopeX,
+                                                                         const std::string& command_name)
+{
+  if (robot_software_version_ < min_polyscopeX)
+  {
+    URCL_LOG_WARN("%s is only available for robots with PolyScope X %s or later. This robot's version is %s. This "
+                  "command will have no effect.",
+                  command_name.c_str(), min_polyscopeX.toString().c_str(), robot_software_version_.toString().c_str());
     return false;
   }
   return true;
