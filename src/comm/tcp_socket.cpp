@@ -431,7 +431,10 @@ bool TCPSocket::reconnect(const std::string& host, const int port, const size_t 
     URCL_LOG_ERROR("Reconnect called on a socket that is not in LostConnection state");
     return false;
   }
-  setTargetStateUnlessStopRequested(SocketState::Connected);
+  if (!setTargetStateUnlessStopRequested(SocketState::Connected))
+  {
+    return false;
+  }
   StateGeneration connection_attempt;
   if (!setupInternal(host, port, max_num_tries, reconnection_time, connection_attempt))
   {
