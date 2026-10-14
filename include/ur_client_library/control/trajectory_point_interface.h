@@ -175,6 +175,10 @@ public:
    * that move's points. Callers working through UrDriver have no need to call this, because it
    * assigns and applies the identifiers itself.
    *
+   * A point carries the identifier current when it is written, so a move's points must all be
+   * written before the next move begins. See the producer obligations in the ReverseInterface
+   * architecture documentation.
+   *
    * \param move_id The identifier of the move that the following points belong to. A value of 0
    * belongs to no move.
    */

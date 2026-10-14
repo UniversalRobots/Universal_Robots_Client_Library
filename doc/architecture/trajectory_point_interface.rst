@@ -115,6 +115,10 @@ representations in 22 datafields. The data fields have the following meaning:
           that begins the move, and is assigned by ``UrDriver``, which increments it once per
           move for the life of a connection. A value of 0 belongs to no move and is what the
           robot holds before it has been told about any.
+
+          A point carries the identifier current when it is written, so this depends on the caller
+          finishing a move's writes before beginning the next, which is required of producers in
+          any case. See :ref:`reverse_interface`.
    =====  =====
 
 where

@@ -125,7 +125,7 @@ writes motion primitives -- via ``writeTrajectoryPoint()``, ``writeTrajectorySpl
    requires the same count, for the same reason. (For a finite ``TRAJECTORY_START`` trajectory the
    cancel argument is unused.)
 
-Two obligations fall on the producer:
+Three obligations fall on the producer:
 
 - **Do not starve the controller.** The robot consumes the stream as it executes it, so the producer
   must keep work available: the next primitive must arrive before the robot finishes the ones it
@@ -140,6 +140,11 @@ Two obligations fall on the producer:
   controlled stop, with zero velocity and acceleration, so the spline interpolates smoothly to rest at
   the goal. The trajectory thread issues ``stopj`` on exit regardless, so a non-zero terminal point
   still stops the robot, but the transition will be less smooth.
+
+- **Keep each move's points within its own bounds.** All of a move's points must be written after the
+  control message that begins it, and before the control message that ends it or begins the next. A
+  producer running on its own thread must be quiesced, not merely signalled to stop, before another
+  thread sends either.
 
 On completion the callback registered with ``setTrajectoryEndCallback()`` reports
 ``TRAJECTORY_RESULT_SUCCESS`` for a clean end (``TRAJECTORY_STREAM_END`` processed, all points
