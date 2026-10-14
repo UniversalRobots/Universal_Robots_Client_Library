@@ -157,6 +157,27 @@ public:
     return mult_vel_acc_;
   }
 
+  /*!
+   * \brief Sets whether the control script running on the robot supports move identifiers.
+   *
+   * A script which predates move identifiers reads trajectory point records without the trailing
+   * identifier field, so for such a script the field must be left off, or every read after the first
+   * would be out of step with the stream. Without support, the identifier given to setMoveId() is
+   * never sent. Defaults to supported. UrDriver detects support from the script it loads and sets
+   * this accordingly.
+   *
+   * \param supported True if the running control script reads the move identifier field.
+   */
+  void setMoveIdSupport(const bool supported);
+
+  /*!
+   * \brief Returns whether trajectory point records are written with the move identifier field.
+   */
+  bool hasMoveIdSupport() const
+  {
+    return move_id_support_;
+  }
+
   void setTrajectoryEndCallback(std::function<void(TrajectoryResult)> callback);
 
   uint32_t addTrajectoryEndCallback(const std::function<void(TrajectoryResult)>& callback);
@@ -174,6 +195,8 @@ private:
   const double MAX_GOAL_TIME_ = static_cast<double>(std::numeric_limits<int32_t>::max()) / MULT_TIME;
 
   int32_t mult_vel_acc_ = MULT_VEL_ACC;
+
+  bool move_id_support_ = true;
 
   std::list<HandlerFunction<void(TrajectoryResult)>> trajectory_end_callbacks_;
   uint32_t next_done_callback_id_ = 0;

@@ -8,6 +8,10 @@ textmsg("ExternalControl: steptime=", steptime)
 MULT_jointstate = {{JOINT_STATE_REPLACE}}
 MULT_time = {{TIME_REPLACE}}
 MULT_velacc = {{VEL_ACC_REPLACE}}
+# Declares to the driver that this script reads trajectory points carrying a move
+# identifier. The driver checks only that the placeholder is present, and sends
+# scripts without it the shorter point record that predates move identifiers.
+TRAJECTORY_MOVE_IDS = {{TRAJECTORY_MOVE_IDS_REPLACE}}
 
 DEBUG = False
 

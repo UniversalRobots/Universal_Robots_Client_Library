@@ -540,6 +540,51 @@ TEST(UrDriverInitTest, legacy_script_falls_back_to_joint_state_multiplier)
 
   std::remove(legacy_script_file);
 }
+
+TEST(UrDriverInitTest, script_with_move_ids_placeholder_supports_move_ids)
+{
+  UrDriverConfiguration config;
+  config.robot_ip = g_ROBOT_IP;
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = SCRIPT_FILE;
+
+  UrDriver ur_driver(config);
+  EXPECT_TRUE(ur_driver.hasMoveIdSupport());
+}
+
+TEST(UrDriverInitTest, legacy_script_falls_back_to_no_move_ids)
+{
+  // Legacy scripts do not declare move identifier support.
+  std::ifstream ifs(SCRIPT_FILE);
+  ASSERT_TRUE(ifs.is_open());
+  std::string script((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  const std::string placeholder = "{{TRAJECTORY_MOVE_IDS_REPLACE}}";
+  ASSERT_NE(script.find(placeholder), std::string::npos);
+  while (script.find(placeholder) != std::string::npos)
+  {
+    script.replace(script.find(placeholder), placeholder.size(), "True");
+  }
+
+  const char legacy_script_file[] = "legacy_move_ids_urscript.HRRW";
+  std::ofstream ofs(legacy_script_file);
+  ASSERT_TRUE(ofs.is_open());
+  ofs << script;
+  ofs.close();
+
+  UrDriverConfiguration config;
+  config.robot_ip = g_ROBOT_IP;
+  config.input_recipe_file = INPUT_RECIPE;
+  config.output_recipe_file = OUTPUT_RECIPE;
+  config.headless_mode = g_HEADLESS;
+  config.script_file = legacy_script_file;
+
+  UrDriver ur_driver(config);
+  EXPECT_FALSE(ur_driver.hasMoveIdSupport());
+
+  std::remove(legacy_script_file);
+}
 // TODO we should add more tests for the UrDriver class.
 
 int main(int argc, char* argv[])

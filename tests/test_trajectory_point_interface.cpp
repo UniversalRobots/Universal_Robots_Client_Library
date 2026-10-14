@@ -95,6 +95,13 @@ protected:
       TCPSocket::write(buffer, sizeof(buffer), written);
     }
 
+    // Read records the way a script which predates move identifiers does, one field short of the
+    // full record and with no move identifier at its end.
+    void readRecordsWithoutMoveId()
+    {
+      record_length_ = urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH - 1;
+    }
+
     void readMessage(vector6int32_t& pos, vector6int32_t& vel, vector6int32_t& acc, int32_t& goal_time,
                      int32_t& blend_radius_or_spline_type, int32_t& motion_type, int32_t& move_id)
     {
@@ -102,7 +109,7 @@ protected:
       uint8_t buf[sizeof(int32_t) * urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH];
       uint8_t* b_pos = buf;
       size_t read = 0;
-      size_t remainder = sizeof(int32_t) * urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH;
+      size_t remainder = sizeof(int32_t) * record_length_;
       while (remainder > 0)
       {
         if (!TCPSocket::read(b_pos, remainder, read))
@@ -154,9 +161,13 @@ protected:
       motion_type = be32toh(val);
       b_pos += sizeof(int32_t);
 
-      // Decode the id of the move this point belongs to
-      std::memcpy(&val, b_pos, sizeof(int32_t));
-      move_id = be32toh(val);
+      // Decode the id of the move this point belongs to, if the record carries one
+      move_id = 0;
+      if (record_length_ == urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH)
+      {
+        std::memcpy(&val, b_pos, sizeof(int32_t));
+        move_id = be32toh(val);
+      }
     }
 
     vector6int32_t getPosition()
@@ -359,6 +370,9 @@ protected:
         throw std::runtime_error("Unknown motion type");
       }
     }
+
+  private:
+    size_t record_length_ = urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH;
   };
 
   void SetUp()
@@ -720,6 +734,26 @@ TEST_F(TrajectoryPointInterfaceTest, move_id_defaults_to_zero)
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
 
   EXPECT_EQ(0, client_->getMoveId());
+}
+
+// A script which predates move identifiers reads records one field short. If the interface still
+// sent the identifier to such a script, it would be read as the first field of the next record and
+// every record after the first would be out of step, which reading a second record exposes.
+TEST_F(TrajectoryPointInterfaceTest, write_without_move_id_support_omits_move_id)
+{
+  traj_point_interface_->setMoveIdSupport(false);
+  traj_point_interface_->setMoveId(7);
+  client_->readRecordsWithoutMoveId();
+
+  const urcl::vector6d_t first_positions = { 0.5, 0, 0, 0, 0, 0 };
+  const urcl::vector6d_t second_positions = { 1.5, 0, 0, 0, 0, 0 };
+  traj_point_interface_->writeTrajectoryPoint(&first_positions, 0, 0, false);
+  traj_point_interface_->writeTrajectoryPoint(&second_positions, 0, 0, false);
+
+  vector6int32_t received_positions = client_->getPosition();
+  EXPECT_EQ(first_positions[0], ((double)received_positions[0]) / traj_point_interface_->MULT_JOINTSTATE);
+  received_positions = client_->getPosition();
+  EXPECT_EQ(second_positions[0], ((double)received_positions[0]) / traj_point_interface_->MULT_JOINTSTATE);
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cartesian)

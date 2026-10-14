@@ -993,6 +993,18 @@ public:
   }
 
   /*!
+   * \brief Returns whether the loaded control script supports move identifiers.
+   *
+   * Move identifiers keep points left over from a failed or cancelled trajectory from being
+   * executed by the next one. They are used only when the control script declares support for them
+   * through the '{{TRAJECTORY_MOVE_IDS_REPLACE}}' placeholder.
+   */
+  bool hasMoveIdSupport() const
+  {
+    return trajectory_interface_->hasMoveIdSupport();
+  }
+
+  /*!
    * \brief Register a callback for the robot-based tool contact execution completion.
    *
    * If a tool contact is detected or tool contact is canceled, this callback function will be triggered mode of robot

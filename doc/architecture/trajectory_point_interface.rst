@@ -148,6 +148,13 @@ where
    library falls back to encoding spline velocities and accelerations with ``MULT_JOINTSTATE``.
 
 .. note::
+   The move identifier at index 21 is only sent when the control script declares support for it
+   through the ``{{TRAJECTORY_MOVE_IDS_REPLACE}}`` placeholder. For user-supplied scripts without
+   that placeholder, ``UrDriver`` sends the 21 field record that predates move identifiers and
+   assigns none, so such a script cannot recognize points left over from an earlier move. Callers
+   driving the interface directly select the record with ``setMoveIdSupport()``.
+
+.. note::
    The ``*_POSE`` / ``*_JOINT`` motion-type variants let callers mix joint-space and Cartesian
    targets freely through the high-level APIs (see :ref:`instruction_executor` and the
    ``urcl::MotionTarget`` type). On the wire the positions are always packed as a 6-tuple of
