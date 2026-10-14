@@ -278,10 +278,11 @@ bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMes
   if (trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_START ||
       trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_STREAM_START)
   {
-    trajectory_interface_->setMoveId(++trajectory_move_id_);
+    ++trajectory_move_id_;
+    reverse_interface_->setMoveId(trajectory_move_id_);
+    trajectory_interface_->setMoveId(trajectory_move_id_);
   }
-  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, trajectory_move_id_, point_number,
-                                                           robot_receive_timeout);
+  return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
 }
 
 bool UrDriver::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> motion_instruction)

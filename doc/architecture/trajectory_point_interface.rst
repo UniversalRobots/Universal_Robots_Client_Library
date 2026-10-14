@@ -116,6 +116,11 @@ representations in 22 datafields. The data fields have the following meaning:
           move for the life of a connection. A value of 0 belongs to no move and is what the
           robot holds before it has been told about any.
 
+          Callers driving the interfaces directly opt in by setting the identifier with
+          ``setMoveId()`` on both this interface and the ``ReverseInterface``. If they never do,
+          both stay 0, the robot executes every point it receives, and it cannot recognize points
+          left over from an earlier move.
+
           A point carries the identifier current when it is written, so this depends on the caller
           finishing a move's writes before beginning the next, which is required of producers in
           any case. See :ref:`reverse_interface`.

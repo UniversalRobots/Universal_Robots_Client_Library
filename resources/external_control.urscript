@@ -566,6 +566,7 @@ thread trajectoryThread():
   local was_streaming_at_start = trajectory_streaming
   local my_move_id = trajectory_move_id
   local discarded_points = 0
+  local reported_move_id_mismatch = False
   local INDEX_TIME = TRAJECTORY_DATA_DIMENSION
   local INDEX_BLEND = INDEX_TIME + 1
   # same index as blend parameter, depending on point type
@@ -597,6 +598,16 @@ thread trajectoryThread():
       # total, so we give back the count we spent reading it. An identifier ahead
       # of our own would mean points arriving for a move we were never told
       # about, which we can do no better with than discard as well.
+      #
+      # Move identifiers are opt in, and a caller who opts in sets a non-zero one on
+      # both the reverse and the trajectory interface. A mismatch with a zero on
+      # exactly one side is therefore not staleness but a caller that set only one
+      # of them, and every point of this move will be discarded the same way. Say
+      # so once, since otherwise the move just appears to starve.
+      if (my_move_id == 0 or raw_point[INDEX_MOVE_ID] == 0) and not reported_move_id_mismatch:
+        textmsg("Move identifier set on only one interface, discarding points. ", str_cat(str_cat("move id: ", my_move_id), str_cat(", point move id: ", raw_point[INDEX_MOVE_ID])))
+        reported_move_id_mismatch = True
+      end
       trajectory_points_left = trajectory_points_left + 1
       discarded_points = discarded_points + 1
       if discarded_points >= TRAJECTORY_DISCARD_SYNC_LIMIT:
@@ -819,7 +830,7 @@ thread trajectoryThread():
       else:
         textmsg("Receiving trajectory point failed!")
         trajectory_result = TRAJECTORY_RESULT_FAILURE
-        if trajectory_streaming:
+        if trajectory_streaming and my_move_id != 0:
           # We underran mid-stream, with no STREAM_END, so trajectory_points_left
           # still holds the open ended STREAMING_SENTINEL rather than a real
           # count. Left that way, the cleanup before the next trajectory command
@@ -827,6 +838,13 @@ thread trajectoryThread():
           # points. A finite trajectory, or a stream STREAM_END has closed, leaves
           # a genuine count that the cleanup needs, so we reset only while a
           # stream is still open.
+          #
+          # Resetting is only safe with move identifiers in use. It leaves
+          # whatever the producer wrote after the underrun in the socket, and it
+          # is the identifiers that keep the next move from executing those
+          # points. Without them, the unbounded drain is the lesser harm, since
+          # it fails the next move rather than running stale points, so we leave
+          # things as they were before identifiers existed.
           trajectory_streaming = False
           trajectory_points_left = 0
         end

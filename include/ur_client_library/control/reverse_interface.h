@@ -147,12 +147,8 @@ public:
    *   TRAJECTORY_STREAM_START. \p point_number must equal the total number of motion primitives the
    *   producer wrote on the trajectory socket since TRAJECTORY_STREAM_START.
    *
-   * \param move_id The identifier of the move which TRAJECTORY_START and TRAJECTORY_STREAM_START
-   * begin. The robot executes only those trajectory points which carry the identifier of the move
-   * it is currently running, and discards any that were left behind by an earlier one, so this
-   * must be the same identifier that is given to TrajectoryPointInterface::setMoveId() before that
-   * move's points are written. The remaining actions do not begin a move, and the robot ignores
-   * the field for them. A value of 0 belongs to no move.
+   * TRAJECTORY_START and TRAJECTORY_STREAM_START also announce the move identifier most recently
+   * given to setMoveId(). See there for what it does and when it needs to be set.
    *
    * \param point_number Mode-dependent point-count argument. See the description of \p
    * trajectory_action for the per-mode semantics.
@@ -166,9 +162,35 @@ public:
    * \see examples/trajectory_point_interface.cpp for a finite-trajectory usage example, or
    * examples/trajectory_streaming.cpp for an open-ended streaming trajectory example.
    */
-  bool writeTrajectoryControlMessage(
-      const TrajectoryControlMessage trajectory_action, const int move_id, const int point_number,
-      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
+  bool
+  writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action, const int point_number = 0,
+                                const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(200));
+
+  /*!
+   * \brief Sets the move identifier that this interface writes to the robot.
+   *
+   * Move identifiers let the robot tell the points of the move it is running apart from points
+   * left over from a move which has already failed or been cancelled, so that it discards the
+   * latter rather than executing them as part of the next move. Using them is optional. Callers
+   * working through UrDriver have no need to call this, because it assigns and applies the
+   * identifiers itself.
+   *
+   * A caller driving the interfaces directly opts in by giving each move its own non-zero
+   * identifier, and setting that same identifier on both the ReverseInterface, which announces it in
+   * the TRAJECTORY_START or TRAJECTORY_STREAM_START message that begins the move, and the
+   * TrajectoryPointInterface, which writes it into each of that move's points. Both must be set
+   * before the move begins. A point carries the identifier current when it is written, so a move's
+   * points must also all be written before the next move begins. See the producer obligations in the
+   * ReverseInterface architecture documentation.
+   *
+   * If neither is ever set, both stay 0 and the robot executes every point it receives, as it did
+   * before move identifiers existed. It then cannot protect the next move from points left over by
+   * an earlier one. Setting the identifier on only one of the two interfaces makes the robot discard
+   * every point of the move, which then fails, and the robot logs the mismatch.
+   *
+   * \param move_id The identifier of the move about to begin. A value of 0 belongs to no move.
+   */
+  void setMoveId(const int move_id);
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.
@@ -256,6 +278,10 @@ protected:
   comm::TCPServer server_;
 
   VersionInformation robot_software_version_;
+
+  // Set through setMoveId(). It stays 0 unless the caller opts in to move identifiers, which is also
+  // the value the script starts out with, so the two agree that no move is running.
+  int move_id_ = 0;
 
   template <typename T>
   size_t append(uint8_t* buffer, T& val)

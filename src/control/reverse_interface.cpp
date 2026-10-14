@@ -121,7 +121,7 @@ bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMod
 }
 
 bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMessage trajectory_action,
-                                                     const int move_id, const int point_number,
+                                                     const int point_number,
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
   // The move identifier occupies the slot which used to be the first of the padding, so the zero
@@ -156,7 +156,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   val = htobe32(point_number);
   b_pos += append(b_pos, val);
 
-  val = htobe32(move_id);
+  val = htobe32(move_id_);
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
@@ -172,6 +172,11 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   size_t written;
 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+void ReverseInterface::setMoveId(const int move_id)
+{
+  move_id_ = move_id;
 }
 
 bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,

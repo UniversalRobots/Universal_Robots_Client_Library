@@ -28,7 +28,6 @@
 #ifndef UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 #define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
-#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -1150,8 +1149,10 @@ private:
   // identifiers, because it is the only object which observes both the boundaries between moves and
   // every point written within them. It issues one identifier for each command that begins a move,
   // and never reuses one for the life of a connection. A value of 0 belongs to no move, and is what
-  // the robot holds before it has been told about any.
-  std::atomic<int32_t> trajectory_move_id_ = { 0 };
+  // the robot holds before it has been told about any. It is not atomic, because a caller using the
+  // trajectory API from more than one thread must already order the start of each move against the
+  // writing of its points, and that ordering covers this as well.
+  int trajectory_move_id_ = 0;
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);

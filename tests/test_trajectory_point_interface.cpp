@@ -711,21 +711,15 @@ TEST_F(TrajectoryPointInterfaceTest, write_move_id)
   EXPECT_EQ(send_move_id, client_->getMoveId());
 }
 
-// A point must carry the identifier of the move that is being written at the time, and not one
-// which was captured when the interface was created. If the interface captured it only once, then
-// every point would appear to belong to the first move, and the robot would discard the points of
-// every move after that one.
-TEST_F(TrajectoryPointInterfaceTest, successive_moves_carry_different_move_ids)
+// Move identifiers are opt in. A caller which never sets one must see its points carry 0, which is
+// the identifier the script holds when it has not been given one either, so that the two agree and
+// the robot executes every point as it did before identifiers existed.
+TEST_F(TrajectoryPointInterfaceTest, move_id_defaults_to_zero)
 {
   urcl::vector6d_t send_positions = { 0, 0, 0, 0, 0, 0 };
-
-  traj_point_interface_->setMoveId(1);
   traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
-  EXPECT_EQ(1, client_->getMoveId());
 
-  traj_point_interface_->setMoveId(2);
-  traj_point_interface_->writeTrajectoryPoint(&send_positions, 0, 0, false);
-  EXPECT_EQ(2, client_->getMoveId());
+  EXPECT_EQ(0, client_->getMoveId());
 }
 
 TEST_F(TrajectoryPointInterfaceTest, write_cartesian)
