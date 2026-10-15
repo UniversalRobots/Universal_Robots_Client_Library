@@ -124,7 +124,7 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
                                                      const int point_number,
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
-  const int message_length = 3;
+  const int message_length = 4;
   if (client_fd_ == INVALID_SOCKET)
   {
     return false;
@@ -153,6 +153,9 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   val = htobe32(point_number);
   b_pos += append(b_pos, val);
 
+  val = htobe32(move_id_);
+  b_pos += append(b_pos, val);
+
   // writing zeros to allow usage with other script commands
   for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
   {
@@ -166,6 +169,11 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
   size_t written;
 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);
+}
+
+void ReverseInterface::setMoveId(const int move_id)
+{
+  move_id_ = move_id;
 }
 
 bool ReverseInterface::writeFreedriveControlMessage(const FreedriveControlMessage freedrive_action,

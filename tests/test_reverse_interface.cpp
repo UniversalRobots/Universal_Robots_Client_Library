@@ -329,7 +329,8 @@ TEST_F(ReverseInterfaceTest, remaining_message_points_are_zeros)
 
   // When using trajectory control message, the received message is keep_alive_signal=keep_alive_signal,
   // received_pos[0]=control::TrajectoryControlMessage, received_pos[1]=point_number and received_pos[2]-received_pos[5]
-  // should be zeros.
+  // should be zeros. received_pos[2] carries the move identifier, which stays zero unless a caller
+  // opts in through setMoveId(), so a caller who does not sees the same message as before.
   reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
   vector6int32_t received_pos = client_->getPositions();
 
@@ -337,6 +338,22 @@ TEST_F(ReverseInterfaceTest, remaining_message_points_are_zeros)
   EXPECT_EQ(0, received_pos[3]);
   EXPECT_EQ(0, received_pos[4]);
   EXPECT_EQ(0, received_pos[5]);
+}
+
+TEST_F(ReverseInterfaceTest, write_trajectory_move_id)
+{
+  // Wait for the client to connect to the server
+  EXPECT_TRUE(waitForProgramState(1000, true));
+
+  // The move identifier occupies the slot immediately after the point number, which used to be
+  // part of the padding. A move announces its identifier here, and the robot then runs only those
+  // trajectory points which carry it.
+  const int32_t written_move_id = 7;
+  reverse_interface_->setMoveId(written_move_id);
+  reverse_interface_->writeTrajectoryControlMessage(control::TrajectoryControlMessage::TRAJECTORY_START, 1);
+  vector6int32_t received_pos = client_->getPositions();
+
+  EXPECT_EQ(written_move_id, received_pos[2]);
 }
 
 TEST_F(ReverseInterfaceTest, read_timeout)

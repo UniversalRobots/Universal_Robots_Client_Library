@@ -50,6 +50,7 @@ static const std::string BEGIN_REPLACE("BEGIN_REPLACE");
 static const std::string JOINT_STATE_REPLACE("JOINT_STATE_REPLACE");
 static const std::string TIME_REPLACE("TIME_REPLACE");
 static const std::string VEL_ACC_REPLACE("VEL_ACC_REPLACE");
+static const std::string TRAJECTORY_MOVE_IDS_REPLACE("TRAJECTORY_MOVE_IDS_REPLACE");
 static const std::string SERVO_J_REPLACE("SERVO_J_REPLACE");
 static const std::string SERVER_IP_REPLACE("SERVER_IP_REPLACE");
 static const std::string SERVER_PORT_REPLACE("SERVER_PORT_REPLACE");
@@ -115,6 +116,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   data[JOINT_STATE_REPLACE] = std::to_string(control::ReverseInterface::MULT_JOINTSTATE);
   data[TIME_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_TIME);
   data[VEL_ACC_REPLACE] = std::to_string(control::TrajectoryPointInterface::MULT_VEL_ACC);
+  data[TRAJECTORY_MOVE_IDS_REPLACE] = true;
   std::ostringstream out;
   out << "lookahead_time=" << servoj_lookahead_time_ << ", gain=" << servoj_gain_;
   data[SERVO_J_REPLACE] = out.str();
@@ -173,6 +175,22 @@ void UrDriver::init(const UrDriverConfiguration& config)
                   "encoding with reduced precision.",
                   VEL_ACC_REPLACE.c_str());
     trajectory_interface_->setVelAccMultiplier(control::ReverseInterface::MULT_JOINTSTATE);
+  }
+
+  // Legacy scripts read trajectory point records without the move identifier field, and cannot
+  // tell the points of the running move apart from those left over by an earlier one. Only scripts
+  // declaring the move identifier flag get the field, and only for them do we assign identifiers.
+  if (script_reader_->isVariableRegistered(TRAJECTORY_MOVE_IDS_REPLACE))
+  {
+    trajectory_interface_->setMoveIdSupport(true);
+  }
+  else
+  {
+    URCL_LOG_WARN("Control script does not contain the '{{%s}}' placeholder. Falling back to trajectory points "
+                  "without move identifiers, so points left over from a failed or cancelled trajectory may be "
+                  "executed by the next one.",
+                  TRAJECTORY_MOVE_IDS_REPLACE.c_str());
+    trajectory_interface_->setMoveIdSupport(false);
   }
 
   if (in_headless_mode_)
@@ -282,6 +300,21 @@ bool UrDriver::writeTrajectorySplinePoint(const vector6d_t& positions, const flo
 bool UrDriver::writeTrajectoryControlMessage(const control::TrajectoryControlMessage trajectory_action,
                                              const int point_number, const RobotReceiveTimeout& robot_receive_timeout)
 {
+  // The identifier a point carries is what distinguishes it from the points left behind by an
+  // earlier move, so a command which begins a move takes the next identifier and gives it to both
+  // of the parties that need it. The robot learns of it from the control message itself, and the
+  // trajectory interface needs it in order to write it into the points which follow. The commands
+  // that do not begin a move carry the current identifier along with them, and the robot ignores it.
+  // A script without move identifier support gets none, which leaves the control message exactly as
+  // it was before identifiers existed.
+  if (trajectory_interface_->hasMoveIdSupport() &&
+      (trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_START ||
+       trajectory_action == control::TrajectoryControlMessage::TRAJECTORY_STREAM_START))
+  {
+    ++trajectory_move_id_;
+    reverse_interface_->setMoveId(trajectory_move_id_);
+    trajectory_interface_->setMoveId(trajectory_move_id_);
+  }
   return reverse_interface_->writeTrajectoryControlMessage(trajectory_action, point_number, robot_receive_timeout);
 }
 

@@ -1008,6 +1008,18 @@ public:
   }
 
   /*!
+   * \brief Returns whether the loaded control script supports move identifiers.
+   *
+   * Move identifiers keep points left over from a failed or cancelled trajectory from being
+   * executed by the next one. They are used only when the control script declares support for them
+   * through the '{{TRAJECTORY_MOVE_IDS_REPLACE}}' placeholder.
+   */
+  bool hasMoveIdSupport() const
+  {
+    return trajectory_interface_->hasMoveIdSupport();
+  }
+
+  /*!
    * \brief Register a callback for the robot-based tool contact execution completion.
    *
    * If a tool contact is detected or tool contact is canceled, this callback function will be triggered mode of robot
@@ -1159,6 +1171,15 @@ private:
   std::unique_ptr<control::ScriptCommandInterface> script_command_interface_;
   std::unique_ptr<control::ScriptSender> script_sender_;
   std::unique_ptr<control::ScriptReader> script_reader_;
+
+  // Identifies the move that is currently being sent to the robot. The driver is what assigns these
+  // identifiers, because it is the only object which observes both the boundaries between moves and
+  // every point written within them. It issues one identifier for each command that begins a move,
+  // and never reuses one for the life of a connection. A value of 0 belongs to no move, and is what
+  // the robot holds before it has been told about any. It is not atomic, because a caller using the
+  // trajectory API from more than one thread must already order the start of each move against the
+  // writing of its points, and that ordering covers this as well.
+  int trajectory_move_id_ = 0;
 
   size_t socket_connection_attempts_ = 0;
   std::chrono::milliseconds socket_reconnection_timeout_ = std::chrono::milliseconds(10000);
