@@ -239,9 +239,7 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
 
   // Record the move that this point belongs to. The robot uses it to recognize the points which
   // were left over from a move that has already ended, and discards them rather than executing them
-  // as though they were part of the move it is running now. A script which predates move identifiers
-  // reads a record that ends before this field, so for it we send the record short, which is why the
-  // write below is sized by what we filled rather than by the buffer.
+  // as though they were part of the move it is running now.
   if (move_id_support_)
   {
     buffer[index] = htobe32(move_id_);
@@ -250,7 +248,9 @@ bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<contro
 
   size_t written;
 
-  // We stored the data in a int32_t vector, but write needs a uint8_t buffer
+  // A script which predates move identifiers
+  // reads a record that ends before this field, so for it we send the record short, which is why the
+  // write below is sized by what we filled rather than by the buffer.
   return server_.write(client_fd_, (uint8_t*)buffer.data(), index * sizeof(int32_t), written);
 }
 
