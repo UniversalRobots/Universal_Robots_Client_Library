@@ -124,9 +124,6 @@ bool ReverseInterface::writeTrajectoryControlMessage(const TrajectoryControlMess
                                                      const int point_number,
                                                      const RobotReceiveTimeout& robot_receive_timeout)
 {
-  // The move identifier occupies the slot which used to be the first of the padding, so the zero
-  // fill below has to begin one slot further along than it did. Otherwise it would write over the
-  // identifier we just placed there.
   const int message_length = 4;
   if (client_fd_ == INVALID_SOCKET)
   {

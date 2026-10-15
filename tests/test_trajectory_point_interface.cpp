@@ -97,7 +97,7 @@ protected:
 
     // Read records the way a script which predates move identifiers does, one field short of the
     // full record and with no move identifier at its end.
-    void readRecordsWithoutMoveId()
+    void disableMoveIdSupport()
     {
       record_length_ = urcl::control::TrajectoryPointInterface::MESSAGE_LENGTH - 1;
     }
@@ -743,7 +743,7 @@ TEST_F(TrajectoryPointInterfaceTest, write_without_move_id_support_omits_move_id
 {
   traj_point_interface_->setMoveIdSupport(false);
   traj_point_interface_->setMoveId(7);
-  client_->readRecordsWithoutMoveId();
+  client_->disableMoveIdSupport();
 
   const urcl::vector6d_t first_positions = { 0.5, 0, 0, 0, 0, 0 };
   const urcl::vector6d_t second_positions = { 1.5, 0, 0, 0, 0, 0 };
