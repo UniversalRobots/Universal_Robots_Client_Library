@@ -658,6 +658,7 @@ TEST_F(ScriptReaderTest, TestToolT2VoltageScriptRendering)
   data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
   data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
   data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
+  data["TRAJECTORY_MOVE_IDS_REPLACE"] = true;
   data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
   data["SERVER_IP_REPLACE"] = "1.2.3.4";
   data["SERVER_PORT_REPLACE"] = "50001";
