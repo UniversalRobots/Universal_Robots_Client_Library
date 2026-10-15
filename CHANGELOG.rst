@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.16.0 (2026-10-15)
+-------------------
 * Add move IDs to trajectory streaming  (`#552 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/552>`_)
 * Add support for the g-Series 48V T2 tool connector (`#592 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/592>`_)
 * Allow disconnect to stop the G5 dashboard welcome read (`#588 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/588>`_)
