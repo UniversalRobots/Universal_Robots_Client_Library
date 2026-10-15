@@ -2,6 +2,35 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add move IDs to trajectory streaming  (`#552 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/552>`_)
+* Add support for the g-Series 48V T2 tool connector (`#592 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/592>`_)
+* Allow disconnect to stop the G5 dashboard welcome read (`#588 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/588>`_)
+* Support extended CB7 output fields in RTDE writer (`#591 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/591>`_)
+* Clarify controlBoxTypeFromWire comment in code (`#590 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/590>`_)
+* Added support for RTDEv3 and RTDE read_properties (`#587 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/587>`_)
+* [docs] dashboard_client: Clarify upload and update API documentation (`#589 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/589>`_)
+* Add an optional connect timeout for robot connections (`#585 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/585>`_)
+* Use robot-reported RTDE field types and improved memory copy performance (`#560 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/560>`_)
+* Add reverse_ip argument to ExampleRobotWrapper (`#586 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/586>`_)
+* chore: update error_code_texts.h to UR ErrorCodes JSON v42.1.0 (`#583 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/583>`_)
+* Add Doxygen config (`#584 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/584>`_)
+* Added port argument to the primary client and improved security around reading the package length (`#582 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/582>`_)
+* Update error_code_texts.h to UR ErrorCodes JSON v42.0.0 (`#581 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/581>`_)
+* [Docs] Improve limit setup section in RT-guide (`#580 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/580>`_)
+* Upload test results and artifacts also when tests fail (`#575 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/575>`_)
+* Add control box and tool flange types to the primary protocol's configuration data (`#578 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/pull/578>`_)
+* Add support for g-series robots (`#577 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/577>`_)
+* [ABI-BREAKING] Add hardware info message (`#574 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/574>`_)
+* [start_ursim] Improve support for port forwarding (`#572 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/572>`_)
+* [TCPServer] Initialize `written` output with 0 (`#573 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/573>`_)
+  `TCPServer::writeUnchecked()` uses a `written` parameter to signal back
+* Add workflow for creating releases (`#571 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/571>`_)
+* Add a workflow that checks the PR title (`#567 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/567>`_)
+* [CI] Fix check_error_codes workflow (`#568 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/568>`_)
+* Contributors: Andrew C. Morrow, David Karlsböck, Felix Exner, Rune Søe-Knudsen, Shin, github-actions[bot]
+
 2.15.2 (2026-09-14)
 -------------------
 * Remove Symlink to UR5 programs as it was not needed and blocked the bloom release tool (`#569 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/569>`_)
