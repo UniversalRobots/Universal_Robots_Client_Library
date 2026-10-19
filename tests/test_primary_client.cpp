@@ -38,12 +38,26 @@
 #include <stdexcept>
 #include <thread>
 #include "fake_primary_server.h"
+#include "ur_client_library/comm/package_serializer.h"
 #include "ur_client_library/exceptions.h"
 #include "ur_client_library/helpers.h"
 
 using namespace urcl;
 
 std::string g_ROBOT_IP = "192.168.56.101";
+
+bool sendHardwareInfo(FakePrimaryServer& server, const RobotType robot_type, const ControlBoxType control_box_type,
+                      const ToolFlangeType tool_flange_type)
+{
+  std::vector<uint8_t> payload(sizeof(int32_t) + 4 * sizeof(uint16_t));
+  size_t offset = 0;
+  offset += comm::PackageSerializer::serialize(payload.data() + offset, static_cast<int32_t>(robot_type));
+  offset += comm::PackageSerializer::serialize(payload.data() + offset, static_cast<uint16_t>(0));
+  offset += comm::PackageSerializer::serialize(payload.data() + offset, static_cast<uint16_t>(control_box_type));
+  offset += comm::PackageSerializer::serialize(payload.data() + offset, static_cast<uint16_t>(0));
+  comm::PackageSerializer::serialize(payload.data() + offset, static_cast<uint16_t>(tool_flange_type));
+  return server.sendRobotMessage(primary_interface::RobotMessagePackageType::ROBOT_MESSAGE_HARDWARE_INFO, payload);
+}
 
 class RobotMessageConsumer : public comm::IConsumer<primary_interface::PrimaryPackage>
 {
@@ -221,6 +235,8 @@ TEST_F(PrimaryClientTest, test_uninitialized_primary_client)
   ASSERT_THROW(client_->isRobotProtectiveStopped(), UrException);
   // The client is not started yet, so the robot type should be UNDEFINED
   ASSERT_EQ(client_->getRobotType(), RobotType::UNDEFINED);
+  ASSERT_EQ(client_->getControlBoxType(), ControlBoxType::UNKNOWN);
+  ASSERT_EQ(client_->getToolFlangeType(), ToolFlangeType::UNKNOWN);
   // Without a robot type (and version), the robot series cannot be determined.
   ASSERT_EQ(client_->getRobotSeries(), RobotSeries::UNDEFINED);
 }
@@ -334,6 +350,28 @@ TEST_F(PrimaryClientTest, test_kinematics_info)
 
   // We should have received a kinematics info package
   EXPECT_NE(kinematics_info, nullptr);
+}
+
+TEST_F(PrimaryClientFakeTest, test_hardware_info_accessors_and_robot_type_fallback)
+{
+  ASSERT_EQ(client_->getConfigurationData(), nullptr);
+  ASSERT_EQ(client_->getRobotType(), RobotType::UNDEFINED);
+  ASSERT_EQ(client_->getControlBoxType(), ControlBoxType::UNKNOWN);
+  ASSERT_EQ(client_->getToolFlangeType(), ToolFlangeType::UNKNOWN);
+
+  ASSERT_TRUE(sendHardwareInfo(*server_, RobotType::UR20, ControlBoxType::CB7, ToolFlangeType::V2));
+  ASSERT_NO_THROW(waitFor(
+      [this]() {
+        return client_->getRobotType() == RobotType::UR20 && client_->getControlBoxType() == ControlBoxType::CB7 &&
+               client_->getToolFlangeType() == ToolFlangeType::V2;
+      },
+      std::chrono::seconds(1)));
+
+  // The fake server sent no ConfigurationData, so getRobotType() must have used HardwareInfo.
+  EXPECT_EQ(client_->getConfigurationData(), nullptr);
+  EXPECT_EQ(client_->getRobotType(), RobotType::UR20);
+  EXPECT_EQ(client_->getControlBoxType(), ControlBoxType::CB7);
+  EXPECT_EQ(client_->getToolFlangeType(), ToolFlangeType::V2);
 }
 
 TEST_F(PrimaryClientTest, test_get_robot_series)

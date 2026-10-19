@@ -362,9 +362,24 @@ public:
   /*!
    * \brief Get the Robot type
    *
-   * If no robot type data has been received yet, this will return UNDEFINED.
+   * ConfigurationData is preferred when available. If it has not been received yet, the robot
+   * type from HardwareInfo is used instead. If neither has been received, this returns UNDEFINED.
    */
   RobotType getRobotType();
+
+  /*!
+   * \brief Get the control box type reported by HardwareInfo.
+   *
+   * If no HardwareInfo has been received yet, this returns ControlBoxType::UNKNOWN.
+   */
+  ControlBoxType getControlBoxType();
+
+  /*!
+   * \brief Get the tool flange type reported by HardwareInfo.
+   *
+   * If no HardwareInfo has been received yet, this returns ToolFlangeType::UNKNOWN.
+   */
+  ToolFlangeType getToolFlangeType();
 
   /*!
    * \brief Get the Robot series
