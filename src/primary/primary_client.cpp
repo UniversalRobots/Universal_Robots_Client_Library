@@ -742,11 +742,38 @@ std::shared_ptr<VersionInformation> PrimaryClient::getRobotVersion(bool blocking
 RobotType PrimaryClient::getRobotType()
 {
   std::shared_ptr<ConfigurationData> configuration_data = consumer_->getConfigurationData();
-  if (configuration_data == nullptr)
+  if (configuration_data != nullptr)
   {
-    return RobotType::UNDEFINED;
+    return robotTypeFromWire(configuration_data->robot_type_);
   }
-  return robotTypeFromWire(configuration_data->robot_type_);
+
+  std::optional<PrimaryConsumer::HardwareInfo> hardware_info = consumer_->getHardwareInfo();
+  if (hardware_info.has_value())
+  {
+    return hardware_info->robot_type;
+  }
+
+  return RobotType::UNDEFINED;
+}
+
+ControlBoxType PrimaryClient::getControlBoxType()
+{
+  std::optional<PrimaryConsumer::HardwareInfo> hardware_info = consumer_->getHardwareInfo();
+  if (!hardware_info.has_value())
+  {
+    return ControlBoxType::UNKNOWN;
+  }
+  return hardware_info->control_box_type;
+}
+
+ToolFlangeType PrimaryClient::getToolFlangeType()
+{
+  std::optional<PrimaryConsumer::HardwareInfo> hardware_info = consumer_->getHardwareInfo();
+  if (!hardware_info.has_value())
+  {
+    return ToolFlangeType::UNKNOWN;
+  }
+  return hardware_info->tool_flange_type;
 }
 
 RobotSeries PrimaryClient::getRobotSeries()

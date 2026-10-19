@@ -37,6 +37,7 @@
 
 #include <functional>
 #include <mutex>
+#include <optional>
 
 namespace urcl
 {
@@ -51,6 +52,13 @@ namespace primary_interface
 class PrimaryConsumer : public AbstractPrimaryConsumer
 {
 public:
+  struct HardwareInfo
+  {
+    RobotType robot_type;
+    ControlBoxType control_box_type;
+    ToolFlangeType tool_flange_type;
+  };
+
   PrimaryConsumer()
   {
   }
@@ -188,6 +196,13 @@ public:
     return true;
   }
 
+  virtual bool consume(HardwareInfoMessage& pkg) override
+  {
+    std::scoped_lock lock(hardware_info_mutex_);
+    hardware_info_ = HardwareInfo{ pkg.robot_type_, pkg.control_box_type_, pkg.tool_flange_type_ };
+    return true;
+  }
+
   /*!
    * \brief Handle a MasterboardData package
    *
@@ -321,6 +336,17 @@ public:
     return std::make_shared<ConfigurationData>(*configuration_data_);
   }
 
+  /*!
+   * \brief Get the hardware information received when the primary connection was established.
+   *
+   * If no hardware information has been received yet, this returns std::nullopt.
+   */
+  std::optional<HardwareInfo> getHardwareInfo()
+  {
+    std::scoped_lock lock(hardware_info_mutex_);
+    return hardware_info_;
+  }
+
 private:
   std::function<void(ErrorCode&)> error_code_message_callback_;
   std::function<void(KeyMessage&)> key_message_callback_;
@@ -333,6 +359,8 @@ private:
   std::optional<VersionInformation> version_information_;
   std::mutex configuration_data_mutex_;
   std::unique_ptr<ConfigurationData> configuration_data_;
+  std::mutex hardware_info_mutex_;
+  std::optional<HardwareInfo> hardware_info_;
   std::mutex safety_mode_mutex_;
   std::unique_ptr<SafetyModeMessage> safety_mode_;
 };
