@@ -162,6 +162,7 @@ jobs:
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         run: pip install playwright && playwright install chromium
       - name: Wait for robot to boot
+        if: ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
         run: scripts/wait_robot_booted.py 192.168.56.101
       - name: test
         id: test
