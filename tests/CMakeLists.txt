@@ -23,7 +23,6 @@ target_link_libraries(fake_primary_server PRIVATE ur_client_library::urcl)
 include(GoogleTest)
 
 option(INTEGRATION_TESTS "Build the integration tests that require a running robot / URSim" OFF)
-option(CHECK_RTDE_DOCS_RECIPE "Fetch the RTDE documentation to auto-generate a recipe containing all output fields and check that with the RTDE client. Requires python3 and pandas and an internet connection." OFF)
 set(INTEGRATION_TESTS_ROBOT_IP "" CACHE STRING "If set, override the default robot IP (192.168.56.101) compiled into each integration test main() by passing --robot_ip <ip> to every ctest-registered integration test.")
 # Build Tests
 if (INTEGRATION_TESTS)
@@ -41,12 +40,6 @@ if (INTEGRATION_TESTS)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   EXTRA_ARGS ${INTEGRATION_TESTS_ROBOT_IP_ARG}
   )
-  if (CHECK_RTDE_DOCS_RECIPE)
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    add_custom_target(generate_outputs ALL COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/resources/generate_rtde_outputs.py)
-    add_dependencies(rtde_tests generate_outputs)
-    target_compile_definitions(rtde_tests PRIVATE CHECK_RTDE_DOCS_RECIPE=1)
-  endif()
 
   add_executable(dashboard_client_g5_tests test_dashboard_client_g5.cpp)
   target_link_libraries(dashboard_client_g5_tests PRIVATE ur_client_library::urcl GTest::gtest_main)

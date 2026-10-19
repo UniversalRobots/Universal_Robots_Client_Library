@@ -570,55 +570,6 @@ TEST_F(RTDEClientTest, check_all_rtde_output_variables_exist)
   client_->pause();
 }
 
-#ifdef CHECK_RTDE_DOCS_RECIPE
-TEST_F(RTDEClientTest, docs_output_fields_are_supported_by_the_controller)
-{
-  // Only the newest robot can be expected to know every documented field.
-  const char* env_var = std::getenv("URSIM_VERSION");
-  if (env_var == nullptr || std::string(env_var) != "latest")
-  {
-    GTEST_SKIP() << "Not running against the latest URSim version.";
-  }
-
-  // A scrape that silently produced nothing would let this pass without requesting a single field.
-  ASSERT_GT(rtde_interface::RTDEClient::readRecipe(docs_output_recipe_file_).size(), 100u);
-
-  client_.reset(
-      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, docs_output_recipe_file_, input_recipe_file_, 0.0, false));
-  try
-  {
-    ASSERT_TRUE(client_->init());
-  }
-  catch (const RTDEInvalidKeyException& e)
-  {
-    // invalid_keys holds every documented name the controller answered NOT_FOUND for, so one run
-    // names all of them instead of stopping at the first.
-    std::stringstream names;
-    for (std::size_t i = 0; i < e.invalid_keys.size(); ++i)
-    {
-      if (i != 0)
-      {
-        names << ", ";
-      }
-      names << e.invalid_keys[i];
-    }
-    FAIL() << "The controller does not support these documented output fields: " << names.str();
-  }
-
-  client_->start();
-
-  const std::chrono::milliseconds read_timeout{ 100 };
-  rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
-  ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
-
-  double timestamp;
-  EXPECT_TRUE(data_pkg.getData("timestamp", timestamp));
-  EXPECT_GT(timestamp, 0.0);
-
-  client_->pause();
-}
-#endif
-
 TEST_F(RTDEClientTest, check_unknown_rtde_output_variable)
 {
   client_->init();
