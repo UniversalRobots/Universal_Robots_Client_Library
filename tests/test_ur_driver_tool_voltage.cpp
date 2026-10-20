@@ -38,6 +38,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -67,6 +68,7 @@ const std::vector<std::string> INPUT_RECIPE{ "speed_slider_mask", "speed_slider_
 constexpr size_t CONFIGURATION_DATA_PAYLOAD_BYTES = 440;
 
 constexpr std::chrono::seconds SCRIPT_TIMEOUT{ 5 };
+constexpr char STARTUP_SCRIPT_END_MARKER[] = "# NODE_CONTROL_LOOP_ENDS";
 }  // namespace
 
 class UrDriverToolVoltageTest : public ::testing::Test
@@ -149,6 +151,10 @@ protected:
   void startDriver(std::unique_ptr<ToolCommSetup> tool_comm_setup = nullptr)
   {
     driver_ = std::make_unique<UrDriver>(makeConfig(std::move(tool_comm_setup)));
+    if (!waitForReceived(STARTUP_SCRIPT_END_MARKER))
+    {
+      throw std::runtime_error("Timed out waiting for the fake primary server to receive the startup script");
+    }
     stopSendingConfigurationData();
   }
 
