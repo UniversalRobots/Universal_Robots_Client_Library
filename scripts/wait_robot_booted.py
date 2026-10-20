@@ -75,6 +75,7 @@ def wait_for_robot(
     probe_timeout: float,
 ) -> bool:
     """Poll until the dashboard or Robot API is reachable, or ``timeout`` elapses."""
+    start = time.monotonic()
     deadline = time.monotonic() + timeout
     print(
         f"Waiting for robot at {robot_ip} "
@@ -82,7 +83,14 @@ def wait_for_robot(
         flush=True,
     )
     while time.monotonic() < deadline:
-        found = probe_robot(robot_ip, probe_timeout)
+        remaining_probe_timeout = min(deadline - time.monotonic(), 2 * probe_timeout)
+        if remaining_probe_timeout <= 0:
+            print(
+                f"remaining probe timeout is {remaining_probe_timeout:.1f}s, giving up.",
+                flush=True,
+            )
+            break
+        found = probe_robot(robot_ip, remaining_probe_timeout)
         if found is not None:
             print(f"Robot is reachable via {found}.", flush=True)
             return True
@@ -95,7 +103,7 @@ def wait_for_robot(
         if time.monotonic() >= deadline:
             break
     print(
-        f"Timed out after {timeout:.1f}s waiting for robot at {robot_ip}.",
+        f"Timed out after {time.monotonic() - start:.1f}s waiting for robot at {robot_ip}.",
         file=sys.stderr,
         flush=True,
     )
@@ -124,7 +132,7 @@ def parse_args(argv=None):
         "--probe-timeout",
         type=float,
         default=2.0,
-        help="Timeout for a single connection attempt in seconds (default: 2)",
+        help="Maximum timeout for a single connection attempt in seconds (default: 2). Note: The actual timeout for a single probe can be much shorter if the OS reports a connection error quickly.",
     )
     return parser.parse_args(argv)
 
@@ -133,6 +141,13 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     if args.timeout <= 0 or args.interval <= 0 or args.probe_timeout <= 0:
         print("timeout, interval and probe-timeout must be positive", file=sys.stderr)
+        return 2
+
+    if args.timeout < args.probe_timeout + args.interval:
+        print(
+            "timeout should be greater than probe-timeout + interval",
+            file=sys.stderr,
+        )
         return 2
 
     ok = wait_for_robot(
