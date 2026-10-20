@@ -161,6 +161,9 @@ jobs:
       - name: Install Playwright for PolyScope X screenshots
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         run: pip install playwright && playwright install chromium
+      - name: Wait for robot to boot
+        if: ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
+        run: scripts/wait_robot_booted.py 192.168.56.101
       - name: test
         id: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
@@ -370,6 +373,8 @@ jobs:
         run: tar -xzf build.tar.gz
       - name: inspect build folder
         run: ls -la build && ls -la build/tests
+      - name: Wait for robot to boot
+        run: scripts/wait_robot_booted.py 192.168.56.101
       - name: test robot type
         id: test
         run: cd build && ctest -R PrimaryClientTest.test_robot_type --verbose --output-junit junit.xml
