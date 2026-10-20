@@ -83,7 +83,7 @@ def wait_for_robot(
         flush=True,
     )
     while time.monotonic() < deadline:
-        remaining_probe_timeout = min(deadline - time.monotonic(), 2 * probe_timeout)
+        remaining_probe_timeout = min(deadline - time.monotonic(), probe_timeout)
         if remaining_probe_timeout <= 0:
             print(
                 f"remaining probe timeout is {remaining_probe_timeout:.1f}s, giving up.",
