@@ -1308,6 +1308,7 @@ TEST_F(RTDEClientFakeServerTest, protocol_v3_reads_properties_during_init)
   ASSERT_TRUE(properties.has_value());
   expectProtocolV3Properties(*properties);
   EXPECT_EQ(client->getWriter().getToolFlangeType(), ToolFlangeType::V1);
+  EXPECT_EQ(client->getWriter().getControlBoxType(), ControlBoxType::CB5);
 
   ASSERT_TRUE(client->start(true));
   rtde_interface::DataPackage data_pkg(client->getOutputRecipe());
