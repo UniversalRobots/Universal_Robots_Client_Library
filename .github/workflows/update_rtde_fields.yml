@@ -1,0 +1,88 @@
+name: Update RTDE test resources
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+  pull_request:
+    paths:
+      - '.github/workflows/update_rtde_fields.yml'
+      - 'tests/resources/generate_rtde_outputs.py'
+      - 'tests/resources/test_generate_rtde_outputs.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-rtde-fields-${{ github.event.pull_request.number || 'maintenance' }}
+  cancel-in-progress: false
+
+jobs:
+  test_updater:
+    name: Test RTDE updater
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install extractor dependencies
+        run: python -m pip install pandas==3.0.4 lxml==6.1.1
+      - name: Run offline regression tests
+        run: python -B -m unittest discover -s tests/resources -p test_generate_rtde_outputs.py -v
+
+  update_resources:
+    name: Update RTDE fields and propose changes
+    if: github.event_name != 'pull_request'
+    needs: test_updater
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install extractor dependencies
+        run: python -m pip install pandas==3.0.4 lxml==6.1.1
+      - name: Update from official RTDE documentation
+        run: python -B tests/resources/generate_rtde_outputs.py
+      - name: Validate generated diff
+        run: git diff --check
+      - name: Verify repeated generation leaves resources unchanged
+        run: |
+          sha256sum tests/fake_rtde_server.cpp \
+            tests/resources/exhaustive_rtde_output_recipe.txt > "$RUNNER_TEMP/rtde-checksums"
+          python -B tests/resources/generate_rtde_outputs.py
+          sha256sum --check "$RUNNER_TEMP/rtde-checksums"
+      # This action opens no PR for an empty diff and updates the same branch/PR on later runs.
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto/update-rtde-fields
+          base: ${{ github.event.repository.default_branch }}
+          add-paths: |
+            tests/fake_rtde_server.cpp
+            tests/resources/exhaustive_rtde_output_recipe.txt
+          commit-message: 'chore: update documented RTDE output fields'
+          title: 'chore: update documented RTDE output fields'
+          body: |
+            Updates the fake RTDE server's field/type map and exhaustive output recipe
+            from the [official RTDE documentation](https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html#robot-controller-outputs).
+
+            Adds newly documented fields and updates existing types. Fields absent from
+            the documentation are preserved without reporting removals.
+
+            The updater's offline tests, generated diff whitespace check, and repeated
+            generation check passed before this PR was created. The C++ suite was not run here.
+
+            PRs created using `GITHUB_TOKEN` do not automatically trigger ordinary PR CI.
+            A maintainer must arrange the required project CI checks before merging.
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
