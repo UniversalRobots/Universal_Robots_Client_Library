@@ -12,6 +12,7 @@
     "RTDEInvalidKeyException",
     "UR",
     "URCap",
+    "URScript",
     "changelog",
     "changelogs",
     "lyrical",

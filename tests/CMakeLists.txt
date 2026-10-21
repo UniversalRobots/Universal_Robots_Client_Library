@@ -294,6 +294,16 @@ gtest_add_tests(TARGET      script_sender_tests
 )
 
 add_executable(script_reader_tests test_script_reader.cpp)
+# GCC 13-15 have a false positive -Wmaybe-uninitialized in <regex> headers
+# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562). Source-file properties
+# set in the top-level CMakeLists.txt do not apply to this subdirectory target.
+# Bump the upper bound if the bug persists in newer GCC versions.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+   AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13
+   AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+  set_source_files_properties(test_script_reader.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wno-maybe-uninitialized")
+endif()
 target_link_libraries(script_reader_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(
         TARGET script_reader_tests
