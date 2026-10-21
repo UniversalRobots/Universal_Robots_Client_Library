@@ -452,6 +452,10 @@ parse_arguments(){
   EXTRA_DOCKER_ENV=()
   while getopts ":hm:v:p:c:u:i:f:e:n:dt" option; do
     case $option in
+      :) # missing option argument
+        echo "Error: -$OPTARG requires an argument"
+        exit 1
+        ;;
       h) # display Help
         help
         exit;;
