@@ -287,6 +287,9 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
 
 bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 {
+  static const std::string key_mask = "standard_digital_output_mask";
+  static const std::string key_output = "standard_digital_output";
+  std::lock_guard<std::mutex> guard(store_mutex_);
   if (control_box_type_ == ControlBoxType::CB7)
   {
     URCL_LOG_ERROR("Standard digital output is not available with control-box type %s. Use configurable digital output "
@@ -303,9 +306,6 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
     return false;
   }
 
-  static const std::string key_mask = "standard_digital_output_mask";
-  static const std::string key_output = "standard_digital_output";
-  std::lock_guard<std::mutex> guard(store_mutex_);
   if (!running_)
   {
     return false;
