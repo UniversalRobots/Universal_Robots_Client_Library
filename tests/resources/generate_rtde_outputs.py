@@ -29,70 +29,140 @@
 # -- END LICENSE BLOCK ------------------------------------------------
 
 import pathlib
-import pandas as pd
 import re
-URCL_PATH = pathlib.Path(__file__).parent.parent.parent.resolve()
 
-# The client library takes the data types of the RTDE fields from the robot's answer to the recipe
-# setup, so the list of all known fields only exists in the test double that has to emulate that
-# answer.
-PKG_PATH = [i for i in pathlib.Path(URCL_PATH.as_posix()).glob("**/fake_rtde_server.cpp")]
+import pandas as pd
 
-assert len(PKG_PATH) == 1
+URCL_PATH = pathlib.Path(__file__).resolve().parents[2]
+DOCS_URL = "https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html"
+MINIMUM_FIELDS = 101
+INPUT_OUTPUT_MARKER = "  // INPUT / OUTPUT\n"
+UNDOCUMENTED_MARKER = "  // NOT IN OFFICIAL DOCS\n"
+DATA_TYPES = {
+    "BOOL", "UINT8", "UINT32", "UINT64", "INT32", "DOUBLE",
+    "VECTOR3D", "VECTOR6D", "VECTOR6INT32", "VECTOR6UINT32",
+}
+NAME = r"[a-z][A-Za-z0-9_]*"
+# Match a C++ { "field_name", "TYPE" }, entry, allowing spaces and tabs around punctuation.
+ENTRY = re.compile(rf'''
+    \s*\{{\s*                   # opening brace
+    "(?P<name>{NAME})"          # field name
+    \s*,\s*
+    "(?P<type>[A-Z0-9]+)"       # type
+    \s*\}},\s*                  # closing brace and comma
+''', re.VERBOSE)
 
-PKG_PATH = PKG_PATH[0].resolve()
 
-OUTPUT_PATH = pathlib.Path(__file__).parent.resolve().as_posix() + "/exhaustive_rtde_output_recipe.txt"
-WEB_OUTPUT_PATH = pathlib.Path(__file__).parent.resolve().as_posix() + "/docs_rtde_output_recipe.txt"
+def validate_and_add(fields, name, data_type) -> None:
+    """Validate a field definition, then add it to the supplied dictionary."""
+    if not isinstance(name, str) or not re.fullmatch(NAME, name):
+        raise ValueError(f"Invalid RTDE field name: {name!r}")
+    if data_type not in DATA_TYPES:
+        raise ValueError(f"Unknown RTDE type for {name}: {data_type!r}")
+    if name in fields:
+        raise ValueError(f"Duplicate RTDE field: {name}")
+    fields[name] = data_type
 
-with open(PKG_PATH) as pkg_file:
-    save_outputs = False
-    outputs = []
-    while True:
-        line = pkg_file.readline()
-        if not line:
-            break
-        if "// INPUT / OUTPUT" in line:
-            save_outputs = True
-        if save_outputs:
-            if "//" not in line and len(line) > 1:
-                outputs.append(line.split('"')[1] + "\n")
-        if "// NOT IN OFFICIAL DOCS" in line:
-            break
 
-    with open(OUTPUT_PATH, "w") as output_file:
-        output_file.writelines(outputs)
+def extract_fields(document) -> dict[str, str]:
+    """Read the second table: controller inputs come first, outputs second."""
+    page = pd.read_html(document, flavor="lxml")
+    if len(page) < 2:
+        raise ValueError(f"Expected at least two tables on the RTDE docs page, found {len(page)}")
+    table = page[1]
+    required = {"Name", "Type", "Comment"}
+    if not required.issubset(table.columns):
+        raise ValueError(f"Output table is missing columns: {sorted(required - set(table.columns))}")
 
-# Get outputs from official docs. The page currently has the input table first and the output
-# table second; if that layout changes, fail here rather than writing a recipe of the wrong names.
-page = pd.read_html("https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html")
-if len(page) < 2:
-    raise RuntimeError(f"Expected at least two tables on the RTDE docs page, found {len(page)}.")
-table = page[1]
-required_columns = {"Name", "Type", "Comment"}
-missing = required_columns - set(table.columns)
-if missing:
-    raise RuntimeError(
-        f"The RTDE docs table at index 1 is missing columns {sorted(missing)}; "
-        f"got {list(table.columns)}. The page layout may have changed."
+    fields = {}
+    for _, row in table.iterrows():
+        name, data_type = row["Name"], row["Type"]
+        if isinstance(name, str) and name.endswith("_X"):
+            numbers = re.findall(r'\d+', row["Comment"])
+            if len(numbers) < 2:
+                raise ValueError(f"Missing register count/start index for {name}")
+            amount, base_addr = int(numbers[0]), int(numbers[1])
+            for index in range(amount):
+                validate_and_add(fields, name[:-1] + str(base_addr + index), data_type)
+        else:
+            validate_and_add(fields, name, data_type)
+    if len(fields) < MINIMUM_FIELDS:
+        raise ValueError(f"Expected at least {MINIMUM_FIELDS} output fields, found {len(fields)}")
+    return fields
+
+
+def update_server(source, documented) -> tuple[str, dict[str, str], list[str]]:
+    """Read output entries line by line, updating types and retaining missing fields."""
+    before, section = source.split(INPUT_OUTPUT_MARKER)
+    section, after = section.split(UNDOCUMENTED_MARKER)
+    if section.count("  // OUTPUTS\n") != 1:
+        raise ValueError("Expected exactly one OUTPUTS section")
+    if "};" not in after:
+        raise ValueError("Missing RTDE map terminator")
+
+    outputs = {}
+    changes = []
+    lines = []
+    for line in section.splitlines(keepends=True):
+        if line.strip() and not line.lstrip().startswith("//"):
+            match = ENTRY.fullmatch(line)
+            if not match:
+                raise ValueError(f"Unexpected RTDE map entry: {line.strip()}")
+            name, old_type = match["name"], match["type"]
+            data_type = documented.get(name, old_type)
+            validate_and_add(outputs, name, data_type)
+            if data_type != old_type:
+                line = line.replace(f'"{old_type}"', f'"{data_type}"')
+                changes.append(f"Updated {name}: {old_type} -> {data_type}")
+        lines.append(line)
+
+    # Do not duplicate names already maintained outside the output sections.
+    protected = set(re.findall(r'\{\s*"(' + NAME + r')"\s*,', before + after))
+    added = sorted(documented.keys() - outputs.keys())
+    if protected.intersection(added):
+        raise ValueError("New documented outputs collide with protected entries")
+    additions = []
+    for name in added:
+        data_type = documented[name]
+        validate_and_add(outputs, name, data_type)
+        additions.append(f'  {{ "{name}", "{data_type}" }},\n')
+        changes.append(f"Added {name}: {data_type}")
+
+    updated = "".join(lines)
+    if additions:
+        updated = updated.rstrip("\n") + "\n" + "".join(additions) + "\n"
+    updated_source = before + INPUT_OUTPUT_MARKER + updated + UNDOCUMENTED_MARKER + after
+    return updated_source, outputs, changes
+
+
+def update_resources(document, server_path, recipe_path, docs_recipe_path) -> list[str]:
+    """Validate and render all resources before writing any of them."""
+    documented = extract_fields(document)
+    source = server_path.read_text(encoding="utf-8")
+    updated, outputs, changes = update_server(source, documented)
+    generated_files = {
+        server_path: updated,
+        recipe_path: "".join(name + "\n" for name in outputs),
+        docs_recipe_path: "".join(name + "\n" for name in sorted(documented)),
+    }
+    for path, text in generated_files.items():
+        if not path.exists() or path.read_text(encoding="utf-8") != text:
+            path.write_text(text, encoding="utf-8")
+    return changes
+
+
+def main() -> None:
+    resources_dir = URCL_PATH / "tests" / "resources"
+    changes = update_resources(
+        DOCS_URL,
+        URCL_PATH / "tests" / "fake_rtde_server.cpp",
+        resources_dir / "exhaustive_rtde_output_recipe.txt",
+        resources_dir / "docs_rtde_output_recipe.txt",
     )
-outputs = []
-for _, row in table.iterrows():
-    name = row["Name"]
-    if "X" in name:
-        numbers = re.findall(r'\d+', row["Comment"])
-        amount = int(numbers[0])
-        base_addr = int(numbers[1])
-        for i in range(amount):
-            outputs.append(name[:-1]+str(base_addr+i) + "\n")
-    else:
-        outputs.append(name + "\n")
+    for change in changes:
+        print(change)
+    print(f"RTDE resources updated: {len(changes)} field additions/type changes.")
 
-if len(outputs) <= 100:
-    raise RuntimeError(
-        f"The RTDE docs output scrape produced only {len(outputs)} field names; expected more than "
-        "100. The scrape likely picked the wrong table."
-    )
 
-with open(WEB_OUTPUT_PATH, "w") as web_output_file:
-    web_output_file.writelines(outputs)
+if __name__ == "__main__":
+    main()
