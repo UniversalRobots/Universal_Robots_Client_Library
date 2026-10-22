@@ -252,6 +252,7 @@ set_tests_properties(RTDEClientFakeServerTest.server_sender_start_and_stop_are_i
                      RTDEClientFakeServerTest.disconnection_wait_tracks_each_connection
                      RTDEClientFakeServerTest.repeated_output_negotiation_failures_recover
                      RTDEClientFakeServerTest.input_in_use_exhausts_retries_then_recovers
+                     RTDEClientFakeServerTest.init_fails_when_the_robot_sends_no_data_after_start
                      PROPERTIES TIMEOUT 60)
 
 # Covers RTDEClient::reconnect() by taking the fake RTDE server away and giving it back, so it runs

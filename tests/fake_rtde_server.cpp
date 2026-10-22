@@ -565,6 +565,12 @@ void RTDEServer::setAcceptPause(const bool accept)
   accept_pause_ = accept;
 }
 
+void RTDEServer::setSendDataAfterStart(const bool send)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  send_data_after_start_ = send;
+}
+
 void RTDEServer::queueTextMessageBeforeSetupOutputs(const std::string& message)
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -978,10 +984,12 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
       bool accepted;
+      bool send_data;
       std::deque<std::string> after_start_text_messages;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         accepted = accept_start_;
+        send_data = send_data_after_start_;
         after_start_text_messages.swap(pending_after_start_text_messages_);
       }
       comm::PackageSerializer serializer;
@@ -999,7 +1007,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         {
           sendTextMessage(filedescriptor, msg);
         }
-        startSendingDataPackages();
+        if (send_data)
+        {
+          startSendingDataPackages();
+        }
       }
       break;
     }

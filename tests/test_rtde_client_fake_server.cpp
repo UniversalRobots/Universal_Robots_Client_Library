@@ -430,6 +430,27 @@ TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period)
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
 }
 
+// A controller that restarts its RTDE interface during bootup can acknowledge the start request
+// and then never send data. isRobotBooted() used to wait for that data forever; a silent robot
+// has to fail the initialization attempt instead, so init() can retry or give up.
+TEST_F(RTDEClientFakeServerTest, init_fails_when_the_robot_sends_no_data_after_start)
+{
+  server_->setSendDataAfterStart(false);
+
+  const auto started = std::chrono::steady_clock::now();
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+  EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(5));
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+
+  ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
+  server_->setSendDataAfterStart(true);
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+  rtde_interface::DataPackage output(OUTPUT_RECIPE);
+  EXPECT_TRUE(client_->getDataPackage(output, std::chrono::seconds(1)));
+  EXPECT_TRUE(client_->pause());
+}
+
 // A robot that refuses to start RTDE must not leave the client believing it is streaming.
 TEST_F(RTDEClientFakeServerTest, start_is_refused_when_the_robot_rejects_it)
 {

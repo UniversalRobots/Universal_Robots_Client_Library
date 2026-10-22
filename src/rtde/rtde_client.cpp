@@ -228,8 +228,8 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     setTargetFrequency();
   }
 
-  prod_->startProducer();
-
+  // The producer stays stopped for the whole handshake, so every read fails after one receive
+  // timeout instead of waiting forever on a robot that stopped answering. start() starts it.
   is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs();
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
@@ -704,6 +704,9 @@ bool RTDEClient::start(const bool read_packages_in_background)
 
   if (sendStart())
   {
+    // From here on the robot streams data, so a read timeout means a lost connection and the
+    // producer has to reconnect rather than give up.
+    prod_->startProducer();
     if (read_packages_in_background)
     {
       startBackgroundRead();

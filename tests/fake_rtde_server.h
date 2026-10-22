@@ -70,6 +70,14 @@ public:
   void setAcceptPause(const bool accept);
 
   /*!
+   * \brief Whether an accepted RTDE start request is followed by data packages.
+   *
+   * Turn it off to act like a controller that restarts its RTDE interface during bootup: it
+   * acknowledges the start and then stays silent on the open connection.
+   */
+  void setSendDataAfterStart(const bool send);
+
+  /*!
    * \brief Answers the next output-recipe setup with a text message instead of the acknowledgement.
    *
    * Queue more messages than the client is willing to retry and setupOutputs() gives up.
@@ -215,6 +223,7 @@ private:
   std::deque<std::string> pending_after_start_text_messages_;
   bool accept_start_ = true;
   bool accept_pause_ = true;
+  bool send_data_after_start_ = true;
 };
 
 }  // namespace urcl
