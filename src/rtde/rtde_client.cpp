@@ -180,6 +180,7 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
   // Forget the previous controller's properties before any step of the handshake can fail.
   robot_properties_.clear();
   writer_.setToolFlangeType(ToolFlangeType::UNKNOWN);
+  writer_.setControlBoxType(ControlBoxType::UNKNOWN);
   prod_->setupProducer(max_num_tries, reconnection_time);
   client_state_ = ClientState::INITIALIZING;
 
@@ -212,6 +213,11 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
         if (tool_flange.has_value())
         {
           writer_.setToolFlangeType(tool_flange->type);
+        }
+        const std::optional<ControlBoxProperty> control_box = properties->getControlBoxType();
+        if (control_box.has_value())
+        {
+          writer_.setControlBoxType(control_box->type);
         }
       }
     }

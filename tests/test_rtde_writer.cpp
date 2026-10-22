@@ -306,6 +306,16 @@ TEST_F(RTDEWriterTest, send_standard_digital_output)
   EXPECT_EQ(expected_standard_digital_output_mask, received_standard_digital_output_mask);
 }
 
+TEST_F(RTDEWriterTest, standard_digital_output_is_not_available_on_cb7)
+{
+  writer_->stop();
+  writer_->setControlBoxType(ControlBoxType::CB7);
+  writer_->init(1);
+
+  EXPECT_FALSE(writer_->sendStandardDigitalOutput(2, true));
+  EXPECT_FALSE(waitForMessageCallback());
+}
+
 TEST_F(RTDEWriterTest, send_configurable_digital_output)
 {
   uint8_t expected_configurable_digital_output_mask = 8;
@@ -937,12 +947,14 @@ TEST_F(RTDEWriterTest, setup_mutators_throw_while_running_and_work_after_stop)
   EXPECT_THROW(writer_->setRecipeTypes(input_recipe_types_), UrException);
   EXPECT_THROW(writer_->setProtocolVersion(1), UrException);
   EXPECT_THROW(writer_->setToolFlangeType(ToolFlangeType::V2), UrException);
+  EXPECT_THROW(writer_->setControlBoxType(ControlBoxType::CB7), UrException);
 
   writer_->stop();
 
   EXPECT_NO_THROW(writer_->setRecipeTypes(input_recipe_types_));
   EXPECT_NO_THROW(writer_->setProtocolVersion(1));
   EXPECT_NO_THROW(writer_->setToolFlangeType(ToolFlangeType::V2));
+  EXPECT_NO_THROW(writer_->setControlBoxType(ControlBoxType::CB7));
 }
 
 TEST_F(RTDEWriterTest, create_data_package_after_stop_throws)
@@ -987,6 +999,16 @@ TEST_F(RTDEWriterTest, get_tool_flange_type_returns_the_set_value)
   EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V1);
   writer_->setToolFlangeType(ToolFlangeType::V2);
   EXPECT_EQ(writer_->getToolFlangeType(), ToolFlangeType::V2);
+}
+
+TEST_F(RTDEWriterTest, get_control_box_type_returns_the_set_value)
+{
+  writer_->stop();
+  EXPECT_EQ(writer_->getControlBoxType(), ControlBoxType::UNKNOWN);
+  writer_->setControlBoxType(ControlBoxType::CB5);
+  EXPECT_EQ(writer_->getControlBoxType(), ControlBoxType::CB5);
+  writer_->setControlBoxType(ControlBoxType::CB7);
+  EXPECT_EQ(writer_->getControlBoxType(), ControlBoxType::CB7);
 }
 
 TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
