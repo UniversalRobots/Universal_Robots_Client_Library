@@ -96,6 +96,33 @@ protected:
 
   void TearDown()
   {
+    if (protective_stop_triggered_ && dashboard_client_)
+    {
+      try
+      {
+        if (robotApiSafetyModeAvailable())
+        {
+          waitForRobotApiSafetyMode("PROTECTIVE_STOP");
+        }
+        else
+        {
+          waitForPrimaryProtectiveStop(true);
+        }
+        dashboard_client_->commandUnlockProtectiveStop();
+        if (robotApiSafetyModeAvailable())
+        {
+          waitForRobotApiSafetyMode("NORMAL");
+        }
+        else
+        {
+          waitForPrimaryProtectiveStop(false);
+        }
+      }
+      catch (const std::exception& e)
+      {
+        URCL_LOG_ERROR("Failed to clear protective stop during test cleanup: %s", e.what());
+      }
+    }
     dashboard_client_.reset();
   }
 
@@ -105,10 +132,42 @@ protected:
     URCL_LOG_INFO("Robot has reached state %s", robotModeString(robot_mode).c_str());
   }
 
+  bool robotApiSafetyModeAvailable() const
+  {
+    return dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4");
+  }
+
+  void waitForRobotApiSafetyMode(const std::string& expected_safety_mode)
+  {
+    waitFor(
+        [this, &expected_safety_mode]() {
+          const auto response = dashboard_client_->commandSafetyMode();
+          return response.ok && std::get<std::string>(response.data.at("safety_mode")) == expected_safety_mode;
+        },
+        5s, 100ms);
+  }
+
+  void waitForPrimaryProtectiveStop(const bool expected_protective_stop)
+  {
+    waitFor(
+        [this, expected_protective_stop]() {
+          try
+          {
+            return primary_client_->isRobotProtectiveStopped() == expected_protective_stop;
+          }
+          catch (const UrException&)
+          {
+            return false;
+          }
+        },
+        5s, 100ms);
+  }
+
   std::unique_ptr<TestableDashboardClientImplX> dashboard_client_;
   std::unique_ptr<urcl::primary_interface::PrimaryClient> primary_client_;
   std::shared_ptr<VersionInformation> polyscope_version_;
   bool skip_remote_control_tests = true;
+  bool protective_stop_triggered_ = false;
   static constexpr int ERROR_CODE_EXISTS = 400;
   static constexpr int ERROR_CODE_CONFLICT = 409;
 };
@@ -178,22 +237,26 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
   ASSERT_TRUE(response.ok);
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
   primary_client_->sendScript("protective_stop()");
-  waitFor(
-      [this]() {
-        try
-        {
-          return primary_client_->isRobotProtectiveStopped();
-        }
-        catch (const UrException& e)
-        {
-          return false;
-        }
-      },
-      std::chrono::milliseconds(1000));
+  protective_stop_triggered_ = true;
+  if (robotApiSafetyModeAvailable())
+  {
+    ASSERT_NO_THROW(waitForRobotApiSafetyMode("PROTECTIVE_STOP"));
+  }
+  else
+  {
+    ASSERT_NO_THROW(waitForPrimaryProtectiveStop(true));
+  }
   response = dashboard_client_->commandUnlockProtectiveStop();
   ASSERT_TRUE(response.ok);
-  EXPECT_NO_THROW(waitFor([this]() { return primary_client_->isRobotProtectiveStopped() == false; },
-                          std::chrono::milliseconds(1000)));
+  if (robotApiSafetyModeAvailable())
+  {
+    ASSERT_NO_THROW(waitForRobotApiSafetyMode("NORMAL"));
+  }
+  else
+  {
+    ASSERT_NO_THROW(waitForPrimaryProtectiveStop(false));
+  }
+  protective_stop_triggered_ = false;
 }
 
 // This currently cannot be tested, as I don't know a way to provoke a state that requires
