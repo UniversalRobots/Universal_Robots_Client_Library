@@ -100,22 +100,23 @@ protected:
     {
       try
       {
-        waitFor(
-            [this]() {
-              const auto response = dashboard_client_->commandSafetyMode();
-              if (!response.ok)
-              {
-                return false;
-              }
-              const auto safety_mode = std::get<std::string>(response.data.at("safety_mode"));
-              if (safety_mode == "PROTECTIVE_STOP")
-              {
-                return dashboard_client_->commandUnlockProtectiveStop().ok;
-              }
-              return safety_mode == "NORMAL";
-            },
-            5s, 100ms);
-        waitForRobotApiSafetyMode("NORMAL");
+        if (robotApiSafetyModeAvailable())
+        {
+          waitForRobotApiSafetyMode("PROTECTIVE_STOP");
+        }
+        else
+        {
+          waitForPrimaryProtectiveStop(true);
+        }
+        dashboard_client_->commandUnlockProtectiveStop();
+        if (robotApiSafetyModeAvailable())
+        {
+          waitForRobotApiSafetyMode("NORMAL");
+        }
+        else
+        {
+          waitForPrimaryProtectiveStop(false);
+        }
       }
       catch (const std::exception& e)
       {
@@ -131,12 +132,33 @@ protected:
     URCL_LOG_INFO("Robot has reached state %s", robotModeString(robot_mode).c_str());
   }
 
+  bool robotApiSafetyModeAvailable() const
+  {
+    return dashboard_client_->getRobotApiVersion() >= VersionInformation::fromString("3.1.4");
+  }
+
   void waitForRobotApiSafetyMode(const std::string& expected_safety_mode)
   {
     waitFor(
         [this, &expected_safety_mode]() {
           const auto response = dashboard_client_->commandSafetyMode();
           return response.ok && std::get<std::string>(response.data.at("safety_mode")) == expected_safety_mode;
+        },
+        5s, 100ms);
+  }
+
+  void waitForPrimaryProtectiveStop(const bool expected_protective_stop)
+  {
+    waitFor(
+        [this, expected_protective_stop]() {
+          try
+          {
+            return primary_client_->isRobotProtectiveStopped() == expected_protective_stop;
+          }
+          catch (const UrException&)
+          {
+            return false;
+          }
         },
         5s, 100ms);
   }
@@ -216,10 +238,24 @@ TEST_F(DashboardClientTestX, unlock_protective_stop)
   ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
   primary_client_->sendScript("protective_stop()");
   protective_stop_triggered_ = true;
-  ASSERT_NO_THROW(waitForRobotApiSafetyMode("PROTECTIVE_STOP"));
+  if (robotApiSafetyModeAvailable())
+  {
+    ASSERT_NO_THROW(waitForRobotApiSafetyMode("PROTECTIVE_STOP"));
+  }
+  else
+  {
+    ASSERT_NO_THROW(waitForPrimaryProtectiveStop(true));
+  }
   response = dashboard_client_->commandUnlockProtectiveStop();
   ASSERT_TRUE(response.ok);
-  ASSERT_NO_THROW(waitForRobotApiSafetyMode("NORMAL"));
+  if (robotApiSafetyModeAvailable())
+  {
+    ASSERT_NO_THROW(waitForRobotApiSafetyMode("NORMAL"));
+  }
+  else
+  {
+    ASSERT_NO_THROW(waitForPrimaryProtectiveStop(false));
+  }
   protective_stop_triggered_ = false;
 }
 
