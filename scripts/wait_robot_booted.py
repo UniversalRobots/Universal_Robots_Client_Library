@@ -30,6 +30,7 @@
 """Wait until a UR controller/URSim instance is reachable after boot."""
 
 import argparse
+import json
 import socket
 import sys
 import time
@@ -38,6 +39,7 @@ import urllib.request
 
 DASHBOARD_PORT = 29999
 ROBOT_API_OPENAPI_PATH = "/universal-robots/robot-api/openapi.json"
+BOOTSTRAPPER_STATUS_PATH = "/universal-robots/bootstrapper/status"
 
 
 def dashboard_reachable(robot_ip: str, timeout: float) -> bool:
@@ -59,12 +61,27 @@ def robot_api_reachable(robot_ip: str, timeout: float) -> bool:
         return False
 
 
+def bootstrapper_finished(robot_ip: str, timeout: float) -> bool:
+    """Return True if the PolyScope X bootstrapper reports that startup has finished."""
+    url = f"http://{robot_ip}{BOOTSTRAPPER_STATUS_PATH}"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            if response.status != 200:
+                return False
+            status = json.load(response)
+            return status.get("isFinished") is True
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return False
+
+
 def probe_robot(robot_ip: str, probe_timeout: float) -> str | None:
-    """Probe dashboard and Robot API; return a short description of the first hit."""
+    """Probe dashboard and PolyScope X startup; return a description when ready."""
+    if robot_api_reachable(robot_ip, probe_timeout):
+        if bootstrapper_finished(robot_ip, probe_timeout):
+            return f"finished PolyScope X bootstrapper at http://{robot_ip}{BOOTSTRAPPER_STATUS_PATH}"
+        return None
     if dashboard_reachable(robot_ip, probe_timeout):
         return f"dashboard server at {robot_ip}:{DASHBOARD_PORT}"
-    if robot_api_reachable(robot_ip, probe_timeout):
-        return f"Robot API at http://{robot_ip}{ROBOT_API_OPENAPI_PATH}"
     return None
 
 
@@ -74,7 +91,7 @@ def wait_for_robot(
     interval: float,
     probe_timeout: float,
 ) -> bool:
-    """Poll until the dashboard or Robot API is reachable, or ``timeout`` elapses."""
+    """Poll until the dashboard or a fully bootstrapped Robot API is ready."""
     start = time.monotonic()
     deadline = time.monotonic() + timeout
     print(
