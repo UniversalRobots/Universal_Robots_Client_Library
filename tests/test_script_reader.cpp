@@ -35,9 +35,14 @@
 #include "ur_client_library/ur/version_information.h"
 #include "ur_client_library/control/reverse_interface.h"
 #include "ur_client_library/control/trajectory_point_interface.h"
+#include "ur_client_library/control/motion_primitives.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <regex>
 
 #ifdef _WIN32
 #  define mkstemp _mktemp_s
@@ -515,6 +520,124 @@ TEST_F(ScriptReaderTest, TestParsingExternalControl)
   processed_script = reader.readScriptFile(existing_script_file, data);
   expected_pattern = "ft_rtde_input_enable(enabled, sensor_mass, sensor_offset, sensor_cog)";
   EXPECT_NE(processed_script.find(expected_pattern), std::string::npos);
+}
+
+ScriptReader::DataDict externalControlData(const std::string& version)
+{
+  ScriptReader::DataDict data;
+  data["BEGIN_REPLACE"] = "";
+  data["JOINT_STATE_REPLACE"] = std::to_string(urcl::control::ReverseInterface::MULT_JOINTSTATE);
+  data["TIME_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_TIME);
+  data["VEL_ACC_REPLACE"] = std::to_string(urcl::control::TrajectoryPointInterface::MULT_VEL_ACC);
+  data["TRAJECTORY_MOVE_IDS_REPLACE"] = true;
+  data["SERVO_J_REPLACE"] = "lookahead_time=0.03, gain=2000";
+  data["SERVER_IP_REPLACE"] = "1.2.3.4";
+  data["SERVER_PORT_REPLACE"] = "50001";
+  data["TRAJECTORY_SERVER_PORT_REPLACE"] = "50003";
+  data["SCRIPT_COMMAND_SERVER_PORT_REPLACE"] = "50004";
+  data["ROBOT_SOFTWARE_VERSION"] = urcl::VersionInformation::fromString(version);
+  return data;
+}
+
+// List contents with whitespace removed, so the assertion does not depend on line wrapping.
+std::string listLiteral(const std::string& script, const std::string& name)
+{
+  const std::string marker = name + " = [";
+  const auto start = script.find(marker);
+  if (start == std::string::npos)
+  {
+    return {};
+  }
+  const auto end = script.find(']', start);
+  if (end == std::string::npos)
+  {
+    return {};
+  }
+  std::string literal = script.substr(start + marker.size(), end - (start + marker.size()));
+  literal.erase(std::remove_if(literal.begin(), literal.end(), [](unsigned char c) { return std::isspace(c) != 0; }),
+                literal.end());
+  return literal;
+}
+
+TEST_F(ScriptReaderTest, motion_type_tables_match_the_enum)
+{
+  ScriptReader reader;
+  const std::string script = reader.readScriptFile("../resources/external_control.urscript", externalControlData("5.23."
+                                                                                                                 "0"));
+
+  const std::vector<std::pair<std::string, MotionType>> expected_types = {
+    { "MOVEJ", MotionType::MOVEJ },
+    { "MOVEL", MotionType::MOVEL },
+    { "MOVEP", MotionType::MOVEP },
+    { "MOVEC", MotionType::MOVEC },
+    { "OPTIMOVEJ", MotionType::OPTIMOVEJ },
+    { "OPTIMOVEL", MotionType::OPTIMOVEL },
+    { "MOVEJ_POSE", MotionType::MOVEJ_POSE },
+    { "MOVEL_JOINT", MotionType::MOVEL_JOINT },
+    { "MOVEP_JOINT", MotionType::MOVEP_JOINT },
+    { "MOVEC_JOINT", MotionType::MOVEC_JOINT },
+    { "MOVEC_JOINT_POSE", MotionType::MOVEC_JOINT_POSE },
+    { "MOVEC_POSE_JOINT", MotionType::MOVEC_POSE_JOINT },
+    { "OPTIMOVEJ_POSE", MotionType::OPTIMOVEJ_POSE },
+    { "OPTIMOVEL_JOINT", MotionType::OPTIMOVEL_JOINT },
+    { "SPLINE", MotionType::SPLINE },
+  };
+
+  std::regex assignment(R"(MOTION_TYPE_([A-Z0-9_]+) = (\d+))");
+  std::map<std::string, int> found;
+  for (auto it = std::sregex_iterator(script.begin(), script.end(), assignment); it != std::sregex_iterator(); ++it)
+  {
+    found[(*it)[1]] = std::stoi((*it)[2]);
+  }
+  ASSERT_EQ(found.size(), expected_types.size());
+  for (const auto& entry : expected_types)
+  {
+    ASSERT_EQ(found.count(entry.first), 1u) << entry.first;
+    EXPECT_EQ(found[entry.first], static_cast<int>(entry.second)) << entry.first;
+  }
+
+  const std::string target_is_pose = listLiteral(script, "TARGET_IS_POSE");
+  const std::string via_is_pose = listLiteral(script, "VIA_IS_POSE");
+  EXPECT_EQ(std::count(target_is_pose.begin(), target_is_pose.end(), ',') + 1, 14);
+  EXPECT_EQ(std::count(via_is_pose.begin(), via_is_pose.end(), ',') + 1, 14);
+  EXPECT_EQ(target_is_pose, "False,True,True,True,False,True,True,False,False,False,False,True,True,False");
+  EXPECT_EQ(via_is_pose, "False,False,False,True,False,False,False,False,False,False,True,False,False,False");
+}
+
+TEST_F(ScriptReaderTest, optimove_wrappers_follow_the_software_version)
+{
+  ScriptReader reader;
+  const auto call_count = [](const std::string& script, const std::string& command) {
+    const std::regex call("([^_\\w])" + command + "\\(target");
+    return std::distance(std::sregex_iterator(script.begin(), script.end(), call), std::sregex_iterator());
+  };
+
+  const std::string supported_5 =
+      reader.readScriptFile("../resources/external_control.urscript", externalControlData("5.23.0"));
+  const std::string supported_10 =
+      reader.readScriptFile("../resources/external_control.urscript", externalControlData("10.8.0"));
+  for (const auto& script : { supported_5, supported_10 })
+  {
+    EXPECT_EQ(call_count(script, "optimovel"), 1);
+    EXPECT_EQ(call_count(script, "optimovej"), 1);
+    EXPECT_EQ(script.find("Optimovel is only supported"), std::string::npos);
+    EXPECT_EQ(script.find("Optimovej is only supported"), std::string::npos);
+  }
+
+  const std::string too_old = reader.readScriptFile("../resources/external_control.urscript", externalControlData("5."
+                                                                                                                  "20."
+                                                                                                                  "0"));
+  EXPECT_EQ(call_count(too_old, "optimovel"), 0);
+  EXPECT_EQ(call_count(too_old, "optimovej"), 0);
+  EXPECT_NE(too_old.find("Optimovel is only supported from software 5.21.0 and upwards."), std::string::npos);
+  EXPECT_NE(too_old.find("Optimovej is only supported from software 5.21.0 and upwards."), std::string::npos);
+
+  const std::string polyscope_x_gap =
+      reader.readScriptFile("../resources/external_control.urscript", externalControlData("10.7.0"));
+  EXPECT_EQ(call_count(polyscope_x_gap, "optimovel"), 0);
+  EXPECT_EQ(call_count(polyscope_x_gap, "optimovej"), 0);
+  EXPECT_NE(polyscope_x_gap.find("Optimovel is only supported from software 10.8.0 and upwards."), std::string::npos);
+  EXPECT_NE(polyscope_x_gap.find("Optimovej is only supported from software 10.8.0 and upwards."), std::string::npos);
 }
 
 TEST_F(ScriptReaderTest, TestDirectTorquePopupOnOldVersion)

@@ -417,6 +417,10 @@ TEST_F(InstructionExecutorTest, movej_accepts_pose_via_motion_target)
   // Using an explicit urcl::Pose selects the MotionTarget overload and triggers a MOVEJ_POSE
   // execution on the robot.
   ASSERT_TRUE(executor_->moveJ(urcl::Pose{ -0.203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 1.0, 1.0));
+
+  urcl::Pose target_with_qnear{ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 };
+  target_with_qnear.setQNear(urcl::Q{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 });
+  ASSERT_TRUE(executor_->moveJ(target_with_qnear, 1.0, 1.0));
 }
 
 TEST_F(InstructionExecutorTest, movej_accepts_joint_via_motion_target)
@@ -470,6 +474,10 @@ TEST_F(InstructionExecutorTest, optimovej_accepts_pose_via_motion_target)
   ASSERT_TRUE(executor_->moveJ({ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 }));
 
   ASSERT_TRUE(executor_->optimoveJ(urcl::Pose{ -0.203, 0.363, 0.559, 0.68, -1.083, -2.076 }, 0.4, 0.7, 0.1));
+
+  urcl::Pose target_with_qnear{ -0.203, 0.263, 0.559, 0.68, -1.083, -2.076 };
+  target_with_qnear.setQNear(urcl::Q{ -1.57, -1.6, 1.6, -0.7, 0.7, 0.2 });
+  ASSERT_TRUE(executor_->optimoveJ(target_with_qnear, 0.4, 0.7, 0.1));
 }
 
 TEST_F(InstructionExecutorTest, optimovel_accepts_joint_via_motion_target)
