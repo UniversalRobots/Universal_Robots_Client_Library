@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.17.0 (2026-11-02)
+-------------------
 * Optimize external_control URScript for easier maintenance. (`#608 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/608>`_)
 * Fail the RTDE handshake when the robot sends no data after start (`#604 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/604>`_)
 * wait_robot_booted: Wait for finished bootstrapper (`#606 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/606>`_)
