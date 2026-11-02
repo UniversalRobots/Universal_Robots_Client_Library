@@ -324,8 +324,8 @@ global tool_contact_running = False
 global trajectory_result = 0
 global friction_compensation_mode = FRICTION_COMP_MODE_NOT_SET
 global deprecated_friction_compensation_enabled = True
-global viscous_scale = ZERO_JOINT_VECTOR # [0.9, 0.9, 0.8, 0.9, 0.9, 0.9]
-global coulomb_scale = ZERO_JOINT_VECTOR #[0.8, 0.8, 0.7, 0.8, 0.8, 0.8]
+global viscous_scale = ZERO_JOINT_VECTOR
+global coulomb_scale = ZERO_JOINT_VECTOR
 
 # Global thread variables
 thread_move = 0
@@ -1032,7 +1032,7 @@ def tool_contact_detection():
 
     # Set control mode to tool in contact, should be cleared by stopping tool contact detection
     control_mode = MODE_TOOL_IN_CONTACT
-    textmsg("ExternalControl: Entering tool contact mode")
+    textmsg("ExternalControl: Tool contact detected")
     stopl(3)
     wait_for_trajectory_cleanup()
     # Move to initial contact point
