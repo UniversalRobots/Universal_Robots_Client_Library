@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Optimize external_control URScript for easier maintenance. (`#608 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/608>`_)
+* Fail the RTDE handshake when the robot sends no data after start (`#604 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/604>`_)
+* wait_robot_booted: Wait for finished bootstrapper (`#606 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/606>`_)
+* Reject sendStandardDigitalOutput() on CB7 robots (`#603 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/603>`_)
+* Fix startup race currently showing on 10.14.0 (`#600 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/600>`_)
+* [tool_voltage_test] Wait until script is completely transferred (`#601 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/601>`_)
+* Add accessors for ControlBoxType and ToolFlangeType (`#599 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/599>`_)
+* Do not check for RTDE recipe changes inside tests (`#597 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/597>`_)
+* Contributors: David Karlsböck, Felix Exner, Rune Søe-Knudsen
+
 2.16.0 (2026-10-15)
 -------------------
 * Add move IDs to trajectory streaming  (`#552 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/552>`_)
