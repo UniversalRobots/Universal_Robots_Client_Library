@@ -430,6 +430,41 @@ TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period)
   EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
 }
 
+// At 0.75 Hz the bootup check reads two packages 1.33 s apart, longer than the 1 s receive timeout of the
+// handshake. The check has to wait for them instead of failing the initialization attempt.
+TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period_at_a_low_frequency)
+{
+  client_.reset();
+  server_.reset();
+  server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+  const double low_frequency = 0.75;
+  client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, low_frequency);
+
+  ASSERT_TRUE(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)));
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::INITIALIZED);
+}
+
+// A controller that restarts its RTDE interface during bootup can acknowledge the start request
+// and then never send data. isRobotBooted() used to wait for that data forever; a silent robot
+// has to fail the initialization attempt instead, so init() can retry or give up.
+TEST_F(RTDEClientFakeServerTest, init_fails_when_the_robot_sends_no_data_after_start)
+{
+  server_->setSendDataAfterStart(false);
+
+  const auto started = std::chrono::steady_clock::now();
+  EXPECT_THROW(client_->init(1, std::chrono::milliseconds(10), 1, std::chrono::milliseconds(10)), UrException);
+  EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(5));
+  EXPECT_EQ(client_->getClientState(), rtde_interface::ClientState::UNINITIALIZED);
+
+  ASSERT_TRUE(server_->waitForDisconnection(std::chrono::seconds(1)));
+  server_->setSendDataAfterStart(true);
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+  rtde_interface::DataPackage output(OUTPUT_RECIPE);
+  EXPECT_TRUE(client_->getDataPackage(output, std::chrono::seconds(1)));
+  EXPECT_TRUE(client_->pause());
+}
+
 // A robot that refuses to start RTDE must not leave the client believing it is streaming.
 TEST_F(RTDEClientFakeServerTest, start_is_refused_when_the_robot_rejects_it)
 {

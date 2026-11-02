@@ -433,6 +433,25 @@ TEST_F(TCPSocketTest, setup_interruptible_during_blocking_connect)
                                                  "the connect attempt is not interruptible";
 }
 
+TEST_F(TCPSocketTest, receive_timeout_is_unset_by_default)
+{
+  const timeval timeout = client_->getReceiveTimeout();
+  EXPECT_EQ(timeout.tv_sec, 0);
+  EXPECT_EQ(timeout.tv_usec, 0);
+}
+
+TEST_F(TCPSocketTest, get_receive_timeout_returns_the_set_one)
+{
+  timeval set_timeout;
+  set_timeout.tv_sec = 2;
+  set_timeout.tv_usec = 500000;
+  client_->setReceiveTimeout(set_timeout);
+
+  const timeval timeout = client_->getReceiveTimeout();
+  EXPECT_EQ(timeout.tv_sec, 2);
+  EXPECT_EQ(timeout.tv_usec, 500000);
+}
+
 TEST_F(TCPSocketTest, connect_timeout_is_disabled_by_default)
 {
   EXPECT_EQ(client_->getConnectTimeout(), std::chrono::milliseconds::zero());

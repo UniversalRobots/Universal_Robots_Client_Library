@@ -565,6 +565,12 @@ void RTDEServer::setAcceptPause(const bool accept)
   accept_pause_ = accept;
 }
 
+void RTDEServer::setSendDataAfterStart(const bool send)
+{
+  std::lock_guard<std::mutex> lock(negotiation_mutex_);
+  send_data_after_start_ = send;
+}
+
 void RTDEServer::queueTextMessageBeforeSetupOutputs(const std::string& message)
 {
   std::lock_guard<std::mutex> lock(negotiation_mutex_);
@@ -978,10 +984,12 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
     case rtde_interface::PackageType::RTDE_CONTROL_PACKAGE_START:
     {
       bool accepted;
+      bool send_data;
       std::deque<std::string> after_start_text_messages;
       {
         std::lock_guard<std::mutex> lock(negotiation_mutex_);
         accepted = accept_start_;
+        send_data = send_data_after_start_;
         after_start_text_messages.swap(pending_after_start_text_messages_);
       }
       comm::PackageSerializer serializer;
@@ -999,7 +1007,10 @@ void RTDEServer::handlePackage(const socket_t filedescriptor, rtde_interface::Pa
         {
           sendTextMessage(filedescriptor, msg);
         }
-        startSendingDataPackages();
+        if (send_data)
+        {
+          startSendingDataPackages();
+        }
       }
       break;
     }
@@ -1193,7 +1204,11 @@ void RTDEServer::startSendingDataPackages()
 void RTDEServer::stopSendingDataPackages()
 {
   std::lock_guard<std::mutex> thread_lock(thread_control_mutex_);
-  send_loop_running_ = false;
+  {
+    std::lock_guard<std::mutex> loop_lock(send_loop_mutex_);
+    send_loop_running_ = false;
+  }
+  send_loop_cv_.notify_all();
   if (send_thread_.joinable())
   {
     URCL_LOG_INFO("Stop sending data.");
@@ -1215,7 +1230,9 @@ void RTDEServer::sendDataLoop()
       size_t written = 0;
       server_.write(client_socket_, buffer, size, written);
     }
-    std::this_thread::sleep_for(std::chrono::duration<double>(1.0 / output_frequency_));
+    std::unique_lock<std::mutex> loop_lock(send_loop_mutex_);
+    send_loop_cv_.wait_for(loop_lock, std::chrono::duration<double>(1.0 / output_frequency_),
+                           [this] { return !send_loop_running_; });
   }
 }
 

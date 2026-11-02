@@ -51,6 +51,45 @@ namespace
   ss << "'" << type_name << "' is not a known RTDE data type. Expected one of " << knownTypeNames() << ".";
   throw UrException(ss.str());
 }
+
+// Raises a socket's receive timeout to at least the given one while it exists and then restores the previous
+// timeout. A socket without a timeout keeps waiting until data arrives.
+class ScopedMinimumReceiveTimeout
+{
+public:
+  ScopedMinimumReceiveTimeout(comm::TCPSocket& socket, const std::chrono::microseconds minimum)
+    : socket_(socket), previous_(socket.getReceiveTimeout())
+  {
+    const std::chrono::microseconds previous =
+        std::chrono::seconds(previous_.tv_sec) + std::chrono::microseconds(previous_.tv_usec);
+    if (previous == std::chrono::microseconds::zero() || previous >= minimum)
+    {
+      return;
+    }
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum);
+    timeval timeout;
+    timeout.tv_sec = static_cast<decltype(timeout.tv_sec)>(seconds.count());
+    timeout.tv_usec = static_cast<decltype(timeout.tv_usec)>((minimum - seconds).count());
+    socket_.setReceiveTimeout(timeout);
+    raised_ = true;
+  }
+
+  ~ScopedMinimumReceiveTimeout()
+  {
+    if (raised_)
+    {
+      socket_.setReceiveTimeout(previous_);
+    }
+  }
+
+  ScopedMinimumReceiveTimeout(const ScopedMinimumReceiveTimeout&) = delete;
+  ScopedMinimumReceiveTimeout& operator=(const ScopedMinimumReceiveTimeout&) = delete;
+
+private:
+  comm::TCPSocket& socket_;
+  timeval previous_;
+  bool raised_ = false;
+};
 }  // namespace
 
 // The pre-allocated package gets its storage here, but the field types are only known once the
@@ -228,8 +267,8 @@ bool RTDEClient::setupCommunication(const size_t max_num_tries, const std::chron
     setTargetFrequency();
   }
 
-  prod_->startProducer();
-
+  // The producer stays stopped for the whole handshake, so every read fails after one receive
+  // timeout instead of waiting forever on a robot that stopped answering. start() starts it.
   is_rtde_comm_setup = is_rtde_comm_setup && setupOutputs();
 
   is_rtde_comm_setup = is_rtde_comm_setup && isRobotBooted();
@@ -663,9 +702,16 @@ bool RTDEClient::isRobotBooted()
   // for more then 40 seconds (During the reset the timestamp will also be reset to 0).
   // TODO (anyone): Find a better solution to check for a proper connection.
 
+  // The producer is stopped during the handshake, so a read fails after one receive timeout. At low target
+  // frequencies packages are further apart than that, and the first one after the start request can take up to
+  // a full period, so each read may wait for two periods plus a margin for transmission and scheduling delays.
+  constexpr std::chrono::milliseconds margin{ 100 };
+  const auto two_periods =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<double>(2.0 / target_frequency_));
+  ScopedMinimumReceiveTimeout boot_data_timeout(stream_, two_periods + margin);
+
   while (timestamp < 40 && reading_count < target_frequency_ * 2)
   {
-    // Set timeout based on target frequency, to make sure that reading doesn't timeout
     if (prod_->tryGet(package))
     {
       rtde_interface::DataPackage* tmp_input = dynamic_cast<rtde_interface::DataPackage*>(package.get());
@@ -704,6 +750,9 @@ bool RTDEClient::start(const bool read_packages_in_background)
 
   if (sendStart())
   {
+    // From here on the robot streams data, so a read timeout means a lost connection and the
+    // producer has to reconnect rather than give up.
+    prod_->startProducer();
     if (read_packages_in_background)
     {
       startBackgroundRead();

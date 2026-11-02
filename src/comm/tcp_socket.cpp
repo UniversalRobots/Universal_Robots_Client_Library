@@ -564,6 +564,15 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
   }
 }
 
+timeval TCPSocket::getReceiveTimeout() const
+{
+  if (recv_timeout_ == nullptr)
+  {
+    return timeval{ 0, 0 };
+  }
+  return *recv_timeout_;
+}
+
 void TCPSocket::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
 {
   if (connect_timeout < std::chrono::milliseconds::zero())

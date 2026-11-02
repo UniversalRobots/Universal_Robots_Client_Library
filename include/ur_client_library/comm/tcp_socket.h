@@ -244,6 +244,14 @@ public:
   void setReceiveTimeout(const timeval& timeout);
 
   /*!
+   * \brief Getter for the receive timeout.
+   *
+   * \returns The timeout last passed to setReceiveTimeout(), or 0 if it was never called. With 0 the socket has no
+   * receive timeout, so a read blocks until data arrives or the connection closes.
+   */
+  timeval getReceiveTimeout() const;
+
+  /*!
    * \brief Sets the maximum duration of a single connection attempt.
    *
    * An attempt covers all addresses the host resolves to, but not the name resolution. The timeout
