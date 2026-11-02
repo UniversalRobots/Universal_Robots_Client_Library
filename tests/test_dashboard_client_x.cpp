@@ -214,6 +214,7 @@ TEST_F(DashboardClientTestX, program_interaction)
   }
   ASSERT_TRUE(dashboard_client_->connect());
   dashboard_client_->commandPowerOff();
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::POWER_OFF));
   DashboardResponse response;
   response = dashboard_client_->commandLoadProgram("wait_program");
   ASSERT_TRUE(response.ok);
@@ -228,9 +229,10 @@ TEST_F(DashboardClientTestX, program_interaction)
   }
   response = dashboard_client_->commandPowerOn();
   ASSERT_TRUE(response.ok);
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::IDLE));
   response = dashboard_client_->commandBrakeRelease();
   ASSERT_TRUE(response.ok);
-  std::this_thread::sleep_for(std::chrono::milliseconds(800));
+  ASSERT_NO_THROW(waitForRobotMode(RobotMode::RUNNING));
   response = dashboard_client_->commandPlay();
   ASSERT_TRUE(response.ok);
   response = dashboard_client_->commandProgramState();
