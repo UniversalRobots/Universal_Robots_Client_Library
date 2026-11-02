@@ -121,10 +121,26 @@ void RTDEWriter::setToolFlangeType(const ToolFlangeType tool_flange_type)
   tool_flange_type_ = tool_flange_type;
 }
 
+void RTDEWriter::setControlBoxType(const ControlBoxType control_box_type)
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  if (running_)
+  {
+    throw UrException("Cannot change the control-box type while the writer is running.");
+  }
+  control_box_type_ = control_box_type;
+}
+
 ToolFlangeType RTDEWriter::getToolFlangeType() const
 {
   std::lock_guard<std::mutex> lock_guard(store_mutex_);
   return tool_flange_type_;
+}
+
+ControlBoxType RTDEWriter::getControlBoxType() const
+{
+  std::lock_guard<std::mutex> lock_guard(store_mutex_);
+  return control_box_type_;
 }
 
 void RTDEWriter::setRecipeTypes(const std::vector<DataType>& types)
@@ -271,6 +287,17 @@ bool RTDEWriter::sendSpeedSlider(double speed_slider_fraction)
 
 bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
 {
+  static const std::string key_mask = "standard_digital_output_mask";
+  static const std::string key_output = "standard_digital_output";
+  std::lock_guard<std::mutex> guard(store_mutex_);
+  if (control_box_type_ == ControlBoxType::CB7)
+  {
+    URCL_LOG_ERROR("Standard digital output is not available with control-box type %s. Use configurable digital output "
+                   "instead.",
+                   controlBoxTypeString(control_box_type_).c_str());
+    return false;
+  }
+
   if (output_pin > 7)
   {
     std::stringstream ss;
@@ -279,9 +306,6 @@ bool RTDEWriter::sendStandardDigitalOutput(uint8_t output_pin, bool value)
     return false;
   }
 
-  static const std::string key_mask = "standard_digital_output_mask";
-  static const std::string key_output = "standard_digital_output";
-  std::lock_guard<std::mutex> guard(store_mutex_);
   if (!running_)
   {
     return false;

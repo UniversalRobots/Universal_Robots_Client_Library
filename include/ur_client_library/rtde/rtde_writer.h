@@ -77,8 +77,8 @@ public:
   /*!
    * \brief Starts the writer thread, which sends pending buffer updates to the robot.
    *
-   * Apply the negotiated protocol version, tool-flange type and input field types with
-   * setProtocolVersion(), setToolFlangeType() and setRecipeTypes() while stopped, before calling
+   * Apply the negotiated protocol version, tool-flange type, control-box type and input field types with
+   * setProtocolVersion(), setToolFlangeType(), setControlBoxType() and setRecipeTypes() while stopped, before calling
    * this method. This method does not negotiate or establish those properties. RTDEClient::init()
    * handles that setup for its writer.
    *
@@ -145,11 +145,11 @@ public:
   /*!
    * \brief Creates a package to request setting a new value for one of the standard digital output pins.
    *
-   * \param output_pin The pin to change
+   * \param output_pin The pin to change. Standard digital outputs are not available on CB7 control boxes.
    * \param value The new value
    *
    * \returns Success of the package creation. False if the writer is not running (not started,
-   * stopped or reconnecting).
+   * stopped or reconnecting), or if the control-box type is CB7.
    */
   bool sendStandardDigitalOutput(uint8_t output_pin, bool value);
   /*!
@@ -275,9 +275,23 @@ public:
   void setToolFlangeType(ToolFlangeType tool_flange_type);
 
   /*!
+   * \brief Records the robot's control box type.
+   *
+   * Defaults to ControlBoxType::UNKNOWN.
+   *
+   * \throws UrException if the writer is already running
+   */
+  void setControlBoxType(ControlBoxType control_box_type);
+
+  /*!
    * \brief Returns the robot's configured tool-flange type.
    */
   ToolFlangeType getToolFlangeType() const;
+
+  /*!
+   * \brief Returns the robot's configured control-box type.
+   */
+  ControlBoxType getControlBoxType() const;
 
 private:
   void resetMasks(const std::shared_ptr<DataPackage>& buffer);
@@ -289,6 +303,7 @@ private:
   uint8_t recipe_id_;
   uint16_t protocol_version_ = 2;
   ToolFlangeType tool_flange_type_ = ToolFlangeType::UNKNOWN;
+  ControlBoxType control_box_type_ = ControlBoxType::UNKNOWN;
   std::shared_ptr<DataPackage> data_buffer0_;
   std::shared_ptr<DataPackage> data_buffer1_;
   std::shared_ptr<DataPackage> current_store_buffer_;
