@@ -152,3 +152,23 @@ turn it off). Examples:
       If you have installed the client library from another source than ROS / ROS 2 or have
       compiled it yourself, run the ``start_ursim.sh`` script directly from the package's
       ``scripts`` folder.
+
+Using another registry or image
+-------------------------------
+
+By default the script starts ``universalrobots/ursim_<series>:<version>``. ``-r <registry>``
+replaces the ``universalrobots`` prefix. A trailing slash is stripped. The container keeps the
+tag you requested. If that image is already available locally, its URSim version label is still
+used for the version checks and setup:
+
+.. code-block:: bash
+
+   ./scripts/start_ursim.sh -r registry.example.com/ur -v 5.21.0
+
+``-I <image[:tag]>`` uses that image as given. ``-m`` and ``-v`` still select the robot series,
+the version checks, the volume mounts and the environment variables. ``-I`` takes precedence
+over ``-r``. The version label inside an arbitrary image is not inspected.
+
+.. code-block:: bash
+
+   ./scripts/start_ursim.sh -I registry.example.com/robots/custom-ursim:latest -m ur10g-1750 -v 10.15.0

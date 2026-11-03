@@ -367,6 +367,62 @@ setup() {
   [ "$image" == "universalrobots/ursim_e-series:5.21.0" ]
 }
 
+@test "custom registry cb3" {
+  run main -r registry.example.com/ur -v 3.14.3 -t
+  echo "$output"
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ $status -eq 0 ]
+  [ "$image" == "registry.example.com/ur/ursim_cb3:3.14.3" ]
+}
+
+@test "custom registry strips trailing slash" {
+  run main -r registry.example.com/ur/ -v 5.21.0 -t
+  echo "$output"
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ $status -eq 0 ]
+  [ "$image" == "registry.example.com/ur/ursim_e-series:5.21.0" ]
+}
+
+@test "custom registry keeps requested latest tag" {
+  docker tag universalrobots/ursim_e-series:latest registry.example.com/ur/ursim_e-series:latest
+  run main -r registry.example.com/ur -m ur3e -t
+  local cmd_status=$status
+  docker rmi registry.example.com/ur/ursim_e-series:latest >/dev/null
+  echo "$output"
+  [ "$cmd_status" -eq 0 ]
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ "$image" == "registry.example.com/ur/ursim_e-series:latest" ]
+  version=$(echo "$output" | grep -Po 'URSIM_VERSION: \K.*')
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+@test "custom registry polyscopex" {
+  run main -r myreg -v 10.13.0 -t
+  echo "$output"
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ $status -eq 0 ]
+  [ "$image" == "myreg/ursim_polyscopex:10.13.0" ]
+}
+
+@test "image override keeps polyscopex arguments" {
+  run main -I registry.example.com/robots/custom-ursim:latest -m ur10g-1750 -v 10.15.0 -t
+  echo "$output"
+  [ $status -eq 0 ]
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ "$image" == "registry.example.com/robots/custom-ursim:latest" ]
+  [[ "$output" == *"--privileged"* ]]
+  [[ "$output" == *"ROBOT_TYPE=UR10G-1750"* ]]
+}
+
+@test "image override takes precedence over registry" {
+  run main -I a/b:c -r x -t
+  echo "$output"
+  [ $status -eq 0 ]
+  image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+  [ "$image" == "a/b:c" ]
+  [[ "$output" == *"takes precedence"* ]]
+}
+
 @test "strip robot model cb3" {
   run main -m ur3 -t
   echo "$output"
