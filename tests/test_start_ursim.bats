@@ -981,7 +981,7 @@ stub_docker_port() {
   [[ "$output" != *"Access PolyScope X: http://192."* ]]
 }
 
-@test "post_setup_polyscopex uses forwarded endpoint for http calls" {
+@test "post_setup_polyscopex uses container IP for http calls when it responds" {
   IP_ADDRESS="192.168.56.101"
   CONTAINER_NAME="ursim"
   DOCKER_PORT_MAP='80=127.0.0.1:8000'
@@ -1004,9 +1004,67 @@ stub_docker_port() {
   echo "$output"
   echo "curl log:"; cat "$CURL_LOG"
   [ "$status" -eq 0 ]
-  grep -F "http://127.0.0.1:8000/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
-  ! grep -F "http://192.168.56.101/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  grep -F "http://192.168.56.101/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  ! grep -F "http://127.0.0.1:8000/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
   rm -f "$CURL_LOG"
+}
+
+@test "post_setup_polyscopex uses forwarded endpoint when container IP is unreachable" {
+  IP_ADDRESS="192.168.56.101"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=127.0.0.1:8000'
+  stub_docker_port
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  CURL_LOG=$(mktemp)
+  curl() {
+    printf '%s\n' "$*" >> "$CURL_LOG"
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    if [[ "$*" == *"http://192.168.56.101/universal-robots/urservice/api/v1/urcaps"* ]]; then
+      echo "000"
+      return 7
+    fi
+    echo "200"
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+
+  run post_setup_polyscopex
+  echo "$output"
+  echo "curl log:"; cat "$CURL_LOG"
+  [ "$status" -eq 0 ]
+  grep -F "http://127.0.0.1:8000/universal-robots/urservice/api/v1/urcaps" "$CURL_LOG"
+  rm -f "$CURL_LOG"
+}
+
+@test "post_setup_polyscopex times out when UrService does not respond" {
+  IP_ADDRESS="192.168.56.101"
+  CONTAINER_NAME="ursim"
+  DOCKER_PORT_MAP='80=127.0.0.1:8000'
+  stub_docker_port
+  get_download_url_urcapx() { URCAPX_VERSION="0.0.0"; URCAPX_DOWNLOAD_URL=""; }
+  curl() {
+    if [[ "$*" == *"--form"* ]]; then
+      return 0
+    fi
+    echo "000"
+    return 7
+  }
+  URCAP_STORAGE=/tmp/ursim-test-urcaps-post-setup
+  mkdir -p "$URCAP_STORAGE"
+  touch "$URCAP_STORAGE/external-control-0.0.0.urcapx"
+  URSIM_VERSION="10.8.0"
+  URSIM_URSERVICE_TIMEOUT=1
+
+  run post_setup_polyscopex
+  echo "$output"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Timed out after 1s waiting for UrService."* ]]
+  [[ "$output" == *"http://192.168.56.101"* ]]
+  [[ "$output" == *"http://127.0.0.1:8000"* ]]
 }
 
 @test "post_setup_polyscopex falls back to IP_ADDRESS for http calls when unpublished" {

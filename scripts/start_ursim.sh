@@ -404,26 +404,45 @@ post_setup_polyscopex()
     curl -L -o "$urcapx_file" "$URCAPX_DOWNLOAD_URL"
   fi
 
-  # Prefer a published host mapping for HTTP (needed on Docker Desktop / NAT where the
-  # container IP is unreachable). Fall back to the container IP when nothing is published.
-  local forwarded_endpoint http_host
-  if forwarded_endpoint=$(get_forwarded_access_endpoint 80); then
-    http_host="$forwarded_endpoint"
-  else
-    http_host="$IP_ADDRESS"
+  # UrService is reachable on the container IP from another container on ursim_net
+  # (CI). A published host port is required on Docker Desktop, where that IP is
+  # not routed. Probe both, and install the URCap through whichever answers.
+  local forwarded_endpoint=""
+  forwarded_endpoint=$(get_forwarded_access_endpoint 80) || forwarded_endpoint=""
+  local -a base_urls=("http://${IP_ADDRESS}")
+  if [[ -n "$forwarded_endpoint" ]]; then
+    base_urls+=("http://${forwarded_endpoint}")
   fi
-  local base_url="http://${http_host}"
-  local urcaps_url="${base_url}/universal-robots/urservice/api/v1/urcaps"
+  local urcaps_path="/universal-robots/urservice/api/v1/urcaps"
+  # Overall wait for UrService. Override with URSIM_URSERVICE_TIMEOUT (seconds).
+  local urservice_timeout="${URSIM_URSERVICE_TIMEOUT:-300}"
+  local urcaps_url=""
+  local base status_code
+  local deadline=$((SECONDS + urservice_timeout))
 
   echo -ne "Starting URSim. Waiting for UrService to be up..."
-  status_code=$(curl --retry-connrefused -f --write-out "%{http_code}" --silent --output /dev/null "$urcaps_url")
-
-  until [ "$status_code" == "200" ]
-  do
-    sleep 1
-    echo -ne "."
-    status_code=$(curl --retry-connrefused -f --write-out "%{http_code}" --silent --output /dev/null "$urcaps_url")
+  while [[ -z "$urcaps_url" && "$SECONDS" -lt "$deadline" ]]; do
+    for base in "${base_urls[@]}"; do
+      status_code=$(
+        curl --connect-timeout 2 --max-time 5 --silent --output /dev/null \
+          --write-out "%{http_code}" "${base}${urcaps_path}" || true
+      )
+      if [[ "$status_code" == "200" ]]; then
+        urcaps_url="${base}${urcaps_path}"
+        break
+      fi
+    done
+    if [[ -z "$urcaps_url" ]]; then
+      sleep 1
+      echo -ne "."
+    fi
   done
+
+  if [[ -z "$urcaps_url" ]]; then
+    echo ""
+    echo "Timed out after ${urservice_timeout}s waiting for UrService. Tried: ${base_urls[*]}"
+    return 1
+  fi
 
   echo ""; echo "UrService is up"
 
@@ -666,7 +685,9 @@ main() {
   trap "$TRAP_CMD" SIGINT SIGTERM
 
 
-  eval "post_setup_${ROBOT_SERIES}"
+  if ! "post_setup_${ROBOT_SERIES}"; then
+    exit 1
+  fi
 
   if [ "$DETACHED" = false ]; then
   echo "To exit, press CTRL+C"
