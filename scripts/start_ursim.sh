@@ -686,6 +686,10 @@ main() {
 
 
   if ! "post_setup_${ROBOT_SERIES}"; then
+    if [ "$DETACHED" = false ]; then
+      docker container kill "$CONTAINER_NAME" > /dev/null 2>&1 || true
+      docker container wait "$CONTAINER_NAME" > /dev/null 2>&1 || true
+    fi
     exit 1
   fi
 
