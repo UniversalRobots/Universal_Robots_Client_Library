@@ -201,6 +201,7 @@ else()
     PROGRAMS 
       scripts/start_ursim.sh
       scripts/tool_communication.py
+      scripts/wait_robot_booted.py
     DESTINATION lib/${PROJECT_NAME}
   )
 endif()
