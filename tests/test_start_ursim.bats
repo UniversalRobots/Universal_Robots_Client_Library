@@ -168,6 +168,29 @@ setup() {
   [ "$ROBOT_SERIES" = "polyscopex" ]
 }
 
+@test "polyscopex preview tag is accepted" {
+  test_input_handling -m ur7e -v 10.15.0-preview-1
+  [ "$ROBOT_MODEL" = "ur7e" ]
+  [ "$ROBOT_SERIES" = "polyscopex" ]
+  [ "$URSIM_VERSION" = "10.15.0-preview-1" ]
+}
+
+@test "extra container environment is forwarded" {
+  run main -m ur7e -v 10.15.0-preview-1 -e CB_TYPE=CB7 -e TF_TYPE_CONTROLLER=TF_V2 -t
+  echo "$output"
+  [ $status -eq 0 ]
+  [[ "$output" == *"-e CB_TYPE=CB7"* ]]
+  [[ "$output" == *"-e TF_TYPE_CONTROLLER=TF_V2"* ]]
+  [[ "$output" == *"universalrobots/ursim_polyscopex:10.15.0-preview-1"* ]]
+}
+
+@test "invalid extra container environment is rejected" {
+  run main -m ur7e -v 10.15.0 -e CB7 -t
+  echo "$output"
+  [ $status -eq 1 ]
+  [[ "$output" == *"expects KEY=VALUE"* ]]
+}
+
 @test "no arguments results in e-series ur5e" {
   test_input_handling
   [ "$ROBOT_MODEL" = "ur5e" ]

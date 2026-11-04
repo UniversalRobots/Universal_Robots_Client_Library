@@ -1,0 +1,533 @@
+set_safety_mode_transition_hardness(1)
+reset_world_model()
+set_input_actions_to_default()
+set_analog_outputdomain(0,0)
+set_analog_outputdomain(1,0)
+set_standard_analog_input_domain(0,0)
+set_standard_analog_input_domain(1,0)
+set_tool_output_mode(0)
+set_tool_voltage(0)
+set_tool_digital_output_mode(0,1)
+set_tool_digital_output_mode(1,1)
+set_tool_analog_input_domain(0,0)
+set_tool_analog_input_domain(1,0)
+set_gravity([0, 0, 9.82])
+local existingBaseParent = get_frame_parent("base")
+local basePose = get_pose("base", existingBaseParent)
+basePose[3] = 0
+basePose[4] = 0
+basePose[5] = 0
+move_frame("base", basePose, existingBaseParent)
+global base = "base"
+global tcp = "tcp"
+global world = "world"
+global flange = "flange"
+set_target_payload(0, [0, 0, 0], [0, 0, 0, 0, 0, 0])
+set_tcp(p[0, 0, 0, 0, 0, 0], "Tool_flange")
+# Start of Forces
+###
+# Transforms the force and torque values along the axes of the given pose
+# @param pose pose Any valid pose, defaults to base, the x, y, and z values are ignored
+# @return array 6D force torque vector with [Fx, Fy, Fz, Mx, My, Mz] aligned to pose in N and Nm respectively
+###
+def get_tcp_wrench_in_frame(pose = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]):
+    # we are only interested in the rotation of pose, set translations to zero
+    local target_pose = pose
+    target_pose[0] = 0
+    target_pose[1] = 0
+    target_pose[2] = 0
+    # the conversion needs to happen as poses, so we need to convert back and forth a bit
+    local force = get_tcp_force()
+    local force_vector_as_pose = p[force[0], force[1], force[2], 0, 0, 0]
+    local torque_vector_as_pose = p[force[3], force[4], force[5], 0, 0, 0]
+    local transformed_force_as_pose = pose_trans(pose_inv(target_pose), force_vector_as_pose)
+    local transformed_torque_as_pose = pose_trans(pose_inv(target_pose), torque_vector_as_pose)
+    return [transformed_force_as_pose[0], transformed_force_as_pose[1], transformed_force_as_pose[2], transformed_torque_as_pose[0], transformed_torque_as_pose[1], transformed_torque_as_pose[2]]
+end
+###
+# See documentation for @link:get_tcp_wrench_in_frame()
+# @return forces and torques measured in TCP frame
+###
+def get_tcp_wrench():
+    return get_tcp_wrench_in_frame(get_target_tcp_pose())
+end
+###
+# Projects the measured TCP force along the axis given
+# @param axis array 3D vector
+###
+def project_tcp_force(axis):
+    local wrench = get_tcp_wrench()
+    local force = [wrench[0], wrench[1], wrench[2]]
+    return dot(force, axis)
+end
+# End of Forces
+# Start of Math
+# Definitions of constants
+global PI = acos(-1)
+###
+# Calculates the cross product between to 3D vectors
+# @param v1 array 3D vector
+# @param v2 array 3D vector
+###
+def cross(v1, v2):
+    if length(v1) != length(v2):
+        popup(str_cat("For computing the cross product, the two vectors must have the same length. Provided lengths: ", [length(v1), length(v2)]), error=True, blocking=True)
+        return -1
+    end
+    if length(v1) != 3:
+        popup(str_cat("For computing the cross product, the two vectors must have length 3. Provided lengths: ", [length(v1), length(v2)]), error=True, blocking=True)
+        return -1
+    end
+    local cross = [0.0, 0.0, 0.0]
+    local i = 0
+    while i < 3:
+        local j = (i + 1) % 3 # The next index in a cyclic order
+        local k = (i + 2) % 3 # The next next index in a cyclic order
+        cross[i] = v1[j] * v2[k] - v1[k] * v2[j]
+        i = i + 1
+    end
+    return cross
+end
+###
+# Calculates the dot product between to n-dimensional vectors
+# @param v1 array nD vector
+# @param v2 array nD vector
+###
+def dot(v1, v2):
+    if length(v1) != length(v2):
+        popup(str_cat("For computing the dot product, the two vectors must have the same length. Provided lengths: ", [length(v1), length(v2)]), error=True, blocking=True)
+        return -1
+    end
+    local result = 0
+    local i = 0
+    while i < length(v1):
+        result = result + (v1[i] * v2[i])
+        i = i + 1
+    end
+    return result
+end
+###
+# Return the larger number of a and b
+# @param a number a
+# @param b number b
+###
+def max(a, b):
+    if a > b:
+        return a
+    end
+    return b
+end
+###
+# Find the maximum value in a list. The list must be of non-zero length and contain numbers
+# @param list array list
+###
+def list_max(list):
+    local length = get_list_length(list)
+    if  length == 0:
+        popup("Getting the maximum of an empty list is impossible in list_max().", error = True, blocking = True)
+        halt
+    end
+    local i = 0
+    local max = list[0]
+    while i < length:
+        if list[i] > max:
+            max = list[i]
+        end
+        i = i + 1
+        sync_at_multiple(i, 30)
+    end
+    return max
+end
+def sync_at_multiple(i, n):
+    local tmp = i / n
+    if tmp == floor(tmp):
+        sync()
+    end
+end
+# End of Math
+# Start of Move Helper
+ur_move_until_force_distance = 0.1
+ur_move_until_force_direction = [0, 0, 1]
+ur_move_until_force_velocity = 0.1
+ur_move_until_force_acceleration = 0.2
+def ur_move_tcp_direction(distance, direction, velocity, acceleration, blend_radius):
+    local current_pose = get_target_tcp_pose()
+    local movement = normalize(direction) * distance
+    local target_pose = pose_trans(current_pose, p[movement[0], movement[1], movement[2], 0, 0, 0])
+    movel(target_pose, a = 0.2, v = velocity, r = blend_radius)
+end
+thread ur_move_until_force_thread():
+    ur_move_tcp_direction(ur_move_until_force_distance, ur_move_until_force_direction, ur_move_until_force_velocity, ur_move_until_force_acceleration, 0)
+    popup("No contact detected.", title = "No Contact", warning = False, error = True, blocking = False)
+    halt
+end
+###
+# Moves the robot in the TCP direction specified until a contact point is reached *or*
+# the robot reaches the maximum distance allowed specified by the distance parameter.
+# @param distance number The maximum distance the robot is allowed to travel in the direction specified
+# @param direction array 3D vector determining the move direction of the TCP
+# @param velocity number Velocity of the robot
+# @param acceleration number Acceleration of the robot
+# @param stop_force number Maximum search radius
+###
+def ur_move_until_force(distance = 0.1, direction = [0, 0, 1], velocity = 0.1, acceleration = 0.2, stop_force = 20):
+    ur_move_until_force_distance = distance
+    ur_move_until_force_direction = direction
+    ur_move_until_force_velocity = velocity
+    ur_move_until_force_acceleration = acceleration
+    
+    thrd = run ur_move_until_force_thread()
+    while - project_tcp_force(direction) < stop_force:
+        sync()
+    end
+    kill thrd
+    local actual_pose = get_actual_tcp_pose()
+    stopl(1.0)
+    return actual_pose
+end
+def ur_get_joint_speeds_before_offset(previous_q, time):
+    local current_q = get_joint_positions()
+    local delta_q = current_q - previous_q
+    return delta_q / time
+end
+def ur_path_move(end_q, v, rampdown=False):
+    # Calculate distance to target
+    local start_q = get_joint_positions()
+    local delta_q = end_q - start_q
+    local positive_delta_q = [norm(delta_q[0]), norm(delta_q[1]), norm(delta_q[2]), norm(delta_q[3]), norm(delta_q[4]), norm(delta_q[5])]
+    # Calculate time to move based on desired velocity
+    local t = list_max(positive_delta_q) / v
+    servoj(end_q , 0, 0, t, lookahead_time=0.1, gain=500)
+    if(rampdown):
+        while(norm(ur_get_joint_speeds_before_offset(start_q, t)) > 0.0001):
+            t = max(t, 0.001)
+            start_q = get_joint_positions()
+            servoj(end_q , 0, 0, t)
+        end
+    end
+end
+# End of Move Helper
+# Waypoint variable for Home smart skill
+global Home = struct(p=p[-1.8246917738038495e-9, -0.2329000001676105, 1.0793999999522315, 3.987257497300885e-9, 2.2214414675120993, -2.221441467056474], frame="base", q=[0, -1.5707963249999999, 0, -1.5707963249999999, 0, 0])
+# Start of Align to Plane
+###
+# Align to plane will touch up a plane by moving the robot into contact with the table or part in several locations to determine its orientation. Afterwards the robot will orient its tool to the plane.
+# @param radius number Radius [m] of the circle within the plane will be touched up
+# @param push_force number How hard to robot pushed against the plane
+# @param n_plane_points number Number of points that the robot uses to compute the plane
+# @param max_distance number Maximum distance that the robot searches
+# @param velocity_slow number Velocity when pressing downwards
+# @param velocity_search number Velocity used when approaching the touch up point
+# @param velocity_move number Velocity used in freespace
+# @param acceleration number Acceleration of the robot
+# @param direction array 3D vector determining the direction of the TCP for touching up the plane
+###
+def ur_align_to_plane(radius = 0.05, push_force = 20, n_plane_points = 3, max_distance = 0.25, velocity_slow = 0.001, velocity_search = 0.035, velocity_move = 0.10, acceleration = 0.1, direction = [0, 0, 1]):
+    local angle = 2 * PI / n_plane_points
+    local start_pos = get_target_tcp_pose()
+    local retract_distance = -0.015
+    ur_move_tcp_direction(retract_distance, direction, velocity_move, acceleration, 0)
+    sleep(0.25)
+    zero_ftsensor()
+    local cnt = 0
+    local t_base_target = get_target_tcp_pose()
+    local mean_point = [0.0, 0.0, 0.0]
+    local A = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+    local b = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    while cnt < n_plane_points:
+        local new_pos = pose_trans(t_base_target, p[cos(angle * cnt) * radius, sin(angle * cnt) * radius, 0.0, 0.0, 0.0, 0.0])
+        local blend_radius = norm(point_dist(get_actual_tcp_pose(), new_pos))/5
+        movel(new_pos, a = acceleration, v = velocity_move, r = blend_radius)
+        ur_move_until_force(max_distance + norm(retract_distance), direction, velocity_search, acceleration, push_force)
+        local movement = normalize(direction * -1) * 0.0005
+        local target_pose = pose_trans(get_actual_tcp_pose(), p[movement[0], movement[1], movement[2], 0, 0, 0])
+        movel(target_pose)
+        sleep(0.2)
+        ur_move_until_force(max_distance + norm(retract_distance), direction, velocity_slow, acceleration, push_force)
+        sleep(0.2)
+        while (not is_steady()):
+            sync()
+        end
+        local poked_point = get_target_tcp_pose()
+        poked_point = pose_trans(inv(t_base_target), poked_point)
+        A[cnt, 0] = poked_point[0]
+        A[cnt, 1] = poked_point[1]
+        A[cnt, 2] = 1.0
+        b[cnt] = poked_point[2]
+        mean_point = mean_point + [poked_point[0], poked_point[1], poked_point[2]]
+        movel(new_pos, a = 0.2, v = velocity_move, r = blend_radius)
+        cnt = cnt + 1
+    end
+    mean_point = mean_point / n_plane_points
+    cnt = 0
+    while cnt < n_plane_points:
+        local cntj = 0
+        while cntj < 2:
+            A[cnt, cntj] = A[cnt, cntj] - mean_point[cntj]
+            cntj = cntj + 1
+        end
+        b[cnt] = b[cnt] - mean_point[2]
+        cnt = cnt + 1
+    end
+    local x1 = inv(transpose(A) * A) * transpose(A) * b
+    local x = normalize([x1[0], x1[1], -1])
+    local d = dot(mean_point, x)
+    local dval = dot(direction, x)
+    if dval < 0:
+        x = -x
+        dval = -dval
+    end
+    local eaa = [0.0, 0.0, 0.0]
+    local EPSILON = 1e-10
+    if norm(dval - 1) < EPSILON:
+        # if the projection is close to 1 then the angle between the vectors are almost 0 and we cannot
+        # reliably determine the perpendicular axis.
+        # A good approximation is therefore just to set the EAA equal to 0.
+        eaa = [0.0, 0.0, 0.0]
+    else:
+        local axis = cross(direction, x)
+        local eaa = normalize(axis) * acos(dval)
+    end
+    local t_base_target_aligned = pose_trans(t_base_target, p[0, 0, 0, eaa[0], eaa[1], eaa[2]])
+    movel(t_base_target_aligned, a = 0.2, v = velocity_move)
+end
+# End of Align to Plane
+# Start of Align Z to Nearest Axis
+###
+# Aligns the TCP Z axis to the nearest axis of the given frame
+# @param frame_id string frame_id to lookup frame
+###
+def ur_align_z_to_nearest_axis(frame_id = "world"):
+    ###
+    # Given a reference frame as input this function returns a struct with the nearest
+    # pose which aligns the z-axis of the robot TCP with the z-axis of the given reference frame.
+    # The pose is in the reference of the given frame.
+    # @param frame bool frame
+    # @returns struct pose, distance, referencePose
+    ###
+    def get_aligned_z_pose(frame):
+        local actualPose = get_actual_tcp_pose()
+        local actualPoseInFrame = pose_trans(pose_inv(frame), actualPose)
+        # Create rotation vector and convert that to RPY representation
+        local actualRotInFrame = [actualPoseInFrame[3], actualPoseInFrame[4], actualPoseInFrame[5]]
+        local actRPY = rotvec2rpy(actualRotInFrame)
+        # Set RX and RY to 0 and convert back to rotation vector
+        local alignedRot = rpy2rotvec([0, 0, actRPY[2]])
+        local alignedRotFlipped = rpy2rotvec([PI, 0, actRPY[2]])
+        local zUpPose = actualPoseInFrame
+        zUpPose[3] = alignedRot[0]
+        zUpPose[4] = alignedRot[1]
+        zUpPose[5] = alignedRot[2]
+        zUpStruct = struct(pose = zUpPose, distance=pose_dist(actualPoseInFrame, zUpPose), referencePose=frame)
+        local zDownPose = actualPoseInFrame
+        zDownPose[3] = alignedRotFlipped[0]
+        zDownPose[4] = alignedRotFlipped[1]
+        zDownPose[5] = alignedRotFlipped[2]
+        local zDownStruct = struct(pose = zDownPose, distance=pose_dist(actualPoseInFrame, zDownPose), referencePose=frame)
+        # Return the solution which is closer to the current robot pose
+        if (zDownStruct.distance > zUpStruct.distance):
+            return zUpStruct
+        else:
+            return zDownStruct
+        end
+    end
+    local frame = get_pose(frame_id)
+    # Rotate the given frame so that Z can be align to X-Y-Z respectively 
+    local rotZtoX = rpy2rotvec([0,0.5*PI,0])
+    local rotZtoY = rpy2rotvec([0.5*PI,0,0])
+    local rotZtoZ = rpy2rotvec([0,0,0])
+    # Get aligned poses for each of the rotated frames
+    local structAlignedToX = get_aligned_z_pose(pose_trans(frame, p[0,0,0,rotZtoX[0],rotZtoX[1],rotZtoX[2]]))
+    structAlignedToY = get_aligned_z_pose(pose_trans(frame, p[0,0,0,rotZtoY[0],rotZtoY[1],rotZtoY[2]]))
+    structAlignedToZ = get_aligned_z_pose(pose_trans(frame, p[0,0,0,rotZtoZ[0],rotZtoZ[1],rotZtoZ[2]]))
+    # Find the nearest alignement
+    local structAligned = structAlignedToZ
+    if(structAligned.distance > structAlignedToX.distance):
+        structAligned = structAlignedToX    
+    end
+    if(structAligned.distance > structAlignedToY.distance):
+        structAligned = structAlignedToY    
+    end
+    # Move the robot to the aligned pose
+    movel(pose_trans(get_actual_tcp_pose(), p[0,0,0.00001,0,0,0]), v = 0.1)
+    movel(pose_trans(structAligned.referencePose, structAligned.pose ), v = 0.1)
+end
+# End of Align Z to Nearest Axis
+# Start of Center to Object
+###
+# Centers to an object by touching the externals of it. It works well for fixtured or heavy parts.
+# @param push_force number Force the robot uses to determine if a contact has been achieved
+# @param velocity_move number Velocity in freespace
+# @param velocity_search number First move is used then search
+# @param acc_move number Acceleration in freespace
+# @param max_radius_search number Maximum search radius
+# @param num_fingers number Number of fingers that the gripper has
+###
+def ur_center_to_object(push_force = 10, velocity_move = 0.10, velocity_search = 0.01, acc_move = 0.2, max_radius_search = 0.05, num_fingers = 3):
+    def compute_circle_center(p_list):
+        # Compute the circle center by circular regression
+        # Source: https://math.stackexchange.com/questions/2898295/how-to-quickly-fit-a-circle-by-given-random-arc-points
+        local itr = 0
+        local x = 0
+        local y = 1
+    
+        local m1 = [[0,0,0],[0,0,0],[0,0,0]]
+        local m2 = [[0,0],[0,0],[0,0]]
+        local m3 = [[0],[0],[0]]
+    
+        while(itr < get_list_length(p_list)):
+            local p = p_list[itr]
+    
+            if(p_list[itr] == p[0,0,0,0,0,0]):
+                break
+            end
+    
+            m1[0,0] = m1[0,0] + (p[x]*p[x])
+            m1[0,1] = m1[0,1] + (p[x]*p[y])
+            m1[0,2] = m1[0,2] + (p[x])
+    
+            m1[1,0] = m1[1,0] + (p[x]*p[y])
+            m1[1,1] = m1[1,1] + (p[y]*p[y])
+            m1[1,2] = m1[1,2] + (p[y])
+    
+            m1[2,0] = m1[2,0] + (p[x])
+            m1[2,1] = m1[2,1] + (p[y])
+    
+            m2[0,0] = m2[0,0] + (pow(p[x], 3))
+            m2[0,1] = m2[0,1] + (p[x] * pow(p[y], 2))
+    
+            m2[1,0] = m2[1,0] + (pow(p[y], 3))
+            m2[1,1] = m2[1,1] + (pow(p[x], 2) * p[y])
+    
+            m2[2,0] = m2[2,0] + (pow(p[x], 2))
+            m2[2,1] = m2[2,1] + (pow(p[y], 2))
+    
+            itr = itr +1
+        end
+    
+        if(itr < 2):
+            return p[0,0,0,0,0,0]
+        elif(itr > get_list_length(p_list)):
+            return p[0,0,0,0,0,0]
+        end
+    
+        m1[0,0] = 2 * m1[0,0]
+        m1[0,1] = 2 * m1[0,1]
+        m1[1,0] = 2 * m1[1,0]
+        m1[1,1] = 2 * m1[1,1]
+        m1[2,0] = 2 * m1[2,0]
+        m1[2,1] = 2 * m1[2,1]
+        m1[2,2] = itr
+        m3[0,0] = m2[0,0] + m2[0,1]
+        m3[1,0] = m2[1,0] + m2[1,1]
+        m3[2,0] = m2[2,0] + m2[2,1]
+    
+        local center = inv(m1) * m3
+    
+        return p[center[0,0], center[1,0],0,0,0,0]
+    end
+    
+    def sanity_checked_move(p_org, p_new, max_diff, acc, vel):
+        if (pose_dist(p_org, p_new) > max_diff):
+            movel(p_org, a = acc, v = vel)
+            popup("New pose is too far away from original. Returning to original", title = "Failed", warning = False, error = True, blocking = True)
+        else:
+            movel(p_new, a = acc, v = vel)
+        end
+    end
+    # Start by zeroing the FT sensor
+    sleep(0.25)
+    zero_ftsensor()
+    local p_start = get_actual_tcp_pose()
+    local p0 = p[0,0,0,0,0,0]
+    local DIR_X = [1, 0, 0]
+    if (num_fingers == 2):
+        local dir_list = [DIR_X, -DIR_X, DIR_X, -DIR_X]
+        local start_offset = [p[0,0,0,0,0,0], p[0,0,0,0,0,0], p[0,0,0,0,0,0.35], p[0,0,0,0,0,0.35]]
+        local p_list = [p0, p0, p0, p0]
+    elif (num_fingers == 3):
+        local DIR_P1 = DIR_X
+        local DIR_P2 = [-1 / 2, sqrt(3.0) / 2.0, 0]
+        local DIR_P3 = [-1 / 2, -sqrt(3.0) / 2.0, 0]
+        local dir_list = [DIR_P1, DIR_P2, DIR_P3, DIR_P1, DIR_P2, DIR_P3]
+        local start_offset = [p[0,0,0,0,0,0], p[0,0,0,0,0,0], p[0,0,0,0,0,0], p[0,0,0,0,0,0.35], p[0,0,0,0,0,0.35], p[0,0,0,0,0,0.35]]
+        local p_list = [p0, p0, p0, p0, p0, p0]
+    else:
+        popup("Number of fingers not supported")
+        halt
+    end
+    # Loop through directions
+    local it = 0
+    local dir_list_size = size(dir_list)
+    local dir_list_length = dir_list_size[0]
+    while(it < dir_list_length):
+        # Move to starting position if more than 3 positions is stored then calculate a new starting position
+        if(it < 3):
+            movel(pose_trans(p_start, start_offset[it]), a = acc_move, v = velocity_move)
+        else:
+            local p_start_temp = pose_trans(pose_trans(p_start, compute_circle_center(p_list)), start_offset[it])
+            local p_start_w_offset = pose_trans(p_start, start_offset[it])
+            sanity_checked_move(p_start_w_offset, p_start_temp, max_radius_search, acc_move, velocity_move)
+        end
+        local p_start_temp = get_actual_tcp_pose()
+        # Move into contact and store contact point
+        sleep(0.1)
+        local contact_point = ur_move_until_force(distance = max_radius_search, direction = [dir_list[it, 0], dir_list[it, 1], dir_list[it, 2]], velocity = velocity_search, acceleration = acc_move, stop_force = push_force)
+        
+        local dir = [dir_list[it, 0], dir_list[it, 1], dir_list[it, 2]]
+        dir = normalize(dir) * 0.05
+        contact_point = pose_trans(contact_point, p[dir[0], dir[1], dir[2], 0, 0, 0])
+        p_list[it] = pose_trans(pose_inv(p_start), contact_point)
+        # Move out of contact
+        movel(p_start_temp, a = acc_move, v = velocity_move)
+        it = it + 1
+    end
+    # Find circle center based on n stored  points
+    local center_offset_xy = compute_circle_center(p_list)
+    local p_center = pose_trans(p_start, center_offset_xy)
+    
+    # Move the robot to the center if it can
+    sanity_checked_move(p_start, p_center, max_radius_search, acc_move, velocity_move)
+end
+# End of Center to Object
+# Start of Move Into Contact
+###
+# Moves the robot into contact in the TCP direction set
+# @param force number Force that determines when a contact has been achieved
+# @param velocity number Velocity of the robot
+# @param acceleration number Acceleration of the robot
+# @param max_distance number Maximum distance that the robot searches
+# @param velocity_search number velocity_search
+# @param retract number Retract distance after a contact has been found
+# @param move_tcp_dir array TCP direction (3D vector)
+# @param zero_ft_on_start bool Determines if the force-torque sensor should be zeroed on start
+###
+def ur_move_into_contact(force = 10, velocity = 0.05, acceleration = 0.1, max_distance = 0.25, retract = 0.0, move_tcp_dir = [0, 0, 1], zero_ft_on_start = True):
+    # Zero the force torque sensor
+    if (zero_ft_on_start):
+        sleep(0.25)
+        zero_ftsensor()
+    end
+    # Move the robot
+    ur_move_until_force(max_distance, move_tcp_dir, velocity, acceleration, force)
+    # If a retract distance is set, move the robot back to that position
+    if (retract != 0):
+        # Compute position offset from TCP direction and retract distance
+        local position = normalize(move_tcp_dir) * retract
+        movel(pose_trans(get_actual_tcp_pose(), p[position[0], position[1], position[2], 0, 0, 0]))
+    end
+end
+# End of Move Into Contact
+# Start of Retract
+###
+# Retract in the TCP direction set
+# @param distance number Retraction distance
+# @param direction array TCP direction to move in (3D vector)
+# @param acceleration number Acceleration used by the robot
+# @param velocity number Velocity used by the robot
+###
+def ur_retract(distance = -0.1, direction = [0, 0, 1], acceleration = 0.4, velocity = 0.1):
+    local movement = normalize(direction) * distance
+    movel(pose_trans(get_actual_tcp_pose(), p[movement[0], movement[1], movement[2], 0, 0, 0]), a = acceleration, v = velocity)
+end
+# End of Retract

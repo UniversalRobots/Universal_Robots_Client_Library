@@ -62,6 +62,9 @@ help()
                      - '$PORT_FORWARDING_WITH_DASHBOARD' (CB3 and PolyScope 5)
                      - '$PORT_FORWARDING_WITHOUT_DASHBOARD' (PolyScope X).
                    Set to \"DISABLED\" to disable port forwarding."
+  echo "    -e <KEY=VALUE> Extra environment variable forwarded to the container.
+                   Repeat to set more than one. Example:
+                     -e CB_TYPE=CB7 -e TF_TYPE_CONTROLLER=TF_V2"
   echo "    -h             Print this Help."
   echo
 }
@@ -74,6 +77,8 @@ PROGRAM_STORAGE_ARG=""
 CITADEL_DB_STORAGE_ARG=""
 URCAP_STORAGE_ARG=""
 DETACHED=false
+# KEY=VALUE pairs forwarded to the container with docker -e. Filled by -e.
+EXTRA_DOCKER_ENV=()
 
 verlte()
 {
@@ -444,8 +449,13 @@ post_setup_polyscopex()
 }
 
 parse_arguments(){
-  while getopts ":hm:v:p:c:u:i:f:n:dt" option; do
+  EXTRA_DOCKER_ENV=()
+  while getopts ":hm:v:p:c:u:i:f:e:n:dt" option; do
     case $option in
+      :) # missing option argument
+        echo "Error: -$OPTARG requires an argument"
+        exit 1
+        ;;
       h) # display Help
         help
         exit;;
@@ -469,6 +479,13 @@ parse_arguments(){
         ;;
       f) # forward ports
         PORT_FORWARDING=${OPTARG}
+        ;;
+      e) # extra container environment variable
+        if [[ ! "$OPTARG" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+          echo "Error: -e expects KEY=VALUE. Given: $OPTARG"
+          exit 1
+        fi
+        EXTRA_DOCKER_ENV+=("$OPTARG")
         ;;
       n) # container_name
         CONTAINER_NAME=${OPTARG}
@@ -647,6 +664,10 @@ main() {
     read -r -a port_forwarding_args <<< "$PORT_FORWARDING"
     docker_args+=("${port_forwarding_args[@]}")
   fi
+  local env_pair
+  for env_pair in "${EXTRA_DOCKER_ENV[@]}"; do
+    docker_args+=(-e "$env_pair")
+  done
   docker_args+=(--name "$CONTAINER_NAME" "universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION")
 
   if [ "$TEST_RUN" = true ]; then

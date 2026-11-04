@@ -116,6 +116,11 @@ jobs:
             PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.14.0/ur7e'
             POLYSCOPE_X_WITH_REMOTE_CONTROL: 'true'
             CITADEL_DB_FOLDER: 'tests/resources/dockerursim/citadelDB/10.14.0'
+          - ROBOT_MODEL: 'ur7e'
+            URSIM_VERSION: '10.15.0-preview-1'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex/10.15.0/ur7e'
+            # The image enumerates CB5 and tool flange V1 unless these are set.
+            EXTRA_DOCKER_ENV: 'CB_TYPE=CB7 TF_TYPE_CONTROLLER=TF_V2'
 
     steps:
       - uses: actions/checkout@v7
@@ -125,13 +130,20 @@ jobs:
           if [ -n "$CITADEL_DB_FOLDER" ]; then
             CITADEL_DB_ARG="-c $CITADEL_DB_FOLDER"
           fi
-          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER $CITADEL_DB_ARG -d -f DISABLED
+          EXTRA_ENV_ARGS=()
+          if [ -n "$EXTRA_DOCKER_ENV" ]; then
+            for pair in $EXTRA_DOCKER_ENV; do
+              EXTRA_ENV_ARGS+=(-e "$pair")
+            done
+          fi
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER $CITADEL_DB_ARG "${EXTRA_ENV_ARGS[@]}" -d -f DISABLED
         env:
           DOCKER_RUN_OPTS: --network ursim_net
           ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
           URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
           PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
           CITADEL_DB_FOLDER: ${{matrix.env.CITADEL_DB_FOLDER || ''}}
+          EXTRA_DOCKER_ENV: ${{matrix.env.EXTRA_DOCKER_ENV || ''}}
       - id: check_polyscopex
         run: |
           if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
