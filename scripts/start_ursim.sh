@@ -56,6 +56,12 @@ help()
   echo "    -u <folder>    Location from which URCaps are read / to which URCaps are written.
                    If not specified, will fallback to ${PERSISTENT_BASE}/${ROBOT_SERIES}/urcaps"
   echo "    -n             Name of the docker container. Defaults to '$CONTAINER_NAME'"
+  echo "    -r <registry>  Registry prefix replacing 'universalrobots', giving
+                   <registry>/ursim_<series>:<version>. A trailing slash is stripped.
+                   Defaults to 'universalrobots'."
+  echo "    -I <image>     Image used as-is, for example registry.example.com/robots/custom-ursim:latest.
+                   -m and -v still select the series, validation, mounts and environment.
+                   Takes precedence over -r."
   echo "    -i             IP address the container should get. Defaults to $IP_ADDRESS"
   echo "    -d             Detached mode - start in background"
   echo "    -f             Specify port forwarding to use. Defaults to
@@ -69,6 +75,11 @@ help()
 ROBOT_MODEL=""
 ROBOT_SERIES=""
 URSIM_VERSION=latest
+IMAGE_REGISTRY="universalrobots"
+IMAGE_OVERRIDE=""
+REGISTRY_GIVEN=false
+# Tag requested with -r, captured before inspection rewrites URSIM_VERSION.
+SELECTED_IMAGE=""
 PORT_FORWARDING=""
 PROGRAM_STORAGE_ARG=""
 CITADEL_DB_STORAGE_ARG=""
@@ -239,6 +250,13 @@ validate_parameters()
       fi
       ;;
   esac
+
+  # "latest" stands in for an image whose real version is unknown. Raise that
+  # stand-in to the model's own minimum so a newer model is not rejected by an
+  # older series floor.
+  if [[ "$URSIM_VERSION" == "latest" ]] && ! verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK"; then
+    URSIM_VERSION_CHECK="$MIN_VERSION"
+  fi
 
   verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK" && return 0
 
@@ -444,7 +462,7 @@ post_setup_polyscopex()
 }
 
 parse_arguments(){
-  while getopts ":hm:v:p:c:u:i:f:n:dt" option; do
+  while getopts ":hm:v:p:c:u:i:f:n:r:I:dt" option; do
     case $option in
       h) # display Help
         help
@@ -473,6 +491,13 @@ parse_arguments(){
       n) # container_name
         CONTAINER_NAME=${OPTARG}
         ;;
+      r) # image registry
+        IMAGE_REGISTRY=${OPTARG}
+        REGISTRY_GIVEN=true
+        ;;
+      I) # full image override
+        IMAGE_OVERRIDE=${OPTARG}
+        ;;
       d) # detached mode
         DETACHED=true
         ;;
@@ -483,8 +508,31 @@ parse_arguments(){
         echo "Error: Invalid option"
         help
         exit 1
+        ;;
+      :) # option missing its required value
+        echo "Error: Option -${OPTARG} requires a value"
+        help
+        exit 1
+        ;;
     esac
   done
+  if [[ -n "$IMAGE_OVERRIDE" && "$REGISTRY_GIVEN" == true ]]; then
+    echo "Note: -I takes precedence over -r; using image ${IMAGE_OVERRIDE}."
+  fi
+}
+
+# Image passed to docker run. An explicit -I override wins. A -r selection is
+# kept as requested, so a registry that only publishes that tag can still start.
+# Otherwise the registry, series and version form <registry>/ursim_<series>:<version>.
+get_image_name()
+{
+  if [ -n "$IMAGE_OVERRIDE" ]; then
+    echo "$IMAGE_OVERRIDE"
+  elif [ -n "$SELECTED_IMAGE" ]; then
+    echo "$SELECTED_IMAGE"
+  else
+    echo "${IMAGE_REGISTRY%/}/ursim_${ROBOT_SERIES}:${URSIM_VERSION}"
+  fi
 }
 
 # As users can specify the model and / or URSim version, we can infer the rest of the parameters
@@ -514,7 +562,7 @@ get_version_from_latest()
   # Inspect the image's URSim version if the image is locally available. This is especially
   # important when we use the "latest" tag, as we don't know the version hiding behind this and it
   # could be potentially older.
-  IMAGE_URSIM_VERSION=$(docker image inspect universalrobots/ursim_"${ROBOT_SERIES}":"$URSIM_VERSION" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
+  IMAGE_URSIM_VERSION=$(docker image inspect "$(get_image_name)" 2>/dev/null | grep -Po '"build_version": "URSim Version: \K[^"]*') || true
   if [ -n "$IMAGE_URSIM_VERSION" ]; then
     URSIM_VERSION="$IMAGE_URSIM_VERSION"
   fi
@@ -538,7 +586,16 @@ main() {
   
 
   fill_information
-  get_version_from_latest
+  # An arbitrary -I image has no URSim build_version label we can read this way.
+  # For -r, remember the requested tag first. Inspection may replace URSIM_VERSION
+  # with the cached image's build version for checks and setup, without changing
+  # the image that docker run uses.
+  if [ -z "$IMAGE_OVERRIDE" ]; then
+    if [ "$REGISTRY_GIVEN" = true ]; then
+      SELECTED_IMAGE="${IMAGE_REGISTRY%/}/ursim_${ROBOT_SERIES}:${URSIM_VERSION}"
+    fi
+    get_version_from_latest
+  fi
 
   echo "ROBOT_MODEL: $ROBOT_MODEL"
   echo "ROBOT_SERIES: $ROBOT_SERIES"
@@ -647,7 +704,7 @@ main() {
     read -r -a port_forwarding_args <<< "$PORT_FORWARDING"
     docker_args+=("${port_forwarding_args[@]}")
   fi
-  docker_args+=(--name "$CONTAINER_NAME" "universalrobots/ursim_${ROBOT_SERIES}:$URSIM_VERSION")
+  docker_args+=(--name "$CONTAINER_NAME" "$(get_image_name)")
 
   if [ "$TEST_RUN" = true ]; then
     echo "${docker_args[*]}" | tr -s ' '
