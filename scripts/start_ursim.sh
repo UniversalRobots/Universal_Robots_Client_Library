@@ -251,6 +251,13 @@ validate_parameters()
       ;;
   esac
 
+  # "latest" stands in for an image whose real version is unknown. Raise that
+  # stand-in to the model's own minimum so a newer model is not rejected by an
+  # older series floor.
+  if [[ "$URSIM_VERSION" == "latest" ]] && ! verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK"; then
+    URSIM_VERSION_CHECK="$MIN_VERSION"
+  fi
+
   verlte "$MIN_VERSION" "$URSIM_VERSION_CHECK" && return 0
 
   echo "Illegal version given. For $ROBOT_SERIES $ROBOT_MODEL the software version must be greater or equal to $MIN_VERSION. Given version: $URSIM_VERSION."
@@ -501,6 +508,12 @@ parse_arguments(){
         echo "Error: Invalid option"
         help
         exit 1
+        ;;
+      :) # option missing its required value
+        echo "Error: Option -${OPTARG} requires a value"
+        help
+        exit 1
+        ;;
     esac
   done
   if [[ -n "$IMAGE_OVERRIDE" && "$REGISTRY_GIVEN" == true ]]; then

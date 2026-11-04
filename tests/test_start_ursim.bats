@@ -423,6 +423,28 @@ setup() {
   [[ "$output" == *"takes precedence"* ]]
 }
 
+@test "registry and image options require a value" {
+  run main -t -r
+  echo "$output"
+  [ $status -eq 1 ]
+  [[ "$output" == *"Option -r requires a value"* ]]
+
+  run main -t -I
+  echo "$output"
+  [ $status -eq 1 ]
+  [[ "$output" == *"Option -I requires a value"* ]]
+}
+
+@test "image override allows ur8long and ur18 without an explicit version" {
+  for robot_model in ur8long ur18; do
+    run main -I registry.example.com/robots/custom-ursim:latest -m "$robot_model" -t
+    echo "$output"
+    [ $status -eq 0 ]
+    image=$(echo "$output" | tail -n1 | awk '{ print $NF }')
+    [ "$image" == "registry.example.com/robots/custom-ursim:latest" ]
+  done
+}
+
 @test "strip robot model cb3" {
   run main -m ur3 -t
   echo "$output"
