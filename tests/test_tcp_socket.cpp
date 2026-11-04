@@ -957,6 +957,239 @@ TEST_F(TCPSocketTest, no_fd_leak_in_retry_loop)
 #endif  // __linux__
 }
 
+// ---------------------------------------------------------------------------
+// Tests for the scoped receive-timeout guard (issue #609).
+//
+// Issue #609 adds a TCPSocket member that returns an RAII guard which
+// temporarily raises the socket's receive timeout and restores it on
+// destruction. The guard is meant to replace the manual save/set/restore
+// patterns currently used in DashboardClientImplG5 and DashboardClientImplX,
+// and the private ScopedMinimumReceiveTimeout helper in rtde_client.cpp.
+// ---------------------------------------------------------------------------
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_restores_timeout_on_destruction)
+{
+  timeval original;
+  original.tv_sec = 1;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  {
+    // The guard should raise the timeout while it exists.
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(5000));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, 5);
+    EXPECT_EQ(active.tv_usec, 0);
+  }
+
+  // After the guard is destroyed the original timeout must be restored.
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, original.tv_sec);
+  EXPECT_EQ(restored.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_does_not_lower_timeout)
+{
+  timeval high;
+  high.tv_sec = 10;
+  high.tv_usec = 0;
+  client_->setReceiveTimeout(high);
+
+  {
+    // Requesting a minimum that is less than the current timeout must not lower it.
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(2000));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, high.tv_sec);
+    EXPECT_EQ(active.tv_usec, high.tv_usec);
+  }
+
+  // The timeout should remain unchanged after the guard is destroyed.
+  const timeval after = client_->getReceiveTimeout();
+  EXPECT_EQ(after.tv_sec, high.tv_sec);
+  EXPECT_EQ(after.tv_usec, high.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_raises_when_current_is_lower)
+{
+  timeval low;
+  low.tv_sec = 0;
+  low.tv_usec = 500000;  // 500 ms
+  client_->setReceiveTimeout(low);
+
+  {
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(3000));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, 3);
+    EXPECT_EQ(active.tv_usec, 0);
+  }
+
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, low.tv_sec);
+  EXPECT_EQ(restored.tv_usec, low.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_does_nothing_when_no_timeout_is_set)
+{
+  // A socket with no receive timeout (tv_sec=0, tv_usec=0) blocks indefinitely.
+  // The guard must not set a finite timeout in this case, because that would change
+  // the blocking behavior. A "minimum" cannot make sense when no timeout exists.
+  EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 0);
+  EXPECT_EQ(client_->getReceiveTimeout().tv_usec, 0);
+
+  {
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(2000));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, 0);
+    EXPECT_EQ(active.tv_usec, 0);
+  }
+
+  const timeval after = client_->getReceiveTimeout();
+  EXPECT_EQ(after.tv_sec, 0);
+  EXPECT_EQ(after.tv_usec, 0);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_restores_on_exception)
+{
+  timeval original;
+  original.tv_sec = 1;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  try
+  {
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(5000));
+
+    const timeval raised = client_->getReceiveTimeout();
+    EXPECT_EQ(raised.tv_sec, 5);
+
+    throw std::runtime_error("simulated error");
+  }
+  catch (const std::runtime_error&)
+  {
+    // expected
+  }
+
+  // The timeout must be restored even though the scope exited via an exception.
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, original.tv_sec);
+  EXPECT_EQ(restored.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_handles_sub_second_precision)
+{
+  timeval original;
+  original.tv_sec = 0;
+  original.tv_usec = 200000;  // 200 ms
+  client_->setReceiveTimeout(original);
+
+  {
+    // Request a minimum of 1.5 s = 1 s + 500000 us
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(1500));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, 1);
+    EXPECT_EQ(active.tv_usec, 500000);
+  }
+
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, original.tv_sec);
+  EXPECT_EQ(restored.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_nested_guards_restore_correctly)
+{
+  timeval original;
+  original.tv_sec = 1;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  {
+    auto outer = client_->scopedReceiveTimeout(std::chrono::milliseconds(5000));
+    EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 5);
+
+    {
+      auto inner = client_->scopedReceiveTimeout(std::chrono::milliseconds(10000));
+      EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 10);
+    }
+
+    // After inner guard is destroyed, the timeout the outer guard set should be active.
+    EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 5);
+  }
+
+  // After outer guard is destroyed, the original timeout should be restored.
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, original.tv_sec);
+  EXPECT_EQ(restored.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_equal_timeout_does_not_change)
+{
+  timeval original;
+  original.tv_sec = 3;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  {
+    // When the requested minimum equals the current timeout, the guard should be a no-op.
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(3000));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, original.tv_sec);
+    EXPECT_EQ(active.tv_usec, original.tv_usec);
+  }
+
+  const timeval after = client_->getReceiveTimeout();
+  EXPECT_EQ(after.tv_sec, original.tv_sec);
+  EXPECT_EQ(after.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_with_zero_minimum_is_noop)
+{
+  timeval original;
+  original.tv_sec = 2;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  {
+    // A zero minimum should never raise or change the timeout.
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(0));
+
+    const timeval active = client_->getReceiveTimeout();
+    EXPECT_EQ(active.tv_sec, original.tv_sec);
+    EXPECT_EQ(active.tv_usec, original.tv_usec);
+  }
+
+  const timeval after = client_->getReceiveTimeout();
+  EXPECT_EQ(after.tv_sec, original.tv_sec);
+  EXPECT_EQ(after.tv_usec, original.tv_usec);
+}
+
+TEST_F(TCPSocketTest, scoped_timeout_guard_move_semantics)
+{
+  timeval original;
+  original.tv_sec = 1;
+  original.tv_usec = 0;
+  client_->setReceiveTimeout(original);
+
+  {
+    auto guard = client_->scopedReceiveTimeout(std::chrono::milliseconds(5000));
+    EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 5);
+
+    // Move the guard into a new variable; the old one should not restore on destruction.
+    auto moved = std::move(guard);
+    EXPECT_EQ(client_->getReceiveTimeout().tv_sec, 5);
+  }
+
+  // The moved-to guard's destructor should restore the original timeout.
+  const timeval restored = client_->getReceiveTimeout();
+  EXPECT_EQ(restored.tv_sec, original.tv_sec);
+  EXPECT_EQ(restored.tv_usec, original.tv_usec);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
