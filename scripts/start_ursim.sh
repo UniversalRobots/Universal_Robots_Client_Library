@@ -712,7 +712,7 @@ main() {
   fi
   if [[ -n "$DOCKER_ARGS" ]]; then
     local -a extra_docker_args
-    read -r -a extra_docker_args <<< "$DOCKER_ARGS"
+    read -r -a extra_docker_args <<< "${DOCKER_ARGS//$'\n'/ }"
     docker_args+=("${extra_docker_args[@]}")
   fi
   docker_args+=(--name "$CONTAINER_NAME" "$(get_image_name)")
