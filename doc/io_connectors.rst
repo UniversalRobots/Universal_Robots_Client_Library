@@ -25,7 +25,7 @@ Tool connectors
   - ``T0`` works the same as on e-Series and UR-Series robots.
 
 T0 -- M8 I/O 8-pin (CB3, e-Series, UR-Series and g-Series)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Digital inputs ``T0_CI0``, ``T0_CI1``, can be configured for Safe freedrive.
 - Digital outputs ``T0_DO0``, ``T0_DO1``.
@@ -43,7 +43,7 @@ T1 -- Smart Panel pogo-pin connector (g-Series only)
 - Library: ``RTDEWriter::sendToolDigitalOutput()`` with pins 2-5.
 
 T2 -- M8 Power 4-pin (g-Series only)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Power output only, ``T2_V``: 0, 24 or 48 V.
 - Library: ``setToolVoltageT2()``, requires PolyScope X 10.15.0 or later.
