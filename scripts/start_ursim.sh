@@ -68,6 +68,8 @@ help()
                      - '$PORT_FORWARDING_WITH_DASHBOARD' (CB3 and PolyScope 5)
                      - '$PORT_FORWARDING_WITHOUT_DASHBOARD' (PolyScope X).
                    Set to \"DISABLED\" to disable port forwarding."
+  echo "    -a <args>      Extra docker run options, split on whitespace. For example
+                   \"-v /tmp/data:/data -e FOO=bar\". Appended before the image name."
   echo "    -h             Print this Help."
   echo
 }
@@ -81,6 +83,7 @@ REGISTRY_GIVEN=false
 # Tag requested with -r, captured before inspection rewrites URSIM_VERSION.
 SELECTED_IMAGE=""
 PORT_FORWARDING=""
+DOCKER_ARGS=""
 PROGRAM_STORAGE_ARG=""
 CITADEL_DB_STORAGE_ARG=""
 URCAP_STORAGE_ARG=""
@@ -462,7 +465,7 @@ post_setup_polyscopex()
 }
 
 parse_arguments(){
-  while getopts ":hm:v:p:c:u:i:f:n:r:I:dt" option; do
+  while getopts ":hm:v:p:c:u:i:f:n:r:I:a:dt" option; do
     case $option in
       h) # display Help
         help
@@ -487,6 +490,9 @@ parse_arguments(){
         ;;
       f) # forward ports
         PORT_FORWARDING=${OPTARG}
+        ;;
+      a) # additional docker run options
+        DOCKER_ARGS=${OPTARG}
         ;;
       n) # container_name
         CONTAINER_NAME=${OPTARG}
@@ -703,6 +709,11 @@ main() {
     local -a port_forwarding_args
     read -r -a port_forwarding_args <<< "$PORT_FORWARDING"
     docker_args+=("${port_forwarding_args[@]}")
+  fi
+  if [[ -n "$DOCKER_ARGS" ]]; then
+    local -a extra_docker_args
+    read -r -a extra_docker_args <<< "${DOCKER_ARGS//$'\n'/ }"
+    docker_args+=("${extra_docker_args[@]}")
   fi
   docker_args+=(--name "$CONTAINER_NAME" "$(get_image_name)")
 

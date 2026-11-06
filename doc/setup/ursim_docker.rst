@@ -112,6 +112,10 @@ turn it off). Examples:
    # Bind GUI ports to IPv6 loopback (keep the -f argument in double quotes)
    ./scripts/start_ursim.sh -f "-p 30001-30004:30001-30004 -p [::1]:6080:6080 -p [::1]:5900:5900"
 
+   # Extra docker run options, such as another volume or environment variable.
+   # Keep the -a argument in double quotes; it is split on whitespace.
+   ./scripts/start_ursim.sh -a "-v /tmp/data:/data -e FOO=bar"
+
 .. tabs::
 
 

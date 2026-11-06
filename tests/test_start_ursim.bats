@@ -719,6 +719,36 @@ port_forwarding_regex='-p[[:space:]]*(\[[^]]+\]:|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:
   [ "$port_forwarding" = "-p [fe80::1]:40001-40004:30001-30004" ]
 }
 
+@test "extra docker arguments e-series" {
+  run main -t -v 5.21.0 -a "-v /tmp/data:/data -e FOO=bar"
+  echo "$output"
+  [ $status -eq 0 ]
+  docker_line=$(echo "$output" | tail -n1)
+  [[ "$docker_line" == *"-v /tmp/data:/data"* ]]
+  [[ "$docker_line" == *"-e FOO=bar"* ]]
+  [[ "$docker_line" == *"universalrobots/ursim_e-series:5.21.0" ]]
+}
+
+@test "extra docker arguments polyscopex" {
+  run main -t -v 10.7.0 -a "-v /tmp/data:/data -e FOO=bar"
+  echo "$output"
+  [ $status -eq 0 ]
+  docker_line=$(echo "$output" | tail -n1)
+  [[ "$docker_line" == *"-v /tmp/data:/data"* ]]
+  [[ "$docker_line" == *"-e FOO=bar"* ]]
+  [[ "$docker_line" == *"--privileged"* ]]
+  [[ "$docker_line" == *"universalrobots/ursim_polyscopex:10.7.0" ]]
+}
+
+@test "no extra docker arguments by default" {
+  run main -t -v 5.21.0
+  echo "$output"
+  [ $status -eq 0 ]
+  docker_line=$(echo "$output" | tail -n1)
+  [[ "$docker_line" != *"/tmp/data:/data"* ]]
+  [[ "$docker_line" != *"FOO=bar"* ]]
+}
+
 @test "disable_port_forwarding" {
   run main -t -f "DISABLED"
   echo "$output"
