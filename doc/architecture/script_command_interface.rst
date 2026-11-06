@@ -29,6 +29,8 @@ At the time of writing the ``ScriptCommandInterface`` provides the following fun
 - ``setToolVoltageT2()``: Set the tool voltage on connector T2. Requires PolyScope X 10.15.0 or later and Tool Flange
   V2, as reported by the RTDE robot properties. PolyScope 5 does not support connector T2.
 
+See :ref:`io_connectors` for what the tool connectors T0 and T2 are.
+
 Communication protocol
 ----------------------
 
