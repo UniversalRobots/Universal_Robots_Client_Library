@@ -14,6 +14,7 @@ which functions of this library act on them.
 - The library reports the connected hardware as ``ControlBoxType`` (``CB5`` or ``CB7``) and
   ``ToolFlangeType`` (``V1`` or ``V2``), available from the ``PrimaryClient`` and the
   ``RTDEWriter``.
+- All inputs and outputs can be read, and outputs can be written, through the :ref:`rtde_client`.
 - For the complete list of labels and the connector drawings, refer to the robot manual.
 
 Tool connectors
