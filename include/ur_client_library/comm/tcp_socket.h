@@ -21,6 +21,7 @@
 #pragma once
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <memory>
 
@@ -52,14 +53,30 @@ const std::string& socketStateToString(SocketState state);
 class TCPSocket
 {
 private:
+  using StateGeneration = uint64_t;
+  static constexpr StateGeneration STATE_MASK = 0xff;
+  static constexpr StateGeneration GENERATION_INCREMENT = STATE_MASK + 1;
+
   UniqueFd socket_fd_;
-  std::atomic<SocketState> state_;
+  // State and connection generation share one atomic value. This lets a read that failed on an
+  // old connection change only that connection's state, rather than a newly reconnected socket.
+  std::atomic<StateGeneration> state_generation_;
   std::atomic<SocketState> target_state_;
   std::chrono::milliseconds reconnection_time_;
   bool reconnection_time_modified_deprecated_ = false;
   std::atomic<std::chrono::milliseconds> connect_timeout_;
 
   void setupOptions();
+  static constexpr StateGeneration makeStateGeneration(SocketState state, StateGeneration generation = 0)
+  {
+    return (generation & ~STATE_MASK) | static_cast<StateGeneration>(state);
+  }
+  static constexpr SocketState stateFrom(StateGeneration state_generation)
+  {
+    return static_cast<SocketState>(state_generation & STATE_MASK);
+  }
+  void setState(SocketState state);
+  StateGeneration startConnectionAttempt();
 
   // Performs an interruptible, non-blocking connect on an already-created socket.
   // Polls in short slices so that a concurrent disconnect() aborts the attempt
@@ -69,7 +86,7 @@ private:
                          const std::chrono::steady_clock::time_point deadline, bool& timed_out);
 
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
-                     const std::chrono::milliseconds reconnection_time);
+                     const std::chrono::milliseconds reconnection_time, StateGeneration& connection_attempt);
 
 protected:
   /*!
@@ -130,7 +147,7 @@ public:
    */
   SocketState getState()
   {
-    return state_;
+    return stateFrom(state_generation_.load());
   }
 
   /*!

@@ -156,7 +156,7 @@ int waitForSocketWritable(socket_t socket_fd, int timeout_ms)
 }
 }  // namespace
 TCPSocket::TCPSocket()
-  : state_(SocketState::Invalid)
+  : state_generation_(makeStateGeneration(SocketState::Invalid))
   , target_state_(SocketState::Invalid)
   , reconnection_time_(std::chrono::seconds(10))
   , connect_timeout_(std::chrono::milliseconds::zero())
@@ -169,6 +169,25 @@ TCPSocket::TCPSocket()
 TCPSocket::~TCPSocket()
 {
   close();
+}
+
+void TCPSocket::setState(SocketState state)
+{
+  StateGeneration current = state_generation_.load();
+  while (!state_generation_.compare_exchange_weak(current, makeStateGeneration(state, current)))
+  {
+  }
+}
+
+TCPSocket::StateGeneration TCPSocket::startConnectionAttempt()
+{
+  StateGeneration current = state_generation_.load();
+  StateGeneration connecting;
+  do
+  {
+    connecting = makeStateGeneration(SocketState::Connecting, current + GENERATION_INCREMENT);
+  } while (!state_generation_.compare_exchange_weak(current, connecting));
+  return connecting;
 }
 
 void TCPSocket::setupOptions()
@@ -266,7 +285,7 @@ bool TCPSocket::openInterruptible(socket_t socket_fd, struct sockaddr* address, 
 }
 
 bool TCPSocket::setupInternal(const std::string& host, const int port, const size_t max_num_tries,
-                              const std::chrono::milliseconds reconnection_time)
+                              const std::chrono::milliseconds reconnection_time, StateGeneration& connection_attempt)
 {
   // This can be removed once we remove the setReconnectionTime() method
   auto reconnection_time_resolved = reconnection_time;
@@ -278,10 +297,11 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
     reconnection_time_resolved = reconnection_time_;
   }
 
-  if (state_ == SocketState::Connected)
+  connection_attempt = state_generation_.load();
+  if (stateFrom(connection_attempt) == SocketState::Connected)
     return false;
 
-  state_ = SocketState::Connecting;
+  connection_attempt = startConnectionAttempt();
 
   URCL_LOG_DEBUG("Setting up connection: %s:%d", host.c_str(), port);
 
@@ -374,8 +394,9 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
   setupOptions();
   // Mark Connected only if no deliberate disconnect() slipped in while we were finishing up; a late
   // disconnect() must win so we do not advertise a usable socket that was just torn down.
-  SocketState expected = SocketState::Connecting;
-  if (!state_.compare_exchange_strong(expected, SocketState::Connected))
+  StateGeneration expected = connection_attempt;
+  if (!state_generation_.compare_exchange_strong(expected,
+                                                 makeStateGeneration(SocketState::Connected, connection_attempt)))
   {
     close();
     return false;
@@ -387,13 +408,14 @@ bool TCPSocket::setupInternal(const std::string& host, const int port, const siz
 bool TCPSocket::connect(const std::string& host, const int port, const size_t max_num_tries,
                         const std::chrono::milliseconds reconnection_time)
 {
-  if (state_ == SocketState::Connected)
+  if (getState() == SocketState::Connected)
   {
     URCL_LOG_ERROR("Connect called on a socket that is already connected");
     return false;
   }
   target_state_ = SocketState::Connected;
-  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  StateGeneration connection_attempt;
+  if (!setupInternal(host, port, max_num_tries, reconnection_time, connection_attempt))
   {
     disconnect();
     return false;
@@ -404,17 +426,22 @@ bool TCPSocket::connect(const std::string& host, const int port, const size_t ma
 bool TCPSocket::reconnect(const std::string& host, const int port, const size_t max_num_tries,
                           const std::chrono::milliseconds reconnection_time)
 {
-  if (state_ != SocketState::LostConnection)
+  if (getState() != SocketState::LostConnection)
   {
     URCL_LOG_ERROR("Reconnect called on a socket that is not in LostConnection state");
     return false;
   }
-  setTargetStateUnlessStopRequested(SocketState::Connected);
-  if (!setupInternal(host, port, max_num_tries, reconnection_time))
+  if (!setTargetStateUnlessStopRequested(SocketState::Connected))
+  {
+    return false;
+  }
+  StateGeneration connection_attempt;
+  if (!setupInternal(host, port, max_num_tries, reconnection_time, connection_attempt))
   {
     // If we failed to reconnect, we need to set the target state back to LostConnection so that
-    auto expected_state = SocketState::Connecting;
-    state_.compare_exchange_strong(expected_state, SocketState::LostConnection);
+    StateGeneration expected = connection_attempt;
+    state_generation_.compare_exchange_strong(expected,
+                                              makeStateGeneration(SocketState::LostConnection, connection_attempt));
     return false;
   }
   return true;
@@ -446,14 +473,14 @@ bool TCPSocket::setTargetStateUnlessStopRequested(SocketState desired)
 
 void TCPSocket::close()
 {
-  if (state_ != SocketState::Closed)
+  if (getState() != SocketState::Closed)
   {
     // closing overwrites everything, so we do not need to check for stopRequested() here
     target_state_ = SocketState::Closed;
-    state_ = SocketState::Disconnecting;
+    setState(SocketState::Disconnecting);
   }
   socket_fd_.reset();
-  state_ = SocketState::Closed;
+  setState(SocketState::Closed);
 }
 
 std::string TCPSocket::getIP() const
@@ -486,8 +513,17 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
 {
   read = 0;
 
-  if (state_ != SocketState::Connected)
+  const StateGeneration read_state = state_generation_.load();
+  if (stateFrom(read_state) != SocketState::Connected)
     return false;
+
+  const auto mark_lost_connection = [this, read_state]() {
+    // Only the exact connection on which recv() started may be marked lost. A concurrent close()
+    // changes the state, and a reconnect changes the generation, so neither can be overwritten by
+    // this read's stale result.
+    StateGeneration expected = read_state;
+    state_generation_.compare_exchange_strong(expected, makeStateGeneration(SocketState::LostConnection, read_state));
+  };
 
 #ifdef _WIN32
   ssize_t res = ::recv(socket_fd_.get(), reinterpret_cast<char*>(buf), static_cast<const socklen_t>(buf_len), 0);
@@ -497,7 +533,7 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
 
   if (res == 0)
   {
-    state_ = SocketState::LostConnection;
+    mark_lost_connection();
     return false;
   }
   else if (res < 0)
@@ -507,13 +543,13 @@ bool TCPSocket::read(uint8_t* buf, const size_t buf_len, size_t& read)
     int code = ::WSAGetLastError();
     if (code != WSAETIMEDOUT && code != WSAEWOULDBLOCK)
     {
-      state_ = SocketState::LostConnection;
+      mark_lost_connection();
     }
 #else
     if (!(errno == EAGAIN || errno == EWOULDBLOCK))
     {
       // any permanent error should be detected early
-      state_ = SocketState::LostConnection;
+      mark_lost_connection();
     }
 #endif
     return false;
@@ -527,7 +563,7 @@ bool TCPSocket::write(const uint8_t* buf, const size_t buf_len, size_t& written)
 {
   written = 0;
 
-  if (state_ != SocketState::Connected)
+  if (getState() != SocketState::Connected)
   {
     URCL_LOG_ERROR("Attempt to write on a non-connected socket");
     return false;
@@ -558,7 +594,7 @@ void TCPSocket::setReceiveTimeout(const timeval& timeout)
 {
   recv_timeout_.reset(new timeval(timeout));
 
-  if (state_ == SocketState::Connected)
+  if (getState() == SocketState::Connected)
   {
     setupOptions();
   }
