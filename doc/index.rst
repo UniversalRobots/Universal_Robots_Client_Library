@@ -15,6 +15,7 @@ can be found on `GitHub <https://github.com/UniversalRobots/Universal_Robots_Cli
 
    installation
    setup
+   io_connectors
    polyscope_compatibility
    architecture
    examples
