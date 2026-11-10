@@ -333,7 +333,8 @@ DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& pr
     endpoint = "/program/v1/load";
     program_key = "programName";
   }
-  return put(endpoint, R"({")" + program_key + R"(": ")" + program_file_name + R"("})");
+  nlohmann::json payload = { { program_key, program_file_name } };
+  return put(endpoint, payload.dump());
 }
 
 DashboardResponse

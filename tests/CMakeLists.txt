@@ -48,7 +48,6 @@ if (INTEGRATION_TESTS)
   )
 
   add_executable(dashboard_client_x_tests test_dashboard_client_x.cpp)
-  target_include_directories(dashboard_client_x_tests PRIVATE ${CMAKE_SOURCE_DIR}/3rdparty)
   target_link_libraries(dashboard_client_x_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
   target_compile_options(dashboard_client_x_tests PRIVATE -Wno-uninitialized)
   gtest_add_tests(TARGET      dashboard_client_x_tests
@@ -167,6 +166,15 @@ endif()
 add_executable(dashboard_client_mock_tests test_dashboard_client.cpp)
 target_link_libraries(dashboard_client_mock_tests PRIVATE ur_client_library::urcl GTest::gmock_main)
 gtest_add_tests(TARGET      dashboard_client_mock_tests
+)
+
+# Robot-free PolyScope X DashboardClientImplX tests against an in-process httplib
+# mock of the Robot API. Always built; the robot-backed cases stay in
+# dashboard_client_x_tests behind INTEGRATION_TESTS.
+add_executable(dashboard_client_x_unit_tests test_dashboard_client_x_unit.cpp)
+target_include_directories(dashboard_client_x_unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/3rdparty)
+target_link_libraries(dashboard_client_x_unit_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET      dashboard_client_x_unit_tests
 )
 set_tests_properties(DashboardClientWelcomeTest.disconnect_interrupts_silent_welcome
                      PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE)
@@ -303,7 +311,9 @@ add_executable(script_reader_tests test_script_reader.cpp)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
    AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13
    AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-  set_source_files_properties(test_script_reader.cpp
+  set_source_files_properties(
+    test_dashboard_client_x_unit.cpp
+    test_script_reader.cpp
     PROPERTIES COMPILE_OPTIONS "-Wno-maybe-uninitialized")
 endif()
 target_link_libraries(script_reader_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
