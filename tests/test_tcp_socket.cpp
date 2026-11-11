@@ -345,6 +345,34 @@ TEST_F(TCPSocketTest, receive_timeout)
   EXPECT_FALSE(client_->read((uint8_t*)&character, 1, read_chars));
 }
 
+TEST_F(TCPSocketTest, disconnect_during_read_keeps_socket_closed)
+{
+  timeval tv;
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  client_->setReceiveTimeout(tv);
+
+  ASSERT_TRUE(client_->connect());
+  ASSERT_TRUE(server_->waitForConnectionCallback());
+
+  std::atomic<bool> read_started{ false };
+  bool read_success = true;
+  std::thread read_thread([this, &read_started, &read_success]() {
+    char character;
+    size_t read_chars = 0;
+    read_started = true;
+    read_success = client_->read(reinterpret_cast<uint8_t*>(&character), 1, read_chars);
+  });
+
+  EXPECT_NO_THROW(waitFor([&read_started]() { return read_started.load(); }, std::chrono::seconds(1)));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  client_->disconnect();
+  read_thread.join();
+
+  EXPECT_FALSE(read_success);
+  EXPECT_EQ(client_->getState(), comm::SocketState::Closed);
+}
+
 TEST_F(TCPSocketTest, setup_while_client_is_connected)
 {
   client_->connect();
