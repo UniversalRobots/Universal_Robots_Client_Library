@@ -30,6 +30,21 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <fstream>
+#include <filesystem>
+#include <string>
+#include <iterator>
+#include <system_error>
+#include <vector>
+
+#ifndef _WIN32
+#  include <csignal>
+#  include <cstdlib>
+#  include <sys/resource.h>
+#  include <unistd.h>
+#endif
+
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/ur/datatypes.h>
@@ -234,3 +249,298 @@ TEST(TestHelpers, stringFromMotionTarget)
   EXPECT_EQ(stringFromMotionTarget(pose_with_q_near), "Pose(x = 1, y = 2, z = 3, rx = 0.1, ry = 0.2, rz = 0.3)\nWith "
                                                       "Q_near([0, 0.1, 0.2, 0.3, 0.4, 0.5])");
 }
+
+namespace
+{
+std::string readBinaryFile(const std::filesystem::path& path)
+{
+  std::ifstream in(path, std::ios::binary);
+  return std::string(std::istreambuf_iterator<char>(in), {});
+}
+
+std::vector<std::string> filenamesIn(const std::filesystem::path& dir)
+{
+  std::vector<std::string> names;
+  for (const auto& entry : std::filesystem::directory_iterator(dir))
+  {
+    names.push_back(entry.path().filename().string());
+  }
+  return names;
+}
+
+class UniqueTempDir
+{
+public:
+  UniqueTempDir()
+  {
+#ifndef _WIN32
+    std::string tmpl = (std::filesystem::temp_directory_path() / "urcl_wfa_XXXXXX").string();
+    if (mkdtemp(tmpl.data()) == nullptr)
+    {
+      return;
+    }
+    path_ = tmpl;
+#else
+    path_ = std::filesystem::temp_directory_path() /
+            ("urcl_wfa_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(path_);
+#endif
+  }
+
+  ~UniqueTempDir()
+  {
+    std::error_code ec;
+    std::filesystem::remove_all(path_, ec);
+  }
+
+  bool valid() const
+  {
+    return !path_.empty();
+  }
+
+  const std::filesystem::path& path() const
+  {
+    return path_;
+  }
+
+private:
+  std::filesystem::path path_;
+};
+
+class ScopedCurrentPath
+{
+public:
+  explicit ScopedCurrentPath(const std::filesystem::path& path) : previous_(std::filesystem::current_path())
+  {
+    std::filesystem::current_path(path);
+  }
+
+  ~ScopedCurrentPath()
+  {
+    std::error_code ec;
+    std::filesystem::current_path(previous_, ec);
+  }
+
+private:
+  std::filesystem::path previous_;
+};
+
+#ifndef _WIN32
+class IgnoreSigxfsz
+{
+public:
+  IgnoreSigxfsz()
+  {
+    struct sigaction action = {};
+    action.sa_handler = SIG_IGN;
+    installed_ = sigaction(SIGXFSZ, &action, &previous_) == 0;
+  }
+
+  ~IgnoreSigxfsz()
+  {
+    if (installed_)
+    {
+      sigaction(SIGXFSZ, &previous_, nullptr);
+    }
+  }
+
+  bool installed() const
+  {
+    return installed_;
+  }
+
+private:
+  struct sigaction previous_{};
+  bool installed_{ false };
+};
+
+class ScopedFileSizeLimit
+{
+public:
+  explicit ScopedFileSizeLimit(rlim_t bytes)
+  {
+    if (getrlimit(RLIMIT_FSIZE, &previous_) != 0)
+    {
+      return;
+    }
+    rlimit tiny = previous_;
+    tiny.rlim_cur = bytes;
+    active_ = setrlimit(RLIMIT_FSIZE, &tiny) == 0;
+  }
+
+  ~ScopedFileSizeLimit()
+  {
+    if (active_)
+    {
+      setrlimit(RLIMIT_FSIZE, &previous_);
+    }
+  }
+
+  bool active() const
+  {
+    return active_;
+  }
+
+private:
+  rlimit previous_{};
+  bool active_{ false };
+};
+#endif
+}  // namespace
+
+TEST(TestHelpers, writeFileAtomically)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path dest = dir.path() / "file.bin";
+
+  std::string error;
+  ASSERT_TRUE(writeFileAtomically(dest.string(), "first", error)) << error;
+  EXPECT_EQ(readBinaryFile(dest), "first");
+  EXPECT_EQ(filenamesIn(dir.path()), std::vector<std::string>{ "file.bin" });
+
+  ASSERT_TRUE(writeFileAtomically(dest.string(), "replacement", error)) << error;
+  EXPECT_EQ(readBinaryFile(dest), "replacement");
+  EXPECT_EQ(filenamesIn(dir.path()), std::vector<std::string>{ "file.bin" });
+}
+
+TEST(TestHelpers, writeFileAtomicallyEmptyContents)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path dest = dir.path() / "empty.bin";
+
+  std::string error;
+  ASSERT_TRUE(writeFileAtomically(dest.string(), "", error)) << error;
+  EXPECT_TRUE(std::filesystem::exists(dest));
+  EXPECT_EQ(std::filesystem::file_size(dest), 0u);
+}
+
+TEST(TestHelpers, writeFileAtomicallyBinaryContents)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path dest = dir.path() / "binary.bin";
+  const std::string payload({ 'a', '\0', 'b', static_cast<char>(0xff), 'c' });
+
+  std::string error;
+  ASSERT_TRUE(writeFileAtomically(dest.string(), payload, error)) << error;
+  EXPECT_EQ(readBinaryFile(dest), payload);
+}
+
+TEST(TestHelpers, writeFileAtomicallyRelativePathUsesCurrentDirectory)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  ScopedCurrentPath cwd(dir.path());
+
+  std::string error;
+  ASSERT_TRUE(writeFileAtomically("relative.bin", "payload", error)) << error;
+  EXPECT_EQ(readBinaryFile(dir.path() / "relative.bin"), "payload");
+}
+
+TEST(TestHelpers, writeFileAtomicallyMissingParent)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::string dest = (dir.path() / "missing_parent" / "file.bin").string();
+
+  std::string error;
+  EXPECT_FALSE(writeFileAtomically(dest, "payload", error));
+  EXPECT_NE(error.find("Failed to create temporary file"), std::string::npos);
+  EXPECT_TRUE(filenamesIn(dir.path()).empty());
+}
+
+TEST(TestHelpers, writeFileAtomicallyParentIsFile)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path parent = dir.path() / "not_a_directory";
+  {
+    std::ofstream out(parent);
+    out << "blocker";
+  }
+
+  std::string error;
+  EXPECT_FALSE(writeFileAtomically((parent / "file.bin").string(), "payload", error));
+  EXPECT_NE(error.find("Failed to create temporary file"), std::string::npos);
+  EXPECT_EQ(readBinaryFile(parent), "blocker");
+}
+
+TEST(TestHelpers, writeFileAtomicallyDestinationIsDirectory)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path dest = dir.path() / "existing_dir";
+  std::filesystem::create_directories(dest);
+
+  std::string error;
+  EXPECT_FALSE(writeFileAtomically(dest.string(), "payload", error));
+  EXPECT_NE(error.find("Failed to rename temporary file"), std::string::npos);
+  EXPECT_TRUE(std::filesystem::is_directory(dest));
+  EXPECT_EQ(filenamesIn(dir.path()), std::vector<std::string>{ "existing_dir" });
+}
+
+TEST(TestHelpers, writeFileAtomicallyReplacesSymlinkWithoutFollowingIt)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path secret = dir.path() / "secret.bin";
+  const std::filesystem::path dest = dir.path() / "dest.bin";
+  {
+    std::ofstream out(secret, std::ios::binary);
+    out << "secret";
+  }
+  std::filesystem::create_symlink(secret, dest);
+
+  std::string error;
+  ASSERT_TRUE(writeFileAtomically(dest.string(), "safe", error)) << error;
+  EXPECT_EQ(readBinaryFile(dest), "safe");
+  EXPECT_EQ(readBinaryFile(secret), "secret");
+  EXPECT_FALSE(std::filesystem::is_symlink(dest));
+}
+
+#ifndef _WIN32
+TEST(TestHelpers, writeFileAtomicallyWriteError)
+{
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  const std::filesystem::path dest = dir.path() / "file.bin";
+
+  IgnoreSigxfsz ignore_sigxfsz;
+  ASSERT_TRUE(ignore_sigxfsz.installed());
+  ScopedFileSizeLimit limit(1);
+  ASSERT_TRUE(limit.active());
+
+  std::string error;
+  const bool ok = writeFileAtomically(dest.string(), std::string(4096, 'x'), error);
+  if (ok)
+  {
+    GTEST_SKIP() << "Kernel did not enforce RLIMIT_FSIZE; cannot exercise the write-error path.";
+  }
+
+  EXPECT_NE(error.find("Write error"), std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists(dest));
+  EXPECT_TRUE(filenamesIn(dir.path()).empty());
+}
+
+TEST(TestHelpers, writeFileAtomicallyUnwritableDirectory)
+{
+  if (geteuid() == 0)
+  {
+    GTEST_SKIP() << "Root can write to a directory without owner-write permission.";
+  }
+
+  UniqueTempDir dir;
+  ASSERT_TRUE(dir.valid());
+  std::filesystem::permissions(dir.path(), std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec);
+
+  std::string error;
+  const bool ok = writeFileAtomically((dir.path() / "file.bin").string(), "payload", error);
+  std::filesystem::permissions(dir.path(), std::filesystem::perms::owner_all);
+
+  EXPECT_FALSE(ok);
+  EXPECT_NE(error.find("Failed to create temporary file"), std::string::npos);
+  EXPECT_TRUE(filenamesIn(dir.path()).empty());
+}
+#endif

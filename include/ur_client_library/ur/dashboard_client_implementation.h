@@ -561,7 +561,9 @@ public:
   /*!
    * \brief Download a program from the robot
    *
-   * \param program_name The name of the program that is to be downloaded
+   * \param program_name The name of the program that is to be downloaded, including names with
+   * spaces. Must be a single path segment (no separators, `.` / `..`, control characters, or
+   * encoded traversal sequences).
    *
    * \param save_path Filepath where the downloaded program should be saved on the user's computer
    *

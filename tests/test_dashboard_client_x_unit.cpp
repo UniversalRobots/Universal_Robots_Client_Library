@@ -33,6 +33,7 @@
 #include <fstream>
 #include <functional>
 #include <future>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <thread>
@@ -868,4 +869,190 @@ TEST_F(DashboardClientImplXConnectionStateTest, connect_malformed_json_leaves_no
   ASSERT_NO_THROW(connected = impl_->connect());
   EXPECT_FALSE(connected);
   EXPECT_FALSE(impl_->isConnected());
+}
+
+// ---------------------------------------------------------------------------
+// commandDownloadProgram request-target construction
+//
+// The program name must remain a single path segment. Traversal, encoded
+// traversal, and non-program 200 responses must not be saved as a download.
+// ---------------------------------------------------------------------------
+
+static constexpr const char* MOCK_DOWNLOAD_PROGRAM_PATTERN = "/universal-robots/robot-api/programs/v1/(.+)";
+
+static std::string programExportBody(const std::string& name)
+{
+  return json{ { "program", { { "programInformation", { { "name", name } } } } } }.dump();
+}
+
+class DashboardClientXDownloadProgramTest : public ::testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& response) {
+      response.set_content(MOCK_OPENAPI_RESPONSE, "application/json");
+    });
+    server_.Get(MOCK_DOWNLOAD_PROGRAM_PATTERN, [this](const httplib::Request& request, httplib::Response& response) {
+      requested_targets_.push_back(request.target);
+      response.status = program_status_;
+      response.set_content(program_body_, program_content_type_);
+    });
+    server_.Get("/universal-robots/robot-api/robotstate/v1/robotmode",
+                [this](const httplib::Request& request, httplib::Response& response) {
+                  requested_targets_.push_back(request.target);
+                  response.set_content(R"({"robotMode":"POWER_OFF"})", "application/json");
+                });
+
+    port_ = server_.bind_to_any_port("127.0.0.1");
+    server_thread_ = std::thread([this]() { server_.listen_after_bind(); });
+    while (!server_.is_running())
+    {
+      std::this_thread::yield();
+    }
+
+    client_ = std::make_unique<DashboardClientImplX>("127.0.0.1:" + std::to_string(port_));
+    ASSERT_TRUE(client_->connect());
+  }
+
+  void TearDown() override
+  {
+    client_.reset();
+    server_.stop();
+    if (server_thread_.joinable())
+    {
+      server_thread_.join();
+    }
+    if (!out_path_.empty())
+    {
+      std::filesystem::remove(out_path_);
+    }
+  }
+
+  std::filesystem::path makeOutPath()
+  {
+    out_path_ =
+        std::filesystem::temp_directory_path() /
+        ("urcl_download_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".urpx");
+    std::filesystem::remove(out_path_);
+    return out_path_;
+  }
+
+  httplib::Server server_;
+  int port_ = 0;
+  std::thread server_thread_;
+  std::unique_ptr<DashboardClientImplX> client_;
+  std::vector<std::string> requested_targets_;
+  int program_status_ = 200;
+  std::string program_body_ = programExportBody("normal-program");
+  std::string program_content_type_ = "application/json";
+  std::filesystem::path out_path_;
+};
+
+TEST_F(DashboardClientXDownloadProgramTest, ordinary_name_downloads_to_temp_then_destination)
+{
+  const auto out = makeOutPath();
+  auto response = client_->commandDownloadProgram("normal-program", out.string());
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(requested_targets_.size(), 1u);
+  EXPECT_EQ(requested_targets_.front(), "/universal-robots/robot-api/programs/v1/normal-program");
+
+  std::ifstream file(out);
+  ASSERT_TRUE(file.is_open());
+  const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(written, program_body_);
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, space_in_name_is_allowed_and_percent_encoded)
+{
+  program_body_ = programExportBody("Default program");
+  const auto out = makeOutPath();
+  auto response = client_->commandDownloadProgram("Default program", out.string());
+  ASSERT_TRUE(response.ok);
+  ASSERT_EQ(requested_targets_.size(), 1u);
+  EXPECT_EQ(requested_targets_.front(), "/universal-robots/robot-api/programs/v1/Default%20program");
+
+  std::ifstream file(out);
+  ASSERT_TRUE(file.is_open());
+  const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(written, program_body_);
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, traversal_names_are_rejected_without_request)
+{
+  const std::vector<std::string> names = {
+    "../../robotstate/v1/robotmode",
+    "%2e%2e%2f%2e%2e%2frobotstate/v1/robotmode",
+    "../../../../",
+    "../../../urcap-system-api/urcap-system-api/internal/license/v1/license/",
+    "../../../../../etc/passwd",
+    ".",
+    "..",
+    "foo/bar",
+    "foo\\bar",
+    "foo\nbar",
+    "%2e%2e",
+    "%2E%2E%2F",
+    "%252e%252e%252f",
+  };
+
+  const auto out = makeOutPath();
+  for (const auto& name : names)
+  {
+    requested_targets_.clear();
+    auto response = client_->commandDownloadProgram(name, out.string());
+    EXPECT_FALSE(response.ok) << "name: " << name;
+    EXPECT_TRUE(requested_targets_.empty())
+        << "name: " << name << " target: " << (requested_targets_.empty() ? "" : requested_targets_.front());
+    EXPECT_FALSE(std::filesystem::exists(out)) << "name: " << name;
+  }
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, missing_program_does_not_write_file)
+{
+  program_status_ = 404;
+  program_body_ = R"({"message":"not found"})";
+  const auto out = makeOutPath();
+  auto response = client_->commandDownloadProgram("missing", out.string());
+  EXPECT_FALSE(response.ok);
+  EXPECT_FALSE(std::filesystem::exists(out));
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, unexpected_json_200_is_not_saved)
+{
+  program_body_ = R"({"robotMode":"POWER_OFF"})";
+  const auto out = makeOutPath();
+  const std::string sentinel = "do-not-overwrite";
+  {
+    std::ofstream existing(out);
+    existing << sentinel;
+  }
+
+  auto response = client_->commandDownloadProgram("normal-program", out.string());
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("program export"), std::string::npos);
+
+  std::ifstream file(out);
+  const std::string remaining((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  EXPECT_EQ(remaining, sentinel);
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, html_200_is_not_saved)
+{
+  program_body_ = "<html>root</html>";
+  program_content_type_ = "text/html";
+  const auto out = makeOutPath();
+  auto response = client_->commandDownloadProgram("normal-program", out.string());
+  EXPECT_FALSE(response.ok);
+  EXPECT_FALSE(std::filesystem::exists(out));
+}
+
+TEST_F(DashboardClientXDownloadProgramTest, identity_mismatch_is_not_saved)
+{
+  program_body_ = programExportBody("other-program");
+  const auto out = makeOutPath();
+  auto response = client_->commandDownloadProgram("normal-program", out.string());
+  EXPECT_FALSE(response.ok);
+  EXPECT_NE(response.message.find("does not match"), std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists(out));
 }

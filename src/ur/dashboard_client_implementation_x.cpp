@@ -56,6 +56,7 @@ static int mkstemp(char* templ)
 
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client_implementation_x.h>
 
@@ -80,6 +81,103 @@ json parseRobotApiJson(const std::string& body)
   {
     throw urcl::UrException(std::string("Failed to parse Robot API JSON response: ") + e.what());
   }
+}
+
+bool containsPathSeparatorOrControlChar(const std::string& name)
+{
+  for (const unsigned char c : name)
+  {
+    if (c == '/' || c == '\\' || c < 0x20 || c == 0x7F)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Decode percent-encoding until the value is stable so nested sequences such as
+// %252e%252e%252f cannot slip a slash or dot-segment past a single decode pass.
+std::string fullyDecodePathComponent(const std::string& encoded)
+{
+  std::string current = encoded;
+  for (int i = 0; i < 8; ++i)
+  {
+    const std::string decoded = httplib::decode_path_component(current);
+    if (decoded == current)
+    {
+      return decoded;
+    }
+    current = decoded;
+  }
+  throw urcl::UrException("Program name contains excessively nested percent-encoding.");
+}
+
+bool isSinglePathSegment(const std::string& name)
+{
+  return !name.empty() && name != "." && name != ".." && !containsPathSeparatorOrControlChar(name);
+}
+
+// Canonicalize a caller-supplied program name into one URL path segment.
+// Spaces and other ordinary characters are allowed and percent-encoded.
+// Rejects separators, `.` / `..`, control characters, and encoded equivalents.
+bool encodeProgramNamePathSegment(const std::string& program_name, std::string& encoded_segment,
+                                  std::string& canonical_name, std::string& error)
+{
+  try
+  {
+    canonical_name = fullyDecodePathComponent(program_name);
+    if (!isSinglePathSegment(canonical_name))
+    {
+      error = "Program name must be a single path segment without separators, dot-segments, or control characters: '" +
+              program_name + "'";
+      return false;
+    }
+    encoded_segment = httplib::encode_path_component(canonical_name);
+    return true;
+  }
+  catch (const urcl::UrException& e)
+  {
+    error = e.what();
+    return false;
+  }
+}
+
+// Verifies that a given body string is valid JSON and contains a program export with the expected
+// name. Returns false if the body is not valid JSON or does not contain a program export, or if
+// the program name does not match the expected name. The error string is set to a descriptive
+// message in those cases.
+bool isPayloadProgramExport(const std::string& body, const std::string& expected_name, std::string& error)
+{
+  json data;
+  try
+  {
+    data = json::parse(body);
+  }
+  catch (const std::exception&)
+  {
+    error = "Downloaded payload is not a program export (invalid JSON).";
+    return false;
+  }
+
+  if (!data.is_object() || !data.contains("program") || !data["program"].is_object())
+  {
+    error = "Downloaded payload is not a program export.";
+    return false;
+  }
+
+  const auto& program = data["program"];
+  if (program.contains("programInformation") && program["programInformation"].is_object() &&
+      program["programInformation"].contains("name") && program["programInformation"]["name"].is_string())
+  {
+    const std::string actual_name = program["programInformation"]["name"].get<std::string>();
+    if (actual_name != expected_name)
+    {
+      error =
+          "Downloaded program identity '" + actual_name + "' does not match requested name '" + expected_name + "'.";
+      return false;
+    }
+  }
+  return true;
 }
 }  // namespace
 
@@ -892,26 +990,43 @@ DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string
     response.message = error;
     return response;
   }
-  auto response = get("/programs/v1/" + program_name, false);  // The json response is pretty long. Don't print it.
-  if (response.ok)
-  {
-    std::ofstream save_file(save_path, std::ios_base::out);
-    if (!save_file.is_open())
-    {
-      DashboardResponse error_response;
-      error_response.ok = false;
-      error_response.message = "Failed to open file for saving: " + save_path;
-      URCL_LOG_ERROR(error_response.message.c_str());
-      return error_response;
-    }
-    save_file << response.message;
 
-    response.message = "Downloaded program to " + save_path;
+  std::string encoded_name;
+  std::string canonical_name;
+  std::string error;
+  if (!encodeProgramNamePathSegment(program_name, encoded_name, canonical_name, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    DashboardResponse response;
+    response.ok = false;
+    response.message = error;
+    return response;
   }
-  else
+
+  auto response = get("/programs/v1/" + encoded_name, false);  // The json response is pretty long. Don't print it.
+  if (!response.ok)
   {
     URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+    return response;
   }
+
+  if (!isPayloadProgramExport(response.message, canonical_name, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+
+  if (!writeFileAtomically(save_path, response.message, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+
+  response.message = "Downloaded program to " + save_path;
   return response;
 }
 
