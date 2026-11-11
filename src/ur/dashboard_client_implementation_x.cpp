@@ -25,6 +25,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -212,7 +213,16 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
     if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
         json_data["info"]["version"].is_string())
     {
-      robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      try
+      {
+        robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      }
+      catch (const UrException& e)
+      {
+        URCL_LOG_ERROR("Failed to parse Robot API version during dashboard connect: %s", e.what());
+        is_connected_ = false;
+        return false;
+      }
       URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
       is_connected_ = true;
       return true;

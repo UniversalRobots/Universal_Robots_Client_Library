@@ -705,6 +705,35 @@ TEST_F(DashboardClientImplXConnectionStateTest, connect_failure_leaves_not_conne
   EXPECT_FALSE(impl_->isConnected());
 }
 
+TEST_F(DashboardClientImplXConnectionStateTest, connect_oversized_version_returns_false)
+{
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content(R"({"info":{"version":"99999999999999999999.1.1"}})", "application/json");
+  });
+
+  EXPECT_NO_THROW(EXPECT_FALSE(impl_->connect()));
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_trailing_garbage_version_returns_false)
+{
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content(R"({"info":{"version":"5.15.0junk"}})", "application/json");
+  });
+
+  EXPECT_NO_THROW(EXPECT_FALSE(impl_->connect()));
+  EXPECT_FALSE(impl_->isConnected());
+}
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_malformed_json_returns_false)
+{
+  server_.Get(MOCK_OPENAPI_ENDPOINT,
+              [](const httplib::Request&, httplib::Response& res) { res.set_content("not json", "application/json"); });
+
+  EXPECT_NO_THROW(EXPECT_FALSE(impl_->connect()));
+  EXPECT_FALSE(impl_->isConnected());
+}
+
 TEST_F(DashboardClientImplXConnectionStateTest, assert_has_command_reconnects_when_not_connected)
 {
   // When assertHasCommand() is called while disconnected it must trigger connect().

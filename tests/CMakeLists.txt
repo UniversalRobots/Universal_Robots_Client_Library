@@ -180,6 +180,10 @@ set_tests_properties(DashboardClientWelcomeTest.disconnect_interrupts_silent_wel
                      PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE)
 set_tests_properties(DashboardClientWelcomeTest.welcome_timeout_allows_external_retry
                      PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
+set_tests_properties(DashboardClientWelcomeTest.valid_version_reply_connects
+                     DashboardClientWelcomeTest.malformed_version_reply_fails_connect_without_throwing
+                     DashboardClientWelcomeTest.connect_can_retry_after_malformed_version_reply
+                     PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
 
 add_executable(primary_parser_tests test_primary_parser.cpp)
 target_link_libraries(primary_parser_tests PRIVATE ur_client_library::urcl GTest::gtest_main)

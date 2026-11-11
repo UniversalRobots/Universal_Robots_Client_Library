@@ -74,6 +74,9 @@ public:
    * failed. Unlimited number of attempts when set to 0.
    * \param reconnection_time time in between connection attempts to the server
    *
+   * Malformed or unexpected dashboard replies during version discovery fail the connection and
+   * return false. They are not propagated as non-library exceptions.
+   *
    * \returns True on successful connection, false otherwise.
    */
   bool connect(const size_t max_num_tries = 0,

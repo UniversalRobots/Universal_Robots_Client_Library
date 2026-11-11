@@ -82,6 +82,9 @@ public:
    *
    * Note: Calling this isn't required for making dashboard calls for a PolyScope X robot.
    *
+   * Malformed or unexpected Robot API replies during version discovery fail the connection and
+   * return false. They are not propagated as non-library exceptions.
+   *
    * \returns True on successful test call
    */
   bool connect(const size_t max_num_tries = 0,
