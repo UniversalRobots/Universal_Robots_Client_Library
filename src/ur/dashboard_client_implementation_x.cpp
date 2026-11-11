@@ -64,6 +64,24 @@ using json = nlohmann::json;
 
 using namespace std::chrono_literals;
 
+namespace
+{
+// Convert nlohmann JSON parser failures into the library's documented exception
+// type so callers (including ROS 2 dashboard_client) can handle them as UrException
+// instead of aborting on an uncaught nlohmann::detail::parse_error.
+json parseRobotApiJson(const std::string& body)
+{
+  try
+  {
+    return json::parse(body);
+  }
+  catch (const json::exception& e)
+  {
+    throw urcl::UrException(std::string("Failed to parse Robot API JSON response: ") + e.what());
+  }
+}
+}  // namespace
+
 namespace urcl
 {
 
@@ -180,7 +198,17 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
       return false;
     }
     auto db_res = handleHttpResult(res, false);
-    auto json_data = json::parse(db_res.message);
+    json json_data;
+    try
+    {
+      json_data = parseRobotApiJson(db_res.message);
+    }
+    catch (const UrException& e)
+    {
+      is_connected_ = false;
+      URCL_LOG_ERROR("Received invalid JSON when connecting to Robot API: %s", e.what());
+      return false;
+    }
     if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
         json_data["info"]["version"].is_string())
     {
@@ -412,18 +440,19 @@ DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 {
   assertHasCommand("is_in_remote_control");
   auto response = get("/system/v1/controlmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["mode"] = std::string(json_data["mode"]);
-    if (std::string(json_data["mode"]) == "REMOTE")
-    {
-      response.data["remote_control"] = true;
-    }
-    else
-    {
-      response.data["remote_control"] = false;
-    }
+    return response;
+  }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["mode"] = std::string(json_data["mode"]);
+  if (std::string(json_data["mode"]) == "REMOTE")
+  {
+    response.data["remote_control"] = true;
+  }
+  else
+  {
+    response.data["remote_control"] = false;
   }
   return response;
 }
@@ -448,11 +477,12 @@ DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
   assertHasCommand("PolyscopeVersion");
   const std::string endpoint = g_command_list["PolyscopeVersion"].endpoint;
   auto response = get(endpoint);  // This returns both marketing version and baseline version
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["polyscope_version"] = std::string(json_data["marketingVersion"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["polyscope_version"] = std::string(json_data["marketingVersion"]);
   return response;
 }
 
@@ -461,11 +491,12 @@ DashboardResponse DashboardClientImplX::commandGetRobotModel()
   assertHasCommand("get_robot_model");
   const std::string endpoint = g_command_list["get_robot_model"].endpoint;
   auto response = get(endpoint);
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["robot_model"] = std::string(json_data["robotType"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["robot_model"] = std::string(json_data["robotType"]);
   return response;
 }
 
@@ -474,11 +505,12 @@ DashboardResponse DashboardClientImplX::commandGetSerialNumber()
   assertHasCommand("get_serial_number");
   const std::string endpoint = g_command_list["get_serial_number"].endpoint;
   auto response = get(endpoint);
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["serial_number"] = std::string(json_data["serialNumber"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["serial_number"] = std::string(json_data["serialNumber"]);
   return response;
 }
 
@@ -486,11 +518,12 @@ DashboardResponse DashboardClientImplX::commandRobotMode()
 {
   assertHasCommand("robot_mode");
   auto response = get("/robotstate/v1/robotmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["robot_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["robot_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -498,11 +531,12 @@ DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
   assertHasCommand("get_loaded_program");
   auto response = get("/program/v1/loaded");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["program_name"] = std::string(json_data["name"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["program_name"] = std::string(json_data["name"]);
   return response;
 }
 
@@ -510,11 +544,12 @@ DashboardResponse DashboardClientImplX::commandSafetyMode()
 {
   assertHasCommand("safety_mode");
   auto response = get("/robotstate/v1/safetymode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["safety_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["safety_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -526,11 +561,12 @@ DashboardResponse DashboardClientImplX::commandSafetyStatus()
 DashboardResponse DashboardClientImplX::commandProgramState()
 {
   auto response = get("/program/v1/state");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["program_state"] = std::string(json_data["state"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["program_state"] = std::string(json_data["state"]);
   return response;
 }
 
@@ -538,11 +574,12 @@ DashboardResponse DashboardClientImplX::commandGetOperationalMode()
 {
   assertHasCommand("get_operational_mode");
   auto response = get("/system/v1/operationalmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["operational_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["operational_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -732,51 +769,52 @@ DashboardResponse DashboardClientImplX::commandGetProgramList()
 {
   assertHasCommand("get_program_list");
   auto response = get("/programs/v1/");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    std::vector<ProgramInformation> programs;
-    for (auto prog : json_data["programs"])
-    {
-      // The Robot API schema declares every field of ProgramInformation except
-      // "name" as nullable, so each of them has to be read defensively. Reading
-      // a null directly into the constructor's std::string / unsigned int
-      // parameters throws a json type_error and fails the whole query.
-      unsigned int created = 0;
-      if (!prog["createdDate"].is_null())
-      {
-        created = static_cast<unsigned int>(prog["createdDate"]);
-      }
-
-      unsigned int last_modified = 0;
-      if (!prog["lastModifiedDate"].is_null())
-      {
-        last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
-      }
-
-      unsigned int last_saved = 0;
-      if (!prog["lastSavedDate"].is_null())
-      {
-        last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
-      }
-
-      std::string description;
-      if (!prog["description"].is_null())
-      {
-        description = prog["description"];
-      }
-
-      std::string program_state;
-      if (!prog["programState"].is_null())
-      {
-        program_state = prog["programState"];
-      }
-
-      ProgramInformation pi(created, description, last_modified, last_saved, prog["name"], program_state);
-      programs.push_back(pi);
-    }
-    response.data["programs"] = programs;
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  std::vector<ProgramInformation> programs;
+  for (auto prog : json_data["programs"])
+  {
+    // The Robot API schema declares every field of ProgramInformation except
+    // "name" as nullable, so each of them has to be read defensively. Reading
+    // a null directly into the constructor's std::string / unsigned int
+    // parameters throws a json type_error and fails the whole query.
+    unsigned int created = 0;
+    if (!prog["createdDate"].is_null())
+    {
+      created = static_cast<unsigned int>(prog["createdDate"]);
+    }
+
+    unsigned int last_modified = 0;
+    if (!prog["lastModifiedDate"].is_null())
+    {
+      last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
+    }
+
+    unsigned int last_saved = 0;
+    if (!prog["lastSavedDate"].is_null())
+    {
+      last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
+    }
+
+    std::string description;
+    if (!prog["description"].is_null())
+    {
+      description = prog["description"];
+    }
+
+    std::string program_state;
+    if (!prog["programState"].is_null())
+    {
+      program_state = prog["programState"];
+    }
+
+    ProgramInformation pi(created, description, last_modified, last_saved, prog["name"], program_state);
+    programs.push_back(pi);
+  }
+  response.data["programs"] = programs;
   return response;
 }
 
@@ -802,8 +840,12 @@ DashboardResponse DashboardClientImplX::performProgramUpload(
 
   httplib::UploadFormDataItems form_data = { { "file", content, "filename", "text/plain" } };
   auto response = upload_func("/programs/v1/", form_data);
-  auto json_data = json::parse(response.message);
-  if (response.ok && json_data.contains("programName") && json_data["programName"].is_string())
+  if (!response.ok)
+  {
+    return response;
+  }
+  auto json_data = parseRobotApiJson(response.message);
+  if (json_data.contains("programName") && json_data["programName"].is_string())
   {
     response.data["program_name"] = std::string(json_data["programName"]);
   }

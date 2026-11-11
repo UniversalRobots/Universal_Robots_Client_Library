@@ -31,6 +31,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <future>
 #include <memory>
 #include <string>
@@ -528,6 +529,116 @@ TEST_F(DashboardClientImplXMockTest, get_program_list_empty)
 }
 
 // ---------------------------------------------------------------------------
+// Non-JSON Robot API bodies
+//
+// Dashboard handlers must not let nlohmann::json::parse_error escape. HTTP
+// error bodies (HTML / plaintext / empty) should be returned as a failed
+// DashboardResponse. HTTP 200 with invalid JSON should throw UrException.
+// ---------------------------------------------------------------------------
+
+static constexpr const char* MOCK_PROGRAM_STATE_ENDPOINT = "/universal-robots/robot-api/program/v1/state";
+static constexpr const char* MOCK_VERSIONS_ENDPOINT = "/universal-robots/robot-api/versions/v1";
+
+static void expectUrException(const std::function<void()>& fn)
+{
+  try
+  {
+    fn();
+    FAIL() << "Expected UrException";
+  }
+  catch (const UrException&)
+  {
+  }
+  catch (const std::exception& e)
+  {
+    FAIL() << "Non-UrException escaped: " << e.what();
+  }
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_valid_json)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content(R"({"state":"STOPPED"})", "application/json");
+  });
+
+  auto response = impl_->commandProgramState();
+  ASSERT_TRUE(response.ok);
+  EXPECT_EQ(std::get<std::string>(response.data.at("program_state")), "STOPPED");
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_html_error_body)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.status = 500;
+    res.set_content("<html>Internal Server Error</html>", "text/html");
+  });
+
+  DashboardResponse response;
+  ASSERT_NO_THROW(response = impl_->commandProgramState());
+  EXPECT_FALSE(response.ok);
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_plain_text_error_body)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.status = 500;
+    res.set_content("Internal Server Error", "text/plain");
+  });
+
+  DashboardResponse response;
+  ASSERT_NO_THROW(response = impl_->commandProgramState());
+  EXPECT_FALSE(response.ok);
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_empty_error_body)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT, [](const httplib::Request&, httplib::Response& res) { res.status = 500; });
+
+  DashboardResponse response;
+  ASSERT_NO_THROW(response = impl_->commandProgramState());
+  EXPECT_FALSE(response.ok);
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_malformed_json_success)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content("NOT-JSON-AT-ALL", "application/json");
+  });
+
+  expectUrException([this]() { impl_->commandProgramState(); });
+}
+
+TEST_F(DashboardClientImplXMockTest, program_state_empty_success_body)
+{
+  server_.Get(MOCK_PROGRAM_STATE_ENDPOINT,
+              [](const httplib::Request&, httplib::Response& res) { res.set_content("", "application/json"); });
+
+  expectUrException([this]() { impl_->commandProgramState(); });
+}
+
+TEST_F(DashboardClientImplXMockTest, polyscope_version_malformed_json)
+{
+  server_.Get(MOCK_VERSIONS_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content("NOT-JSON-AT-ALL", "application/json");
+  });
+
+  expectUrException([this]() { impl_->commandPolyscopeVersion(); });
+}
+
+TEST_F(DashboardClientImplXMockTest, get_program_list_html_error_body)
+{
+  server_.Get(MOCK_PROGRAMS_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.status = 500;
+    res.set_content("<html>Internal Server Error</html>", "text/html");
+  });
+
+  DashboardResponse response;
+  ASSERT_NO_THROW(response = impl_->commandGetProgramList());
+  EXPECT_FALSE(response.ok);
+}
+
+// ---------------------------------------------------------------------------
+
 // Connection-state tests
 //
 // These tests use TestableDashboardClientMock so that is_connected_ can be
@@ -715,3 +826,17 @@ std::vector<std::string> programNames()
 
 INSTANTIATE_TEST_SUITE_P(SecurityRegression, DashboardClientXProgramNameSerializationTest,
                          ::testing::ValuesIn(programNames()));
+
+TEST_F(DashboardClientImplXConnectionStateTest, connect_malformed_json_leaves_not_connected)
+{
+  // HTTP 200 with a non-JSON body must not throw a nlohmann parse_error; connect()
+  // reports failure and leaves the client disconnected.
+  server_.Get(MOCK_OPENAPI_ENDPOINT, [](const httplib::Request&, httplib::Response& res) {
+    res.set_content("<html>not openapi</html>", "text/html");
+  });
+
+  bool connected = true;
+  ASSERT_NO_THROW(connected = impl_->connect());
+  EXPECT_FALSE(connected);
+  EXPECT_FALSE(impl_->isConnected());
+}
