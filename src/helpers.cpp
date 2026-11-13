@@ -315,7 +315,7 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
     dest_dir = ".";
   }
 
-  std::string temp_save_path = (dest_dir / (std::filesystem::path(save_path).filename().string() + ".XXXXXX")).string();
+  std::string temp_save_path = (dest_dir / ".urcl.XXXXXX").string();
   int tmp_fd = portableMkstemp(temp_save_path.data());
   if (tmp_fd < 0)
   {
