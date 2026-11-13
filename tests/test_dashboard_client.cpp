@@ -569,11 +569,9 @@ struct MockG5ConnectResult
   std::string exception_what;
 };
 
-MockG5ConnectResult connectAgainstVersionReply(const std::string& version_line)
+MockG5ConnectResult connectAgainstVersionReply(DashboardClientImplG5& client, TestableTcpServer& server,
+                                               const std::string& version_line)
 {
-  TestableTcpServer server(29999);
-  server.start();
-  DashboardClientImplG5 client("127.0.0.1");
   MockG5ConnectResult result;
   std::exception_ptr connection_error;
   std::thread connection([&]() {
@@ -629,6 +627,15 @@ MockG5ConnectResult connectAgainstVersionReply(const std::string& version_line)
       result.exception_what = e.what();
     }
   }
+  return result;
+}
+
+MockG5ConnectResult connectAgainstVersionReply(const std::string& version_line)
+{
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+  auto result = connectAgainstVersionReply(client, server, version_line);
   client.disconnect();
   return result;
 }
@@ -662,11 +669,16 @@ TEST(DashboardClientWelcomeTest, malformed_version_reply_fails_connect_without_t
 
 TEST(DashboardClientWelcomeTest, connect_can_retry_after_malformed_version_reply)
 {
-  const auto poisoned = connectAgainstVersionReply("URSoftware 99999999999999999999.1.1 (a2025)");
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+
+  const auto poisoned = connectAgainstVersionReply(client, server, "URSoftware 99999999999999999999.1.1 (a2025)");
   EXPECT_FALSE(poisoned.threw) << poisoned.exception_what;
   EXPECT_FALSE(poisoned.connected);
+  EXPECT_TRUE(server.waitForDisconnectionCallback(1000)) << "The failed version query left the socket connected";
 
-  const auto recovered = connectAgainstVersionReply("URSoftware 5.15.0 (a2025)");
+  const auto recovered = connectAgainstVersionReply(client, server, "URSoftware 5.15.0 (a2025)");
   EXPECT_FALSE(recovered.threw) << recovered.exception_what;
   EXPECT_TRUE(recovered.connected);
 }
