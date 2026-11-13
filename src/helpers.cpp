@@ -33,11 +33,22 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
+
+#ifdef _WIN32
+#  include <fcntl.h>
+#  include <io.h>
+#  include <share.h>
+#  include <sys/stat.h>
+#else
+#  include <unistd.h>
+#endif
 
 // clang-format off
 // We want to keep the URL in one line to avoid formatting issues. This will make it easier to
@@ -271,6 +282,87 @@ RobotType robotTypeFromString(const std::string& robot_type_str)
 std::string stringFromMotionTarget(const MotionTarget& target)
 {
   return std::visit([](const auto& target) { return target.toString(); }, target);
+}
+
+namespace
+{
+#ifdef _WIN32
+// _mktemp_s only generates a unique name but does not open the file, so this
+// wrapper adds the exclusive open to match the POSIX mkstemp contract.
+int portableMkstemp(char* templ)
+{
+  if (_mktemp_s(templ, std::strlen(templ) + 1) != 0)
+  {
+    return -1;
+  }
+  int fd = -1;
+  _sopen_s(&fd, templ, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _SH_DENYRW, _S_IREAD | _S_IWRITE);
+  return fd;
+}
+#else
+int portableMkstemp(char* templ)
+{
+  return mkstemp(templ);
+}
+#endif
+}  // namespace
+
+bool writeFileAtomically(const std::string& save_path, const std::string& contents, std::string& error)
+{
+  std::filesystem::path dest_dir = std::filesystem::path(save_path).parent_path();
+  if (dest_dir.empty())
+  {
+    dest_dir = ".";
+  }
+
+  std::string temp_save_path = (dest_dir / ".urcl.XXXXXX").string();
+  int tmp_fd = portableMkstemp(temp_save_path.data());
+  if (tmp_fd < 0)
+  {
+    error = "Failed to create temporary file for saving: " + save_path;
+    return false;
+  }
+
+#ifndef _WIN32
+  const bool wrote = write(tmp_fd, contents.data(), contents.size()) == static_cast<ssize_t>(contents.size());
+  const bool closed = close(tmp_fd) == 0;
+#else
+  size_t total_written = 0;
+  bool wrote = true;
+  while (total_written < contents.size())
+  {
+    // _write returns a signed 32-bit count on Windows.
+    const auto chunk_size = static_cast<unsigned int>(std::min<size_t>(contents.size() - total_written, 0x7fffffffU));
+    const int bytes_written = _write(tmp_fd, contents.data() + total_written, chunk_size);
+    if (bytes_written <= 0)
+    {
+      wrote = false;
+      break;
+    }
+    total_written += static_cast<size_t>(bytes_written);
+  }
+  const bool closed = _close(tmp_fd) == 0;
+#endif
+
+  if (!wrote || !closed)
+  {
+    std::error_code ec;
+    std::filesystem::remove(temp_save_path, ec);
+    error = "Write error while saving to: " + save_path + " (" + ec.message() + ")";
+    return false;
+  }
+
+  std::error_code ec;
+  std::filesystem::rename(temp_save_path, save_path, ec);
+  if (ec)
+  {
+    error = "Failed to rename temporary file to final destination: " + ec.message();
+    std::error_code remove_ec;
+    std::filesystem::remove(temp_save_path, remove_ec);
+    error += remove_ec ? " Additionally, failed to remove temporary file: " + remove_ec.message() : "";
+    return false;
+  }
+  return true;
 }
 
 }  // namespace urcl

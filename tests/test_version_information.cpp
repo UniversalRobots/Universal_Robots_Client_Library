@@ -28,6 +28,10 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <stdexcept>
+#include <string>
+
 #include <ur_client_library/ur/version_information.h>
 #include <ur_client_library/exceptions.h>
 
@@ -78,15 +82,47 @@ TEST(version_information, test_relations)
 
 TEST(version_information, test_invalid_inputs)
 {
-  // Empty string
+  const std::string oversized_major = "99999999999999999999.1.1";
+
   EXPECT_THROW(VersionInformation::fromString(""), UrException);
-
-  // Too many components
+  EXPECT_THROW(VersionInformation::fromString("1"), UrException);
   EXPECT_THROW(VersionInformation::fromString("1.2.3.4.5"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("1.two.3"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("a.b.c.d"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.15.0junk"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.15.0 junk"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("-1.2.3"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.-1.0"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("+5.1.0"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("1.2.3."), UrException);
+  EXPECT_THROW(VersionInformation::fromString(".1.2"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("1..2"), UrException);
+  EXPECT_THROW(VersionInformation::fromString(" 5.1.0"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.1.0 "), UrException);
+  EXPECT_THROW(VersionInformation::fromString(oversized_major), UrException);
+  EXPECT_THROW(VersionInformation::fromString("4294967296.0"), UrException);
 
-  // Non-numeric values
-  EXPECT_THROW(VersionInformation::fromString("1.two.3"), std::invalid_argument);
-  EXPECT_THROW(VersionInformation::fromString("a.b.c.d"), std::invalid_argument);
+  try
+  {
+    VersionInformation::fromString(oversized_major);
+    FAIL() << "Expected UrException for an oversized version component";
+  }
+  catch (const UrException&)
+  {
+  }
+  catch (const std::exception& e)
+  {
+    FAIL() << "Expected UrException, got std::exception: " << e.what();
+  }
+}
+
+TEST(version_information, test_uint32_max_component)
+{
+  auto version = VersionInformation::fromString("4294967295.0");
+  EXPECT_EQ(version.major, std::numeric_limits<uint32_t>::max());
+  EXPECT_EQ(version.minor, 0u);
+  EXPECT_EQ(version.bugfix, 0u);
+  EXPECT_EQ(version.build, 0u);
 }
 
 TEST(version_information, test_is_e_series)

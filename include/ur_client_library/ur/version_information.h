@@ -48,7 +48,14 @@ public:
   /*!
    * \brief Parses a version string into a VersionInformation object
    *
+   * Accepted format is 2 to 4 dot-separated unsigned integer components, for example
+   * "5.12", "5.12.0" or "5.12.0.1101319". Each component must consist of decimal digits
+   * only and fit into a 32-bit unsigned integer. Leading signs, trailing characters,
+   * empty components, and extra fields are rejected.
+   *
    * \param str Version string such as "5.12.0.1101319"
+   *
+   * \throws UrException if \p str is not a valid version string
    *
    * \returns A parsed VersionInformation object
    */

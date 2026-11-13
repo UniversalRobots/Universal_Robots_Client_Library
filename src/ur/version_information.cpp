@@ -30,8 +30,36 @@
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/ur/version_information.h>
 
+#include <limits>
+
 namespace urcl
 {
+namespace
+{
+uint32_t parseVersionComponent(const std::string& component, const std::string& original)
+{
+  if (component.empty())
+  {
+    throw UrException("Given string '" + original + "' does not conform a version string format.");
+  }
+
+  uint32_t value = 0;
+  for (const char c : component)
+  {
+    if (c < '0' || c > '9')
+    {
+      throw UrException("Given string '" + original + "' does not conform a version string format.");
+    }
+    const uint32_t digit = static_cast<uint32_t>(c - '0');
+    if (value > (std::numeric_limits<uint32_t>::max() - digit) / 10)
+    {
+      throw UrException("Given string '" + original + "' contains a version component outside the supported range.");
+    }
+    value = value * 10 + digit;
+  }
+  return value;
+}
+}  // namespace
 
 VersionInformation::VersionInformation()
 {
@@ -45,28 +73,22 @@ VersionInformation::VersionInformation()
 
 VersionInformation VersionInformation::fromString(const std::string& str)
 {
-  auto components = splitString(str, ".");
-  VersionInformation info;
-  if (components.size() >= 2)
-  {
-    info.major = std::stoi(components[0]);
-    info.minor = std::stoi(components[1]);
-    if (components.size() >= 3)
-    {
-      info.bugfix = std::stoi(components[2]);
-      if (components.size() == 4)
-      {
-        info.build = std::stoi(components[3]);
-      }
-      else if (components.size() > 4)
-      {
-        throw UrException("Given string '" + str + "' does not conform a version string format.");
-      }
-    }
-  }
-  else
+  const auto components = splitString(str, ".");
+  if (components.size() < 2 || components.size() > 4)
   {
     throw UrException("Given string '" + str + "' does not conform a version string format.");
+  }
+
+  VersionInformation info;
+  info.major = parseVersionComponent(components[0], str);
+  info.minor = parseVersionComponent(components[1], str);
+  if (components.size() >= 3)
+  {
+    info.bugfix = parseVersionComponent(components[2], str);
+  }
+  if (components.size() == 4)
+  {
+    info.build = parseVersionComponent(components[3], str);
   }
 
   return info;

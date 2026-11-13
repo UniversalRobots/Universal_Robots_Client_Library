@@ -27,6 +27,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <regex>
 #include <sstream>
@@ -42,6 +43,44 @@ using namespace std::chrono_literals;
 
 namespace urcl
 {
+namespace
+{
+// Dashboard replies look like "URSoftware 5.15.0 (a2025)". A bare version such as
+// "5.15.0" is also accepted. The extracted token is validated by fromString().
+std::string extractPolyScopeVersionToken(const std::string& response)
+{
+  if (response.empty())
+  {
+    throw UrException("Received empty PolyScope version reply from dashboard server.");
+  }
+
+  std::string token = response;
+  const auto first_space = response.find(' ');
+  if (first_space != std::string::npos)
+  {
+    // Skip the "URSoftware" prefix (or any other leading field) and take the next
+    // whitespace-delimited token, stopping before an optional " (build-tag)" suffix.
+    const auto token_begin = first_space + 1;
+    auto token_end = response.find(" (", token_begin);
+    if (token_end == std::string::npos)
+    {
+      token_end = response.find(' ', token_begin);
+    }
+    if (token_end == std::string::npos)
+    {
+      token_end = response.size();
+    }
+    token = response.substr(token_begin, token_end - token_begin);
+  }
+
+  if (token.empty())
+  {
+    throw UrException("Failed to extract PolyScope version from dashboard reply: '" + response + "'");
+  }
+  return token;
+}
+}  // namespace
+
 std::unordered_map<std::string, DashboardCommandG5> DashboardClientImplG5::g_command_list{
   { "load",
     { "load <program.urp>", "(?:Loading program: ).*(?: <program.urp> ).*", VersionInformation::fromString("1.4"),
@@ -269,7 +308,16 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
   // Reset read timeout to configured socket timeout
   TCPSocket::setReceiveTimeout(configured_tv);
 
-  polyscope_version_ = queryPolyScopeVersion();
+  try
+  {
+    polyscope_version_ = queryPolyScopeVersion();
+  }
+  catch (const std::exception& e)
+  {
+    URCL_LOG_ERROR("Failed to query PolyScope version during dashboard connect: %s", e.what());
+    disconnect();
+    return false;
+  }
 
   return true;
 }
@@ -303,8 +351,7 @@ timeval DashboardClientImplG5::getConfiguredReceiveTimeout() const
 VersionInformation DashboardClientImplG5::queryPolyScopeVersion()
 {
   std::string response = sendAndReceive("PolyscopeVersion");
-  std::string version_string = response.substr(response.find(" ") + 1, response.find(" (") - response.find(" ") - 1);
-  return VersionInformation::fromString(version_string);
+  return VersionInformation::fromString(extractPolyScopeVersionToken(response));
 }
 
 void DashboardClientImplG5::assertHasCommand(const std::string& command)
@@ -848,8 +895,7 @@ DashboardResponse DashboardClientImplG5::commandPolyscopeVersion()
     const std::string expected("(?:URSoftware ).*");
     if (std::regex_match(polyscope_version, std::regex(expected)))
     {
-      const std::string version_string = polyscope_version.substr(
-          polyscope_version.find(" ") + 1, polyscope_version.find(" (") - polyscope_version.find(" ") - 1);
+      const std::string version_string = extractPolyScopeVersionToken(polyscope_version);
       polyscope_version_ = VersionInformation::fromString(version_string);
       response.data["polyscope_version"] = version_string;
       response.message = polyscope_version;
@@ -861,7 +907,7 @@ DashboardResponse DashboardClientImplG5::commandPolyscopeVersion()
       response.ok = false;
     }
   }
-  catch (const UnexpectedResponse& e)
+  catch (const UrException& e)
   {
     response.ok = false;
     response.message = e.what();

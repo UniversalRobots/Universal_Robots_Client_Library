@@ -25,6 +25,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -55,14 +56,140 @@ static int mkstemp(char* templ)
 
 #include "ur_client_library/ur/version_information.h"
 #include <ur_client_library/exceptions.h>
+#include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
 #include <ur_client_library/ur/dashboard_client_implementation_x.h>
 
 #include <urcl_3rdparty/nlohmann_json/json.hpp>
+#ifdef _MSC_VER
+#  pragma warning(push, 0)
+#endif
 #include <urcl_3rdparty/httplib/httplib.h>
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+#ifdef ERROR
+#  undef ERROR
+#endif
 using json = nlohmann::json;
 
 using namespace std::chrono_literals;
+
+namespace
+{
+// Convert nlohmann JSON parser failures into the library's documented exception
+// type so callers (including ROS 2 dashboard_client) can handle them as UrException
+// instead of aborting on an uncaught nlohmann::detail::parse_error.
+json parseRobotApiJson(const std::string& body)
+{
+  try
+  {
+    return json::parse(body);
+  }
+  catch (const json::exception& e)
+  {
+    throw urcl::UrException(std::string("Failed to parse Robot API JSON response: ") + e.what());
+  }
+}
+
+bool containsPathSeparatorOrControlChar(const std::string& name)
+{
+  for (const unsigned char c : name)
+  {
+    if (c == '/' || c == '\\' || c < 0x20 || c == 0x7F)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Decode percent-encoding until the value is stable so nested sequences such as
+// %252e%252e%252f cannot slip a slash or dot-segment past a single decode pass.
+std::string fullyDecodePathComponent(const std::string& encoded)
+{
+  std::string current = encoded;
+  for (int i = 0; i < 8; ++i)
+  {
+    const std::string decoded = httplib::decode_path_component(current);
+    if (decoded == current)
+    {
+      return decoded;
+    }
+    current = decoded;
+  }
+  throw urcl::UrException("Program name contains excessively nested percent-encoding.");
+}
+
+bool isSinglePathSegment(const std::string& name)
+{
+  return !name.empty() && name != "." && name != ".." && !containsPathSeparatorOrControlChar(name);
+}
+
+// Canonicalize a caller-supplied program name into one URL path segment.
+// Spaces and other ordinary characters are allowed and percent-encoded.
+// Rejects separators, `.` / `..`, control characters, and encoded equivalents.
+bool encodeProgramNamePathSegment(const std::string& program_name, std::string& encoded_segment,
+                                  std::string& canonical_name, std::string& error)
+{
+  try
+  {
+    canonical_name = fullyDecodePathComponent(program_name);
+    if (!isSinglePathSegment(canonical_name))
+    {
+      error = "Program name must be a single path segment without separators, dot-segments, or control characters: '" +
+              program_name + "'";
+      return false;
+    }
+    encoded_segment = httplib::encode_path_component(canonical_name);
+    return true;
+  }
+  catch (const urcl::UrException& e)
+  {
+    error = e.what();
+    return false;
+  }
+}
+
+// Verifies that a given body string is valid JSON and contains a program export with the expected
+// name. Returns false if the body is not valid JSON or does not contain a program export, or if
+// the program name does not match the expected name. The error string is set to a descriptive
+// message in those cases.
+bool isPayloadProgramExport(const std::string& body, const std::string& expected_name, std::string& error)
+{
+  json data;
+  try
+  {
+    data = json::parse(body);
+  }
+  catch (const std::exception&)
+  {
+    error = "Downloaded payload is not a program export (invalid JSON).";
+    return false;
+  }
+
+  if (!data.is_object() || !data.contains("program") || !data["program"].is_object())
+  {
+    error = "Downloaded payload is not a program export.";
+    return false;
+  }
+
+  const auto& program = data["program"];
+  if (!program.contains("programInformation") || !program["programInformation"].is_object() ||
+      !program["programInformation"].contains("name") || !program["programInformation"]["name"].is_string())
+  {
+    error = "Downloaded payload is not a program export (missing or invalid program identity).";
+    return false;
+  }
+  const std::string actual_name = program["programInformation"]["name"].get<std::string>();
+  if (actual_name != expected_name)
+  {
+    error = "Downloaded program identity '" + actual_name + "' does not match requested name '" + expected_name + "'.";
+    return false;
+  }
+  return true;
+}
+}  // namespace
 
 namespace urcl
 {
@@ -180,11 +307,30 @@ bool DashboardClientImplX::connect([[maybe_unused]] const size_t max_num_tries,
       return false;
     }
     auto db_res = handleHttpResult(res, false);
-    auto json_data = json::parse(db_res.message);
+    json json_data;
+    try
+    {
+      json_data = parseRobotApiJson(db_res.message);
+    }
+    catch (const UrException& e)
+    {
+      is_connected_ = false;
+      URCL_LOG_ERROR("Received invalid JSON when connecting to Robot API: %s", e.what());
+      return false;
+    }
     if (db_res.ok && json_data.contains("info") && json_data["info"].contains("version") &&
         json_data["info"]["version"].is_string())
     {
-      robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      try
+      {
+        robot_api_version_ = VersionInformation::fromString(json_data["info"]["version"]);
+      }
+      catch (const UrException& e)
+      {
+        URCL_LOG_ERROR("Failed to parse Robot API version during dashboard connect: %s", e.what());
+        is_connected_ = false;
+        return false;
+      }
       URCL_LOG_DEBUG("Connected to Robot API version: %s", robot_api_version_.toString().c_str());
       is_connected_ = true;
       return true;
@@ -333,7 +479,15 @@ DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& pr
     endpoint = "/program/v1/load";
     program_key = "programName";
   }
-  return put(endpoint, R"({")" + program_key + R"(": ")" + program_file_name + R"("})");
+  nlohmann::json payload = { { program_key, program_file_name } };
+  try
+  {
+    return put(endpoint, payload.dump());
+  }
+  catch (const json::exception& e)
+  {
+    throw UrException(std::string("Failed to serialize program name: ") + e.what());
+  }
 }
 
 DashboardResponse
@@ -411,18 +565,19 @@ DashboardResponse DashboardClientImplX::commandIsInRemoteControl()
 {
   assertHasCommand("is_in_remote_control");
   auto response = get("/system/v1/controlmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["mode"] = std::string(json_data["mode"]);
-    if (std::string(json_data["mode"]) == "REMOTE")
-    {
-      response.data["remote_control"] = true;
-    }
-    else
-    {
-      response.data["remote_control"] = false;
-    }
+    return response;
+  }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["mode"] = std::string(json_data["mode"]);
+  if (std::string(json_data["mode"]) == "REMOTE")
+  {
+    response.data["remote_control"] = true;
+  }
+  else
+  {
+    response.data["remote_control"] = false;
   }
   return response;
 }
@@ -447,11 +602,12 @@ DashboardResponse DashboardClientImplX::commandPolyscopeVersion()
   assertHasCommand("PolyscopeVersion");
   const std::string endpoint = g_command_list["PolyscopeVersion"].endpoint;
   auto response = get(endpoint);  // This returns both marketing version and baseline version
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["polyscope_version"] = std::string(json_data["marketingVersion"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["polyscope_version"] = std::string(json_data["marketingVersion"]);
   return response;
 }
 
@@ -460,11 +616,12 @@ DashboardResponse DashboardClientImplX::commandGetRobotModel()
   assertHasCommand("get_robot_model");
   const std::string endpoint = g_command_list["get_robot_model"].endpoint;
   auto response = get(endpoint);
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["robot_model"] = std::string(json_data["robotType"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["robot_model"] = std::string(json_data["robotType"]);
   return response;
 }
 
@@ -473,11 +630,12 @@ DashboardResponse DashboardClientImplX::commandGetSerialNumber()
   assertHasCommand("get_serial_number");
   const std::string endpoint = g_command_list["get_serial_number"].endpoint;
   auto response = get(endpoint);
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["serial_number"] = std::string(json_data["serialNumber"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["serial_number"] = std::string(json_data["serialNumber"]);
   return response;
 }
 
@@ -485,11 +643,12 @@ DashboardResponse DashboardClientImplX::commandRobotMode()
 {
   assertHasCommand("robot_mode");
   auto response = get("/robotstate/v1/robotmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["robot_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["robot_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -497,11 +656,12 @@ DashboardResponse DashboardClientImplX::commandGetLoadedProgram()
 {
   assertHasCommand("get_loaded_program");
   auto response = get("/program/v1/loaded");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["program_name"] = std::string(json_data["name"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["program_name"] = std::string(json_data["name"]);
   return response;
 }
 
@@ -509,11 +669,12 @@ DashboardResponse DashboardClientImplX::commandSafetyMode()
 {
   assertHasCommand("safety_mode");
   auto response = get("/robotstate/v1/safetymode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["safety_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["safety_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -525,11 +686,12 @@ DashboardResponse DashboardClientImplX::commandSafetyStatus()
 DashboardResponse DashboardClientImplX::commandProgramState()
 {
   auto response = get("/program/v1/state");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["program_state"] = std::string(json_data["state"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["program_state"] = std::string(json_data["state"]);
   return response;
 }
 
@@ -537,11 +699,12 @@ DashboardResponse DashboardClientImplX::commandGetOperationalMode()
 {
   assertHasCommand("get_operational_mode");
   auto response = get("/system/v1/operationalmode");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    response.data["operational_mode"] = std::string(json_data["mode"]);
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  response.data["operational_mode"] = std::string(json_data["mode"]);
   return response;
 }
 
@@ -731,51 +894,52 @@ DashboardResponse DashboardClientImplX::commandGetProgramList()
 {
   assertHasCommand("get_program_list");
   auto response = get("/programs/v1/");
-  auto json_data = json::parse(response.message);
-  if (response.ok)
+  if (!response.ok)
   {
-    std::vector<ProgramInformation> programs;
-    for (auto prog : json_data["programs"])
-    {
-      // The Robot API schema declares every field of ProgramInformation except
-      // "name" as nullable, so each of them has to be read defensively. Reading
-      // a null directly into the constructor's std::string / unsigned int
-      // parameters throws a json type_error and fails the whole query.
-      unsigned int created = 0;
-      if (!prog["createdDate"].is_null())
-      {
-        created = static_cast<unsigned int>(prog["createdDate"]);
-      }
-
-      unsigned int last_modified = 0;
-      if (!prog["lastModifiedDate"].is_null())
-      {
-        last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
-      }
-
-      unsigned int last_saved = 0;
-      if (!prog["lastSavedDate"].is_null())
-      {
-        last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
-      }
-
-      std::string description;
-      if (!prog["description"].is_null())
-      {
-        description = prog["description"];
-      }
-
-      std::string program_state;
-      if (!prog["programState"].is_null())
-      {
-        program_state = prog["programState"];
-      }
-
-      ProgramInformation pi(created, description, last_modified, last_saved, prog["name"], program_state);
-      programs.push_back(pi);
-    }
-    response.data["programs"] = programs;
+    return response;
   }
+  auto json_data = parseRobotApiJson(response.message);
+  std::vector<ProgramInformation> programs;
+  for (auto prog : json_data["programs"])
+  {
+    // The Robot API schema declares every field of ProgramInformation except
+    // "name" as nullable, so each of them has to be read defensively. Reading
+    // a null directly into the constructor's std::string / unsigned int
+    // parameters throws a json type_error and fails the whole query.
+    unsigned int created = 0;
+    if (!prog["createdDate"].is_null())
+    {
+      created = static_cast<unsigned int>(prog["createdDate"]);
+    }
+
+    unsigned int last_modified = 0;
+    if (!prog["lastModifiedDate"].is_null())
+    {
+      last_modified = static_cast<unsigned int>(prog["lastModifiedDate"]);
+    }
+
+    unsigned int last_saved = 0;
+    if (!prog["lastSavedDate"].is_null())
+    {
+      last_saved = static_cast<unsigned int>(prog["lastSavedDate"]);
+    }
+
+    std::string description;
+    if (!prog["description"].is_null())
+    {
+      description = prog["description"];
+    }
+
+    std::string program_state;
+    if (!prog["programState"].is_null())
+    {
+      program_state = prog["programState"];
+    }
+
+    ProgramInformation pi(created, description, last_modified, last_saved, prog["name"], program_state);
+    programs.push_back(pi);
+  }
+  response.data["programs"] = programs;
   return response;
 }
 
@@ -801,8 +965,12 @@ DashboardResponse DashboardClientImplX::performProgramUpload(
 
   httplib::UploadFormDataItems form_data = { { "file", content, "filename", "text/plain" } };
   auto response = upload_func("/programs/v1/", form_data);
-  auto json_data = json::parse(response.message);
-  if (response.ok && json_data.contains("programName") && json_data["programName"].is_string())
+  if (!response.ok)
+  {
+    return response;
+  }
+  auto json_data = parseRobotApiJson(response.message);
+  if (json_data.contains("programName") && json_data["programName"].is_string())
   {
     response.data["program_name"] = std::string(json_data["programName"]);
   }
@@ -839,26 +1007,43 @@ DashboardResponse DashboardClientImplX::commandDownloadProgram(const std::string
     response.message = error;
     return response;
   }
-  auto response = get("/programs/v1/" + program_name, false);  // The json response is pretty long. Don't print it.
-  if (response.ok)
-  {
-    std::ofstream save_file(save_path, std::ios_base::out);
-    if (!save_file.is_open())
-    {
-      DashboardResponse error_response;
-      error_response.ok = false;
-      error_response.message = "Failed to open file for saving: " + save_path;
-      URCL_LOG_ERROR(error_response.message.c_str());
-      return error_response;
-    }
-    save_file << response.message;
 
-    response.message = "Downloaded program to " + save_path;
+  std::string encoded_name;
+  std::string canonical_name;
+  std::string error;
+  if (!encodeProgramNamePathSegment(program_name, encoded_name, canonical_name, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    DashboardResponse response;
+    response.ok = false;
+    response.message = error;
+    return response;
   }
-  else
+
+  auto response = get("/programs/v1/" + encoded_name, false);  // The json response is pretty long. Don't print it.
+  if (!response.ok)
   {
     URCL_LOG_ERROR("Failed to download program. Response message: %s", response.message.c_str());
+    return response;
   }
+
+  if (!isPayloadProgramExport(response.message, canonical_name, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+
+  if (!writeFileAtomically(save_path, response.message, error))
+  {
+    URCL_LOG_ERROR("%s", error.c_str());
+    response.ok = false;
+    response.message = error;
+    return response;
+  }
+
+  response.message = "Downloaded program to " + save_path;
   return response;
 }
 
