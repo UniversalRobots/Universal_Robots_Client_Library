@@ -327,9 +327,20 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
   const bool wrote = write(tmp_fd, contents.data(), contents.size()) == static_cast<ssize_t>(contents.size());
   close(tmp_fd);
 #else
-  const bool wrote =
-      _write(tmp_fd, contents.data(), static_cast<unsigned int>(contents.size())) == static_cast<int>(contents.size());
-  _close(tmp_fd);
+  size_t total_written = 0;
+  bool wrote = true;
+  while (total_written < contents.size())
+  {
+    // _write returns a signed 32-bit count on Windows.
+    const auto chunk_size = static_cast<unsigned int>(std::min<size_t>(contents.size() - total_written, 0x7fffffffU));
+    const int bytes_written = _write(tmp_fd, contents.data() + total_written, chunk_size);
+    if (bytes_written <= 0)
+    {
+      wrote = false;
+      break;
+    }
+    total_written += static_cast<size_t>(bytes_written);
+  }
 #endif
 
   if (!wrote)
