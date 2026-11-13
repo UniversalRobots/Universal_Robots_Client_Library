@@ -325,7 +325,7 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
 
 #ifndef _WIN32
   const bool wrote = write(tmp_fd, contents.data(), contents.size()) == static_cast<ssize_t>(contents.size());
-  close(tmp_fd);
+  const bool closed = close(tmp_fd) == 0;
 #else
   size_t total_written = 0;
   bool wrote = true;
@@ -340,10 +340,11 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
       break;
     }
     total_written += static_cast<size_t>(bytes_written);
+    const bool closed = _close(tmp_fd) == 0;
   }
 #endif
 
-  if (!wrote)
+  if (!wrote || !closed)
   {
     std::filesystem::remove(temp_save_path);
     error = "Write error while saving to: " + save_path;
