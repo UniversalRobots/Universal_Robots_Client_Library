@@ -491,7 +491,15 @@ TEST(TestHelpers, writeFileAtomicallyReplacesSymlinkWithoutFollowingIt)
     std::ofstream out(secret, std::ios::binary);
     out << "secret";
   }
-  std::filesystem::create_symlink(secret, dest);
+  std::error_code symlink_error;
+  std::filesystem::create_symlink(secret, dest, symlink_error);
+#ifdef _WIN32
+  if (symlink_error)
+  {
+    GTEST_SKIP() << "Cannot create a symlink on this Windows host: " << symlink_error.message();
+  }
+#endif
+  ASSERT_FALSE(symlink_error) << symlink_error.message();
 
   std::string error;
   ASSERT_TRUE(writeFileAtomically(dest.string(), "safe", error)) << error;
