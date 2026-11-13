@@ -61,7 +61,16 @@ static int mkstemp(char* templ)
 #include <ur_client_library/ur/dashboard_client_implementation_x.h>
 
 #include <urcl_3rdparty/nlohmann_json/json.hpp>
+#ifdef _MSC_VER
+#  pragma warning(push, 0)
+#endif
 #include <urcl_3rdparty/httplib/httplib.h>
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+#ifdef ERROR
+#  undef ERROR
+#endif
 using json = nlohmann::json;
 
 using namespace std::chrono_literals;

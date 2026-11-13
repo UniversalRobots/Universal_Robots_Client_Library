@@ -40,12 +40,23 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <urcl_3rdparty/httplib/httplib.h>
-#include <urcl_3rdparty/nlohmann_json/json.hpp>
 
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/ur/dashboard_client_implementation.h>
 #include <ur_client_library/ur/dashboard_client_implementation_x.h>
+
+#ifdef _MSC_VER
+#  pragma warning(push, 0)
+#endif
+#include <urcl_3rdparty/httplib/httplib.h>
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+#ifdef ERROR
+#  undef ERROR
+#endif
+
+#include <urcl_3rdparty/nlohmann_json/json.hpp>
 
 using json = nlohmann::json;
 
@@ -245,10 +256,12 @@ TEST_F(DashboardClientImplXMockTest, download_support_files_success)
   auto response = impl_->commandDownloadSupportFiles(out.string());
   EXPECT_TRUE(response.ok);
 
-  std::ifstream file(out, std::ios::binary);
-  ASSERT_TRUE(file.is_open());
-  const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-  EXPECT_EQ(written, fake_zip);
+  {
+    std::ifstream file(out, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+    const std::string written((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(written, fake_zip);
+  }
 
   std::filesystem::remove(out);
 }
@@ -286,10 +299,12 @@ TEST_F(DashboardClientImplXMockTest, download_support_files_overwrites_existing)
   server_content = "version2_longer_data";
   EXPECT_TRUE(impl_->commandDownloadSupportFiles(out.string()).ok);
 
-  std::ifstream file(out, std::ios::binary);
-  ASSERT_TRUE(file.is_open());
-  const std::string result((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-  EXPECT_EQ(result, server_content);
+  {
+    std::ifstream file(out, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+    const std::string result((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(result, server_content);
+  }
 
   std::filesystem::remove(out);
 }
