@@ -52,6 +52,9 @@ namespace
 const std::string LOCALHOST = "127.0.0.1";
 const std::chrono::milliseconds CONNECT_TIMEOUT(500);
 const std::chrono::milliseconds RECONNECTION_TIME(100);
+// Wait APIs (select/poll/WSAPoll) may return slightly before the requested
+// timeout. This still fails an immediate connection refusal.
+const std::chrono::milliseconds TIMEOUT_SLACK(50);
 
 const std::chrono::seconds MAX_SETUP_DURATION(3);
 
@@ -93,7 +96,7 @@ TEST(ClientConnectTimeoutTest, rtde_client_init_honors_connect_timeout)
   EXPECT_THROW(client.init(1, RECONNECTION_TIME, 1), UrException);
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_GE(elapsed, CONNECT_TIMEOUT);
+  EXPECT_GE(elapsed, CONNECT_TIMEOUT - TIMEOUT_SLACK);
   EXPECT_LT(elapsed, MAX_SETUP_DURATION);
 }
 
@@ -129,7 +132,7 @@ TEST(ClientConnectTimeoutTest, primary_client_start_honors_connect_timeout)
   EXPECT_THROW(client.start(1, RECONNECTION_TIME), UrException);
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_GE(elapsed, CONNECT_TIMEOUT);
+  EXPECT_GE(elapsed, CONNECT_TIMEOUT - TIMEOUT_SLACK);
   EXPECT_LT(elapsed, MAX_SETUP_DURATION);
 }
 
@@ -162,7 +165,7 @@ TEST(ClientConnectTimeoutTest, dashboard_client_g5_connect_honors_connect_timeou
   EXPECT_FALSE(client.connect(1, RECONNECTION_TIME));
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_GE(elapsed, CONNECT_TIMEOUT);
+  EXPECT_GE(elapsed, CONNECT_TIMEOUT - TIMEOUT_SLACK);
   EXPECT_LT(elapsed, MAX_SETUP_DURATION);
 }
 
@@ -197,7 +200,7 @@ TEST(ClientConnectTimeoutTest, dashboard_client_x_connect_honors_connect_timeout
   EXPECT_FALSE(client.connect());
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_GE(elapsed, CONNECT_TIMEOUT);
+  EXPECT_GE(elapsed, CONNECT_TIMEOUT - TIMEOUT_SLACK);
   EXPECT_LT(elapsed, MAX_SETUP_DURATION);
 }
 
@@ -221,7 +224,7 @@ TEST(ClientConnectTimeoutTest, ur_driver_honors_socket_connect_timeout)
   EXPECT_THROW(UrDriver driver(config), UrException);
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_GE(elapsed, CONNECT_TIMEOUT);
+  EXPECT_GE(elapsed, CONNECT_TIMEOUT - TIMEOUT_SLACK);
   EXPECT_LT(elapsed, MAX_SETUP_DURATION);
 }
 
