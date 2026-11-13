@@ -346,8 +346,9 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
 
   if (!wrote || !closed)
   {
-    std::filesystem::remove(temp_save_path);
-    error = "Write error while saving to: " + save_path;
+    std::error_code ec;
+    std::filesystem::remove(temp_save_path, ec);
+    error = "Write error while saving to: " + save_path + " (" + ec.message() + ")";
     return false;
   }
 
@@ -355,8 +356,10 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
   std::filesystem::rename(temp_save_path, save_path, ec);
   if (ec)
   {
-    std::filesystem::remove(temp_save_path);
     error = "Failed to rename temporary file to final destination: " + ec.message();
+    std::error_code remove_ec;
+    std::filesystem::remove(temp_save_path, remove_ec);
+    error += remove_ec ? " Additionally, failed to remove temporary file: " + remove_ec.message() : "";
     return false;
   }
   return true;
