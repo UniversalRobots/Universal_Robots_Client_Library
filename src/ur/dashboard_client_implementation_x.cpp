@@ -166,16 +166,17 @@ bool isPayloadProgramExport(const std::string& body, const std::string& expected
   }
 
   const auto& program = data["program"];
-  if (program.contains("programInformation") && program["programInformation"].is_object() &&
-      program["programInformation"].contains("name") && program["programInformation"]["name"].is_string())
+  if (!program.contains("programInformation") || !program["programInformation"].is_object() ||
+      !program["programInformation"].contains("name") || !program["programInformation"]["name"].is_string())
   {
-    const std::string actual_name = program["programInformation"]["name"].get<std::string>();
-    if (actual_name != expected_name)
-    {
-      error =
-          "Downloaded program identity '" + actual_name + "' does not match requested name '" + expected_name + "'.";
-      return false;
-    }
+    error = "Downloaded payload is not a program export (missing or invalid program identity).";
+    return false;
+  }
+  const std::string actual_name = program["programInformation"]["name"].get<std::string>();
+  if (actual_name != expected_name)
+  {
+    error = "Downloaded program identity '" + actual_name + "' does not match requested name '" + expected_name + "'.";
+    return false;
   }
   return true;
 }
