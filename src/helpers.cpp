@@ -340,8 +340,8 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
       break;
     }
     total_written += static_cast<size_t>(bytes_written);
-    const bool closed = _close(tmp_fd) == 0;
   }
+  const bool closed = _close(tmp_fd) == 0;
 #endif
 
   if (!wrote || !closed)
