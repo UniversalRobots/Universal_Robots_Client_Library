@@ -480,7 +480,14 @@ DashboardResponse DashboardClientImplX::commandLoadProgram(const std::string& pr
     program_key = "programName";
   }
   nlohmann::json payload = { { program_key, program_file_name } };
-  return put(endpoint, payload.dump());
+  try
+  {
+    return put(endpoint, payload.dump());
+  }
+  catch (const json::exception& e)
+  {
+    throw UrException(std::string("Failed to serialize program name: ") + e.what());
+  }
 }
 
 DashboardResponse
