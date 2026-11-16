@@ -49,6 +49,7 @@ TEST(version_information, string_parsing)
   expected.build = 1234;
 
   EXPECT_EQ(expected, VersionInformation::fromString(version_string_full));
+  EXPECT_EQ(expected, VersionInformation::fromString("5.12.1-1234"));
   expected.build = 0;
   EXPECT_EQ(expected, VersionInformation::fromString(version_3));
   expected.bugfix = 0;
@@ -93,6 +94,8 @@ TEST(version_information, test_invalid_inputs)
   EXPECT_THROW(VersionInformation::fromString("5.15.0 junk"), UrException);
   EXPECT_THROW(VersionInformation::fromString("-1.2.3"), UrException);
   EXPECT_THROW(VersionInformation::fromString("5.-1.0"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.12.0-"), UrException);
+  EXPECT_THROW(VersionInformation::fromString("5.12.0-123-4"), UrException);
   EXPECT_THROW(VersionInformation::fromString("+5.1.0"), UrException);
   EXPECT_THROW(VersionInformation::fromString("1.2.3."), UrException);
   EXPECT_THROW(VersionInformation::fromString(".1.2"), UrException);

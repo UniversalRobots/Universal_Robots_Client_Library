@@ -30,6 +30,7 @@
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/ur/version_information.h>
 
+#include <algorithm>
 #include <limits>
 
 namespace urcl
@@ -73,7 +74,9 @@ VersionInformation::VersionInformation()
 
 VersionInformation VersionInformation::fromString(const std::string& str)
 {
-  const auto components = splitString(str, ".");
+  std::string normalized = str;
+  std::replace(normalized.begin(), normalized.end(), '-', '.');
+  const auto components = splitString(normalized, ".");
   if (components.size() < 2 || components.size() > 4)
   {
     throw UrException("Given string '" + str + "' does not conform a version string format.");

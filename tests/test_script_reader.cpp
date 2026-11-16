@@ -399,6 +399,22 @@ TEST_F(ScriptReaderTest, CheckCondition)
   EXPECT_THROW(reader.evaluateExpression("X >= True", data), std::invalid_argument);
 }
 
+TEST_F(ScriptReaderTest, HyphenatedVersionLiteralUsesBuildComponent)
+{
+  ScriptReader reader;
+  ScriptReader::DataDict data;
+  data["V"] = urcl::VersionInformation::fromString("5.12.0.123");
+
+  // Script literals write the build number after a hyphen (v5.12.0-123) or a
+  // dot (v5.12.0.123). fromString() accepts both.
+  EXPECT_TRUE(reader.evaluateExpression("V == v5.12.0-123", data));
+  EXPECT_TRUE(reader.evaluateExpression("V == v5.12.0.123", data));
+  EXPECT_TRUE(reader.evaluateExpression("V >= v5.12.0-123", data));
+  EXPECT_FALSE(reader.evaluateExpression("V < v5.12.0-123", data));
+  EXPECT_TRUE(reader.evaluateExpression("V > v5.12.0-122", data));
+  EXPECT_TRUE(reader.evaluateExpression("V > v5.12.0.122", data));
+}
+
 TEST_F(ScriptReaderTest, DataVariantOperators)
 {
   ScriptReader::DataDict data;

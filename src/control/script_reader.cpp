@@ -464,7 +464,7 @@ bool ScriptReader::evaluateExpression(const std::string& expression, const DataD
     std::regex string_pattern(R"(^['"]([^'"]+)?['"]$)");
     std::regex number_pattern(R"(^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$)");
     std::regex boolean_pattern(R"(^(true|false|yes|no|on|off)$)", std::regex::icase);
-    std::regex version_pattern(R"(^v(\d+\.\d+(\.\d+)?(-\d+)?)$)");
+    std::regex version_pattern(R"(^v(\d+\.\d+(\.\d+)?([.-]\d+)?)$)");
     if (std::regex_search(value_str, match, string_pattern))
     {
       value = match[1];  // Extract the string content without quotes
