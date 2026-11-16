@@ -50,6 +50,8 @@ TEST(version_information, string_parsing)
 
   EXPECT_EQ(expected, VersionInformation::fromString(version_string_full));
   EXPECT_EQ(expected, VersionInformation::fromString("5.12.1-1234"));
+  EXPECT_EQ(expected, VersionInformation::fromString("5-12.1-1234"));
+  EXPECT_EQ(expected, VersionInformation::fromString("5-12-1-1234"));
   expected.build = 0;
   EXPECT_EQ(expected, VersionInformation::fromString(version_3));
   expected.bugfix = 0;
