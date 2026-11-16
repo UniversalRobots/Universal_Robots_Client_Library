@@ -129,7 +129,8 @@ Boolean expressions have to follow one of two possible syntax variations
   - Strings: Wrapped in quotes, e.g. ``"Hello World"`` or ``'Universal Robots'``.
   - Numerical values such as ``42``, ``3.14``, ``-1``, ``1e-12``.
   - Boolean values: See below.
-  - Version information: Prefixed with a ``v`` character, e.g. ``v10.8.0``, ``v5.23.0``.
+  - Version information: Prefixed with a ``v`` character, e.g. ``v10.8.0``, ``v5.23.0``,
+    ``v5.12.0.123`` or ``v5.12.0-123``.
 
 Boolean values parsing
 ^^^^^^^^^^^^^^^^^^^^^^

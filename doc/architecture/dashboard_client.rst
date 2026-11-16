@@ -51,6 +51,17 @@ waits until the operating system gives up (Up to about two minutes on Linux), an
 PolyScope X. For PolyScope X, a timeout of zero selects the HTTP library's built-in limit of 300
 seconds.
 
+``connect()`` treats malformed version replies as a failed connection and returns ``false``. Callers
+should check that return value and retry or surface a connection error rather than assuming the
+client is ready.
+
+Network exposure
+----------------
+
+The CB3 / PolyScope 5 dashboard protocol on TCP port 29999 is unauthenticated plaintext. Restrict
+dashboard and Robot API access to trusted hosts on a protected robot-control network, and do not
+expose those ports through untrusted proxies or otherwise routable paths.
+
 CB 3 and PolyScope 5 only
 -------------------------
 

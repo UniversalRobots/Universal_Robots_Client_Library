@@ -109,6 +109,9 @@ public:
    * failed. Unlimited number of attempts when set to 0.
    * \param reconnection_time time in between connection attempts to the server
    *
+   * Malformed or unexpected dashboard replies during version discovery fail the connection and
+   * return false. They are not propagated as non-library exceptions.
+   *
    * \returns True on successful connection, false otherwise.
    */
   virtual bool connect(const size_t max_num_tries = 0,
@@ -558,7 +561,9 @@ public:
   /*!
    * \brief Download a program from the robot
    *
-   * \param program_name The name of the program that is to be downloaded
+   * \param program_name The name of the program that is to be downloaded, including names with
+   * spaces. Must be a single path segment (no separators, `.` / `..`, control characters, or
+   * encoded traversal sequences).
    *
    * \param save_path Filepath where the downloaded program should be saved on the user's computer
    *

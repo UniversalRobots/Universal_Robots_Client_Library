@@ -205,5 +205,20 @@ RobotType robotTypeFromString(const std::string& robot_type_str);
 
 std::string stringFromMotionTarget(const MotionTarget& target);
 
+/*!
+ * \brief Write \p contents to \p save_path via an exclusive temp file and an atomic rename.
+ *
+ * The temp file is created in the same directory as \p save_path with \c mkstemp (O_CREAT|O_EXCL)
+ * so a pre-placed symlink is not followed. The rename stays on one filesystem and replaces an
+ * existing destination file.
+ *
+ * \param save_path Destination path
+ * \param contents Bytes to write
+ * \param error Receives a description when the function returns false
+ *
+ * \returns True if \p save_path contains \p contents
+ */
+bool writeFileAtomically(const std::string& save_path, const std::string& contents, std::string& error);
+
 }  // namespace urcl
 #endif  // ifndef UR_CLIENT_LIBRARY_HELPERS_H_INCLUDED

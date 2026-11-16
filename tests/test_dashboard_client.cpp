@@ -39,7 +39,9 @@
 #include <chrono>
 #include <exception>
 #include <memory>
+#include <string>
 #include <thread>
+#include <vector>
 #include "test_utils.h"
 
 using namespace urcl;
@@ -509,6 +511,176 @@ TEST(DashboardClientWelcomeTest, welcome_timeout_allows_external_retry)
     std::rethrow_exception(connection_error);
   }
   EXPECT_TRUE(second_connected);
+}
+
+class QueryVersionDashboardClient : public DashboardClientImplG5
+{
+public:
+  using DashboardClientImplG5::DashboardClientImplG5;
+  std::string reply;
+
+  std::string sendAndReceive(const std::string&) override
+  {
+    return reply;
+  }
+
+  VersionInformation queryVersion()
+  {
+    return queryPolyScopeVersion();
+  }
+};
+
+TEST(DashboardClientG5VersionParse, valid_software_version_parses)
+{
+  QueryVersionDashboardClient client("127.0.0.1");
+  client.reply = "URSoftware 5.15.0 (a2025)";
+  const auto version = client.queryVersion();
+  EXPECT_EQ(version.major, 5u);
+  EXPECT_EQ(version.minor, 15u);
+  EXPECT_EQ(version.bugfix, 0u);
+}
+
+TEST(DashboardClientG5VersionParse, malformed_replies_throw_ur_exception)
+{
+  QueryVersionDashboardClient client("127.0.0.1");
+  const std::vector<std::string> replies = {
+    "URSoftware 99999999999999999999.1.1 (a2025)",
+    "URSoftware 5.15.0junk (a2025)",
+    "URSoftware -1.1.1 (a2025)",
+    "URSoftware 5 (a2025)",
+    "URSoftware 5.15.0.1.2 (a2025)",
+    "URSoftware  (a2025)",
+    "not a version reply",
+    "",
+  };
+  for (const auto& reply : replies)
+  {
+    client.reply = reply;
+    EXPECT_THROW(client.queryVersion(), UrException) << "reply: " << reply;
+  }
+}
+
+namespace
+{
+struct MockG5ConnectResult
+{
+  bool connected = false;
+  bool threw = false;
+  std::string exception_what;
+};
+
+MockG5ConnectResult connectAgainstVersionReply(DashboardClientImplG5& client, TestableTcpServer& server,
+                                               const std::string& version_line)
+{
+  MockG5ConnectResult result;
+  std::exception_ptr connection_error;
+  std::thread connection([&]() {
+    try
+    {
+      result.connected = client.connect(1);
+    }
+    catch (...)
+    {
+      connection_error = std::current_exception();
+    }
+  });
+
+  const bool accepted = server.waitForConnectionCallback(5000);
+  bool greeting_sent = false;
+  bool version_requested = false;
+  bool version_sent = false;
+  if (accepted)
+  {
+    const std::string greeting = "Connected: Universal Robots Dashboard Server\n";
+    size_t written = 0;
+    greeting_sent = server.write(reinterpret_cast<const uint8_t*>(greeting.data()), greeting.size(), written) &&
+                    written == greeting.size();
+    if (greeting_sent)
+    {
+      version_requested = server.waitForMessageCallback(2000);
+    }
+    if (version_requested)
+    {
+      std::string version = version_line;
+      if (version.empty() || version.back() != '\n')
+      {
+        version.push_back('\n');
+      }
+      version_sent = server.write(reinterpret_cast<const uint8_t*>(version.data()), version.size(), written) &&
+                     written == version.size();
+    }
+  }
+  if (!accepted || !greeting_sent || !version_requested || !version_sent)
+  {
+    client.disconnect();
+  }
+  connection.join();
+  if (connection_error)
+  {
+    result.threw = true;
+    try
+    {
+      std::rethrow_exception(connection_error);
+    }
+    catch (const std::exception& e)
+    {
+      result.exception_what = e.what();
+    }
+  }
+  return result;
+}
+
+MockG5ConnectResult connectAgainstVersionReply(const std::string& version_line)
+{
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+  auto result = connectAgainstVersionReply(client, server, version_line);
+  client.disconnect();
+  return result;
+}
+}  // namespace
+
+TEST(DashboardClientWelcomeTest, valid_version_reply_connects)
+{
+  const auto result = connectAgainstVersionReply("URSoftware 5.15.0 (a2025)");
+  EXPECT_FALSE(result.threw) << result.exception_what;
+  EXPECT_TRUE(result.connected);
+}
+
+TEST(DashboardClientWelcomeTest, malformed_version_reply_fails_connect_without_throwing)
+{
+  const std::vector<std::string> poison_replies = {
+    "URSoftware 99999999999999999999.1.1 (a2025)",
+    "URSoftware 5.15.0junk (a2025)",
+    "URSoftware -1.1.1 (a2025)",
+    "URSoftware 5 (a2025)",
+    "URSoftware 5.15.0.1.2 (a2025)",
+    "not a version reply",
+    "URSoftware  (a2025)",
+  };
+  for (const auto& reply : poison_replies)
+  {
+    const auto result = connectAgainstVersionReply(reply);
+    EXPECT_FALSE(result.threw) << "reply: " << reply << " exception: " << result.exception_what;
+    EXPECT_FALSE(result.connected) << "reply: " << reply;
+  }
+}
+
+TEST(DashboardClientWelcomeTest, connect_can_retry_after_malformed_version_reply)
+{
+  TestableTcpServer server(29999);
+  server.start();
+  DashboardClientImplG5 client("127.0.0.1");
+
+  const auto poisoned = connectAgainstVersionReply(client, server, "URSoftware 99999999999999999999.1.1 (a2025)");
+  EXPECT_FALSE(poisoned.threw) << poisoned.exception_what;
+  EXPECT_FALSE(poisoned.connected);
+  EXPECT_TRUE(server.waitForDisconnectionCallback(1000)) << "The failed version query left the socket connected";
+
+  const auto recovered = connectAgainstVersionReply(client, server, "URSoftware 5.15.0 (a2025)");
+  EXPECT_FALSE(recovered.threw) << recovered.exception_what;
+  EXPECT_TRUE(recovered.connected);
 }
 
 int main(int argc, char* argv[])
