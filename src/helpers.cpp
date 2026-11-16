@@ -348,7 +348,12 @@ bool writeFileAtomically(const std::string& save_path, const std::string& conten
   {
     std::error_code ec;
     std::filesystem::remove(temp_save_path, ec);
-    error = "Write error while saving to: " + save_path + " (" + ec.message() + ")";
+    error = "Write error while saving to: " + save_path;
+    if (ec)
+    {
+      error += " (" + ec.message() + ")";
+    }
+
     return false;
   }
 
