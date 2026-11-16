@@ -67,7 +67,7 @@ More information can be found in the following ToolComm Forwarder URCap reposito
     https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap
 
 For background information on how tool communication works on UR robots, see:
-https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_robot_driver/ur_robot_driver/doc/setup_tool_communication.html
+https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_robot_driver/ur_robot_driver/doc/setup_tool_communication.html
         """,
         formatter_class=Formatter
     )
