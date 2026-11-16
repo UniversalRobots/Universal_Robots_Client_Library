@@ -2,8 +2,8 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.18.0 (2026-11-16)
+-------------------
 * Hardening the dashboard client (`#622 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/622>`_)
 * Update Python version in pre-commit workflow (`#620 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/620>`_)
 * Wait for target robot mode when switching modes (`#611 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/611>`_)
