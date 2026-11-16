@@ -2,6 +2,18 @@
 Changelog for package ur_client_library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Hardening the dashboard client (`#622 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/622>`_)
+* Update Python version in pre-commit workflow (`#620 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/620>`_)
+* Wait for target robot mode when switching modes (`#611 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/611>`_)
+* Add an I/O connector overview to the documentation (`#619 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/619>`_)
+* Add -a for extra docker run options for start_ursim.sh (`#618 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/618>`_)
+* Add start_ursim.sh options to use custom docker registry and image (`#613 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/613>`_)
+* Install the wait_robot_booted.py script (`#615 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/615>`_)
+* Use the Robot API to verify protective stop in Robot API tests (`#607 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/607>`_)
+* Contributors: Felix Exner, Rune Søe-Knudsen
+
 2.17.0 (2026-11-02)
 -------------------
 * Optimize external_control URScript for easier maintenance. (`#608 <https://github.com/UniversalRobots/Universal_Robots_Client_Library/issues/608>`_)
