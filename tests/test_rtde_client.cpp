@@ -103,6 +103,7 @@ protected:
                                                         "actual_TCP_pose",
                                                         "actual_digital_input_bits",
                                                         "actual_digital_output_bits",
+                                                        "actual_configurable_digital_output_bits",
                                                         "standard_analog_input0",
                                                         "standard_analog_input1",
                                                         "standard_analog_output0",
