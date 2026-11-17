@@ -103,7 +103,6 @@ protected:
                                                         "actual_TCP_pose",
                                                         "actual_digital_input_bits",
                                                         "actual_digital_output_bits",
-                                                        "actual_configurable_digital_output_bits",
                                                         "standard_analog_input0",
                                                         "standard_analog_input1",
                                                         "standard_analog_output0",
@@ -464,8 +463,12 @@ TEST_F(RTDEClientTest, get_data_package_fake_server)
 
 TEST_F(RTDEClientTest, write_rtde_data)
 {
-  client_->init();
-  client_->start();
+  auto config_output_recipe = resources_output_recipe_;
+  config_output_recipe.push_back("actual_configurable_digital_output_bits");
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, config_output_recipe, resources_input_recipe_, 0.0, true));
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start());
 
   bool send_digital_output = true;
   auto robot_properties = client_->getRobotProperties();
