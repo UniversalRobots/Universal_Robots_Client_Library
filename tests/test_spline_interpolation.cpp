@@ -1334,7 +1334,9 @@ TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sendi
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
       urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
-  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
+  // The robot drains the ~500 unread points before it reports the cancel. On CB3 that
+  // alone takes about 400 ms of controller time.
+  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(2000)));
   // Ensure we receive the cancel trajectory result, which will mean that the trajectory buffer will be clear
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result);
 
@@ -1343,7 +1345,7 @@ TEST_F(SplineInterpolationTest, cancel_trajectory_while_being_executed_and_sendi
   ASSERT_TRUE(sendTrajectoryAndConfirmStart(s_pos, s_vel, s_acc, s_time));
   ASSERT_TRUE(g_my_robot->getUrDriver()->writeTrajectoryControlMessage(
       urcl::control::TrajectoryControlMessage::TRAJECTORY_CANCEL));
-  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(500)));
+  EXPECT_TRUE(waitForTrajectoryResult(std::chrono::milliseconds(2000)));
   EXPECT_EQ(control::TrajectoryResult::TRAJECTORY_RESULT_CANCELED, g_trajectory_result);
 }
 
