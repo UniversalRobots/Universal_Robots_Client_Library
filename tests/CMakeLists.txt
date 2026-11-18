@@ -394,6 +394,8 @@ gtest_add_tests(TARGET tcp_socket_tests
 set_tests_properties(TCPSocketTest.setup_interruptible_by_close
                      TCPSocketTest.setup_interruptible_during_blocking_connect
                      PROPERTIES TIMEOUT 60)
+# disconnect() does not wake a recv() already blocked in another thread, so scenario 2 can hang.
+set_tests_properties(TCPSocketTest.test_socket_client_lifecycle PROPERTIES TIMEOUT 60)
 # Without a working connect timeout these block until the OS gives up (~2 min on Linux); fail fast instead.
 set_tests_properties(TCPSocketTest.connect_timeout_bounds_attempt_to_unresponsive_host
                      TCPSocketTest.connect_timeout_applies_to_each_attempt

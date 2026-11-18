@@ -51,13 +51,12 @@ protected:
 
   void SetUp()
   {
-    // The port shouldn't collide with any of the ports the robot is using
-    server_.reset(new comm::TCPServer(60004));
+    server_.reset(new comm::TCPServer(0));
     server_->setMessageCallback(std::bind(&RTDEWriterTest::messageCallback, this, std::placeholders::_1,
                                           std::placeholders::_2, std::placeholders::_3));
     server_->start();
 
-    stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", 60004));
+    stream_.reset(new comm::URStream<rtde_interface::RTDEPackage>("127.0.0.1", server_->getPort()));
     stream_->connect();
 
     writer_.reset(new rtde_interface::RTDEWriter(stream_.get(), input_recipe_));
@@ -1013,7 +1012,7 @@ TEST_F(RTDEWriterTest, get_control_box_type_returns_the_set_value)
 
 TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
 {
-  comm::TCPServer server(60014);
+  comm::TCPServer server(0);
   std::mutex mutex;
   std::condition_variable cv;
   bool received = false;
@@ -1036,7 +1035,7 @@ TEST(rtde_writer, serializes_protocol_version_1_without_a_recipe_id)
   });
   server.start();
 
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60014);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server.getPort());
   ASSERT_TRUE(stream.connect());
 
   const std::vector<std::string> recipe{ "speed_slider_mask" };

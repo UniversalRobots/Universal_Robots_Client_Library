@@ -107,11 +107,11 @@ protected:
   void SetUp()
   {
     control::ReverseInterfaceConfig config;
-    config.port = 50004;
+    config.port = 0;
     // Assume, we have all features supported
     config.robot_software_version = VersionInformation::fromString("99.99.9");
     script_command_interface_.reset(new control::ScriptCommandInterface(config));
-    client_.reset(new Client(50004));
+    client_.reset(new Client(script_command_interface_->getPort()));
   }
 
   void TearDown()
@@ -711,10 +711,10 @@ TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_clamps_to_valid_rang
 TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old_version)
 {
   control::ReverseInterfaceConfig config;
-  config.port = 50005;
+  config.port = 0;
   config.robot_software_version = VersionInformation::fromString("5.24.0");
   control::ScriptCommandInterface old_version_interface(config);
-  std::unique_ptr<Client> old_client(new Client(50005));
+  std::unique_ptr<Client> old_client(new Client(old_version_interface.getPort()));
 
   waitFor([&old_version_interface]() { return old_version_interface.clientConnected(); },
           std::chrono::milliseconds(1000));
@@ -730,16 +730,14 @@ TEST_F(ScriptCommandInterfaceTest, test_set_friction_scales_returns_false_on_old
 TEST_F(ScriptCommandInterfaceTest, test_set_tool_t2_voltage_returns_false_on_unsupported_version)
 {
   // PolyScope 5 has no connector T2 in any version, PolyScope X from 10.15.0
-  const std::vector<std::pair<std::string, uint32_t>> unsupported{ { "10.14.0", 50006 },
-                                                                   { "5.26.0", 50007 },
-                                                                   { "5.99.0", 50008 } };
-  for (const auto& [version, port] : unsupported)
+  const std::vector<std::string> unsupported{ "10.14.0", "5.26.0", "5.99.0" };
+  for (const auto& version : unsupported)
   {
     control::ReverseInterfaceConfig config;
-    config.port = port;
+    config.port = 0;
     config.robot_software_version = VersionInformation::fromString(version);
     control::ScriptCommandInterface old_version_interface(config);
-    std::unique_ptr<Client> old_client(new Client(port));
+    std::unique_ptr<Client> old_client(new Client(old_version_interface.getPort()));
 
     waitFor([&old_version_interface]() { return old_version_interface.clientConnected(); },
             std::chrono::milliseconds(1000));
