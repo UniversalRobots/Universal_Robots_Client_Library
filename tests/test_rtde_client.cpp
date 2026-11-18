@@ -471,15 +471,24 @@ TEST_F(RTDEClientTest, write_rtde_data)
   ASSERT_TRUE(client_->start());
 
   bool send_digital_output = true;
-  auto robot_properties = client_->getRobotProperties();
   ControlBoxType cb_type = ControlBoxType::CB5;
+  uint16_t protocol_version = client_->getWriter().getProtocolVersion();
+  auto robot_properties = client_->getRobotProperties();
 
-  // CB7 only uses configurable digital output bits
-  if (robot_properties.has_value())
+  if (protocol_version >= 3)
   {
-    if (robot_properties->getControlBoxType().has_value())
+    // CB7 only uses configurable digital output bits
+    if (robot_properties.has_value())
     {
-      cb_type = robot_properties->getControlBoxType().value().type;
+      if (robot_properties->getControlBoxType().has_value())
+      {
+        cb_type = robot_properties->getControlBoxType().value().type;
+      }
+    }
+    else
+    {
+      FAIL() << "Failed to get robot properties. This should not happen with protocol version " << protocol_version
+             << " negotiated.";
     }
   }
   if (cb_type == ControlBoxType::CB7)
