@@ -76,9 +76,9 @@ public:
   TrajectoryPointInterface(uint32_t port);
 
   /*!
-   * \brief Disconnects possible clients so the reverse interface object can be safely destroyed.
+   * \brief Stops the TCP server and joins its worker before trajectory-end callbacks are destroyed.
    */
-  virtual ~TrajectoryPointInterface() = default;
+  virtual ~TrajectoryPointInterface();
 
   /*!
    * \brief Writes needed information to the robot to be read by the URScript program.

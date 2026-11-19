@@ -85,6 +85,13 @@ TrajectoryPointInterface::TrajectoryPointInterface(uint32_t port) : ReverseInter
 {
 }
 
+TrajectoryPointInterface::~TrajectoryPointInterface()
+{
+  // Derived members such as trajectory_end_callbacks_ are destroyed before ~ReverseInterface runs.
+  // Join the TCP worker here so messageCallback cannot iterate that list after it is gone.
+  server_.shutdown();
+}
+
 bool TrajectoryPointInterface::writeMotionPrimitive(const std::shared_ptr<control::MotionPrimitive> primitive)
 {
   if (!primitive->validate())
