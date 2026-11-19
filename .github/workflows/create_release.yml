@@ -1,7 +1,8 @@
 name: Create release
 
 on:
-  pull_request:
+  # pull_request tokens are read-only for fork-based release PRs.
+  pull_request_target:
     types: [closed]
     branches:
       - master
@@ -18,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Read version from package.xml
         id: version
