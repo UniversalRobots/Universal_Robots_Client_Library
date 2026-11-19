@@ -100,7 +100,7 @@ void log(const char* file, int line, LogLevel level, const char* fmt, ...);
  * \param errnum Error number (typically errno)
  * \returns Human-readable error message
  */
-inline std::string strerror_portable(int errnum)
+inline std::string strerror_portable(int errnum)  // NOLINT(readability-identifier-naming)
 {
   return std::error_code(errnum, std::generic_category()).message();
 }
