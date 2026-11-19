@@ -74,6 +74,11 @@ public:
   ScriptCommandInterface(const ReverseInterfaceConfig& config);
 
   /*!
+   * \brief Stops the TCP server and joins its worker before tool-contact callbacks are destroyed.
+   */
+  virtual ~ScriptCommandInterface();
+
+  /*!
    * \brief Zero the force torque sensor
    *
    * \returns True, if the write was performed successfully, false otherwise.

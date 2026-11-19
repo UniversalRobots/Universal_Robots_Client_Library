@@ -103,9 +103,10 @@ public:
   ReverseInterface(const ReverseInterfaceConfig& config);
 
   /*!
-   * \brief Disconnects possible clients so the reverse interface object can be safely destroyed.
+   * \brief Stops the TCP server and joins its worker before members used from callbacks are
+   * destroyed.
    */
-  virtual ~ReverseInterface() = default;
+  virtual ~ReverseInterface();
 
   /*!
    * \brief Writes needed information to the robot to be read by the URCaps program.

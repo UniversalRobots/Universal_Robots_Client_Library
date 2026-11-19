@@ -88,7 +88,6 @@ void TCPServer::shutdown()
   std::unique_lock<std::mutex> listen_lk(listen_fd_mutex_, std::try_to_lock);
   if (listen_fd_ == INVALID_SOCKET)
   {
-    URCL_LOG_INFO("Listen FD already closed by another thread. Nothing to do here.");
     return;
   }
   if (!listen_lk.owns_lock())
@@ -98,7 +97,6 @@ void TCPServer::shutdown()
     listen_lk.lock();
     if (listen_fd_ == INVALID_SOCKET)
     {
-      URCL_LOG_INFO("Listen FD already closed by another thread. Nothing to do here.");
       return;
     }
   }
