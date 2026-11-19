@@ -697,6 +697,24 @@ TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_allocates_one)
   client_->pause();
 }
 
+// The background reader holds the socket while it waits for the next package. Allocating a package
+// for an empty pointer must not depend on that, or the read fails without waiting for the timeout.
+TEST_F(RTDEClientFakeServerTest, receiving_into_empty_pointers_does_not_race_the_background_reader)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  for (int i = 0; i < 100; ++i)
+  {
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+    ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT)) << "Read " << i << " failed";
+    ASSERT_NE(data_pkg, nullptr);
+    EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  }
+
+  client_->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, blocking_failures_preserve_caller_ownership)
 {
   ASSERT_TRUE(client_->init());  // init leaves streaming paused, so no DATA races with the injected frames.

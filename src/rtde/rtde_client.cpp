@@ -980,36 +980,30 @@ bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& da
   {
     return getDataPackage(*data_package, timeout);
   }
+  // reconnect_mutex_ is held by the background reader while it waits on the socket, so taking it
+  // here would fail whenever a read is in progress. data_buffer0_ already has the negotiated
+  // layout and is only swapped under read_mutex_.
+  URCL_LOG_WARN("No DataPackage supplied; allocating one with the negotiated output layout.");
   std::unique_ptr<DataPackage> candidate;
   {
-    // Hold reconnect lock while allocating from preallocated_data_pkg_ to prevent race with reconnect.
-    std::unique_lock<std::mutex> lock(reconnect_mutex_, std::try_to_lock);
-    if (!lock.owns_lock())
+    std::lock_guard<std::mutex> lock(read_mutex_);
+    if (auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get()))
     {
-      URCL_LOG_DEBUG("Cannot prepare RTDE output: communication setup is locked.");
-      return false;
+      candidate = std::make_unique<DataPackage>(*latest);
     }
-    if (reconnecting_)
-    {
-      URCL_LOG_DEBUG("Cannot prepare RTDE output while reconnecting.");
-      return false;
-    }
-    if (!background_read_running_)
-    {
-      URCL_LOG_ERROR("Cannot get RTDE output: background reading is not running.");
-      return false;
-    }
-    if (!preallocated_data_pkg_.isTyped())
-    {
-      URCL_LOG_ERROR("Cannot get RTDE output before recipe types are negotiated.");
-      return false;
-    }
-    ensureOutputLayout(candidate);
   }
+  // The buffers only exist once background reading has been started.
+  if (candidate == nullptr)
+  {
+    URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
+                   "reading or use getDataPackageBlocking(...).");
+    return false;
+  }
+  // The reference overload repairs the layout if a reconnect retyped it since the copy, and handles
+  // waiting and cancellation.
   if (!getDataPackage(*candidate, timeout))
   {
-    URCL_LOG_DEBUG("Failed to get RTDE data package within the specified timeout.");
-    return false;  // The reference overload diagnoses the failure.
+    return false;
   }
   data_package = std::move(candidate);
   return true;
