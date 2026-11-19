@@ -463,11 +463,42 @@ TEST_F(RTDEClientTest, get_data_package_fake_server)
 
 TEST_F(RTDEClientTest, write_rtde_data)
 {
-  client_->init();
-  client_->start();
+  auto config_output_recipe = resources_output_recipe_;
+  config_output_recipe.push_back("actual_configurable_digital_output_bits");
+  client_.reset(
+      new rtde_interface::RTDEClient(g_ROBOT_IP, notifier_, config_output_recipe, resources_input_recipe_, 0.0, true));
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start());
 
   bool send_digital_output = true;
-  EXPECT_TRUE(client_->getWriter().sendStandardDigitalOutput(0, send_digital_output));
+  ControlBoxType cb_type = ControlBoxType::CB5;
+  uint16_t protocol_version = client_->getWriter().getProtocolVersion();
+  auto robot_properties = client_->getRobotProperties();
+
+  if (protocol_version >= 3)
+  {
+    // CB7 only uses configurable digital output bits
+    if (robot_properties.has_value())
+    {
+      if (robot_properties->getControlBoxType().has_value())
+      {
+        cb_type = robot_properties->getControlBoxType().value().type;
+      }
+    }
+    else
+    {
+      FAIL() << "Failed to get robot properties. This should not happen with protocol version " << protocol_version
+             << " negotiated.";
+    }
+  }
+  if (cb_type == ControlBoxType::CB7)
+  {
+    EXPECT_TRUE(client_->getWriter().sendConfigurableDigitalOutput(0, send_digital_output));
+  }
+  else
+  {
+    EXPECT_TRUE(client_->getWriter().sendStandardDigitalOutput(0, send_digital_output));
+  }
 
   // Make sure that the data has been written to the robot
   const std::chrono::milliseconds read_timeout{ 100 };
@@ -475,8 +506,14 @@ TEST_F(RTDEClientTest, write_rtde_data)
   rtde_interface::DataPackage data_pkg(client_->getOutputRecipe());
   ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
 
+  std::string output_bits_name = "actual_digital_output_bits";
+  if (cb_type == ControlBoxType::CB7)
+  {
+    output_bits_name = "actual_configurable_digital_output_bits";
+  }
   std::bitset<18> actual_dig_out_bits;
-  data_pkg.getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
+
+  data_pkg.getData<uint64_t>(output_bits_name, actual_dig_out_bits);
 
   // If we get the data package to soon the digital output might not have been updated, therefore we get the package a
   // couple of times
@@ -485,7 +522,7 @@ TEST_F(RTDEClientTest, write_rtde_data)
   while (actual_dig_out_bits[0] != send_digital_output)
   {
     ASSERT_TRUE(client_->getDataPackage(data_pkg, read_timeout));
-    data_pkg.getData<uint64_t>("actual_digital_output_bits", actual_dig_out_bits);
+    data_pkg.getData<uint64_t>(output_bits_name, actual_dig_out_bits);
     if (counter == max_tries)
     {
       break;
