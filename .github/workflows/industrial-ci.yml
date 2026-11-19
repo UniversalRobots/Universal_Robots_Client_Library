@@ -9,7 +9,7 @@ on:
 jobs:
   industrial_ci:
     name: ${{matrix.ROS_DISTRO.NAME}}, ${{matrix.ROS_REPO}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
