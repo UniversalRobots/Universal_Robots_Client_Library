@@ -35,11 +35,11 @@ namespace urcl
 {
 namespace rtde_interface
 {
-const std::vector<std::string> RTDEWriter::g_preallocated_input_bit_register_keys =
+const std::vector<std::string> RTDEWriter::PREALLOCATED_INPUT_BIT_REGISTER_KEYS =
     RTDEWriter::initializePreallocatedKeys("input_bit_register_", 128);
-const std::vector<std::string> RTDEWriter::g_preallocated_input_int_register_keys =
+const std::vector<std::string> RTDEWriter::PREALLOCATED_INPUT_INT_REGISTER_KEYS =
     RTDEWriter::initializePreallocatedKeys("input_int_register_", 48);
-const std::vector<std::string> RTDEWriter::g_preallocated_input_double_register_keys =
+const std::vector<std::string> RTDEWriter::PREALLOCATED_INPUT_DOUBLE_REGISTER_KEYS =
     RTDEWriter::initializePreallocatedKeys("input_double_register_", 48);
 
 const std::vector<std::string> RTDEWriter::initializePreallocatedKeys(const std::string& prefix, const size_t size)
@@ -485,7 +485,7 @@ bool RTDEWriter::sendInputBitRegister(uint32_t register_id, bool value)
   {
     return false;
   }
-  bool success = current_store_buffer_->setData(g_preallocated_input_bit_register_keys[register_id], value);
+  bool success = current_store_buffer_->setData(PREALLOCATED_INPUT_BIT_REGISTER_KEYS[register_id], value);
   if (success)
   {
     markStorageToBeSent();
@@ -509,7 +509,7 @@ bool RTDEWriter::sendInputIntRegister(uint32_t register_id, int32_t value)
   {
     return false;
   }
-  bool success = current_store_buffer_->setData(g_preallocated_input_int_register_keys[register_id], value);
+  bool success = current_store_buffer_->setData(PREALLOCATED_INPUT_INT_REGISTER_KEYS[register_id], value);
   if (success)
   {
     markStorageToBeSent();
@@ -533,7 +533,7 @@ bool RTDEWriter::sendInputDoubleRegister(uint32_t register_id, double value)
   {
     return false;
   }
-  bool success = current_store_buffer_->setData(g_preallocated_input_double_register_keys[register_id], value);
+  bool success = current_store_buffer_->setData(PREALLOCATED_INPUT_DOUBLE_REGISTER_KEYS[register_id], value);
   if (success)
   {
     markStorageToBeSent();

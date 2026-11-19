@@ -46,7 +46,10 @@ namespace
  * alternative of the variant.
  */
 template <typename T>
-constexpr bool is_untyped_v = std::is_same_v<std::decay_t<T>, std::monostate>;
+constexpr bool isUntyped()
+{
+  return std::is_same_v<std::decay_t<T>, std::monostate>;
+}
 
 constexpr uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 constexpr uint64_t FNV_PRIME = 1099511628211ULL;
@@ -257,7 +260,7 @@ bool rtde_interface::DataPackage::parseWith(comm::BinParser& bp)
   {
     std::visit(
         [&bp](auto&& arg) {
-          if constexpr (!is_untyped_v<decltype(arg)>)
+          if constexpr (!isUntyped<decltype(arg)>())
           {
             bp.parse(arg);
           }
@@ -281,7 +284,7 @@ std::string rtde_interface::DataPackage::toString() const
     {
       std::visit(
           [&ss](auto&& arg) {
-            if constexpr (is_untyped_v<decltype(arg)>)
+            if constexpr (isUntyped<decltype(arg)>())
             {
               ss << "<type not known yet>";
             }
@@ -316,7 +319,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   {
     payload_size += std::visit(
         [](auto&& arg) -> uint16_t {
-          if constexpr (is_untyped_v<decltype(arg)>)
+          if constexpr (isUntyped<decltype(arg)>())
           {
             return 0;
           }
@@ -337,7 +340,7 @@ size_t rtde_interface::DataPackage::serializePackage(uint8_t* buffer)
   {
     size += std::visit(
         [&buffer, &size](auto&& arg) -> size_t {
-          if constexpr (is_untyped_v<decltype(arg)>)
+          if constexpr (isUntyped<decltype(arg)>())
           {
             return 0;
           }

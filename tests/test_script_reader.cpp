@@ -916,13 +916,13 @@ TEST_F(ScriptReaderTest, IncludeExceedingDepthLimitRejected)
   std::filesystem::remove_all(tmp_root);
   std::filesystem::create_directories(tmp_root);
 
-  constexpr std::size_t kChainLen = 64;  // > ScriptReader::kMaxIncludeDepth (32)
-  for (std::size_t i = 0; i < kChainLen; ++i)
+  constexpr std::size_t chain_len = 64;  // > ScriptReader::kMaxIncludeDepth (32)
+  for (std::size_t i = 0; i < chain_len; ++i)
   {
     const std::string next = "a" + std::to_string(i + 1) + ".urscript";
     writeScriptFile(tmp_root, "a" + std::to_string(i) + ".urscript", "{% include \"" + next + "\" %}");
   }
-  writeScriptFile(tmp_root, "a" + std::to_string(kChainLen) + ".urscript", "leaf");
+  writeScriptFile(tmp_root, "a" + std::to_string(chain_len) + ".urscript", "leaf");
 
   ScriptReader reader;
   EXPECT_THROW(reader.readScriptFile((tmp_root / "a0.urscript").string()), urcl::UrException);

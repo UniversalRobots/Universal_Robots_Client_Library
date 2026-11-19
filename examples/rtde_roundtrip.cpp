@@ -88,11 +88,11 @@ const std::string MIRROR_PROGRAM = R"(def rtde_register_mirror():
 end)";
 
 // Cleared on Ctrl-C, so the main loop ends and the cleanup below still runs.
-volatile std::sig_atomic_t running = 1;
+volatile std::sig_atomic_t g_running = 1;
 
 void signalHandler(int /*signum*/)
 {
-  running = 0;
+  g_running = 0;
 }
 
 // Reset the input registers and stop the robot program before leaving
@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
   auto last_print = start_time;
   int exit_code = 0;
 
-  while (running &&
+  while (g_running &&
          (second_to_run <= 0 ||
           std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time).count() <
               second_to_run))
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
     if (!my_client.getDataPackageBlocking(output_pkg))
     {
       // Ctrl-C interrupts the blocking read, which is a normal stop rather than an error.
-      if (!running)
+      if (!g_running)
       {
         break;
       }

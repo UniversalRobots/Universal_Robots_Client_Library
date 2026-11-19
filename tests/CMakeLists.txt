@@ -153,6 +153,11 @@ if (INTEGRATION_TESTS)
   )
 
   add_executable(ur_driver_deprecated_constructor_test test_deprecated_ur_driver_construction.cpp)
+  # Silence -Wdeprecated-declarations for this file so GCC, and clang-tidy
+  # reading compile_commands.json, do not fail on the constructors under test.
+  set_source_files_properties(
+    test_deprecated_ur_driver_construction.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations")
   target_link_libraries(ur_driver_deprecated_constructor_test PRIVATE ur_client_library::urcl GTest::gtest_main)
   gtest_add_tests(TARGET ur_driver_deprecated_constructor_test
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

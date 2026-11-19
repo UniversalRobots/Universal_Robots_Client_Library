@@ -199,11 +199,11 @@ TEST(bin_parser, parse_data_types)
   uint8_t buffer_double[] = { 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
   comm::BinParser bp_double(buffer_double, sizeof(buffer_double));
 
-  constexpr double kExpectedDouble = 2.0;
+  constexpr double expected_double = 2.0;
   double parsed_double;
   bp_double.parse(parsed_double);
 
-  EXPECT_DOUBLE_EQ(kExpectedDouble, parsed_double);
+  EXPECT_DOUBLE_EQ(expected_double, parsed_double);
 
   // Parse boolean
   uint8_t buffer_bool[] = { 0x01 };

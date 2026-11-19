@@ -26,6 +26,7 @@ jobs:
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING_=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
@@ -439,3 +440,99 @@ jobs:
           name: start-ursim
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  clang_tidy:
+    name: clang_tidy
+    runs-on: ubuntu-24.04
+    needs: ubuntu_build
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - name: Download CMake build archive
+        uses: actions/download-artifact@v8
+        with:
+          name: build.tar.gz
+      - name: Extract CMake build directory
+        run: tar -xzf build.tar.gz
+      - name: Run clang-tidy
+        run: |
+          set +e
+          set -o pipefail
+          # ubuntu_build uses GCC, so compile_commands.json contains GCC-only
+          # flags such as -Wno-maybe-uninitialized. Prepend
+          # -Wno-unknown-warning-option so clang-tidy does not fail on them.
+          run-clang-tidy \
+            -p build \
+            -quiet \
+            -extra-arg-before=-Wno-unknown-warning-option \
+            -header-filter='.*include/ur_client_library/.*' \
+            "${{ github.workspace }}/src" \
+            "${{ github.workspace }}/examples" \
+            "${{ github.workspace }}/tests" \
+            2>&1 | tee clang-tidy.log
+          status=${PIPESTATUS[0]}
+
+          python3 - "${{ github.workspace }}" <<'PY'
+          import os, re, sys
+          from pathlib import Path
+
+          workspace = Path(sys.argv[1]).resolve()
+          log = Path("clang-tidy.log").read_text(encoding="utf-8", errors="replace")
+          diag_re = re.compile(
+              r"^(.*?):(\d+):(\d+): (error|warning): (.*) \[([^\]]+)\]\s*$"
+          )
+          findings, failed_files = [], []
+          seen = set()
+          for raw in log.splitlines():
+              if raw.startswith("Error while processing "):
+                  path = raw[len("Error while processing "):].rstrip(".")
+                  if path not in seen:
+                      seen.add(path)
+                      failed_files.append(path)
+                  continue
+              match = diag_re.match(raw)
+              if not match:
+                  continue
+              path, line, col, severity, message, check = match.groups()
+              key = (path, line, col, severity, message, check)
+              if key in seen:
+                  continue
+              seen.add(key)
+              findings.append(key)
+
+          print()
+          print("================ clang-tidy summary ================")
+          if not findings and not failed_files:
+              print("No diagnostics.")
+          if findings:
+              print(f"{len(findings)} unique diagnostic(s):")
+              for path, line, col, severity, message, check in findings:
+                  try:
+                      rel = Path(path).resolve().relative_to(workspace)
+                  except ValueError:
+                      rel = Path(path)
+                  print(f"  {rel}:{line}:{col}: {severity}: {message} [{check}]")
+                  print(
+                      f"::{severity} file={rel},line={line},col={col},title={check}::{message}"
+                  )
+          if failed_files:
+              print(f"{len(failed_files)} file(s) failed to process:")
+              for path in failed_files:
+                  try:
+                      rel = Path(path).resolve().relative_to(workspace)
+                  except ValueError:
+                      rel = Path(path)
+                  print(f"  {rel}")
+          print("===================================================")
+          PY
+          exit $status
+      - name: Upload clang-tidy report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: clang-tidy.log
+          path: clang-tidy.log
+          if-no-files-found: error
+          retention-days: 5
+          archive: false
