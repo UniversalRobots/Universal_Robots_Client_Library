@@ -47,6 +47,43 @@ enum class SocketState
 const std::string& socketStateToString(SocketState state);
 
 /*!
+ * \brief Converts a duration into a timeval as used for socket timeouts.
+ *
+ * \param duration Duration to convert, keeps microsecond precision
+ *
+ * \returns The duration split into seconds and microseconds
+ */
+timeval toTimeval(const std::chrono::microseconds duration);
+
+class TCPSocket;
+
+/*!
+ * \brief Changes the receive timeout of a TCPSocket while it exists and restores the previous one afterwards.
+ *
+ * Create it with TCPSocket::temporaryReceiveTimeout(). The previous timeout is restored when the guard goes out of
+ * scope, including when an exception is thrown. If no receive timeout was set before, the socket has no receive
+ * timeout again afterwards.
+ *
+ * The guard must not outlive the socket it was created for.
+ */
+class ScopedReceiveTimeout
+{
+public:
+  ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept;
+  ScopedReceiveTimeout(const ScopedReceiveTimeout&) = delete;
+  ScopedReceiveTimeout& operator=(const ScopedReceiveTimeout&) = delete;
+  ScopedReceiveTimeout& operator=(ScopedReceiveTimeout&&) = delete;
+  ~ScopedReceiveTimeout();
+
+private:
+  friend class TCPSocket;
+  ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout);
+
+  TCPSocket* socket_;
+  std::unique_ptr<timeval> previous_;
+};
+
+/*!
  * \brief Class for TCP socket abstraction
  */
 class TCPSocket
@@ -70,6 +107,11 @@ private:
 
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
                      const std::chrono::milliseconds reconnection_time);
+
+  // Restores a receive timeout saved by ScopedReceiveTimeout. nullptr means that no timeout was set. Does not
+  // allocate, as it runs inside a destructor.
+  void restoreReceiveTimeout(std::unique_ptr<timeval> timeout);
+  friend class ScopedReceiveTimeout;
 
 protected:
   /*!
@@ -250,6 +292,35 @@ public:
    * receive timeout, so a read blocks until data arrives or the connection closes.
    */
   timeval getReceiveTimeout() const;
+
+  /*!
+   * \brief Sets a receive timeout that only lasts as long as the returned guard exists.
+   *
+   * Use this for single requests that need a different timeout than usual, e.g. a command that takes a long time to
+   * complete. The previous timeout is restored when the guard goes out of scope, also when an exception is thrown.
+   *
+   * \code
+   * {
+   *   auto timeout_guard = socket.temporaryReceiveTimeout(timeval{ 180, 0 });
+   *   // reads in here use the 180 s timeout
+   * }
+   * // the previous timeout is active again
+   * \endcode
+   *
+   * \param timeout Receive timeout to use while the guard exists. 0 means no receive timeout.
+   *
+   * \returns A guard that restores the previous timeout when it is destroyed
+   */
+  [[nodiscard]] ScopedReceiveTimeout temporaryReceiveTimeout(const timeval& timeout);
+
+  /*!
+   * \brief Sets a receive timeout that only lasts as long as the returned guard exists.
+   *
+   * \param timeout Receive timeout to use while the guard exists. 0 means no receive timeout.
+   *
+   * \returns A guard that restores the previous timeout when it is destroyed
+   */
+  [[nodiscard]] ScopedReceiveTimeout temporaryReceiveTimeout(const std::chrono::microseconds timeout);
 
   /*!
    * \brief Sets the maximum duration of a single connection attempt.
