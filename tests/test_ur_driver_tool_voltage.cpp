@@ -40,10 +40,8 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <thread>
 
-#include <ur_client_library/comm/tcp_server.h>
 #include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/control/reverse_interface.h>
 #include <ur_client_library/exceptions.h>
@@ -74,23 +72,6 @@ constexpr char STARTUP_SCRIPT_END_MARKER[] = "# NODE_CONTROL_LOOP_ENDS";
 class UrDriverToolVoltageTest : public ::testing::Test
 {
 protected:
-  // UrDriver always connects to the default ports. If one is already taken, the fake robot cannot
-  // be started and the test fails.
-  void SetUp() override
-  {
-    for (const int port : { static_cast<int>(UR_RTDE_PORT), primary_interface::UR_PRIMARY_PORT })
-    {
-      try
-      {
-        comm::TCPServer probe(port, 1, std::chrono::milliseconds(10));
-      }
-      catch (const std::system_error&)
-      {
-        FAIL() << "Port " << port << " is in use, so the fake robot cannot be started.";
-      }
-    }
-  }
-
   void TearDown() override
   {
     driver_.reset();
@@ -101,13 +82,13 @@ protected:
 
   void startServers(const ToolFlangeType tool_flange_type)
   {
-    rtde_server_ = std::make_unique<RTDEServer>(UR_RTDE_PORT);
+    rtde_server_ = std::make_unique<RTDEServer>(0);
     rtde_server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
     rtde_server_->setHighestAcceptedProtocolVersion(3);
     rtde_server_->setReportedToolFlangeType(tool_flange_type);
     rtde_server_->setReportedUrControlVersion(10, 15, 0, 0);
 
-    primary_server_ = std::make_unique<FakePrimaryServer>(primary_interface::UR_PRIMARY_PORT);
+    primary_server_ = std::make_unique<FakePrimaryServer>(0);
     primary_server_->setScriptCallback([this](const std::string& data) {
       std::lock_guard<std::mutex> lock(received_mutex_);
       received_ += data;
@@ -145,6 +126,12 @@ protected:
     config.tool_comm_setup = std::move(tool_comm_setup);
     config.socket_reconnect_attempts = 1;
     config.socket_reconnection_timeout = std::chrono::milliseconds(100);
+    config.rtde_port = static_cast<uint32_t>(rtde_server_->getPort());
+    config.primary_port = primary_server_->getPort();
+    config.reverse_port = 0;
+    config.script_sender_port = 0;
+    config.trajectory_port = 0;
+    config.script_command_port = 0;
     return config;
   }
 
@@ -246,13 +233,12 @@ TEST_F(UrDriverToolVoltageTest, set_tool_voltage_t2_falls_back_to_script_on_flan
 TEST_F(UrDriverToolVoltageTest, set_tool_voltage_t2_uses_script_command_interface_when_connected)
 {
   startServers(ToolFlangeType::V2);
-  const UrDriverConfiguration config = makeConfig();
   startDriver();
   clearReceived();
 
   // Stands in for the external control program connecting to the script command interface.
   comm::TCPSocket script_command_client;
-  ASSERT_TRUE(script_command_client.connect("127.0.0.1", static_cast<int>(config.script_command_port), 1));
+  ASSERT_TRUE(script_command_client.connect("127.0.0.1", driver_->getScriptCommandPort(), 1));
   timeval timeout{ 1, 0 };
   script_command_client.setReceiveTimeout(timeout);
   // The connection is accepted on the server's own thread.

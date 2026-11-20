@@ -23,7 +23,7 @@ jobs:
       - name: build
         run: cmake --build build --config Debug
       - name: test
-        run: cd build && ctest --output-on-failure --output-junit junit.xml
+        run: cd build && ctest --output-on-failure --output-junit junit.xml -j $(nproc)
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7

@@ -377,8 +377,8 @@ protected:
 
   void SetUp()
   {
-    traj_point_interface_.reset(new TestableTrajectoryPointInterface(50003));
-    client_.reset(new Client(50003));
+    traj_point_interface_.reset(new TestableTrajectoryPointInterface(0));
+    client_.reset(new Client(traj_point_interface_->getPort()));
     // Need to be sure that the client has connected to the server
     std::unique_lock<std::mutex> lk(g_connection_mutex);
     g_connection_condition.wait_for(lk, std::chrono::seconds(1),
@@ -1152,7 +1152,7 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
   // Unregister 1. 2 should still be called
   disconnect_called_1 = false;
   disconnect_called_2 = false;
-  client_.reset(new Client(50003));
+  client_.reset(new Client(traj_point_interface_->getPort()));
   g_connection_condition.wait_for(lk, std::chrono::seconds(1),
                                   [&]() { return traj_point_interface_->connected.load(); });
 
@@ -1166,7 +1166,7 @@ TEST_F(TrajectoryPointInterfaceTest, disconnected_callbacks_are_called_correctly
   // Unregister both. None should be called
   disconnect_called_1 = false;
   disconnect_called_2 = false;
-  client_.reset(new Client(50003));
+  client_.reset(new Client(traj_point_interface_->getPort()));
   g_connection_condition.wait_for(lk, std::chrono::seconds(1),
                                   [&]() { return traj_point_interface_->connected.load(); });
   traj_point_interface_->unregisterDisconnectionCallback(disconnection_callback_id_2);

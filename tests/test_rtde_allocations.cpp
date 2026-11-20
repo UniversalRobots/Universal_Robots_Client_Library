@@ -63,7 +63,6 @@ thread_local bool g_count_allocations = false;
 // is unused and omit the call to the replaced operator new (GCC's allocation DCE at -O2).
 void* volatile g_allocation_sink = nullptr;
 
-constexpr int FAKE_RTDE_PORT = 60005;
 constexpr double RTDE_FREQUENCY = 125.0;
 constexpr int WARMUP_CYCLES = 10;
 constexpr int MEASURED_CYCLES = 50;
@@ -431,13 +430,13 @@ class RTDEAllocationTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(0);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
     server_->setHighestAcceptedProtocolVersion(3);
 
     client_ = std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, output_recipe_, input_recipe_,
-                                                           RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
+                                                           RTDE_FREQUENCY, false, server_->getPort());
     ASSERT_TRUE(client_->init());
   }
 

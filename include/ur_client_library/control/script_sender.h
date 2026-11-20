@@ -56,6 +56,16 @@ public:
    */
   ScriptSender(uint32_t port, const std::string& program);
 
+  /*!
+   * \brief Port the server is bound to.
+   *
+   * The constructor starts the socket. Pass 0 to let the kernel pick a free port and read it back here.
+   */
+  int getPort() const
+  {
+    return server_.getPort();
+  }
+
 private:
   comm::TCPServer server_;
   std::thread script_thread_;

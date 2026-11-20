@@ -155,6 +155,16 @@ struct UrDriverConfiguration
    * If set to 0, the operating system's connect timeout is used.
    */
   std::chrono::milliseconds socket_connect_timeout = std::chrono::milliseconds::zero();
+
+  /*!
+   * \brief Port of the robot's RTDE interface that the driver connects to.
+   */
+  uint32_t rtde_port = UR_RTDE_PORT;
+
+  /*!
+   * \brief Port of the robot's primary interface that the driver connects to.
+   */
+  int primary_port = primary_interface::UR_PRIMARY_PORT;
 };
 
 /*!
@@ -1032,6 +1042,28 @@ public:
     script_command_interface_->setToolContactResultCallback(tool_contact_result_cb);
   }
 
+  /*!
+   * \brief Port the script command interface is bound to.
+   *
+   * Differs from UrDriverConfiguration::script_command_port when that was 0 and the kernel picked a free port.
+   */
+  int getScriptCommandPort() const
+  {
+    return script_command_interface_->getPort();
+  }
+
+  /*!
+   * \brief Port the script sender is bound to.
+   *
+   * Differs from UrDriverConfiguration::script_sender_port when that was 0 and the kernel picked a free port.
+   *
+   * \returns 0 in headless mode, where no script sender is started.
+   */
+  int getScriptSenderPort() const
+  {
+    return script_sender_ ? script_sender_->getPort() : 0;
+  }
+
   /**
    * \brief Reset the RTDE client. As during initialization the driver will start RTDE communication
    * with the maximum available frequency, this enables users to start RTDE communication with a
@@ -1197,6 +1229,7 @@ private:
   std::function<void(bool)> handle_program_state_;
 
   std::string robot_ip_;
+  uint32_t rtde_port_ = UR_RTDE_PORT;
   bool in_headless_mode_;
   std::string full_robot_program_;
 

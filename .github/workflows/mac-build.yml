@@ -35,7 +35,7 @@ jobs:
       - name: build
         run: cmake --build build
       - name: test
-        run: cd build && ctest --output-on-failure --output-junit junit.xml
+        run: cd build && ctest --output-on-failure --output-junit junit.xml -j $(sysctl -n hw.ncpu)
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
