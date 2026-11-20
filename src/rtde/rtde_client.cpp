@@ -922,15 +922,15 @@ std::unique_ptr<rtde_interface::DataPackage> RTDEClient::getDataPackage(std::chr
   // path does not take. Read into a package owned by this call instead.
   std::unique_ptr<rtde_interface::DataPackage> data_package;
   {
-    // data_buffer0_ is only swapped under read_mutex_, and it already has the negotiated layout, so
-    // copying it gives a package that the read below can fill in without repairing it first.
+    // data_buffer0_ is only swapped under read_mutex_ and has the negotiated layout, so the read below
+    // can fill a copy without repairing it. It is kept after background reading stops, so check the flag.
     std::lock_guard<std::mutex> lock(read_mutex_);
-    if (auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get()))
+    auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get());
+    if (background_read_running_ && latest != nullptr)
     {
       data_package = std::make_unique<rtde_interface::DataPackage>(*latest);
     }
   }
-  // The buffers only exist once background reading has been started.
   if (data_package == nullptr)
   {
     URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "
@@ -981,18 +981,18 @@ bool RTDEClient::getDataPackage(std::unique_ptr<rtde_interface::DataPackage>& da
     return getDataPackage(*data_package, timeout);
   }
   // reconnect_mutex_ is held by the background reader while it waits on the socket, so taking it
-  // here would fail whenever a read is in progress. data_buffer0_ already has the negotiated
-  // layout and is only swapped under read_mutex_.
+  // here would fail whenever a read is in progress.
   URCL_LOG_WARN("No DataPackage supplied; allocating one with the negotiated output layout.");
   std::unique_ptr<DataPackage> candidate;
   {
+    // data_buffer0_ is kept after background reading stops, so check the flag rather than the buffer.
     std::lock_guard<std::mutex> lock(read_mutex_);
-    if (auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get()))
+    auto* latest = dynamic_cast<DataPackage*>(data_buffer0_.get());
+    if (background_read_running_ && latest != nullptr)
     {
       candidate = std::make_unique<DataPackage>(*latest);
     }
   }
-  // The buffers only exist once background reading has been started.
   if (candidate == nullptr)
   {
     URCL_LOG_ERROR("Background reading is not running, cannot get data package. Please either start background "

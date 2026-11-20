@@ -897,6 +897,29 @@ TEST_F(RTDEClientFakeServerTest, background_read_can_be_stopped_and_started)
   client_->pause();
 }
 
+// Stopping background reading keeps its buffers, so they must not be taken as a sign that it still runs.
+TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_after_stopping_background_read_fails)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
+  ASSERT_NE(data_pkg, nullptr);
+
+  client_->stopBackgroundRead();
+
+  std::unique_ptr<rtde_interface::DataPackage> empty_pkg;
+  EXPECT_FALSE(client_->getDataPackage(empty_pkg, READ_TIMEOUT));
+  EXPECT_EQ(empty_pkg, nullptr);
+
+  URCL_SILENCE_DEPRECATED_BEGIN
+  EXPECT_EQ(client_->getDataPackage(READ_TIMEOUT), nullptr);
+  URCL_SILENCE_DEPRECATED_END
+
+  client_->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, background_read_before_init_is_refused)
 {
   client_->startBackgroundRead();
