@@ -46,7 +46,7 @@ class StreamTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new TestableTcpServer(60003));
+    server_.reset(new TestableTcpServer(0));
     server_->start();
   }
 
@@ -61,7 +61,7 @@ protected:
 
 TEST_F(StreamTest, closed_stream)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
   stream.connect();
 
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -74,7 +74,7 @@ TEST_F(StreamTest, closed_stream)
 
 TEST_F(StreamTest, connect_stream)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
 
   // The socket state should be invalid until connect has been called
   comm::SocketState expected_state = comm::SocketState::Invalid;
@@ -92,7 +92,7 @@ TEST_F(StreamTest, read_buffer_to_small)
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xcf, 0x8f, 0xf9, 0xdb, 0x22, 0xd0, 0xe5 };
 
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
   stream.connect();
 
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -113,7 +113,7 @@ TEST_F(StreamTest, read_rtde_data_package)
   // RTDE package with timestamp
   uint8_t data_package[] = { 0x00, 0x0c, 0x55, 0x01, 0x40, 0xcf, 0x8f, 0xf9, 0xdb, 0x22, 0xd0, 0xe5 };
 
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
   stream.connect();
 
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -226,7 +226,7 @@ TEST_F(StreamTest, read_primary_data_package)
     0x3d, 0x70, 0xa4, 0x00, 0x00, 0x00, 0x1a, 0x0b, 0x00, 0x00, 0x01, 0xc2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x01, 0x3f, 0xc0, 0x00, 0x00, 0x40, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x0c, 0x00, 0x01, 0x01
   };
-  comm::URStream<primary_interface::PrimaryPackage> stream("127.0.0.1", 60003);
+  comm::URStream<primary_interface::PrimaryPackage> stream("127.0.0.1", server_->getPort());
   stream.connect();
 
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -247,7 +247,7 @@ TEST_F(StreamTest, read_primary_data_package)
 
 TEST_F(StreamTest, write_data_package)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60003);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
   stream.connect();
 
   EXPECT_TRUE(server_->waitForConnectionCallback());
@@ -270,7 +270,8 @@ TEST_F(StreamTest, write_data_package)
 
 TEST_F(StreamTest, connect_non_connected_robot)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
+  RefusedPort refused;
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", refused.getPort());
   auto start = std::chrono::system_clock::now();
   EXPECT_FALSE(stream.connect(2, std::chrono::milliseconds(500)));
   auto end = std::chrono::system_clock::now();

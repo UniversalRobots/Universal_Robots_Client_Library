@@ -82,8 +82,8 @@ protected:
   void SetUp()
   {
     program_ = "test program\n";
-    script_sender_.reset(new control::ScriptSender(50002, program_));
-    client_.reset(new Client(50002));
+    script_sender_.reset(new control::ScriptSender(0, program_));
+    client_.reset(new Client(script_sender_->getPort()));
   }
 
   void TearDown()

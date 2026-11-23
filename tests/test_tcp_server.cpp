@@ -88,22 +88,20 @@ protected:
       return result.str();
     }
   };
-
-  int port_ = 50001;
 };
 
 TEST_F(TCPServerTest, socket_creation)
 {
-  TestableTcpServer server(port_, false);  // do not register callbacks
+  TestableTcpServer server(0, false);  // do not register callbacks
 
   // Shouldn't be able to create antoher server on same port
-  EXPECT_THROW(comm::TCPServer server2(port_, 1, std::chrono::milliseconds(1)), std::system_error);
+  EXPECT_THROW(comm::TCPServer server2(server.getPort(), 1, std::chrono::milliseconds(1)), std::system_error);
 
   server.start();
 
   // We should be able to connect to the server even though the callbacks haven't been configured
-  ASSERT_NO_THROW(Client client(port_));
-  Client client(port_);
+  ASSERT_NO_THROW(Client client(server.getPort()));
+  Client client(server.getPort());
 
   // We should also be able to send message and disconnect. We wait to be absolutely sure no exception is thrown
   EXPECT_NO_THROW(client.send("message\n"));
@@ -115,11 +113,11 @@ TEST_F(TCPServerTest, socket_creation)
 
 TEST_F(TCPServerTest, callback_functions)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
   // Check that the appropriate callback functions are called
-  Client client(port_);
+  Client client(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
   client.send("message\n");
@@ -131,7 +129,7 @@ TEST_F(TCPServerTest, callback_functions)
 
 TEST_F(TCPServerTest, many_clients_allowed)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
 #ifdef _WIN32
@@ -147,30 +145,30 @@ TEST_F(TCPServerTest, many_clients_allowed)
   std::unique_ptr<Client> client;
   for (unsigned int i = 0; i < num_clients; ++i)
   {
-    clients.push_back(std::make_unique<Client>(port_));
+    clients.push_back(std::make_unique<Client>(server.getPort()));
     ASSERT_TRUE(server.waitForConnectionCallback());
   }
 }
 
 TEST_F(TCPServerTest, max_clients_allowed)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
   server.setMaxClientsAllowed(1);
 
   // Test that only one client can connect
-  Client client1(port_);
+  Client client1(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
-  Client client2(port_);
+  Client client2(server.getPort());
   EXPECT_FALSE(server.waitForConnectionCallback());
 }
 
 TEST_F(TCPServerTest, message_transmission)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
-  Client client(port_);
+  Client client(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
   // Test that messages are transmitted corectly between client and server
@@ -190,10 +188,10 @@ TEST_F(TCPServerTest, message_transmission)
 
 TEST_F(TCPServerTest, write_unchecked_initializes_written)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
-  Client client(port_);
+  Client client(server.getPort());
   ASSERT_TRUE(server.waitForConnectionCallback());
 
   const std::string message = "test message\n";
@@ -210,7 +208,7 @@ TEST_F(TCPServerTest, write_unchecked_initializes_written)
 
 TEST_F(TCPServerTest, client_connections)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
   std::string message = "text message\n";
@@ -219,13 +217,13 @@ TEST_F(TCPServerTest, client_connections)
   size_t written;
 
   // Test that we can connect multiple clients
-  Client client1(port_);
+  Client client1(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
-  Client client2(port_);
+  Client client2(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
-  Client client3(port_);
+  Client client3(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
   auto client_fds = server.getClientFDs();
@@ -254,19 +252,20 @@ TEST_F(TCPServerTest, client_connections)
 }
 TEST_F(TCPServerTest, check_address_already_in_use)
 {
-  comm::TCPServer blocking_server(12321);
+  comm::TCPServer blocking_server(0);
 
-  EXPECT_THROW(comm::TCPServer test_server(12321, 2, std::chrono::milliseconds(500)), std::system_error);
+  EXPECT_THROW(comm::TCPServer test_server(blocking_server.getPort(), 2, std::chrono::milliseconds(500)),
+               std::system_error);
 }
 
 TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
 {
-  auto server = std::make_unique<comm::TCPServer>(port_);
+  auto server = std::make_unique<comm::TCPServer>(0);
   server->start();
 
   // Use a client with a read timeout so we don't hang forever if the server doesn't shut down
   // properly.
-  Client client(port_);
+  Client client(server->getPort());
   timeval tv;
   tv.tv_sec = 10;
   tv.tv_usec = 0;  // 100 ms
@@ -300,10 +299,10 @@ TEST_F(TCPServerTest, check_shutting_down_server_while_listening)
 
 TEST_F(TCPServerTest, double_shutdown)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
-  Client client(port_);
+  Client client(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback());
 
   EXPECT_NO_THROW(server.shutdown());
@@ -618,10 +617,10 @@ TEST_F(TCPServerTest, services_client_with_high_fd_number)
     GTEST_SKIP() << "Could not allocate descriptors beyond FD_SETSIZE; skipping.";
   }
 
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
-  Client client(port_);
+  Client client(server.getPort());
   EXPECT_TRUE(server.waitForConnectionCallback(2000));
 
   // The server-side accepted client FD should exceed FD_SETSIZE -- the case that breaks select().
@@ -657,14 +656,14 @@ TEST_F(TCPServerTest, services_client_with_high_fd_number)
 // already rebuilt and the invariant can be checked deterministically.
 TEST_F(TCPServerTest, poll_set_tracks_client_set)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
   EXPECT_EQ(server.getPollSetSize(), 1u);  // listen socket only
 
   std::vector<std::unique_ptr<Client>> clients;
   for (int i = 0; i < 5; ++i)
   {
-    clients.push_back(std::make_unique<Client>(port_));
+    clients.push_back(std::make_unique<Client>(server.getPort()));
     ASSERT_TRUE(server.waitForConnectionCallback());
     EXPECT_EQ(server.getPollSetSize(), server.getClientFDs().size() + 1);
   }
@@ -707,10 +706,10 @@ TEST_F(TCPServerTest, message_not_lost_when_client_connects_concurrently)
 // silently sent nothing. writeUnchecked must report the number of bytes it actually wrote.
 TEST_F(TCPServerTest, write_unchecked_reports_bytes_written)
 {
-  TestableTcpServer server(port_);
+  TestableTcpServer server(0);
   server.start();
 
-  Client client(port_);
+  Client client(server.getPort());
   ASSERT_TRUE(server.waitForConnectionCallback());
 
   const std::vector<socket_t> fds = server.getClientFDs();

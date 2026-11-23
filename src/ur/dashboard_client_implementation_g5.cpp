@@ -187,7 +187,8 @@ std::unordered_map<std::string, DashboardCommandG5> DashboardClientImplG5::g_com
       VersionInformation::fromString("5.8.0") } },
 };
 
-DashboardClientImplG5::DashboardClientImplG5(const std::string& host) : DashboardClientImpl(host)
+DashboardClientImplG5::DashboardClientImplG5(const std::string& host, const int port)
+  : DashboardClientImpl(host), port_(port)
 {
 }
 bool DashboardClientImplG5::send(const std::string& text)

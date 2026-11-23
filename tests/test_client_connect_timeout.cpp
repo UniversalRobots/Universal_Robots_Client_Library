@@ -153,12 +153,12 @@ TEST(ClientConnectTimeoutTest, dashboard_client_g5_set_connect_timeout)
 
 TEST(ClientConnectTimeoutTest, dashboard_client_g5_connect_honors_connect_timeout)
 {
-  UnresponsiveServer robot(DashboardClientImplG5::DASHBOARD_SERVER_PORT);
+  UnresponsiveServer robot;
   if (!robot.isUnresponsive())
   {
     GTEST_SKIP() << SKIP_MESSAGE;
   }
-  DashboardClient client(LOCALHOST, DashboardClient::ClientPolicy::G5);
+  DashboardClient client(LOCALHOST, DashboardClient::ClientPolicy::G5, robot.getPort());
   client.setConnectTimeout(CONNECT_TIMEOUT);
 
   const auto start = std::chrono::steady_clock::now();
@@ -206,13 +206,14 @@ TEST(ClientConnectTimeoutTest, dashboard_client_x_connect_honors_connect_timeout
 
 TEST(ClientConnectTimeoutTest, ur_driver_honors_socket_connect_timeout)
 {
-  UnresponsiveServer robot(UR_RTDE_PORT);
+  UnresponsiveServer robot;
   if (!robot.isUnresponsive())
   {
     GTEST_SKIP() << SKIP_MESSAGE;
   }
   UrDriverConfiguration config;
   config.robot_ip = LOCALHOST;
+  config.rtde_port = static_cast<uint32_t>(robot.getPort());
   config.output_recipe = OUTPUT_RECIPE;
   config.input_recipe = INPUT_RECIPE;
   config.headless_mode = true;
