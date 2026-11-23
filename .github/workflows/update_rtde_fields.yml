@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install extractor dependencies
-        run: python -m pip install pandas==3.0.4 lxml==6.1.1
+        run: python -m pip install pandas==3.0.6 lxml==6.1.1
       - name: Run offline regression tests
         run: python -B -m unittest discover -s tests/resources -p test_generate_rtde_outputs.py -v
 
@@ -51,11 +51,14 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install extractor dependencies
-        run: python -m pip install pandas==3.0.4 lxml==6.1.1
+        run: python -m pip install pandas==3.0.6 lxml==6.1.1
       - name: Update from official RTDE documentation
-        run: python -B tests/resources/generate_rtde_outputs.py
+        run: python -u -B tests/resources/generate_rtde_outputs.py
       - name: Validate generated diff
-        run: git diff --check
+        run: |
+          git diff --check
+          git status --porcelain -- tests/fake_rtde_server.cpp \
+            tests/resources/exhaustive_rtde_output_recipe.txt
       - name: Verify repeated generation leaves resources unchanged
         run: |
           sha256sum tests/fake_rtde_server.cpp \

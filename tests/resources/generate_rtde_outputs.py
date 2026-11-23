@@ -28,13 +28,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -- END LICENSE BLOCK ------------------------------------------------
 
+import io
 import pathlib
 import re
+import urllib.request
 
 import pandas as pd
 
 URCL_PATH = pathlib.Path(__file__).resolve().parents[2]
 DOCS_URL = "https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html"
+DOCS_TIMEOUT = 30
+# Output-only field used to tell the controller-output table from the other tables on the page.
+OUTPUT_ANCHOR = "timestamp"
 MINIMUM_FIELDS = 101
 INPUT_OUTPUT_MARKER = "  // INPUT / OUTPUT\n"
 UNDOCUMENTED_MARKER = "  // NOT IN OFFICIAL DOCS\n"
@@ -64,15 +69,32 @@ def validate_and_add(fields, name, data_type) -> None:
     fields[name] = data_type
 
 
-def extract_fields(document) -> dict[str, str]:
-    """Read the second table: controller inputs come first, outputs second."""
-    page = pd.read_html(document, flavor="lxml")
-    if len(page) < 2:
-        raise ValueError(f"Expected at least two tables on the RTDE docs page, found {len(page)}")
-    table = page[1]
+def fetch_documentation(url) -> io.StringIO:
+    """Download the documentation once, so the parsed page is the one that was validated."""
+    with urllib.request.urlopen(url, timeout=DOCS_TIMEOUT) as response:
+        return io.StringIO(response.read().decode("utf-8"))
+
+
+def find_output_table(page):
+    """Pick the controller-output table by content, as its position on the page is not fixed."""
     required = {"Name", "Type", "Comment"}
-    if not required.issubset(table.columns):
-        raise ValueError(f"Output table is missing columns: {sorted(required - set(table.columns))}")
+    candidates = [
+        table for table in page
+        if required.issubset(table.columns) and OUTPUT_ANCHOR in set(table["Name"].astype(str))
+    ]
+    if not candidates:
+        raise ValueError(
+            f"Found no table with columns {sorted(required)} listing {OUTPUT_ANCHOR!r} "
+            f"among the {len(page)} tables on the RTDE docs page"
+        )
+    # The inputs and outputs are documented in separate tables, outputs being by far the longer one.
+    return max(candidates, key=len)
+
+
+def extract_fields(document) -> dict[str, str]:
+    """Read field names and types from the controller-output table."""
+    page = pd.read_html(document, flavor="lxml")
+    table = find_output_table(page)
 
     fields = {}
     for _, row in table.iterrows():
@@ -154,7 +176,7 @@ def update_resources(document, server_path, recipe_path, docs_recipe_path) -> li
 def main() -> None:
     resources_dir = URCL_PATH / "tests" / "resources"
     changes = update_resources(
-        DOCS_URL,
+        fetch_documentation(DOCS_URL),
         URCL_PATH / "tests" / "fake_rtde_server.cpp",
         resources_dir / "exhaustive_rtde_output_recipe.txt",
         resources_dir / "docs_rtde_output_recipe.txt",

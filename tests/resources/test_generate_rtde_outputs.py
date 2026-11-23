@@ -35,7 +35,10 @@ def documentation(rows) -> StringIO:
         for name, data_type, comment in rows
     )
     return StringIO(f'''
-        <table><tr><th>Name</th></tr><tr><td>input_only</td></tr></table>
+        <table>
+          <tr><th>Name</th><th>Type</th><th>Comment</th></tr>
+          <tr><td>speed_slider_mask</td><td>UINT32</td><td>Input only</td></tr>
+        </table>
         <table>
           <tr><th>Name</th><th>Type</th><th>Comment</th></tr>
           {output_rows}
@@ -69,6 +72,36 @@ class ExtractFieldsTests(unittest.TestCase):
 
     def test_reject_incomplete_documentation(self) -> None:
         page = documentation([("timestamp", "DOUBLE", "Time")])
+
+        with self.assertRaises(ValueError):
+            updater.extract_fields(page)
+
+    @patch.object(updater, "MINIMUM_FIELDS", 1)
+    def test_find_outputs_wherever_they_are_documented(self) -> None:
+        page = StringIO('''
+            <table><tr><th>Value</th><th>Description</th></tr><tr><td>0</td><td>Stopped</td></tr></table>
+            <table>
+              <tr><th>Name</th><th>Type</th><th>Comment</th></tr>
+              <tr><td>speed_slider_mask</td><td>UINT32</td><td>Input only</td></tr>
+            </table>
+            <table>
+              <tr><th>Name</th><th>Type</th><th>Comment</th></tr>
+              <tr><td>timestamp</td><td>DOUBLE</td><td>Time</td></tr>
+              <tr><td>actual_q</td><td>VECTOR6D</td><td>Joint positions</td></tr>
+            </table>
+        ''')
+
+        fields = updater.extract_fields(page)
+
+        self.assertEqual(fields, {"timestamp": "DOUBLE", "actual_q": "VECTOR6D"})
+
+    def test_reject_documentation_without_outputs(self) -> None:
+        page = StringIO('''
+            <table>
+              <tr><th>Name</th><th>Type</th><th>Comment</th></tr>
+              <tr><td>speed_slider_mask</td><td>UINT32</td><td>Input only</td></tr>
+            </table>
+        ''')
 
         with self.assertRaises(ValueError):
             updater.extract_fields(page)
