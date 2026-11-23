@@ -3,12 +3,14 @@ name: Update RTDE test resources
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+    - cron: '0 6 * * '  # Mondays at 06:00 UTC
   pull_request:
     paths:
       - '.github/workflows/update_rtde_fields.yml'
       - 'tests/resources/generate_rtde_outputs.py'
       - 'tests/resources/test_generate_rtde_outputs.py'
+      - 'tests/resources/exhaustive_rtde_output_recipe.txt'
+      - 'fake_rtde_server.cpp'
 
 permissions:
   contents: read
