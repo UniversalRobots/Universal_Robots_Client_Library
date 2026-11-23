@@ -385,7 +385,9 @@ tool_analog_input_types
 tool_analog_input0
 tool_analog_input1
 tool_output_voltage
+tool_output_voltage_2
 tool_output_current
+tool_output_current_2
 tool_temperature
 tool_output_mode
 tool_digital_output0_mode
