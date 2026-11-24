@@ -2,6 +2,19 @@ name: ROS industrial ci
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/industrial-ci.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'package.xml'
+      - 'colcon.pkg'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
+      - 'scripts/**'
   push:
     branches:
       - master

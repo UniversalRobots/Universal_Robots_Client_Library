@@ -2,6 +2,18 @@ name: RHEL Build
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/rhel_build.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'package.xml'
+      - 'colcon.pkg'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
   push:
     branches:
       - master

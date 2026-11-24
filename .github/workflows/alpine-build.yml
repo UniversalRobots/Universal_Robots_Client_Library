@@ -2,6 +2,16 @@ name: Alpine build and tests
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/alpine-build.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
   push:
     branches:
       - master
