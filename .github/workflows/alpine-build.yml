@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: install dependencies
-        run: apk add --no-cache build-base cmake ccache linux-headers git bash curl gnupg
+        run: apk add --no-cache build-base cmake ccache tar linux-headers git bash curl gnupg
       - uses: actions/checkout@v7
       - name: Restore ccache
         uses: actions/cache@v6
