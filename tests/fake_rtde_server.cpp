@@ -442,6 +442,8 @@ const std::unordered_map<std::string, std::string> VARIABLE_TYPES{
   { "target_base_acceleration", "VECTOR6D" },
   { "control_step", "UINT64" },
   { "target_base_wrench", "VECTOR6D" },
+  { "collision_detection_ratios", "VECTOR6D" },
+  { "joint_position_deviation_ratios", "VECTOR6D" },
 
   // NOT IN OFFICIAL DOCS
   { "tool_digital_output_mask", "UINT8" },
