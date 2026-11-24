@@ -4,6 +4,11 @@ on:
     branches:
       - master
 
+# A new commit on the same pull request cancels the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   prerelease_test:
     runs-on: ubuntu-latest

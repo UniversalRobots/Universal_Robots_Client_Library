@@ -15,9 +15,12 @@ on:
 permissions:
   contents: read
 
+# Pull request runs cancel when a newer commit is pushed. Scheduled and
+# manually dispatched runs share the maintenance group and are left queued,
+# because they push a branch and open a pull request.
 concurrency:
   group: update-rtde-fields-${{ github.event.pull_request.number || 'maintenance' }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test_updater:

@@ -2,26 +2,61 @@ name: Alpine build and tests
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/alpine-build.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
   push:
     branches:
       - master
   schedule:
     - cron: '38 2 * * *'
 
+# A new commit on the same branch cancels the run still in progress. The event
+# name keeps scheduled and manually dispatched runs out of that group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   alpine-build:
     runs-on: ubuntu-latest
     container: alpine:latest
     timeout-minutes: 30
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPRESS: "true"
+      CCACHE_MAXSIZE: 500M
 
     steps:
       - name: install dependencies
-        run: apk add --no-cache build-base cmake linux-headers git bash curl gnupg
+        run: apk add --no-cache build-base cmake ccache tar linux-headers git bash curl gnupg
       - uses: actions/checkout@v7
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-alpine-build-${{ github.sha }}
+          restore-keys: ccache-alpine-build-
       - name: configure
-        run: mkdir build && cd build && cmake .. -DBUILDING_TESTS=1 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        run: >
+          mkdir build && cd build &&
+          cmake ..
+          -DBUILDING_TESTS=1
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: build
         run: cmake --build build --config Debug
+      - name: ccache stats
+        if: always()
+        run: ccache -s
       - name: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml -j $(nproc)
       - name: Upload test results to Codecov

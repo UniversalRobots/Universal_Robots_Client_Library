@@ -8,6 +8,13 @@ on:
     paths:
       - '.github/workflows/check_error_codes.yml'
 
+# A new commit on the same pull request cancels the run still in progress.
+# Scheduled and manually dispatched runs are not part of that group: they push
+# a branch and open a pull request, which should run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check_error_codes:
     name: Check UR ErrorCodes JSON version
