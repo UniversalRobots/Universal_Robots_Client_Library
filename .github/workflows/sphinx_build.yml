@@ -9,13 +9,17 @@ on:
   schedule:
     - cron: '38 2 * * *'
 
+# A new commit on the same branch cancels the run still in progress. The event
+# name keeps scheduled and manually dispatched runs out of that group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
