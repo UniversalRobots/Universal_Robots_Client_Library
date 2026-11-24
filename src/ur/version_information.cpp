@@ -137,10 +137,10 @@ bool operator<(const VersionInformation& v1, const VersionInformation& v2)
         {
           return true;
         }
-      }
-      if (v1.build < v2.build)
-      {
-        return true;
+        if (v1.build < v2.build)
+        {
+          return true;
+        }
       }
     }
   }
