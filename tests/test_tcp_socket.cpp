@@ -42,6 +42,7 @@
 
 #ifdef __linux__
 #  include <dirent.h>
+#  include <unistd.h>
 #endif
 
 using namespace urcl;
@@ -570,6 +571,51 @@ TEST_F(TCPSocketTest, temporary_receive_timeout_removes_timeout_from_connected_s
   EXPECT_EQ(toDuration(active), std::chrono::microseconds::zero());
 #endif
 }
+
+#ifdef __linux__
+namespace
+{
+class WarningCountingLogHandler : public LogHandler
+{
+public:
+  void log(const char*, int, LogLevel loglevel, const char*) override
+  {
+    if (loglevel == LogLevel::WARN)
+    {
+      ++warnings_;
+    }
+  }
+
+  size_t warnings_ = 0;
+};
+}  // namespace
+
+// The restore runs in a destructor, also while an exception unwinds. A failing setsockopt must neither log nor throw
+// there, as logging allocates and a log handler may throw.
+TEST_F(TCPSocketTest, temporary_receive_timeout_restore_does_not_log_when_setting_the_option_fails)
+{
+  ASSERT_TRUE(client_->connect());
+  client_->setReceiveTimeout(timeval{ 1, 0 });
+
+  auto handler = std::make_unique<WarningCountingLogHandler>();
+  auto* counter = handler.get();
+  registerLogHandler(std::move(handler));
+  {
+    const auto guard = client_->temporaryReceiveTimeout(timeval{ 5, 0 });
+    // Replace the socket with a pipe, so that setting a socket option on this descriptor fails with ENOTSOCK
+    int pipe_fds[2];
+    ASSERT_EQ(::pipe(pipe_fds), 0);
+    ASSERT_GE(::dup2(pipe_fds[0], client_->getSocketFD()), 0);
+    ::close(pipe_fds[0]);
+    ::close(pipe_fds[1]);
+  }
+  const size_t warnings = counter->warnings_;
+  unregisterLogHandler();
+
+  EXPECT_EQ(warnings, 0u);
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(1));
+}
+#endif  // __linux__
 
 // A zero SO_RCVTIMEO means "no timeout" on every platform, so a read after the restore waits for data.
 TEST_F(TCPSocketTest, read_blocks_after_temporary_receive_timeout_restores_unset_timeout)

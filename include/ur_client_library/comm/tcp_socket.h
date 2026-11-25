@@ -80,9 +80,12 @@ private:
   bool setupInternal(const std::string& host, const int port, const size_t max_num_tries,
                      const std::chrono::milliseconds reconnection_time);
 
-  // Restores a receive timeout saved by ScopedReceiveTimeout. nullptr means that no timeout was set. Does not
-  // allocate, as it runs inside a destructor.
-  void restoreReceiveTimeout(std::unique_ptr<timeval> timeout);
+  // Restores a receive timeout saved by ScopedReceiveTimeout. nullptr means that no timeout was set. Neither allocates
+  // nor logs, as it runs inside a destructor.
+  void restoreReceiveTimeout(std::unique_ptr<timeval> timeout) noexcept;
+
+  // Applies recv_timeout_ to the open socket. Ignores errors instead of logging them, so it is safe in a destructor.
+  void applyReceiveTimeoutSilently() noexcept;
 
 protected:
   /*!

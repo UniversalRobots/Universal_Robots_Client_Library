@@ -592,7 +592,22 @@ TCPSocket::ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const std::ch
   return ScopedReceiveTimeout(*this, toTimeval(timeout));
 }
 
-void TCPSocket::restoreReceiveTimeout(std::unique_ptr<timeval> timeout)
+void TCPSocket::applyReceiveTimeoutSilently() noexcept
+{
+  if (recv_timeout_ == nullptr)
+  {
+    return;
+  }
+#ifdef _WIN32
+  DWORD value = recv_timeout_->tv_sec * 1000;
+  value += recv_timeout_->tv_usec / 1000;
+  ur_setsockopt(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value));
+#else
+  ur_setsockopt(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+#endif
+}
+
+void TCPSocket::restoreReceiveTimeout(std::unique_ptr<timeval> timeout) noexcept
 {
   // The guard always set a timeout, so recv_timeout_ holds an allocation that can be reused or handed over.
   const bool had_timeout = timeout != nullptr;
@@ -608,7 +623,7 @@ void TCPSocket::restoreReceiveTimeout(std::unique_ptr<timeval> timeout)
 
   if (state_ == SocketState::Connected)
   {
-    setupOptions();
+    applyReceiveTimeoutSilently();
   }
   if (!had_timeout)
   {
