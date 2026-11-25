@@ -582,12 +582,12 @@ timeval toTimeval(const std::chrono::microseconds duration)
   return tv;
 }
 
-ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const timeval& timeout)
+TCPSocket::ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const timeval& timeout)
 {
   return ScopedReceiveTimeout(*this, timeout);
 }
 
-ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const std::chrono::microseconds timeout)
+TCPSocket::ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const std::chrono::microseconds timeout)
 {
   return ScopedReceiveTimeout(*this, toTimeval(timeout));
 }
@@ -617,7 +617,7 @@ void TCPSocket::restoreReceiveTimeout(std::unique_ptr<timeval> timeout)
   }
 }
 
-ScopedReceiveTimeout::ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout) : socket_(&socket)
+TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout) : socket_(&socket)
 {
   if (socket.recv_timeout_ != nullptr)
   {
@@ -626,13 +626,13 @@ ScopedReceiveTimeout::ScopedReceiveTimeout(TCPSocket& socket, const timeval& tim
   socket.setReceiveTimeout(timeout);
 }
 
-ScopedReceiveTimeout::ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept
+TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept
   : socket_(other.socket_), previous_(std::move(other.previous_))
 {
   other.socket_ = nullptr;
 }
 
-ScopedReceiveTimeout::~ScopedReceiveTimeout()
+TCPSocket::ScopedReceiveTimeout::~ScopedReceiveTimeout()
 {
   if (socket_ != nullptr)
   {

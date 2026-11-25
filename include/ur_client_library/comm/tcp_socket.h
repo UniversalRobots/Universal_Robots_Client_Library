@@ -55,34 +55,6 @@ const std::string& socketStateToString(SocketState state);
  */
 timeval toTimeval(const std::chrono::microseconds duration);
 
-class TCPSocket;
-
-/*!
- * \brief Changes the receive timeout of a TCPSocket while it exists and restores the previous one afterwards.
- *
- * Create it with TCPSocket::temporaryReceiveTimeout(). The previous timeout is restored when the guard goes out of
- * scope, including when an exception is thrown. If no receive timeout was set before, the socket has no receive
- * timeout again afterwards.
- *
- * The guard must not outlive the socket it was created for.
- */
-class ScopedReceiveTimeout
-{
-public:
-  ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept;
-  ScopedReceiveTimeout(const ScopedReceiveTimeout&) = delete;
-  ScopedReceiveTimeout& operator=(const ScopedReceiveTimeout&) = delete;
-  ScopedReceiveTimeout& operator=(ScopedReceiveTimeout&&) = delete;
-  ~ScopedReceiveTimeout();
-
-private:
-  friend class TCPSocket;
-  ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout);
-
-  TCPSocket* socket_;
-  std::unique_ptr<timeval> previous_;
-};
-
 /*!
  * \brief Class for TCP socket abstraction
  */
@@ -111,7 +83,6 @@ private:
   // Restores a receive timeout saved by ScopedReceiveTimeout. nullptr means that no timeout was set. Does not
   // allocate, as it runs inside a destructor.
   void restoreReceiveTimeout(std::unique_ptr<timeval> timeout);
-  friend class ScopedReceiveTimeout;
 
 protected:
   /*!
@@ -158,6 +129,36 @@ protected:
   std::unique_ptr<timeval> recv_timeout_;
 
 public:
+  /*!
+   * \brief Changes the receive timeout of a TCPSocket while it exists and restores the previous one afterwards.
+   *
+   * Usually created with temporaryReceiveTimeout(). The previous timeout is restored when the guard goes out of
+   * scope, including when an exception is thrown. If no receive timeout was set before, the socket has no receive
+   * timeout again afterwards.
+   *
+   * The guard must not outlive the socket it was created for.
+   */
+  class ScopedReceiveTimeout
+  {
+  public:
+    /*!
+     * \brief Sets \p timeout as the receive timeout of \p socket until the guard is destroyed.
+     *
+     * \param socket Socket whose receive timeout is changed
+     * \param timeout Receive timeout to use while the guard exists. 0 means no receive timeout.
+     */
+    ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout);
+    ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept;
+    ScopedReceiveTimeout(const ScopedReceiveTimeout&) = delete;
+    ScopedReceiveTimeout& operator=(const ScopedReceiveTimeout&) = delete;
+    ScopedReceiveTimeout& operator=(ScopedReceiveTimeout&&) = delete;
+    ~ScopedReceiveTimeout();
+
+  private:
+    TCPSocket* socket_;
+    std::unique_ptr<timeval> previous_;
+  };
+
   static constexpr std::chrono::milliseconds DEFAULT_RECONNECTION_TIME{ 10000 };
   /*!
    * \brief Creates a TCPSocket object

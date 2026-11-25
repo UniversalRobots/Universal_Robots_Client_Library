@@ -55,8 +55,8 @@ namespace
 
 // Raises a socket's receive timeout to at least the given one while the returned guard exists. A socket without a
 // timeout keeps waiting until data arrives, so its timeout is left untouched.
-std::optional<comm::ScopedReceiveTimeout> raiseReceiveTimeout(comm::TCPSocket& socket,
-                                                              const std::chrono::microseconds minimum)
+std::optional<comm::TCPSocket::ScopedReceiveTimeout> raiseReceiveTimeout(comm::TCPSocket& socket,
+                                                                         const std::chrono::microseconds minimum)
 {
   const timeval current = socket.getReceiveTimeout();
   const std::chrono::microseconds previous =

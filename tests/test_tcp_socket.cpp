@@ -506,7 +506,7 @@ TEST_F(TCPSocketTest, moved_temporary_receive_timeout_restores_once)
 {
   client_->setReceiveTimeout(timeval{ 1, 0 });
   {
-    std::optional<comm::ScopedReceiveTimeout> outer;
+    std::optional<comm::TCPSocket::ScopedReceiveTimeout> outer;
     {
       auto guard = client_->temporaryReceiveTimeout(timeval{ 5, 0 });
       outer.emplace(std::move(guard));
