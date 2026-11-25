@@ -560,8 +560,19 @@ TEST(DashboardClientG5ReceiveTimeoutTest, failing_long_command_restores_configur
     server->waitForMessageCallback(2000);
     server->shutdown();
   });
-  EXPECT_THROW(client.commandGenerateFlightReport(""), TimeoutException);
+  std::string timeout_message;
+  try
+  {
+    client.commandGenerateFlightReport("");
+  }
+  catch (const TimeoutException& e)
+  {
+    timeout_message = e.what();
+  }
   server_shutdown.join();
+
+  // The exception reports the timeout that was active for the command, not the configured one.
+  EXPECT_NE(timeout_message.find("Configured timeout: 180 sec"), std::string::npos) << timeout_message;
 
   const timeval timeout = client.getConfiguredReceiveTimeout();
   EXPECT_EQ(timeout.tv_sec, 2);

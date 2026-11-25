@@ -552,19 +552,53 @@ TEST(TimevalConversionTest, to_timeval_keeps_sub_second_precision)
   EXPECT_EQ(tv.tv_usec, 42);
 }
 
-#ifndef _WIN32
 TEST_F(TCPSocketTest, temporary_receive_timeout_removes_timeout_from_connected_socket)
 {
   ASSERT_TRUE(client_->connect());
   {
     const auto guard = client_->temporaryReceiveTimeout(timeval{ 0, 50000 });
   }
+#ifdef _WIN32
+  DWORD active = 1;
+  int len = sizeof(active);
+  ASSERT_EQ(getsockopt(client_->getSocketFD(), SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&active), &len), 0);
+  EXPECT_EQ(active, 0u);
+#else
   timeval active{ 1, 1 };
   socklen_t len = sizeof(active);
   ASSERT_EQ(getsockopt(client_->getSocketFD(), SOL_SOCKET, SO_RCVTIMEO, &active, &len), 0);
   EXPECT_EQ(toDuration(active), std::chrono::microseconds::zero());
-}
 #endif
+}
+
+// A zero SO_RCVTIMEO means "no timeout" on every platform, so a read after the restore waits for data.
+TEST_F(TCPSocketTest, read_blocks_after_temporary_receive_timeout_restores_unset_timeout)
+{
+  ASSERT_TRUE(client_->connect());
+  ASSERT_TRUE(server_->waitForConnectionCallback());
+  {
+    const auto guard = client_->temporaryReceiveTimeout(std::chrono::milliseconds(50));
+  }
+
+  constexpr std::chrono::milliseconds write_delay{ 300 };
+  std::thread delayed_write([&]() {
+    std::this_thread::sleep_for(write_delay);
+    const uint8_t data = 'x';
+    size_t written = 0;
+    server_->write(&data, 1, written);
+  });
+
+  char character = 0;
+  size_t read_chars = 0;
+  const auto start = std::chrono::steady_clock::now();
+  const bool read_ok = client_->read(reinterpret_cast<uint8_t*>(&character), 1, read_chars);
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+  delayed_write.join();
+
+  EXPECT_TRUE(read_ok);
+  EXPECT_EQ(character, 'x');
+  EXPECT_GE(elapsed, write_delay - std::chrono::milliseconds(50));
+}
 
 TEST_F(TCPSocketTest, connect_timeout_is_disabled_by_default)
 {
