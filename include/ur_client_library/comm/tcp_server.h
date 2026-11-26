@@ -132,6 +132,11 @@ public:
   /*!
    * \brief Shutdown the server and close all client connections.
    *
+   * The worker is woken by a connection to the listen port when a socket can be allocated. If that
+   * allocation fails, shutdown still joins the worker and closes every connection. The worker
+   * leaves poll() within its existing one-second timeout because shutdown has already cleared
+   * keep_running_. That failure does not throw, so shutdown is safe to call from a destructor.
+   *
    * \note: This should not be called from within any of the registered callback functions, as
    * it will cause a deadlock. If you want to shutdown the server from a callback, you can e.g.
    * start a new thread that calls shutdown() from there.

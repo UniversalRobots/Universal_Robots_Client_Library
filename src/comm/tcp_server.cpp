@@ -88,7 +88,6 @@ void TCPServer::shutdown()
   std::unique_lock<std::mutex> listen_lk(listen_fd_mutex_, std::try_to_lock);
   if (listen_fd_ == INVALID_SOCKET)
   {
-    URCL_LOG_INFO("Listen FD already closed by another thread. Nothing to do here.");
     return;
   }
   if (!listen_lk.owns_lock())
@@ -98,36 +97,42 @@ void TCPServer::shutdown()
     listen_lk.lock();
     if (listen_fd_ == INVALID_SOCKET)
     {
-      URCL_LOG_INFO("Listen FD already closed by another thread. Nothing to do here.");
       return;
     }
   }
   keep_running_ = false;
 
+  // Wake the worker immediately when a socket is available. At the descriptor limit this can fail
+  // while a callback still owns a descriptor that used to be released before ~TCPServer. Do not
+  // throw: destructors call shutdown(), and the worker also leaves poll() within its timeout once
+  // keep_running_ is false.
   socket_t shutdown_socket = ::socket(AF_INET, SOCK_STREAM, 0);
   if (shutdown_socket == INVALID_SOCKET)
   {
-    throw makeSocketError("Unable to create shutdown socket.");
+    URCL_LOG_WARN("Unable to create shutdown socket (%s). Waiting for the worker poll timeout.",
+                  getLastSocketErrorCode().message().c_str());
   }
-
-#ifdef _WIN32
-  unsigned long mode = 1;
-  ::ioctlsocket(shutdown_socket, FIONBIO, &mode);
-#else
-  int flags = ::fcntl(shutdown_socket, F_GETFL, 0);
-  if (flags >= 0)
+  else
   {
-    ::fcntl(shutdown_socket, F_SETFL, flags | O_NONBLOCK);
-  }
+#ifdef _WIN32
+    unsigned long mode = 1;
+    ::ioctlsocket(shutdown_socket, FIONBIO, &mode);
+#else
+    int flags = ::fcntl(shutdown_socket, F_GETFL, 0);
+    if (flags >= 0)
+    {
+      ::fcntl(shutdown_socket, F_SETFL, flags | O_NONBLOCK);
+    }
 #endif
 
-  struct sockaddr_in address;
-  memset(&address, 0, sizeof(address));
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  address.sin_port = htons(static_cast<uint16_t>(port_));
+    struct sockaddr_in address;
+    memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(static_cast<uint16_t>(port_));
 
-  ::connect(shutdown_socket, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
+    ::connect(shutdown_socket, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
+  }
 
   // After the event loop has finished the thread will be joinable.
   if (worker_thread_.joinable())
@@ -145,7 +150,10 @@ void TCPServer::shutdown()
   client_fds_.clear();
   // Worker thread has been joined above, so the poll set is no longer in use; keep it consistent.
   pollfds_.clear();
-  ur_close(shutdown_socket);
+  if (shutdown_socket != INVALID_SOCKET)
+  {
+    ur_close(shutdown_socket);
+  }
   ur_close(listen_fd_);
   listen_fd_ = INVALID_SOCKET;
 }

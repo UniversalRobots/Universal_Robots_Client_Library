@@ -44,6 +44,15 @@ ScriptCommandInterface::ScriptCommandInterface(const ReverseInterfaceConfig& con
   client_connected_ = false;
 }
 
+ScriptCommandInterface::~ScriptCommandInterface()
+{
+  // Derived members such as handle_tool_contact_result_ are destroyed before ~ReverseInterface runs.
+  // Join the TCP worker here so messageCallback cannot invoke that callback after it is gone.
+  // Further subclasses that override the callbacks and use their own members must do the same in
+  // their own destructor.
+  server_.shutdown();
+}
+
 bool ScriptCommandInterface::zeroFTSensor()
 {
   const int message_length = 1;

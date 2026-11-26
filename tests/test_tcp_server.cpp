@@ -38,9 +38,11 @@
 #include <thread>
 #include <vector>
 #ifndef _WIN32
+#  include <cerrno>
 #  include <fcntl.h>
 #  include <unistd.h>
 #  include <sys/resource.h>
+#  include <sys/socket.h>
 #endif
 #include "test_utils.h"
 
@@ -647,6 +649,90 @@ TEST_F(TCPServerTest, services_client_with_high_fd_number)
   {
     ::close(fd);
   }
+}
+
+// shutdown() runs from noexcept destructors. The wakeup socket can fail when the process is already
+// at its descriptor limit, which is more likely when a derived destructor stops the server before
+// callback-owned descriptors are released. The worker must still be joined via the poll timeout.
+TEST_F(TCPServerTest, shutdown_joins_when_wakeup_socket_cannot_be_allocated)
+{
+  struct rlimit original;
+  ASSERT_EQ(::getrlimit(RLIMIT_NOFILE, &original), 0);
+
+  struct RlimitRestore
+  {
+    rlimit original;
+    bool active = false;
+    ~RlimitRestore()
+    {
+      if (active)
+      {
+        ::setrlimit(RLIMIT_NOFILE, &original);
+      }
+    }
+  } restore{ original, false };
+
+  // Declared first so it is destroyed after the descriptor hogs are closed. If shutdown throws,
+  // ~TCPServer can then allocate its wakeup socket instead of throwing again from a destructor.
+  comm::TCPServer server(0);
+  server.start();
+  Client client(server.getPort());
+
+  rlim_t target = std::min(original.rlim_cur, static_cast<rlim_t>(256));
+  bool lowered = false;
+  while (target <= original.rlim_cur)
+  {
+    struct rlimit tight = original;
+    tight.rlim_cur = target;
+    if (::setrlimit(RLIMIT_NOFILE, &tight) == 0)
+    {
+      lowered = true;
+      restore.active = true;
+      break;
+    }
+    if (target == original.rlim_cur)
+    {
+      break;
+    }
+    target = target > original.rlim_cur / 2 ? original.rlim_cur : target * 2;
+  }
+  if (!lowered)
+  {
+    GTEST_SKIP() << "Cannot lower RLIMIT_NOFILE to exhaust sockets.";
+  }
+
+  std::vector<int> hogs;
+  struct CloseHogs
+  {
+    std::vector<int>& fds;
+    ~CloseHogs()
+    {
+      for (int fd : fds)
+      {
+        ::close(fd);
+      }
+    }
+  } close_hogs{ hogs };
+
+  while (hogs.size() < 10000)
+  {
+    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+    {
+      break;
+    }
+    hogs.push_back(fd);
+  }
+  if (hogs.size() >= 10000)
+  {
+    GTEST_SKIP() << "Could not reach the file-descriptor limit.";
+  }
+  ASSERT_EQ(errno, EMFILE);
+
+  const auto started = std::chrono::steady_clock::now();
+  EXPECT_NO_THROW(server.shutdown());
+  EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(3));
+  EXPECT_NO_THROW(server.shutdown());
 }
 #endif
 

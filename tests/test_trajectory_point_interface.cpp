@@ -50,6 +50,13 @@ public:
   {
   }
 
+  ~TestableTrajectoryPointInterface() override
+  {
+    // connected is written from the callback overrides and is destroyed before
+    // ~TrajectoryPointInterface() joins the worker. Stop the worker while that member is still alive.
+    server_.shutdown();
+  }
+
   virtual void connectionCallback(const socket_t filedescriptor) override
   {
     control::TrajectoryPointInterface::connectionCallback(filedescriptor);

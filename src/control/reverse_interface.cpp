@@ -60,6 +60,16 @@ ReverseInterface::ReverseInterface(const ReverseInterfaceConfig& config)
   server_.start();
 }
 
+ReverseInterface::~ReverseInterface()
+{
+  // The TCP worker calls messageCallback / disconnectionCallback, which use members declared after
+  // server_. Join that thread here so those members are still alive. ~TCPServer would otherwise do
+  // it too late, after they have already been destroyed.
+  // Subclasses that override those callbacks and touch their own members must also call
+  // server_.shutdown() in their destructor. Those members are destroyed before this one runs.
+  server_.shutdown();
+}
+
 bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode,
                              const RobotReceiveTimeout& robot_receive_timeout)
 {
