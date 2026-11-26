@@ -582,11 +582,11 @@ public:
   {
     if (loglevel == LogLevel::WARN)
     {
-      ++warnings_;
+      ++warnings;
     }
   }
 
-  size_t warnings_ = 0;
+  size_t warnings = 0;
 };
 }  // namespace
 
@@ -609,7 +609,7 @@ TEST_F(TCPSocketTest, temporary_receive_timeout_restore_does_not_log_when_settin
     ::close(pipe_fds[0]);
     ::close(pipe_fds[1]);
   }
-  const size_t warnings = counter->warnings_;
+  const size_t warnings = counter->warnings;
   unregisterLogHandler();
 
   EXPECT_EQ(warnings, 0u);
