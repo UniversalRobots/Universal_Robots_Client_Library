@@ -248,66 +248,54 @@ bool DashboardClientImplG5::connect(const size_t max_num_tries, const std::chron
     URCL_LOG_ERROR("%s", "Socket is already connected. Refusing to reconnect.");
     return false;
   }
-  timeval configured_tv = getConfiguredReceiveTimeout();
+  // Every exit from the welcome handling below leaves the configured receive timeout active.
+  TCPSocket::setReceiveTimeout(getConfiguredReceiveTimeout());
   try
   {
-    if (TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
+    if (!TCPSocket::connect(host_, port_, max_num_tries, reconnection_time))
     {
-      // The welcome receive must remain interruptible by disconnect(). A ten-second
-      // blocking recv can outlive a shutdown request even after its socket is closed.
-      timeval poll_tv;
-      poll_tv.tv_sec = 0;
-      poll_tv.tv_usec = 100000;
-      TCPSocket::setReceiveTimeout(poll_tv);
-      const timeval welcome_tv = { 10, 0 };
-      std::string welcome;
-      auto deadline = std::chrono::steady_clock::now() + 10s;
-      while (!isStopRequested())
-      {
-        char character;
-        size_t read_chars = 0;
-        if (TCPSocket::read(reinterpret_cast<uint8_t*>(&character), 1, read_chars))
-        {
-          welcome.push_back(character);
-          if (character == '\n')
-          {
-            break;
-          }
-          deadline = std::chrono::steady_clock::now() + 10s;
-        }
-        else if (getState() != comm::SocketState::Connected || std::chrono::steady_clock::now() >= deadline)
-        {
-          throw TimeoutException("Did not receive welcome message from dashboard server in time.", welcome_tv);
-        }
-      }
-      if (isStopRequested())
-      {
-        TCPSocket::setReceiveTimeout(configured_tv);
-        return false;
-      }
-      URCL_LOG_INFO("%s", welcome.c_str());
-    }
-    else
-    {
-      TCPSocket::setReceiveTimeout(configured_tv);
       return false;
     }
+    // The welcome receive must remain interruptible by disconnect(). A ten-second
+    // blocking recv can outlive a shutdown request even after its socket is closed.
+    const auto poll_timeout = TCPSocket::temporaryReceiveTimeout(timeval{ 0, 100000 });
+    const timeval welcome_tv = { 10, 0 };
+    std::string welcome;
+    auto deadline = std::chrono::steady_clock::now() + 10s;
+    while (!isStopRequested())
+    {
+      char character;
+      size_t read_chars = 0;
+      if (TCPSocket::read(reinterpret_cast<uint8_t*>(&character), 1, read_chars))
+      {
+        welcome.push_back(character);
+        if (character == '\n')
+        {
+          break;
+        }
+        deadline = std::chrono::steady_clock::now() + 10s;
+      }
+      else if (getState() != comm::SocketState::Connected || std::chrono::steady_clock::now() >= deadline)
+      {
+        throw TimeoutException("Did not receive welcome message from dashboard server in time.", welcome_tv);
+      }
+    }
+    if (isStopRequested())
+    {
+      return false;
+    }
+    URCL_LOG_INFO("%s", welcome.c_str());
   }
   catch (const TimeoutException& e)
   {
     if (isStopRequested())
     {
-      TCPSocket::setReceiveTimeout(configured_tv);
       return false;
     }
     URCL_LOG_ERROR("%s", e.what());
     disconnect();
-    TCPSocket::setReceiveTimeout(configured_tv);
     return false;
   }
-
-  // Reset read timeout to configured socket timeout
-  TCPSocket::setReceiveTimeout(configured_tv);
 
   try
   {
@@ -336,7 +324,7 @@ void DashboardClientImplG5::rtrim(std::string& str, const std::string& chars)
 
 timeval DashboardClientImplG5::getConfiguredReceiveTimeout() const
 {
-  timeval tv;
+  timeval tv{};
   if (recv_timeout_ != nullptr)
   {
     tv = *recv_timeout_.get();
@@ -1204,11 +1192,8 @@ DashboardResponse DashboardClientImplG5::commandGetUserRole()
 
 DashboardResponse DashboardClientImplG5::commandGenerateFlightReport(const std::string& report_type)
 {
-  timeval configured_tv = getConfiguredReceiveTimeout();
-  timeval tv;
-  tv.tv_sec = 180;
-  tv.tv_usec = 0;
-  TCPSocket::setReceiveTimeout(tv);  // Set timeout to 3 minutes as this command can take a long time to complete
+  // This command can take a long time to complete
+  const auto timeout_guard = TCPSocket::temporaryReceiveTimeout(timeval{ 180, 0 });
   DashboardResponse response;
   try
   {
@@ -1221,17 +1206,13 @@ DashboardResponse DashboardClientImplG5::commandGenerateFlightReport(const std::
     response.ok = false;
     response.message = e.what();
   }
-  TCPSocket::setReceiveTimeout(configured_tv);  // Reset to configured receive timeout
   return response;
 }
 
 DashboardResponse DashboardClientImplG5::commandGenerateSupportFile(const std::string& dir_path)
 {
-  timeval configured_tv = getConfiguredReceiveTimeout();
-  timeval tv;
-  tv.tv_sec = 600;
-  tv.tv_usec = 0;
-  TCPSocket::setReceiveTimeout(tv);  // Set timeout to 10 minutes as this command can take a long time to complete
+  // This command can take a long time to complete
+  const auto timeout_guard = TCPSocket::temporaryReceiveTimeout(timeval{ 600, 0 });
   DashboardResponse response;
   try
   {
@@ -1243,7 +1224,6 @@ DashboardResponse DashboardClientImplG5::commandGenerateSupportFile(const std::s
     response.ok = false;
     response.message = e.what();
   }
-  TCPSocket::setReceiveTimeout(configured_tv);  // Reset to configured receive timeout
   return response;
 }
 

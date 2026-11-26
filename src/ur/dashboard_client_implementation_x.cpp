@@ -55,6 +55,7 @@ static int mkstemp(char* templ)
 #endif
 
 #include "ur_client_library/ur/version_information.h"
+#include <ur_client_library/comm/tcp_socket.h>
 #include <ur_client_library/exceptions.h>
 #include <ur_client_library/helpers.h>
 #include <ur_client_library/log.h>
@@ -189,6 +190,31 @@ bool isPayloadProgramExport(const std::string& body, const std::string& expected
   }
   return true;
 }
+
+// Sets the read timeout of a dashboard client while it exists and restores the configured one afterwards, also when
+// a request throws.
+class ScopedDashboardReceiveTimeout
+{
+public:
+  ScopedDashboardReceiveTimeout(urcl::DashboardClientImpl& client, const std::chrono::duration<double> timeout)
+    : client_(client), previous_(client.getConfiguredReceiveTimeout())
+  {
+    // Go via microseconds (the smallest unit timeval can represent) to keep sub-second precision.
+    client_.setReceiveTimeout(urcl::comm::toTimeval(std::chrono::duration_cast<std::chrono::microseconds>(timeout)));
+  }
+
+  ~ScopedDashboardReceiveTimeout()
+  {
+    client_.setReceiveTimeout(previous_);
+  }
+
+  ScopedDashboardReceiveTimeout(const ScopedDashboardReceiveTimeout&) = delete;
+  ScopedDashboardReceiveTimeout& operator=(const ScopedDashboardReceiveTimeout&) = delete;
+
+private:
+  urcl::DashboardClientImpl& client_;
+  timeval previous_;
+};
 }  // namespace
 
 namespace urcl
@@ -437,32 +463,9 @@ DashboardResponse DashboardClientImplX::commandPowerOff()
 DashboardResponse DashboardClientImplX::commandPowerOn(const std::chrono::duration<double> timeout)
 {
   // commandPowerOn can take significantly longer than steady-state dashboard calls (the robot
-  // boots, runs self-checks, etc.). Bump the read timeout to the caller-supplied value for the
-  // duration of the PUT, then restore — using the same save-bump-restore pattern as connect().
-  // The restore must run on every exit, including exceptions from inside put(), hence the
-  // catch(...) rethrow guard.
-  timeval configured_tv = getConfiguredReceiveTimeout();
-  // Preserve sub-second precision: duration_cast<seconds> truncates fractional values,
-  // so go via microseconds (the smallest unit timeval can represent) and split.
-  const auto pwron_us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
-  timeval pwron_tv;
-  pwron_tv.tv_sec = static_cast<long>(pwron_us.count() / 1'000'000);
-  pwron_tv.tv_usec = static_cast<long>(pwron_us.count() % 1'000'000);
-  setReceiveTimeout(pwron_tv);
-
-  DashboardResponse response;
-  try
-  {
-    response = put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
-  }
-  catch (...)
-  {
-    setReceiveTimeout(configured_tv);
-    throw;
-  }
-
-  setReceiveTimeout(configured_tv);
-  return response;
+  // boots, runs self-checks, etc.). Use the caller-supplied read timeout for the duration of the PUT.
+  const ScopedDashboardReceiveTimeout timeout_guard(*this, timeout);
+  return put("/robotstate/v1/state", R"({"action": "POWER_ON"})");
 }
 
 DashboardResponse DashboardClientImplX::commandBrakeRelease()
@@ -736,31 +739,9 @@ DashboardResponse DashboardClientImplX::commandGenerateFlightReport([[maybe_unus
   {
     URCL_LOG_WARN("The report_type parameter is not used in the PolyScope X Robot API. Ignoring it.");
   }
-  auto timeout = std::chrono::seconds(30);  // Default timeout for generating flight report
-
-  timeval configured_tv = getConfiguredReceiveTimeout();
-  // Preserve sub-second precision: duration_cast<seconds> truncates fractional values,
-  // so go via microseconds (the smallest unit timeval can represent) and split.
-  const auto pwron_us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
-  timeval flightreport_tv;
-  flightreport_tv.tv_sec = static_cast<long>(pwron_us.count() / 1'000'000);
-  flightreport_tv.tv_usec = static_cast<long>(pwron_us.count() % 1'000'000);
-  setReceiveTimeout(flightreport_tv);
-  const std::string endpoint = g_command_list["generate_flight_report"].endpoint;
-
-  DashboardResponse response;
-  try
-  {
-    response = post(endpoint, "");
-  }
-  catch (...)
-  {
-    setReceiveTimeout(configured_tv);
-    throw;
-  }
-
-  setReceiveTimeout(configured_tv);
-  return response;
+  // Generating a flight report takes longer than steady-state dashboard calls.
+  const ScopedDashboardReceiveTimeout timeout_guard(*this, std::chrono::seconds(30));
+  return post(g_command_list["generate_flight_report"].endpoint, "");
 }
 
 DashboardResponse DashboardClientImplX::commandDownloadSupportFiles(const std::string& save_path)

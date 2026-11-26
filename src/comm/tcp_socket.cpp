@@ -573,6 +573,96 @@ timeval TCPSocket::getReceiveTimeout() const
   return *recv_timeout_;
 }
 
+timeval toTimeval(const std::chrono::microseconds duration)
+{
+  const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+  timeval tv;
+  tv.tv_sec = static_cast<decltype(tv.tv_sec)>(seconds.count());
+  tv.tv_usec = static_cast<decltype(tv.tv_usec)>((duration - seconds).count());
+  return tv;
+}
+
+TCPSocket::ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const timeval& timeout)
+{
+  return ScopedReceiveTimeout(*this, timeout);
+}
+
+TCPSocket::ScopedReceiveTimeout TCPSocket::temporaryReceiveTimeout(const std::chrono::microseconds timeout)
+{
+  return ScopedReceiveTimeout(*this, toTimeval(timeout));
+}
+
+void TCPSocket::applyReceiveTimeoutSilently() noexcept
+{
+  if (recv_timeout_ == nullptr)
+  {
+    return;
+  }
+#ifdef _WIN32
+  DWORD value = recv_timeout_->tv_sec * 1000;
+  value += recv_timeout_->tv_usec / 1000;
+  ur_setsockopt(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, &value, sizeof(value));
+#else
+  ur_setsockopt(socket_fd_.get(), SOL_SOCKET, SO_RCVTIMEO, recv_timeout_.get(), sizeof(timeval));
+#endif
+}
+
+void TCPSocket::restoreReceiveTimeout(std::unique_ptr<timeval> timeout) noexcept
+{
+  // The guard always set a timeout, so recv_timeout_ holds an allocation that can be reused or handed over.
+  const bool had_timeout = timeout != nullptr;
+  if (had_timeout)
+  {
+    recv_timeout_ = std::move(timeout);
+  }
+  else if (recv_timeout_ != nullptr)
+  {
+    // A zero timeout removes the timeout from an open socket.
+    *recv_timeout_ = timeval{ 0, 0 };
+  }
+
+  if (state_ == SocketState::Connected)
+  {
+    applyReceiveTimeoutSilently();
+  }
+  if (!had_timeout)
+  {
+    // Afterwards the socket is in the same state as one that never had a timeout set.
+    recv_timeout_.reset();
+  }
+}
+
+TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(TCPSocket& socket, const timeval& timeout) : socket_(&socket)
+{
+  if (socket.recv_timeout_ != nullptr)
+  {
+    previous_ = std::make_unique<timeval>(*socket.recv_timeout_);
+  }
+  try
+  {
+    socket.setReceiveTimeout(timeout);
+  }
+  catch (...)
+  {
+    socket.restoreReceiveTimeout(std::move(previous_));
+    throw;
+  }
+}
+
+TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept
+  : socket_(other.socket_), previous_(std::move(other.previous_))
+{
+  other.socket_ = nullptr;
+}
+
+TCPSocket::ScopedReceiveTimeout::~ScopedReceiveTimeout()
+{
+  if (socket_ != nullptr)
+  {
+    socket_->restoreReceiveTimeout(std::move(previous_));
+  }
+}
+
 void TCPSocket::setConnectTimeout(const std::chrono::milliseconds connect_timeout)
 {
   if (connect_timeout < std::chrono::milliseconds::zero())

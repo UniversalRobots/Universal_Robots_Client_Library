@@ -513,6 +513,72 @@ TEST(DashboardClientWelcomeTest, welcome_timeout_allows_external_retry)
   EXPECT_TRUE(second_connected);
 }
 
+// A long-running command whose answer never arrives must not leave its long receive timeout behind.
+TEST(DashboardClientG5ReceiveTimeoutTest, failing_long_command_restores_configured_receive_timeout)
+{
+  auto server = std::make_unique<TestableTcpServer>(29999);
+  server->start();
+  DashboardClientImplG5 client("127.0.0.1");
+  client.setReceiveTimeout(timeval{ 2, 0 });
+
+  bool connected = false;
+  std::exception_ptr connection_error;
+  std::thread connection([&]() {
+    try
+    {
+      connected = client.connect(1);
+    }
+    catch (...)
+    {
+      connection_error = std::current_exception();
+    }
+  });
+  bool handshake_done = false;
+  if (server->waitForConnectionCallback(2000))
+  {
+    size_t written = 0;
+    const std::string greeting = "Connected: Universal Robots Dashboard Server\n";
+    const std::string version = "URSoftware 5.12.0.1 (validation)\n";
+    handshake_done = server->write(reinterpret_cast<const uint8_t*>(greeting.data()), greeting.size(), written) &&
+                     server->waitForMessageCallback(2000) &&
+                     server->write(reinterpret_cast<const uint8_t*>(version.data()), version.size(), written);
+  }
+  if (!handshake_done)
+  {
+    client.disconnect();
+  }
+  connection.join();
+  if (connection_error)
+  {
+    std::rethrow_exception(connection_error);
+  }
+  ASSERT_TRUE(handshake_done);
+  ASSERT_TRUE(connected);
+
+  // The server goes away while the client waits for the flight report, so the read fails.
+  std::thread server_shutdown([&]() {
+    server->waitForMessageCallback(2000);
+    server->shutdown();
+  });
+  std::string timeout_message;
+  try
+  {
+    client.commandGenerateFlightReport("");
+  }
+  catch (const TimeoutException& e)
+  {
+    timeout_message = e.what();
+  }
+  server_shutdown.join();
+
+  // The exception reports the timeout that was active for the command, not the configured one.
+  EXPECT_NE(timeout_message.find("Configured timeout: 180 sec"), std::string::npos) << timeout_message;
+
+  const timeval timeout = client.getConfiguredReceiveTimeout();
+  EXPECT_EQ(timeout.tv_sec, 2);
+  EXPECT_EQ(timeout.tv_usec, 0);
+}
+
 class QueryVersionDashboardClient : public DashboardClientImplG5
 {
 public:

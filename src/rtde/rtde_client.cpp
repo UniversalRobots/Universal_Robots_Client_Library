@@ -33,6 +33,7 @@
 #include "ur_client_library/helpers.h"
 #include <algorithm>
 #include <chrono>
+#include <optional>
 #include <string>
 #include <system_error>
 
@@ -52,44 +53,20 @@ namespace
   throw UrException(ss.str());
 }
 
-// Raises a socket's receive timeout to at least the given one while it exists and then restores the previous
-// timeout. A socket without a timeout keeps waiting until data arrives.
-class ScopedMinimumReceiveTimeout
+// Raises a socket's receive timeout to at least the given one while the returned guard exists. A socket without a
+// timeout keeps waiting until data arrives, so its timeout is left untouched.
+std::optional<comm::TCPSocket::ScopedReceiveTimeout> raiseReceiveTimeout(comm::TCPSocket& socket,
+                                                                         const std::chrono::microseconds minimum)
 {
-public:
-  ScopedMinimumReceiveTimeout(comm::TCPSocket& socket, const std::chrono::microseconds minimum)
-    : socket_(socket), previous_(socket.getReceiveTimeout())
+  const timeval current = socket.getReceiveTimeout();
+  const std::chrono::microseconds previous =
+      std::chrono::seconds(current.tv_sec) + std::chrono::microseconds(current.tv_usec);
+  if (previous == std::chrono::microseconds::zero() || previous >= minimum)
   {
-    const std::chrono::microseconds previous =
-        std::chrono::seconds(previous_.tv_sec) + std::chrono::microseconds(previous_.tv_usec);
-    if (previous == std::chrono::microseconds::zero() || previous >= minimum)
-    {
-      return;
-    }
-    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum);
-    timeval timeout;
-    timeout.tv_sec = static_cast<decltype(timeout.tv_sec)>(seconds.count());
-    timeout.tv_usec = static_cast<decltype(timeout.tv_usec)>((minimum - seconds).count());
-    socket_.setReceiveTimeout(timeout);
-    raised_ = true;
+    return std::nullopt;
   }
-
-  ~ScopedMinimumReceiveTimeout()
-  {
-    if (raised_)
-    {
-      socket_.setReceiveTimeout(previous_);
-    }
-  }
-
-  ScopedMinimumReceiveTimeout(const ScopedMinimumReceiveTimeout&) = delete;
-  ScopedMinimumReceiveTimeout& operator=(const ScopedMinimumReceiveTimeout&) = delete;
-
-private:
-  comm::TCPSocket& socket_;
-  timeval previous_;
-  bool raised_ = false;
-};
+  return socket.temporaryReceiveTimeout(minimum);
+}
 }  // namespace
 
 // The pre-allocated package gets its storage here, but the field types are only known once the
@@ -708,7 +685,7 @@ bool RTDEClient::isRobotBooted()
   constexpr std::chrono::milliseconds margin{ 100 };
   const auto two_periods =
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<double>(2.0 / target_frequency_));
-  ScopedMinimumReceiveTimeout boot_data_timeout(stream_, two_periods + margin);
+  const auto boot_data_timeout = raiseReceiveTimeout(stream_, two_periods + margin);
 
   while (timestamp < 40 && reading_count < target_frequency_ * 2)
   {

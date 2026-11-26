@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 #include "test_utils.h"
@@ -41,6 +42,7 @@
 
 #ifdef __linux__
 #  include <dirent.h>
+#  include <unistd.h>
 #endif
 
 using namespace urcl;
@@ -453,6 +455,198 @@ TEST_F(TCPSocketTest, get_receive_timeout_returns_the_set_one)
   const timeval timeout = client_->getReceiveTimeout();
   EXPECT_EQ(timeout.tv_sec, 2);
   EXPECT_EQ(timeout.tv_usec, 500000);
+}
+
+namespace
+{
+std::chrono::microseconds toDuration(const timeval& tv)
+{
+  return std::chrono::seconds(tv.tv_sec) + std::chrono::microseconds(tv.tv_usec);
+}
+
+// Duration of a read on a socket that never receives data, i.e. the receive timeout that is active on the socket
+std::chrono::steady_clock::duration measureFailingRead(comm::TCPSocket& socket)
+{
+  char character;
+  size_t read_chars = 0;
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(socket.read(reinterpret_cast<uint8_t*>(&character), 1, read_chars));
+  return std::chrono::steady_clock::now() - start;
+}
+}  // namespace
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_restores_previous_timeout)
+{
+  client_->setReceiveTimeout(timeval{ 2, 500000 });
+  {
+    const auto guard = client_->temporaryReceiveTimeout(timeval{ 180, 0 });
+    EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(180));
+  }
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::milliseconds(2500));
+}
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_restores_unset_timeout)
+{
+  {
+    const auto guard = client_->temporaryReceiveTimeout(timeval{ 1, 0 });
+    EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(1));
+  }
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::microseconds::zero());
+}
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_restores_previous_timeout_on_exception)
+{
+  client_->setReceiveTimeout(timeval{ 1, 0 });
+  EXPECT_THROW(
+      {
+        const auto guard = client_->temporaryReceiveTimeout(timeval{ 600, 0 });
+        throw std::runtime_error("request failed");
+      },
+      std::runtime_error);
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(1));
+}
+
+TEST_F(TCPSocketTest, moved_temporary_receive_timeout_restores_once)
+{
+  client_->setReceiveTimeout(timeval{ 1, 0 });
+  {
+    std::optional<comm::TCPSocket::ScopedReceiveTimeout> outer;
+    {
+      auto guard = client_->temporaryReceiveTimeout(timeval{ 5, 0 });
+      outer.emplace(std::move(guard));
+    }
+    // The moved-from guard must not have restored the timeout
+    EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(5));
+    client_->setReceiveTimeout(timeval{ 7, 0 });
+  }
+  // Restores the timeout from before the guard was created
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(1));
+}
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_applies_to_connected_socket)
+{
+  ASSERT_TRUE(client_->connect());
+  client_->setReceiveTimeout(timeval{ 1, 0 });
+  std::chrono::steady_clock::duration with_guard;
+  {
+    const auto guard = client_->temporaryReceiveTimeout(std::chrono::milliseconds(50));
+    with_guard = measureFailingRead(*client_);
+  }
+  const auto after_guard = measureFailingRead(*client_);
+  // Only compare the two reads with each other, as some platforms add a fixed amount to the receive timeout
+  EXPECT_LT(with_guard, after_guard);
+  EXPECT_GE(after_guard, std::chrono::milliseconds(900));
+}
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_accepts_chrono_durations)
+{
+  {
+    const auto guard = client_->temporaryReceiveTimeout(std::chrono::milliseconds(2500));
+    const timeval timeout = client_->getReceiveTimeout();
+    EXPECT_EQ(timeout.tv_sec, 2);
+    EXPECT_EQ(timeout.tv_usec, 500000);
+  }
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::microseconds::zero());
+}
+
+TEST(TimevalConversionTest, to_timeval_keeps_sub_second_precision)
+{
+  const timeval tv = comm::toTimeval(std::chrono::microseconds(3'000'042));
+  EXPECT_EQ(tv.tv_sec, 3);
+  EXPECT_EQ(tv.tv_usec, 42);
+}
+
+TEST_F(TCPSocketTest, temporary_receive_timeout_removes_timeout_from_connected_socket)
+{
+  ASSERT_TRUE(client_->connect());
+  {
+    const auto guard = client_->temporaryReceiveTimeout(timeval{ 0, 50000 });
+  }
+#ifdef _WIN32
+  DWORD active = 1;
+  int len = sizeof(active);
+  ASSERT_EQ(getsockopt(client_->getSocketFD(), SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&active), &len), 0);
+  EXPECT_EQ(active, 0u);
+#else
+  timeval active{ 1, 1 };
+  socklen_t len = sizeof(active);
+  ASSERT_EQ(getsockopt(client_->getSocketFD(), SOL_SOCKET, SO_RCVTIMEO, &active, &len), 0);
+  EXPECT_EQ(toDuration(active), std::chrono::microseconds::zero());
+#endif
+}
+
+#ifdef __linux__
+namespace
+{
+class WarningCountingLogHandler : public LogHandler
+{
+public:
+  void log(const char*, int, LogLevel loglevel, const char*) override
+  {
+    if (loglevel == LogLevel::WARN)
+    {
+      ++warnings;
+    }
+  }
+
+  size_t warnings = 0;
+};
+}  // namespace
+
+// The restore runs in a destructor, also while an exception unwinds. A failing setsockopt must neither log nor throw
+// there, as logging allocates and a log handler may throw.
+TEST_F(TCPSocketTest, temporary_receive_timeout_restore_does_not_log_when_setting_the_option_fails)
+{
+  ASSERT_TRUE(client_->connect());
+  client_->setReceiveTimeout(timeval{ 1, 0 });
+
+  auto handler = std::make_unique<WarningCountingLogHandler>();
+  auto* counter = handler.get();
+  registerLogHandler(std::move(handler));
+  {
+    const auto guard = client_->temporaryReceiveTimeout(timeval{ 5, 0 });
+    // Replace the socket with a pipe, so that setting a socket option on this descriptor fails with ENOTSOCK
+    int pipe_fds[2];
+    ASSERT_EQ(::pipe(pipe_fds), 0);
+    ASSERT_GE(::dup2(pipe_fds[0], client_->getSocketFD()), 0);
+    ::close(pipe_fds[0]);
+    ::close(pipe_fds[1]);
+  }
+  const size_t warnings = counter->warnings;
+  unregisterLogHandler();
+
+  EXPECT_EQ(warnings, 0u);
+  EXPECT_EQ(toDuration(client_->getReceiveTimeout()), std::chrono::seconds(1));
+}
+#endif  // __linux__
+
+// A zero SO_RCVTIMEO means "no timeout" on every platform, so a read after the restore waits for data.
+TEST_F(TCPSocketTest, read_blocks_after_temporary_receive_timeout_restores_unset_timeout)
+{
+  ASSERT_TRUE(client_->connect());
+  ASSERT_TRUE(server_->waitForConnectionCallback());
+  {
+    const auto guard = client_->temporaryReceiveTimeout(std::chrono::milliseconds(50));
+  }
+
+  constexpr std::chrono::milliseconds write_delay{ 300 };
+  std::thread delayed_write([&]() {
+    std::this_thread::sleep_for(write_delay);
+    const uint8_t data = 'x';
+    size_t written = 0;
+    server_->write(&data, 1, written);
+  });
+
+  char character = 0;
+  size_t read_chars = 0;
+  const auto start = std::chrono::steady_clock::now();
+  const bool read_ok = client_->read(reinterpret_cast<uint8_t*>(&character), 1, read_chars);
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+  delayed_write.join();
+
+  EXPECT_TRUE(read_ok);
+  EXPECT_EQ(character, 'x');
+  EXPECT_GE(elapsed, write_delay - std::chrono::milliseconds(50));
 }
 
 TEST_F(TCPSocketTest, connect_timeout_is_disabled_by_default)
