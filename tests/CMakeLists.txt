@@ -331,6 +331,11 @@ target_link_libraries(reverse_interface_tests PRIVATE ur_client_library::urcl GT
 gtest_add_tests(TARGET reverse_interface_tests
 )
 
+add_executable(control_interface_teardown_tests test_control_interface_teardown.cpp)
+target_link_libraries(control_interface_teardown_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
+gtest_add_tests(TARGET control_interface_teardown_tests
+)
+
 add_executable(trajectory_point_interface_tests test_trajectory_point_interface.cpp)
 target_link_libraries(trajectory_point_interface_tests PRIVATE ur_client_library::urcl GTest::gtest_main)
 gtest_add_tests(TARGET trajectory_point_interface_tests

@@ -47,6 +47,13 @@ public:
   {
   }
 
+  ~TestableReverseInterface() override
+  {
+    // connected is written from the callback overrides and is destroyed before ~ReverseInterface()
+    // joins the worker. Stop the worker while that member is still alive.
+    server_.shutdown();
+  }
+
   virtual void connectionCallback(const socket_t filedescriptor)
   {
     control::ReverseInterface::connectionCallback(filedescriptor);

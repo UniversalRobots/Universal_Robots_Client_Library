@@ -89,6 +89,8 @@ TrajectoryPointInterface::~TrajectoryPointInterface()
 {
   // Derived members such as trajectory_end_callbacks_ are destroyed before ~ReverseInterface runs.
   // Join the TCP worker here so messageCallback cannot iterate that list after it is gone.
+  // Further subclasses that override the callbacks and use their own members must do the same in
+  // their own destructor.
   server_.shutdown();
 }
 

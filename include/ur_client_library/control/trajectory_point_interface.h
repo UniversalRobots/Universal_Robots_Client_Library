@@ -77,6 +77,9 @@ public:
 
   /*!
    * \brief Stops the TCP server and joins its worker before trajectory-end callbacks are destroyed.
+   *
+   * Further subclasses that override the socket callbacks and use their own members from those
+   * overrides must call server_.shutdown() in their destructor. See ~ReverseInterface().
    */
   virtual ~TrajectoryPointInterface();
 

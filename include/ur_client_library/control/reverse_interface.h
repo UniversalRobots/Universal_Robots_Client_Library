@@ -267,10 +267,28 @@ public:
   }
 
 protected:
+  /*!
+   * \brief Called on the TCP worker when a client connects.
+   *
+   * Overrides that use members of the derived class must call server_.shutdown() in the most
+   * derived destructor. See ~ReverseInterface().
+   */
   virtual void connectionCallback(const socket_t filedescriptor);
 
+  /*!
+   * \brief Called on the TCP worker when a client disconnects.
+   *
+   * Overrides that use members of the derived class must call server_.shutdown() in the most
+   * derived destructor. See ~ReverseInterface().
+   */
   virtual void disconnectionCallback(const socket_t filedescriptor);
 
+  /*!
+   * \brief Called on the TCP worker when a client sends a message.
+   *
+   * Overrides that use members of the derived class must call server_.shutdown() in the most
+   * derived destructor. See ~ReverseInterface().
+   */
   virtual void messageCallback(const socket_t filedescriptor, char* buffer, int nbytesrecv);
 
   std::list<HandlerFunction<void(const socket_t)>> disconnect_callbacks_;
