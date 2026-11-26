@@ -638,7 +638,15 @@ TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(TCPSocket& socket, const t
   {
     previous_ = std::make_unique<timeval>(*socket.recv_timeout_);
   }
-  socket.setReceiveTimeout(timeout);
+  try
+  {
+    socket.setReceiveTimeout(timeout);
+  }
+  catch (...)
+  {
+    socket.restoreReceiveTimeout(std::move(previous_));
+    throw;
+  }
 }
 
 TCPSocket::ScopedReceiveTimeout::ScopedReceiveTimeout(ScopedReceiveTimeout&& other) noexcept
