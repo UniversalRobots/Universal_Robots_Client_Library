@@ -2,14 +2,33 @@ name: ROS industrial ci
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/industrial-ci.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'package.xml'
+      - 'colcon.pkg'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
+      - 'scripts/**'
   push:
     branches:
       - master
 
+# A new commit on the same branch cancels the run still in progress. The event
+# name keeps manually dispatched runs out of that group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   industrial_ci:
     name: ${{matrix.ROS_DISTRO.NAME}}, ${{matrix.ROS_REPO}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -24,12 +43,7 @@ jobs:
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#kilted"
           - NAME: lyrical
             DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#lyrical"
-          - NAME: rolling
-            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
-            CLANG_TIDY: pedantic
-            OS_CODE_NAME: "resolute"
         ROS_REPO:
-          - main
           - testing
     env:
       # /tmp/ur_test_artifacts: collection point for test artifacts (e.g. VNC

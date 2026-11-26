@@ -2,9 +2,28 @@ name: RHEL Build
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/rhel_build.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'package.xml'
+      - 'colcon.pkg'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
   push:
     branches:
       - master
+
+# A new commit on the same branch cancels the run still in progress. The event
+# name keeps manually dispatched runs out of that group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   rhel_build:
     name: ${{matrix.ROS_DISTRO.NAME}} (RHEL)

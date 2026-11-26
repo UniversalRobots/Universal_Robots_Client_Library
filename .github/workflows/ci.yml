@@ -2,20 +2,49 @@ name: Integration tests
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - '.github/workflows/ci.yml'
+      - '3rdparty/**'
+      - 'CMakeLists.txt'
+      - 'ur_client_libraryConfig.cmake'
+      - 'include/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'resources/**'
+      - 'scripts/**'
+      - 'run_examples.sh'
+      - '.clang-tidy'
   push:
     branches:
       - master
   schedule:
     - cron: '38 2 * * *'
 
+# A new commit on the same branch cancels the run still in progress. The event
+# name keeps scheduled and manually dispatched runs out of that group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   ubuntu_build:
     name: ubuntu_build
     runs-on: ubuntu-24.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPRESS: "true"
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v7
       - name: Install build-tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-pandas python3-lxml
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ccache
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-ubuntu-build-${{ github.sha }}
+          restore-keys: ccache-ubuntu-build-
       - name: configure
         run: >
           mkdir build &&
@@ -26,6 +55,9 @@ jobs:
           -DWITH_ASAN=ON
           -DPRIMARY_CLIENT_STRICT_PARSING_=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
@@ -33,6 +65,9 @@ jobs:
       - name: build
         id: build
         run: cmake --build build --config Debug
+      - name: ccache stats
+        if: always()
+        run: ccache -s
       - name: Archive CMake build directory
         if: steps.build.outcome == 'success'
         run: tar -czf build.tar.gz build
@@ -48,10 +83,20 @@ jobs:
   unit_coverage:
     name: unit_coverage
     runs-on: ubuntu-24.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPRESS: "true"
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v7
       - name: Install build-tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake gcovr
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ccache gcovr
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-unit-coverage-${{ github.sha }}
+          restore-keys: ccache-unit-coverage-
       - name: configure
         run: >
           mkdir build &&
@@ -60,14 +105,19 @@ jobs:
           -DBUILDING_TESTS=1
           -DINTEGRATION_TESTS=0
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         env:
           CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
           LDFLAGS: -fprofile-arcs -ftest-coverage
       - name: build
         run: cmake --build build --config Debug
+      - name: ccache stats
+        if: always()
+        run: ccache -s
       - name: test
-        run: cd build && ctest --output-on-failure --output-junit junit.xml
+        run: cd build && ctest --output-on-failure --output-junit junit.xml -j $(nproc)
       - name: gcovr
         run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
       - name: Upload coverage reports to Codecov with GitHub Action
@@ -149,6 +199,9 @@ jobs:
         run: tar -xzf build.tar.gz
       - name: Create folder for test artifacts
         run: mkdir -p test_artifacts/screenshots
+      - name: Wait for robot to boot
+        if: ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
+        run: scripts/wait_robot_booted.py 192.168.56.101
       - name: Access PolyScope
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
         run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
@@ -161,9 +214,6 @@ jobs:
       - name: Install Playwright for PolyScope X screenshots
         if: ${{ steps.check_polyscopex.outputs.is_polyscopex == 'true' }}
         run: pip install playwright && playwright install chromium
-      - name: Wait for robot to boot
-        if: ${{ matrix.env.URSIM_VERSION != '10.7.0' }}
-        run: scripts/wait_robot_booted.py 192.168.56.101
       - name: test
         id: test
         run: cd build && ctest --output-on-failure --output-junit junit.xml
@@ -439,3 +489,99 @@ jobs:
           name: start-ursim
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  clang_tidy:
+    name: clang_tidy
+    runs-on: ubuntu-24.04
+    needs: ubuntu_build
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - name: Download CMake build archive
+        uses: actions/download-artifact@v8
+        with:
+          name: build.tar.gz
+      - name: Extract CMake build directory
+        run: tar -xzf build.tar.gz
+      - name: Run clang-tidy
+        run: |
+          set +e
+          set -o pipefail
+          # ubuntu_build uses GCC, so compile_commands.json contains GCC-only
+          # flags such as -Wno-maybe-uninitialized. Prepend
+          # -Wno-unknown-warning-option so clang-tidy does not fail on them.
+          run-clang-tidy \
+            -p build \
+            -quiet \
+            -extra-arg-before=-Wno-unknown-warning-option \
+            -header-filter='.*include/ur_client_library/.*' \
+            "${{ github.workspace }}/src" \
+            "${{ github.workspace }}/examples" \
+            "${{ github.workspace }}/tests" \
+            2>&1 | tee clang-tidy.log
+          status=${PIPESTATUS[0]}
+
+          python3 - "${{ github.workspace }}" <<'PY'
+          import os, re, sys
+          from pathlib import Path
+
+          workspace = Path(sys.argv[1]).resolve()
+          log = Path("clang-tidy.log").read_text(encoding="utf-8", errors="replace")
+          diag_re = re.compile(
+              r"^(.*?):(\d+):(\d+): (error|warning): (.*) \[([^\]]+)\]\s*$"
+          )
+          findings, failed_files = [], []
+          seen = set()
+          for raw in log.splitlines():
+              if raw.startswith("Error while processing "):
+                  path = raw[len("Error while processing "):].rstrip(".")
+                  if path not in seen:
+                      seen.add(path)
+                      failed_files.append(path)
+                  continue
+              match = diag_re.match(raw)
+              if not match:
+                  continue
+              path, line, col, severity, message, check = match.groups()
+              key = (path, line, col, severity, message, check)
+              if key in seen:
+                  continue
+              seen.add(key)
+              findings.append(key)
+
+          print()
+          print("================ clang-tidy summary ================")
+          if not findings and not failed_files:
+              print("No diagnostics.")
+          if findings:
+              print(f"{len(findings)} unique diagnostic(s):")
+              for path, line, col, severity, message, check in findings:
+                  try:
+                      rel = Path(path).resolve().relative_to(workspace)
+                  except ValueError:
+                      rel = Path(path)
+                  print(f"  {rel}:{line}:{col}: {severity}: {message} [{check}]")
+                  print(
+                      f"::{severity} file={rel},line={line},col={col},title={check}::{message}"
+                  )
+          if failed_files:
+              print(f"{len(failed_files)} file(s) failed to process:")
+              for path in failed_files:
+                  try:
+                      rel = Path(path).resolve().relative_to(workspace)
+                  except ValueError:
+                      rel = Path(path)
+                  print(f"  {rel}")
+          print("===================================================")
+          PY
+          exit $status
+      - name: Upload clang-tidy report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: clang-tidy.log
+          path: clang-tidy.log
+          if-no-files-found: error
+          retention-days: 5
+          archive: false

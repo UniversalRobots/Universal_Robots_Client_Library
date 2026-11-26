@@ -66,6 +66,7 @@ UrDriver::~UrDriver()
 void UrDriver::init(const UrDriverConfiguration& config)
 {
   robot_ip_ = config.robot_ip;
+  rtde_port_ = config.rtde_port;
   non_blocking_read_ = config.non_blocking_read;
   servoj_gain_ = config.servoj_gain;
   servoj_lookahead_time_ = config.servoj_lookahead_time;
@@ -82,7 +83,7 @@ void UrDriver::init(const UrDriverConfiguration& config)
   URCL_LOG_DEBUG("Initializing urdriver");
   URCL_LOG_DEBUG("Initializing RTDE client");
 
-  primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_));
+  primary_client_.reset(new urcl::primary_interface::PrimaryClient(robot_ip_, notifier_, config.primary_port));
   primary_client_->setConnectTimeout(socket_connect_timeout_);
 
   get_packet_timeout_ = non_blocking_read_ ? 0 : 100;
@@ -121,9 +122,9 @@ void UrDriver::init(const UrDriverConfiguration& config)
   out << "lookahead_time=" << servoj_lookahead_time_ << ", gain=" << servoj_gain_;
   data[SERVO_J_REPLACE] = out.str();
   data[SERVER_IP_REPLACE] = local_ip;
-  data[SERVER_PORT_REPLACE] = std::to_string(config.reverse_port);
-  data[TRAJECTORY_PORT_REPLACE] = std::to_string(config.trajectory_port);
-  data[SCRIPT_COMMAND_PORT_REPLACE] = std::to_string(config.script_command_port);
+  data[SERVER_PORT_REPLACE] = std::to_string(reverse_interface_->getPort());
+  data[TRAJECTORY_PORT_REPLACE] = std::to_string(trajectory_interface_->getPort());
+  data[SCRIPT_COMMAND_PORT_REPLACE] = std::to_string(script_command_interface_->getPort());
 
   robot_version_ = rtde_client_->getVersion();
 
@@ -829,7 +830,7 @@ void UrDriver::resetRTDEClient(const std::vector<std::string>& output_recipe,
                                bool ignore_unavailable_outputs)
 {
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe, input_recipe, target_frequency,
-                                                    ignore_unavailable_outputs));
+                                                    ignore_unavailable_outputs, rtde_port_));
   initRTDE();
 }
 
@@ -837,7 +838,7 @@ void UrDriver::resetRTDEClient(const std::string& output_recipe_filename, const 
                                double target_frequency, bool ignore_unavailable_outputs)
 {
   rtde_client_.reset(new rtde_interface::RTDEClient(robot_ip_, notifier_, output_recipe_filename, input_recipe_filename,
-                                                    target_frequency, ignore_unavailable_outputs));
+                                                    target_frequency, ignore_unavailable_outputs, rtde_port_));
   initRTDE();
 }
 

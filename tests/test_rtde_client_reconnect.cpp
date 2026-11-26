@@ -50,7 +50,6 @@ using namespace urcl;
 
 namespace
 {
-constexpr int FAKE_RTDE_PORT = 60007;
 constexpr double RTDE_FREQUENCY = 100.0;
 
 const std::vector<std::string> OUTPUT_RECIPE{ "timestamp", "actual_q", "target_speed_fraction", "runtime_state" };
@@ -77,7 +76,11 @@ protected:
    */
   void startServer()
   {
-    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+    // Drop the previous socket before binding again. Reconnect tests bring the server back on the
+    // same port the client is already using; the first call leaves the kernel to pick that port.
+    server_.reset();
+    server_ = std::make_unique<RTDEServer>(port_);
+    port_ = server_->getPort();
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
   }
 
@@ -86,7 +89,7 @@ protected:
     // TCPServer listens on IPv4 only. Avoid an initial IPv6 connection attempt for localhost:
     // on Windows its fallback delay can exhaust the teardown stress test's timeout over 50 cycles.
     client_ = std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, OUTPUT_RECIPE, INPUT_RECIPE,
-                                                           RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
+                                                           RTDE_FREQUENCY, false, port_);
   }
 
   /*!
@@ -110,6 +113,7 @@ protected:
   comm::INotifier notifier_;
   std::unique_ptr<RTDEServer> server_;
   std::unique_ptr<rtde_interface::RTDEClient> client_;
+  int port_ = 0;
 };
 
 // Dropping the server has to take the client down, and bringing it back has to get the client all

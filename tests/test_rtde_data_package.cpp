@@ -1132,11 +1132,11 @@ public:
   {
     if (loglevel == LogLevel::WARN)
     {
-      warnings_.emplace_back(log);
+      warnings.emplace_back(log);
     }
   }
 
-  std::vector<std::string> warnings_;
+  std::vector<std::string> warnings;
 };
 
 }  // namespace
@@ -1157,7 +1157,7 @@ TEST(rtde_data_package, copy_from_a_fully_typed_package_does_not_warn)
     ASSERT_TRUE(destination.copyFrom(source));
   }
 
-  EXPECT_TRUE(captured->warnings_.empty());
+  EXPECT_TRUE(captured->warnings.empty());
   unregisterLogHandler();
   setLogLevel(LogLevel::ERROR);
 }
@@ -1177,7 +1177,7 @@ TEST(rtde_data_package, copy_from_a_partial_package_does_not_warn)
     EXPECT_TRUE(destination.copyFrom(source));
   }
 
-  EXPECT_TRUE(captured->warnings_.empty());
+  EXPECT_TRUE(captured->warnings.empty());
   unregisterLogHandler();
   setLogLevel(LogLevel::ERROR);
 }

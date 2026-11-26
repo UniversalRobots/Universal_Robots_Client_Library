@@ -52,7 +52,6 @@ using urcl::rtde_interface::DataType;
 
 namespace
 {
-constexpr int FAKE_RTDE_PORT = 60006;
 constexpr double RTDE_FREQUENCY = 125.0;
 // The fake server answers the version query with 10.10.10.10, so the client takes the e-Series limit
 constexpr double MAX_FREQUENCY = 500.0;
@@ -67,7 +66,7 @@ class RTDEClientFakeServerTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(0);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
     client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, RTDE_FREQUENCY);
@@ -85,7 +84,8 @@ protected:
                                                          bool ignore_unavailable_outputs = false)
   {
     return std::make_unique<rtde_interface::RTDEClient>("127.0.0.1", notifier_, output_recipe, input_recipe,
-                                                        target_frequency, ignore_unavailable_outputs, FAKE_RTDE_PORT);
+                                                        target_frequency, ignore_unavailable_outputs,
+                                                        server_->getPort());
   }
 
   void expectFailedNegotiationThenRecovery()
@@ -361,7 +361,7 @@ TEST_F(RTDEClientFakeServerTest, init_succeeds_after_protocol_v1_fallback)
 // first and drop the rest, which is what made a pause request vanish after a burst of input data.
 TEST_F(RTDEClientFakeServerTest, two_requests_in_one_write_are_both_recorded)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("localhost", FAKE_RTDE_PORT);
+  comm::URStream<rtde_interface::RTDEPackage> stream("localhost", server_->getPort());
   ASSERT_TRUE(stream.connect(1, std::chrono::milliseconds(100)));
 
   uint8_t buffer[16];
@@ -422,7 +422,7 @@ TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period)
 {
   client_.reset();
   server_.reset();
-  server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+  server_ = std::make_unique<RTDEServer>(0);
   const double bootup_frequency = 2.0;
   client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, bootup_frequency);
 
@@ -436,7 +436,7 @@ TEST_F(RTDEClientFakeServerTest, init_waits_out_the_bootup_period_at_a_low_frequ
 {
   client_.reset();
   server_.reset();
-  server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+  server_ = std::make_unique<RTDEServer>(0);
   const double low_frequency = 0.75;
   client_ = makeClient(OUTPUT_RECIPE, INPUT_RECIPE, low_frequency);
 
@@ -697,6 +697,24 @@ TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_allocates_one)
   client_->pause();
 }
 
+// The background reader holds the socket while it waits for the next package. Allocating a package
+// for an empty pointer must not depend on that, or the read fails without waiting for the timeout.
+TEST_F(RTDEClientFakeServerTest, receiving_into_empty_pointers_does_not_race_the_background_reader)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  for (int i = 0; i < 100; ++i)
+  {
+    std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+    ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT)) << "Read " << i << " failed";
+    ASSERT_NE(data_pkg, nullptr);
+    EXPECT_EQ(data_pkg->getDataType("actual_q"), rtde_interface::DataType::VECTOR6D);
+  }
+
+  client_->pause();
+}
+
 TEST_F(RTDEClientFakeServerTest, blocking_failures_preserve_caller_ownership)
 {
   ASSERT_TRUE(client_->init());  // init leaves streaming paused, so no DATA races with the injected frames.
@@ -875,6 +893,29 @@ TEST_F(RTDEClientFakeServerTest, background_read_can_be_stopped_and_started)
 
   client_->startBackgroundRead();
   EXPECT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
+
+  client_->pause();
+}
+
+// Stopping background reading keeps its buffers, so they must not be taken as a sign that it still runs.
+TEST_F(RTDEClientFakeServerTest, receiving_into_an_empty_pointer_after_stopping_background_read_fails)
+{
+  ASSERT_TRUE(client_->init());
+  ASSERT_TRUE(client_->start(true));
+
+  std::unique_ptr<rtde_interface::DataPackage> data_pkg;
+  ASSERT_TRUE(client_->getDataPackage(data_pkg, READ_TIMEOUT));
+  ASSERT_NE(data_pkg, nullptr);
+
+  client_->stopBackgroundRead();
+
+  std::unique_ptr<rtde_interface::DataPackage> empty_pkg;
+  EXPECT_FALSE(client_->getDataPackage(empty_pkg, READ_TIMEOUT));
+  EXPECT_EQ(empty_pkg, nullptr);
+
+  URCL_SILENCE_DEPRECATED_BEGIN
+  EXPECT_EQ(client_->getDataPackage(READ_TIMEOUT), nullptr);
+  URCL_SILENCE_DEPRECATED_END
 
   client_->pause();
 }
@@ -1144,18 +1185,20 @@ TEST_F(RTDEClientFakeServerTest, empty_input_recipe_does_not_start_the_writer)
 TEST_F(RTDEClientFakeServerTest, recipe_files)
 {
   EXPECT_NO_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
-                                             "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT));
+                                             "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false,
+                                             server_->getPort()));
 
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "", "resources/rtde_input_recipe.txt", RTDE_FREQUENCY,
-                                          false, FAKE_RTDE_PORT),
+                                          false, server_->getPort()),
                UrException);
 
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/empty.txt",
-                                          "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT),
+                                          "resources/rtde_input_recipe.txt", RTDE_FREQUENCY, false, server_->getPort()),
                UrException);
 
   EXPECT_THROW(rtde_interface::RTDEClient("localhost", notifier_, "resources/rtde_output_recipe.txt",
-                                          "/i/do/not/exist/urclrtdetest.txt", RTDE_FREQUENCY, false, FAKE_RTDE_PORT),
+                                          "/i/do/not/exist/urclrtdetest.txt", RTDE_FREQUENCY, false,
+                                          server_->getPort()),
                UrException);
 }
 

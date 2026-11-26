@@ -81,10 +81,11 @@ class TCPSocketTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new TestableTcpServer(60001));
+    server_.reset(new TestableTcpServer(0));
     server_->start();
+    port_ = server_->getPort();
 
-    client_.reset(new Client(60001));
+    client_.reset(new Client(port_));
   }
 
   void TearDown()
@@ -186,6 +187,7 @@ protected:
 
   std::unique_ptr<TestableTcpServer> server_;
   std::unique_ptr<Client> client_;
+  int port_ = 0;
 };
 
 TEST_F(TCPSocketTest, socket_state)
@@ -227,7 +229,7 @@ TEST_F(TCPSocketTest, setup_client_before_server)
 
   EXPECT_EQ(toUnderlying(expected_state), toUnderlying(actual_state));
 
-  server_.reset(new TestableTcpServer(60001));
+  server_.reset(new TestableTcpServer(port_));
   server_->start();
 
   // Test that client goes into connected state after the server has been started
@@ -356,7 +358,8 @@ TEST_F(TCPSocketTest, setup_while_client_is_connected)
 
 TEST_F(TCPSocketTest, connect_non_running_robot)
 {
-  Client client(12321, "127.0.0.1");
+  RefusedPort refused;
+  Client client(refused.getPort(), "127.0.0.1");
   auto start = std::chrono::system_clock::now();
   EXPECT_FALSE(client.connect(2, std::chrono::milliseconds(500)));
   auto end = std::chrono::system_clock::now();
@@ -375,12 +378,12 @@ TEST_F(TCPSocketTest, connect_non_running_robot)
 // reconnect threads.
 TEST_F(TCPSocketTest, setup_interruptible_by_close)
 {
-  // Use a port with no listener so every connect attempt fails immediately,
-  // sending setup() into the between-attempt wait.
-  const int unused_port = 12322;
+  // Hold a bound port with no listener so every connect attempt fails immediately,
+  // sending setup() into the between-attempt wait. The port stays ours under ctest -j.
+  RefusedPort refused;
   const std::chrono::milliseconds large_reconnect_timeout(5000);
 
-  Client client(unused_port, "127.0.0.1");
+  Client client(refused.getPort(), "127.0.0.1");
 
   // Run setup() with unlimited retries in a background thread.
   std::thread setup_thread([&client, &large_reconnect_timeout]() {
@@ -924,7 +927,7 @@ TEST_F(TCPSocketTest, test_socket_client_lifecycle)
     client_->printState();
 
     std::cout << "Restarting server..." << std::endl;
-    server_.reset(new TestableTcpServer(60001));
+    server_.reset(new TestableTcpServer(port_));
     server_->start();
 
     std::cout << "Reconnecting client..." << std::endl;
@@ -968,7 +971,7 @@ TEST_F(TCPSocketTest, test_socket_client_lifecycle)
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    server_.reset(new TestableTcpServer(60001));
+    server_.reset(new TestableTcpServer(port_));
     server_->start();
 
     connect_thread.join();
@@ -1027,7 +1030,7 @@ TEST_F(TCPSocketTest, test_socket_client_lifecycle)
   // Scenario 6: Server shuts down, connection lost. Then, client gets disconnected. Server starts
   // again, reconnect should fail, since it was deliberately disconnected. Connect should work.
   {
-    server_.reset(new TestableTcpServer(60001));
+    server_.reset(new TestableTcpServer(port_));
     server_->start();
     client_->connect();
     std::thread read_thread(read_fun);
@@ -1045,7 +1048,7 @@ TEST_F(TCPSocketTest, test_socket_client_lifecycle)
     client_->printState();
 
     std::cout << "Starting server..." << std::endl;
-    server_.reset(new TestableTcpServer(60001));
+    server_.reset(new TestableTcpServer(port_));
     server_->start();
 
     std::cout << "Attempting to reconnect client..." << std::endl;
@@ -1096,8 +1099,9 @@ TEST_F(TCPSocketTest, no_fd_leak_on_repeated_failed_connects)
 #ifndef __linux__
   GTEST_SKIP() << "Counting open file descriptors via /proc/self/fd is Linux-only";
 #else
-  // Port with no listener so every attempt fails quickly.
-  const int dead_port = 12321;
+  // A bound port with no listener, so every attempt fails quickly and no other test can take it.
+  RefusedPort refused;
+  const int dead_port = refused.getPort();
   // A little slack absorbs unrelated descriptors (e.g. logging, DNS caches) that may be opened
   // lazily on the first attempts; a real leak grows linearly with the iteration count and blows
   // well past this.
@@ -1130,7 +1134,8 @@ TEST_F(TCPSocketTest, no_fd_leak_in_retry_loop)
 #ifndef __linux__
   GTEST_SKIP() << "Counting open file descriptors via /proc/self/fd is Linux-only";
 #else
-  const int dead_port = 12321;
+  RefusedPort refused;
+  const int dead_port = refused.getPort();
   const size_t slack = 4;
 
   const size_t baseline = countOpenFds();

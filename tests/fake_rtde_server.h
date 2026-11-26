@@ -23,6 +23,16 @@ public:
   RTDEServer() = delete;
   explicit RTDEServer(const int port);
 
+  /*!
+   * \brief Port the server is bound to.
+   *
+   * The constructor starts the socket. Pass 0 to let the kernel pick a free port and read it back here.
+   */
+  int getPort() const
+  {
+    return server_.getPort();
+  }
+
   virtual ~RTDEServer();
 
   void startSendingDataPackages();

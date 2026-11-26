@@ -50,7 +50,7 @@ class DashboardClientImplG5 : public DashboardClientImpl, comm::TCPSocket
 {
 public:
   DashboardClientImplG5() = delete;
-  DashboardClientImplG5(const std::string& host);
+  DashboardClientImplG5(const std::string& host, const int port = DASHBOARD_SERVER_PORT);
 
   ~DashboardClientImplG5() override = default;
 

@@ -83,6 +83,28 @@ TEST(version_information, test_relations)
   EXPECT_LT(v5, v4);
 }
 
+TEST(version_information, test_relations_higher_bugfix_with_lower_build)
+{
+  // The build number must only be compared when major, minor and bugfix are equal
+  auto newer = VersionInformation::fromString("5.9.4.100");
+  auto older = VersionInformation::fromString("5.9.3.200");
+
+  EXPECT_LT(older, newer);
+  EXPECT_LE(older, newer);
+  EXPECT_GT(newer, older);
+  EXPECT_GE(newer, older);
+  EXPECT_FALSE(newer < older);
+  EXPECT_FALSE(newer <= older);
+  EXPECT_FALSE(older > newer);
+  EXPECT_FALSE(older >= newer);
+
+  // A version without build number is newer than an older bugfix release with a build number
+  auto without_build = VersionInformation::fromString("5.9.4");
+  auto with_build = VersionInformation::fromString("5.9.3.1010107");
+  EXPECT_GT(without_build, with_build);
+  EXPECT_FALSE(without_build < with_build);
+}
+
 TEST(version_information, test_invalid_inputs)
 {
   const std::string oversized_major = "99999999999999999999.1.1";

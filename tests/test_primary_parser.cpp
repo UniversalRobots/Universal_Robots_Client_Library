@@ -465,10 +465,10 @@ TEST_F(PrimaryParserTest, parse_version_message)
 TEST_F(PrimaryParserTest, parse_hardware_info_message)
 {
   const auto parse_and_check = [this](const uint8_t robot_type_id, const RobotType expected_robot_type) {
-    constexpr size_t ROBOT_TYPE_ID_OFFSET = 18;
+    constexpr size_t robot_type_id_offset = 18;
     unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
     memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
-    raw_data[ROBOT_TYPE_ID_OFFSET] = robot_type_id;
+    raw_data[robot_type_id_offset] = robot_type_id;
     comm::BinParser bp(raw_data, sizeof(raw_data));
 
     std::unique_ptr<primary_interface::PrimaryPackage> product;
@@ -505,12 +505,12 @@ TEST_F(PrimaryParserTest, parse_hardware_info_message)
 
 TEST_F(PrimaryParserTest, hardware_info_control_box_accepts_both_numberings)
 {
-  static constexpr size_t CONTROL_BOX_OFFSET = 21;
+  static constexpr size_t control_box_offset = 21;
   const auto control_box = [this](const uint8_t wire) {
     unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
     memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
-    raw_data[CONTROL_BOX_OFFSET] = 0x00;
-    raw_data[CONTROL_BOX_OFFSET + 1] = wire;
+    raw_data[control_box_offset] = 0x00;
+    raw_data[control_box_offset + 1] = wire;
     comm::BinParser bp(raw_data, sizeof(raw_data));
     std::unique_ptr<primary_interface::PrimaryPackage> product;
     EXPECT_TRUE(parser_.parse(bp, product));
@@ -528,12 +528,12 @@ TEST_F(PrimaryParserTest, hardware_info_control_box_accepts_both_numberings)
 
 TEST_F(PrimaryParserTest, hardware_info_tool_flange_accepts_wire_values)
 {
-  static constexpr size_t TOOL_FLANGE_OFFSET = 25;
+  static constexpr size_t tool_flange_offset = 25;
   const auto tool_flange = [this](const uint8_t wire) {
     unsigned char raw_data[sizeof(HARDWARE_INFO_MESSAGE)];
     memcpy(raw_data, HARDWARE_INFO_MESSAGE, sizeof(HARDWARE_INFO_MESSAGE));
-    raw_data[TOOL_FLANGE_OFFSET] = 0x00;
-    raw_data[TOOL_FLANGE_OFFSET + 1] = wire;
+    raw_data[tool_flange_offset] = 0x00;
+    raw_data[tool_flange_offset + 1] = wire;
     comm::BinParser bp(raw_data, sizeof(raw_data));
     std::unique_ptr<primary_interface::PrimaryPackage> product;
     EXPECT_TRUE(parser_.parse(bp, product));

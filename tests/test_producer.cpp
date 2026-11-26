@@ -48,7 +48,7 @@ class ProducerTest : public ::testing::Test
 protected:
   void SetUp()
   {
-    server_.reset(new TestableTcpServer(60002));
+    server_.reset(new TestableTcpServer(0));
     server_->start();
   }
 
@@ -63,7 +63,7 @@ protected:
 
 TEST_F(ProducerTest, get_data_package)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 60002);
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", server_->getPort());
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
   parser.setExpectedDataPackage(test::typedPackage(recipe, { DataType::DOUBLE }));
@@ -100,7 +100,8 @@ TEST_F(ProducerTest, get_data_package)
 
 TEST_F(ProducerTest, connect_non_connected_robot)
 {
-  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", 12321);
+  RefusedPort refused;
+  comm::URStream<rtde_interface::RTDEPackage> stream("127.0.0.1", refused.getPort());
   std::vector<std::string> recipe = { "timestamp" };
   rtde_interface::RTDEParser parser(recipe);
   parser.setProtocolVersion(2);

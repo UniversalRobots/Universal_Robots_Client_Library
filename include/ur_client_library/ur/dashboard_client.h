@@ -59,8 +59,18 @@ public:
    * \brief Constructor that shall be used by default
    *
    * \param host IP address of the robot
+   * \param client_policy Which dashboard server the robot runs
    */
   DashboardClient(const std::string& host, const ClientPolicy client_policy = ClientPolicy::G5);
+
+  /*!
+   * \brief Constructor for a dashboard server on a non-default port
+   *
+   * \param host IP address of the robot
+   * \param client_policy Which dashboard server the robot runs
+   * \param port Port of the dashboard server. Only used with ClientPolicy::G5.
+   */
+  DashboardClient(const std::string& host, const ClientPolicy client_policy, const int port);
   DashboardClient() = delete;
   virtual ~DashboardClient() = default;
 

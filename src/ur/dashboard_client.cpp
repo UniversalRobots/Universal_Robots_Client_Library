@@ -48,10 +48,15 @@ using namespace std::chrono_literals;
 namespace urcl
 {
 DashboardClient::DashboardClient(const std::string& host, const ClientPolicy client_policy)
+  : DashboardClient(host, client_policy, DashboardClientImplG5::DASHBOARD_SERVER_PORT)
+{
+}
+
+DashboardClient::DashboardClient(const std::string& host, const ClientPolicy client_policy, const int port)
 {
   if (client_policy == ClientPolicy::G5)
   {
-    impl_ = std::make_shared<DashboardClientImplG5>(host);
+    impl_ = std::make_shared<DashboardClientImplG5>(host, port);
   }
   else if (client_policy == ClientPolicy::POLYSCOPE_X)
   {

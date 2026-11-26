@@ -57,13 +57,12 @@ namespace
 // Blocking receive covers parsing on this thread. Background receive and input submission measure
 // the calling thread (copying the latest sample / copying into the store buffer); parsing and
 // serialization themselves are covered by the same-thread tests below.
-thread_local std::size_t allocation_count = 0;
-thread_local bool count_allocations = false;
+thread_local std::size_t g_allocation_count = 0;
+thread_local bool g_count_allocations = false;
 // Stores the pointer from the guard allocation so the compiler cannot prove the new/delete pair
 // is unused and omit the call to the replaced operator new (GCC's allocation DCE at -O2).
-void* volatile allocation_sink = nullptr;
+void* volatile g_allocation_sink = nullptr;
 
-constexpr int FAKE_RTDE_PORT = 60005;
 constexpr double RTDE_FREQUENCY = 125.0;
 constexpr int WARMUP_CYCLES = 10;
 constexpr int MEASURED_CYCLES = 50;
@@ -76,18 +75,18 @@ class AllocationCounter
 public:
   AllocationCounter()
   {
-    allocation_count = 0;
-    count_allocations = true;
+    g_allocation_count = 0;
+    g_count_allocations = true;
   }
 
   ~AllocationCounter()
   {
-    count_allocations = false;
+    g_count_allocations = false;
   }
 
   std::size_t count() const
   {
-    return allocation_count;
+    return g_allocation_count;
   }
 };
 }  // namespace
@@ -101,9 +100,9 @@ public:
 
 void* operator new(std::size_t size)
 {
-  if (count_allocations)
+  if (g_count_allocations)
   {
-    ++allocation_count;
+    ++g_allocation_count;
   }
   void* memory = std::malloc(size == 0 ? 1 : size);
   if (memory == nullptr)
@@ -140,9 +139,9 @@ void operator delete[](void* memory, std::size_t) noexcept
 
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
-  if (count_allocations)
+  if (g_count_allocations)
   {
-    ++allocation_count;
+    ++g_allocation_count;
   }
   return std::malloc(size == 0 ? 1 : size);
 }
@@ -187,10 +186,10 @@ TEST(AllocationCounterTest, counts_allocations)
   std::size_t allocations = 0;
   {
     AllocationCounter counter;
-    allocation_sink = ::operator new(sizeof(int));
+    g_allocation_sink = ::operator new(sizeof(int));
     allocations = counter.count();
-    ::operator delete(allocation_sink);
-    allocation_sink = nullptr;
+    ::operator delete(g_allocation_sink);
+    g_allocation_sink = nullptr;
   }
   EXPECT_GT(allocations, 0);
 }
@@ -263,14 +262,14 @@ TEST(DataPackageAllocationTest, enabled_failure_diagnostics_are_not_allocation_f
 {
   struct DiagnosticHandler : LogHandler
   {
-    explicit DiagnosticHandler(size_t& calls) : calls_(calls)
+    explicit DiagnosticHandler(size_t& calls) : calls(calls)
     {
     }
     void log(const char*, int, LogLevel, const char*) override
     {
-      ++calls_;
+      ++calls;
     }
-    size_t& calls_;
+    size_t& calls;
   };
   struct RestoreLogger
   {
@@ -431,13 +430,13 @@ class RTDEAllocationTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    server_ = std::make_unique<RTDEServer>(FAKE_RTDE_PORT);
+    server_ = std::make_unique<RTDEServer>(0);
     // Skip the client's bootup check, which would otherwise read data for a second
     server_->setStartTime(std::chrono::steady_clock::now() - std::chrono::seconds(42));
     server_->setHighestAcceptedProtocolVersion(3);
 
     client_ = std::make_unique<rtde_interface::RTDEClient>("localhost", notifier_, output_recipe_, input_recipe_,
-                                                           RTDE_FREQUENCY, false, FAKE_RTDE_PORT);
+                                                           RTDE_FREQUENCY, false, server_->getPort());
     ASSERT_TRUE(client_->init());
   }
 

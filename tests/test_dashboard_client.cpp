@@ -412,9 +412,9 @@ TEST_F(DashboardClientTest, X_program_api)
 // disconnect must end that receive without waiting for its ten-second timeout.
 TEST(DashboardClientWelcomeTest, disconnect_interrupts_silent_welcome)
 {
-  TestableTcpServer server(29999);
+  TestableTcpServer server(0);
   server.start();
-  DashboardClientImplG5 client("127.0.0.1");
+  DashboardClientImplG5 client("127.0.0.1", server.getPort());
   bool connected = false;
   std::exception_ptr connection_error;
   std::thread connection([&]() {
@@ -448,9 +448,9 @@ TEST(DashboardClientWelcomeTest, disconnect_interrupts_silent_welcome)
 // that leaves every later external connect() unable to try again.
 TEST(DashboardClientWelcomeTest, welcome_timeout_allows_external_retry)
 {
-  TestableTcpServer server(29999);
+  TestableTcpServer server(0);
   server.start();
-  DashboardClientImplG5 client("127.0.0.1");
+  DashboardClientImplG5 client("127.0.0.1", server.getPort());
 
   const auto first_started = std::chrono::steady_clock::now();
   const bool first_connected = client.connect(1);
@@ -698,9 +698,9 @@ MockG5ConnectResult connectAgainstVersionReply(DashboardClientImplG5& client, Te
 
 MockG5ConnectResult connectAgainstVersionReply(const std::string& version_line)
 {
-  TestableTcpServer server(29999);
+  TestableTcpServer server(0);
   server.start();
-  DashboardClientImplG5 client("127.0.0.1");
+  DashboardClientImplG5 client("127.0.0.1", server.getPort());
   auto result = connectAgainstVersionReply(client, server, version_line);
   client.disconnect();
   return result;
@@ -735,9 +735,9 @@ TEST(DashboardClientWelcomeTest, malformed_version_reply_fails_connect_without_t
 
 TEST(DashboardClientWelcomeTest, connect_can_retry_after_malformed_version_reply)
 {
-  TestableTcpServer server(29999);
+  TestableTcpServer server(0);
   server.start();
-  DashboardClientImplG5 client("127.0.0.1");
+  DashboardClientImplG5 client("127.0.0.1", server.getPort());
 
   const auto poisoned = connectAgainstVersionReply(client, server, "URSoftware 99999999999999999999.1.1 (a2025)");
   EXPECT_FALSE(poisoned.threw) << poisoned.exception_what;

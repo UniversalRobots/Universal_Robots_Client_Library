@@ -161,6 +161,67 @@ private:
   std::vector<std::unique_ptr<urcl::comm::TCPSocket>> queued_connections_;
 };
 
+// Loopback port that refuses connections. On Linux and Windows the port stays bound, without
+// listening, for as long as this object is alive, so no other test can take it. macOS silently
+// drops a SYN to a bound socket that is not listening instead of refusing it, so there the port is
+// released straight away and another process could, in principle, take it.
+class RefusedPort
+{
+public:
+  RefusedPort()
+  {
+#ifdef _WIN32
+    WSADATA data;
+    ::WSAStartup(MAKEWORD(1, 1), &data);
+#endif
+    fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd_ == INVALID_SOCKET)
+    {
+      ADD_FAILURE() << "RefusedPort: could not create socket";
+      return;
+    }
+    sockaddr_in address;
+    std::memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(0);
+    socklen_t address_len = sizeof(address);
+    if (::bind(fd_, reinterpret_cast<sockaddr*>(&address), address_len) != 0 ||
+        ::getsockname(fd_, reinterpret_cast<sockaddr*>(&address), &address_len) != 0)
+    {
+      ADD_FAILURE() << "RefusedPort: could not bind an ephemeral port";
+      ur_close(fd_);
+      fd_ = INVALID_SOCKET;
+      return;
+    }
+    port_ = ntohs(address.sin_port);
+#ifdef __APPLE__
+    ur_close(fd_);
+    fd_ = INVALID_SOCKET;
+#endif
+  }
+
+  ~RefusedPort()
+  {
+    if (fd_ != INVALID_SOCKET)
+    {
+      ur_close(fd_);
+    }
+  }
+
+  RefusedPort(const RefusedPort&) = delete;
+  RefusedPort& operator=(const RefusedPort&) = delete;
+
+  int getPort() const
+  {
+    return port_;
+  }
+
+private:
+  socket_t fd_ = INVALID_SOCKET;
+  int port_ = 0;
+};
+
 bool robotVersionLessThan(const std::string& robot_ip, const std::string& robot_version)
 {
   urcl::comm::INotifier notifier;
