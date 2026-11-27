@@ -1,9 +1,25 @@
 Migration notes
 ===============
 
-This document contains notes on the migration of the ur_client_library between major versions.
+This document describes compatibility when upgrading the UR Client Library and lists breaking
+changes that may require migration.
 
-It contains only breaking changes.
+Compatibility when upgrading
+-----------------------------
+
+* **C++ source API:** The public API is intended to remain source-compatible within a major
+  release series. An application using the public API should still build against a newer minor
+  or patch release in that series.
+* **C++ binary ABI:** Binary compatibility is not guaranteed, even within a major release
+  series. Rebuild and relink applications against the new library instead of replacing the
+  library under an existing binary.
+* **Robot software:** Check :doc:`polyscope_compatibility` for supported PolyScope versions and
+  feature-specific requirements. Library API compatibility does not imply that a feature is
+  available on a given robot software version.
+* **Custom URScript:** The wire protocols for interfaces such as the Reverse Interface and the
+  Trajectory Point Interface may change independently of the public C++ API. If your URScript
+  talks directly to these interfaces, review the protocol changes below and update the script
+  as needed when upgrading the library.
 
 Migrating from 1.x.x to 2.x.x
 -----------------------------
